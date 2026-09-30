@@ -1097,6 +1097,19 @@
   padding-bottom: var(--space-1);
 }
 
+.sb__profile-item {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.sb__profile-item .sb__profile-del {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 1;
+}
+
 .sb__profile {
   flex: 0 0 auto;
   min-width: 160px;

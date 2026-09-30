@@ -98,6 +98,7 @@ export function createScoreboard(props = {}) {
     const list = el('nav', { class: 'sb__profiles', 'aria-label': S.SB_PROFILE_LABEL });
     data.models.forEach((modelId) => {
       const stats = aggregate(modelId);
+      const item = el('div', { class: 'sb__profile-item' });
       const link = el(
         'a',
         {
@@ -108,7 +109,17 @@ export function createScoreboard(props = {}) {
         el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
       );
       if (String(modelId) === selectedModel) link.setAttribute('aria-current', 'page');
-      list.appendChild(link);
+      item.appendChild(link);
+      const delBtn = createButton({
+        label: '×',
+        variant: 'ghost',
+        size: 'sm',
+        ariaLabel: `${S.SB_PROFILE_DELETE || '删除模型档案'}：${modelId}`,
+        onClick: () => deleteProfile(modelId),
+      });
+      delBtn.el.classList.add('sb__profile-del');
+      item.appendChild(delBtn.el);
+      list.appendChild(item);
     });
 
     profilesHost.appendChild(el('h2', { id: 'sb-profile-title' }, S.SB_PROFILE_LABEL));
@@ -190,6 +201,50 @@ export function createScoreboard(props = {}) {
       );
     }
     return node;
+  }
+
+  /**
+   * 删除模型档案：档案本身与已存密钥同步删除，名下运行记录一并移入隔离区，
+   * 记分板的档案芯片随之消失。
+   * @param {string} modelId 档案编号
+   */
+  async function deleteProfile(modelId) {
+    const runIds = (data.matrix || [])
+      .map((row) => (row.cells || {})[modelId])
+      .flatMap((cell) => (cell && cell.run_ids) || [])
+      .filter(Boolean);
+    const ok = await confirmDialog({
+      title: t(S.SB_PROFILE_DELETE_TITLE || '删除模型档案「{id}」？', { id: modelId }),
+      messages: [
+        runIds.length
+          ? t(S.SB_PROFILE_DELETE_RUNS || '它名下的 {n} 条运行记录会一并移入隔离区（runs/_quarantine/manual-deletes/，可手工恢复），记分板不再显示这一列。', { n: runIds.length })
+          : (S.SB_PROFILE_DELETE_NO_RUNS || '它名下没有运行记录。'),
+        S.SB_PROFILE_DELETE_WARN || '档案本身与已保存的密钥会同步删除；之后需要到「模型档案」页重新新建。',
+      ],
+      confirmLabel: S.ACTION_DELETE || '删除',
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await api.del('/models', { params: { id: modelId, with_runs: '1' } });
+      const removed = (res && res.removed_runs || []).length;
+      const skipped = (res && res.skipped_busy || []).length;
+      showToast({
+        message: t(S.SB_PROFILE_DELETED || '档案「{id}」已删除', { id: modelId }),
+        detail: removed ? t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: removed }) : '',
+        kind: 'success',
+        duration: 5000,
+      });
+      if (skipped) {
+        showToast({ message: t(S.SB_PROFILE_BUSY_SKIP || '{n} 条记录正被对话/校验占用，这次没有删除', { n: skipped }), kind: 'warn', duration: 6000 });
+      }
+      if (String(selectedModel) === String(modelId)) selectedModel = '';
+      await load();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error', duration: 7000 });
+    }
   }
 
   /**

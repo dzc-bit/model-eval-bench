@@ -687,13 +687,38 @@ def scoreboard(cfg: dict) -> dict:
     }
 
 
+def _archive_run_record(cfg: dict, run: dict) -> str:
+    """把一条运行记录整目录移入隔离区并清理沙箱副本，返回归档路径。
+
+    模型改动已存档在记录目录的 diff.patch 里，沙箱是可重建的派生数据。
+    """
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run["run_id"])
+    if not os.path.isdir(run_dir_path):
+        raise errors.HarnessError(
+            errors.E_RUN_NOT_FOUND,
+            "运行记录目录不存在，可能已被删除。",
+            str(run.get("run_id") or ""),
+        )
+    quarantine_root = os.path.join(cfg["runs_root"], "_quarantine", "manual-deletes")
+    util.ensure_dir(quarantine_root)
+    target = os.path.join(quarantine_root, str(run.get("run_id") or "run"))
+    suffix = 2
+    while os.path.exists(target):
+        target = os.path.join(quarantine_root, "%s-%d" % (run.get("run_id"), suffix))
+        suffix += 1
+    shutil.move(run_dir_path, target)
+    sandbox_path = str(run.get("sandbox") or "")
+    if sandbox_path and os.path.isdir(sandbox_path):
+        util.remove_tree(sandbox_path)
+    return target
+
+
 def delete_run(cfg: dict, run_id: str) -> dict:
     """删除一条运行记录。
 
     遵循工作区的删除纪律：记录目录**整目录移入** runs/_quarantine/manual-deletes/
     （list_runs 不扫隔离区，统计里立刻消失；要恢复手工移回原位即可），
-    关联沙箱副本用 util.remove_tree 清掉（可重建的派生数据，模型改动已存档在
-    记录目录的 diff.patch 里）。对话或校验进行中拒绝删除。
+    关联沙箱副本用 util.remove_tree 清掉。对话或校验进行中拒绝删除。
     """
     with chat.exclusive(run_id, blocking=False) as acquired:
         if not acquired:
@@ -709,25 +734,8 @@ def delete_run(cfg: dict, run_id: str) -> dict:
             "这一轮正在校验中，等校验结束后再删除。",
             run_id,
         )
-    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
-    if not os.path.isdir(run_dir_path):
-        raise errors.HarnessError(
-            errors.E_RUN_NOT_FOUND,
-            "运行记录目录不存在，可能已被删除。",
-            run_id,
-        )
-    quarantine_root = os.path.join(cfg["runs_root"], "_quarantine", "manual-deletes")
-    util.ensure_dir(quarantine_root)
-    target = os.path.join(quarantine_root, str(run_id))
-    suffix = 2
-    while os.path.exists(target):
-        target = os.path.join(quarantine_root, "%s-%d" % (run_id, suffix))
-        suffix += 1
-    shutil.move(run_dir_path, target)
-    sandbox_path = str(run.get("sandbox") or "")
-    if sandbox_path and os.path.isdir(sandbox_path):
-        util.remove_tree(sandbox_path)
-    return {"run_id": run_id, "deleted": True, "archived_to": target}
+    archived_to = _archive_run_record(cfg, run)
+    return {"run_id": run_id, "deleted": True, "archived_to": archived_to}
 
 
 def _cell_stats(pair: List[dict]) -> dict:
@@ -976,7 +984,12 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
     return entry
 
 
-def delete_model(cfg: dict, model_id: str) -> dict:
+def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
+    """删除模型档案（连同已存密钥）；with_runs=True 时把名下运行记录一并移入隔离区。
+
+    记分板的档案芯片随「档案本身 + 名下记录」一起消失；正被对话/校验占用的
+    运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    """
     models = list_models(cfg)
     remaining = [m for m in models if str(m.get("id")) != str(model_id)]
     if len(remaining) == len(models):
@@ -984,4 +997,31 @@ def delete_model(cfg: dict, model_id: str) -> dict:
             errors.E_MODEL_NOT_FOUND, "找不到模型档案 %s，删除失败。" % model_id, str(model_id))
     config.update_models(remaining)
     keyring.remove_key(model_id)
-    return {"id": model_id, "deleted": True, "remaining": len(remaining)}
+    removed_runs: List[str] = []
+    skipped_busy: List[str] = []
+    if with_runs:
+        for run in list_runs(cfg):
+            if str(run.get("model") or "") != str(model_id):
+                continue
+            rid = str(run.get("run_id") or "")
+            if not rid or chat.send_active(rid):
+                if rid:
+                    skipped_busy.append(rid)
+                continue
+            with chat.exclusive(rid, blocking=False) as acquired:
+                if not acquired:
+                    skipped_busy.append(rid)
+                    continue
+                try:
+                    removed_runs.append(_archive_run_record(cfg, run))
+                except errors.HarnessError as exc:
+                    if exc.code == errors.E_RUN_NOT_FOUND:
+                        continue  # 记录目录已不在，视为已处理
+                    raise
+    return {
+        "id": model_id,
+        "deleted": True,
+        "remaining": len(remaining),
+        "removed_runs": removed_runs,
+        "skipped_busy": skipped_busy,
+    }

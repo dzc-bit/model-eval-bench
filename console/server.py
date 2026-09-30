@@ -387,7 +387,7 @@ def build_router() -> Router:
     r.add("GET", r"/api/models", lambda ctx: ({"models": runs.list_models(ctx["cfg"])}, "application/json; charset=utf-8"))
     r.add("POST", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or "")), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration", lambda ctx: (calibrate.enqueue(ctx["cfg"], str(ctx["body"].get("task") or ""), str(ctx["body"].get("model") or ""), _as_int(ctx["body"].get("trials"), 5)), "application/json; charset=utf-8"))
     r.add("GET", r"/api/calibration", lambda ctx: (calibrate.queue_status(ctx["cfg"], str(ctx["query"].get("task") or ""), str(ctx["query"].get("model") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration/cancel", lambda ctx: (calibrate.cancel(ctx["cfg"], str(ctx["body"].get("run_id") or "")), "application/json; charset=utf-8"))

@@ -312,6 +312,35 @@ def test_delete_run_refuses_while_chat_lock_held(cfg):
     assert out["deleted"] is True
 
 
+def test_delete_model_with_runs_archives_records(cfg, monkeypatch, tmp_path):
+    """删除档案可连带把名下运行记录移入隔离区；不带 with_runs 时记录保留。"""
+    store_run(cfg, "TEST-01__全删模型__20260101-000008", BACKEND_TASK, "全删模型", True, 100.0)
+    store_run(cfg, "TEST-01__全删模型__20260101-000009", BACKEND_TASK, "全删模型", False, 20.0)
+    shadow = tmp_path / "config.json"
+    shadow.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(runs.config, "CONFIG_PATH", str(shadow))
+    cfg["models"] = [{"id": "全删模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
+
+    out = runs.delete_model(cfg, "全删模型", with_runs=True)
+    assert out["deleted"] is True
+    assert sorted(os.path.basename(p) for p in out["removed_runs"]) == [
+        "TEST-01__全删模型__20260101-000008", "TEST-01__全删模型__20260101-000009",
+    ]
+    assert out["remaining"] == 0
+    assert all(os.path.isdir(p) for p in out["removed_runs"]), "记录应可恢复地躺在隔离区"
+    assert all(r.get("model") != "全删模型" for r in runs.list_runs(cfg))
+    import json as _json
+    assert _json.loads(shadow.read_text(encoding="utf-8"))["models"] == []
+
+    # 不带 with_runs：只删档案，记录保留
+    store_run(cfg, "TEST-01__留档模型__20260101-000010", BACKEND_TASK, "留档模型", True, 80.0)
+    cfg["models"] = [{"id": "留档模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
+    out2 = runs.delete_model(cfg, "留档模型")
+    assert out2["deleted"] is True
+    assert out2["removed_runs"] == []
+    assert any(r.get("model") == "留档模型" for r in runs.list_runs(cfg))
+
+
 # ---------------------------------------------------------------- 校准
 
 def test_calibration_queue_does_not_hold_drives(cfg, monkeypatch):
