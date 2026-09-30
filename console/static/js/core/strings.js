@@ -391,6 +391,7 @@ export const S = {
   BATCH_ITEM_MODEL_GONE: '档案已删除',
   BATCH_ITEM_MODEL_GONE_HINT:
     '这个模型档案已经被删掉了，下面这条是它当时跑出来的历史记录，成绩仍可在记分板按档案查看。',
+  BATCH_LEGACY_MECHANISM_NOTE: '（历史记录：盘符池机制已移除，现为文件夹沙箱）',
   BATCH_START: '开始跑批',
   BATCH_STARTING: '正在排队…',
   BATCH_STARTED: '跑批已开始',

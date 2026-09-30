@@ -286,7 +286,7 @@ const PREPARE_LOG_LINES = [
   '应用脱敏：删除 AGENTS.md §9 §15 §18',
   '全树 grep 绝对路径：无命中',
   'git init + 单提交 baseline',
-  'subst Q: → D:\\new model test\\sandboxes\\T2-04__kimi-k3',
+  'sandboxes\\T2-04__kimi-k3 工作区就绪',
   '沙箱就绪',
 ];
 
