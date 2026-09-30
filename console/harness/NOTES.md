@@ -208,3 +208,80 @@ CLI：`python console/harness/selfcheck.py`，退出码 0=通过 / 1=不通过�
   不再依赖 `GetConsoleOutputCP()`。
 - **回归**：修后 `python -m pytest console/harness/tests` → **81 passed**（0 红）；
   中文目录的 `list_subst()` 与内部路径逐字符一致。
+
+---
+
+## 五、外部 harness 调研与本项目取舍（2026-10-01）
+
+给任务 2/3 当地基：这里只记「源码里读到的机制 + 我们决定怎么用」，不是教程。
+调研范围是 DeepSeek 官方文档/仓库 + 社区 SWE 工具闭环 harness（deepseek-ai 官方
+没有独立的 agent harness 仓库，`DeepSeek-R1` README 只给推理模板与采样参数，
+不含历史装配规则，所以机制层结论主要取自 SWE-agent 系与官方 API 文档）。
+
+### 1. 来源（逐条可点开核对）
+
+- SWE-agent 历史压缩：https://github.com/SWE-agent/SWE-agent/blob/main/sweagent/agent/history_processors.py
+  （`LastNObservations`、`ClosedWindowHistoryProcessor`、`TagToolCallObservations`、`RemoveRegex`）
+- mini-swe-agent 循环与预算：https://github.com/SWE-agent/mini-swe-agent/blob/main/src/minisweagent/agents/default.py
+  （`cost_limit: float = 3.0`、`step_limit`、超预算时 `add_message` 记 exit 并停止）
+- DeepSeek 思考模式与 `reasoning_content` 回传要求：
+  https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
+- DeepSeek 多轮对话（接口无状态，历史由客户端拼接）：
+  https://api-docs.deepseek.com/zh-cn/guides/multi_round_chat
+- DeepSeek-R1 README（`<think>` 起始符、温度 0.5–0.7、不给多轮历史管理规则）：
+  https://github.com/deepseek-ai/DeepSeek-R1
+
+### 2. 工具系统
+
+| 别处怎么做 | 证据 | 本项目取舍 |
+| --- | --- | --- |
+| 工具粒度极粗：一个 `bash` + 一个编辑工具，靠命令本身完成读写 | mini-swe-agent `default.py` 只有 `execute_bash`/编辑动作 | **不采纳**：评测台要让模型少碰 shell，`list_files/read_file/write_file/run_command` 四个动词更好审计，也不给模型绕过命令白名单的口子 |
+| 大输出「进历史前」先降级：旧 observation 换成一行 `Old environment output: (N lines omitted)` | `history_processors.py:LastNObservations` | **改造后采纳**：只压缩**往后续轮重发的历史工具返回**，当前轮刚拿到的结果保持全量（截断上限不变），否则模型下一步就没依据了 |
+| 同一文件多次展示时，只保留**最后一次**的窗口，旧的降级为 `Outdated window with N lines omitted...` | `history_processors.py:ClosedWindowHistoryProcessor` | **采纳**：`read_file` 同一路径被反复读时，历史里只留最新一次的原文，旧的换成「已被后续读取覆盖（N 行省略）」 |
+| 错误以「模型能照做的一句话」返回，不带堆栈 | SWE-agent / mini-swe-agent 的 observation 文案风格 | **已是本项目风格**（`{"error": "只允许运行 git、python/pytest…"}`），继续保持单键 JSON + 中文可操作文案，不加 traceback |
+| 预算触发就停（`cost_limit`/`step_limit`） | mini-swe-agent `default.py` | **不采纳**：工具轮数不设上限是评测口径的一部分（模型自己收束），预算只用于**压缩**，不用于**掐断** |
+
+安全红线（路径限制在沙箱内、命令白名单、超时、输出上限）在这份取舍里只加不减：
+摘要化只发生在「重发给模型的历史」这一份视图里，`chat.jsonl` 与沙箱落盘不变。
+
+### 3. 内容装配
+
+- 接口无状态，历史必须由客户端拼：DeepSeek 官方多轮对话文档明确
+  「服务端不记录用户请求的上下文」「需将之前所有对话历史拼接好后传递」。
+  → **采纳**：现状就是客户端全量拼接，不动。
+- `reasoning_content` 回传策略（关键，和交接单的猜测相反）：DeepSeek 思考模式文档写明
+  「若请求**未携带 `tools` 参数**：`reasoning_content` 无需回传，即使传入也会被忽略」；
+  「若请求**携带 `tools` 参数**：历史轮次的 `reasoning_content` 均应回传……后续所有请求中
+  必须完整回传」，回传错了 API 直接 400。
+  → **采纳（保持现状）**：工作台内置对话每一发请求都带 `tools`，所以历史里的
+  `reasoning_content`/`reasoning` **继续原样带回**，不做丢弃也不做折叠。
+  窗口裁剪时它也参与体积计算，但**不单独因为思维链长而把整轮裁掉**——这是任务 2 的约束。
+- R1 README 只要求每轮输出以 `<think>` 开头、温度 0.5–0.7，不给历史管理规则。
+  → **不采纳**：harness 不替模型伪造思维链（服务商不返回就留空），与 AGENTS.md 的验收口径一致。
+
+### 4. 上下文压缩
+
+- `LastNObservations` 的两条硬规矩值得照搬：
+  1) **第一条永不删**（他们的理由：第一条是 instance template，即任务本体）；
+  2) **只删 observation 类消息**，删之前 `assert message_type == "observation"`，
+     绝不让一个动作和它的结果被拆散。
+  → **采纳**：映射到我们这就是「第一条 user（题目提示词）永远保留」+
+  「只摘要/裁剪 tool 消息，assistant 的 `tool_calls` 与其 tool 响应必须同进同出」，
+  否则 OpenAI 兼容接口会因为 tool 消息找不到对应 `tool_call_id` 直接 400。
+- 他们自己的评估：「多数 SotA 模型上下文已经很够，这个历史处理器现在不一定需要」，
+  但需要时是**降级而非整轮丢弃**。
+  → **采纳**：本项目的 bug 正是「单轮 100+ 条消息 → 续轮整轮被裁 → 模型失忆重做」，
+  修法按这条来：**先压缩（摘要化 tool 返回），压到还超预算才丢最老的整轮**，
+  且最新一轮永远保留（哪怕它自己就超预算，只把它内部压小）。
+- mini-swe-agent 的窗口是「按消息条数 + 成本」双约束。
+  → **改造后采纳**：`config.json` 的 `chat` 节给两个闸门——`max_history`（条）
+  与 `max_context_chars`（字符），任一先到就开始压缩；前端展示走**完整记录**，
+  与发给模型的窗口是两套视图（`chat.messages()` 全量，`chat._model_history()` 受窗口约束）。
+- 摘要后必须留下的信息：**write_file 的路径与字节数**（模型要知道自己改过哪些文件，
+  否则第二轮会重复劳动或覆盖自己的成果）。
+  → **采纳**：写类动作的摘要不参与「省略」，只允许正文降级。
+
+> 与本项目架构冲突的一处：SWE-agent 系用 `message_type`/`tags` 给消息打标签来决定
+> 保留什么，我们没有这层元数据（`chat.jsonl` 是 OpenAI 原始消息形态）。
+> 这里不引入新字段（不改历史数据文件），改为**按 role + 工具名推断**：
+> `tool` 消息按 `name` 分类，`write_file` 归「必须保留动作」，其余按行数降级。
