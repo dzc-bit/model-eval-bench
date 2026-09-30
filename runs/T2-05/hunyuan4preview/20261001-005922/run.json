@@ -4,10 +4,10 @@
   "model": "hunyuan4preview",
   "attempt": 2,
   "attempts_allowed": 2,
-  "status": "ready",
+  "status": "graded",
   "created_at": "2026-10-01T00:59:22",
-  "updated_at": "2026-10-01T01:41:40",
-  "revealed": false,
+  "updated_at": "2026-10-01T01:58:05",
+  "revealed": true,
   "rounds": [
     {
       "attempt": 1,
@@ -16,6 +16,14 @@
       "invalidated": false,
       "graded_at": "2026-10-01T01:40:59",
       "report": "round-1.json"
+    },
+    {
+      "attempt": 2,
+      "score": 33.3,
+      "passed": false,
+      "invalidated": false,
+      "graded_at": "2026-10-01T01:57:26",
+      "report": "round-2.json"
     }
   ],
   "note": "",
