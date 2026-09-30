@@ -350,7 +350,7 @@ export const api = {
    * @returns {Promise<any>}
    */
   del(path, opts = {}) {
-    return request({ method: 'DELETE', path, ...opts });
+    return request({ method: 'DELETE', path: withParams(path, opts.params), ...opts });
   },
 
   /**

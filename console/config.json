@@ -89,7 +89,8 @@
       "base_url": "",
       "model": "1",
       "key_masked": "",
-      "note": ""
+      "note": "",
+      "api_mode": "chat_completions"
     }
   ]
 }
