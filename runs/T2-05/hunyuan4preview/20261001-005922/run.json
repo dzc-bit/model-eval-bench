@@ -7,7 +7,7 @@
   "status": "graded",
   "created_at": "2026-10-01T00:59:22",
   "updated_at": "2026-10-01T01:58:05",
-  "revealed": true,
+  "revealed": false,
   "rounds": [
     {
       "attempt": 1,
