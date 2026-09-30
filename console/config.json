@@ -84,13 +84,14 @@
   },
   "models": [
     {
-      "id": "1",
+      "id": "hunyuan4preview",
       "protocol": "openai",
-      "base_url": "",
-      "model": "1",
+      "api_mode": "chat_completions",
+      "base_url": "http://127.0.0.1:20128/v1",
+      "model": "cbcn/hy4-preview",
       "key_masked": "",
-      "note": "",
-      "api_mode": "chat_completions"
+      "key_env": "",
+      "note": ""
     }
   ]
 }

@@ -37,6 +37,8 @@ const OPENAI_ENDPOINT_PATHS = {
 
 /** 档案编号合法性：小写字母、数字、连字符。 */
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+// 与服务端 upsert_model 的 key_env 校验同规则：环境变量名，不是密钥本身
+const KEY_ENV_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * 创建模型档案视图。
@@ -247,6 +249,13 @@ export function createModels(props = {}) {
     } else {
       modelField.update({ error: '' });
     }
+    const keyEnv = keyEnvField.getValue().trim();
+    if (keyEnv && !KEY_ENV_PATTERN.test(keyEnv)) {
+      keyEnvField.update({ error: S.MODELS_FIELD_KEY_ENV_INVALID });
+      ok = false;
+    } else {
+      keyEnvField.update({ error: '' });
+    }
     return ok;
   }
 
@@ -285,8 +294,14 @@ export function createModels(props = {}) {
       await load();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'SAVE_FAILED';
-      setText(formError, errorBody(code));
-      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+      const cannedTitle = errorTitle(code);
+      // 服务端对表单类错误会返回一句具体中文（如「key_env 必须是合法的服务端环境变量名。」），
+      // 比按码查到的通用标题更能指出错在哪个字段，优先展示
+      const backendMessage = err instanceof ApiError ? String(err.message || '').trim() : '';
+      const title = backendMessage || cannedTitle;
+      const detail = errorBody(code);
+      setText(formError, detail);
+      showToast({ message: title, detail, kind: 'error' });
     } finally {
       saveBtn.update({ loading: false });
     }
