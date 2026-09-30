@@ -1,0 +1,33 @@
+diff --git a/frontend/src/aiTypes.ts b/frontend/src/aiTypes.ts
+--- a/frontend/src/aiTypes.ts
++++ b/frontend/src/aiTypes.ts
+@@ -306,26 +306,10 @@
+ 
+ export function translateAiError(error: unknown): string {
+   if (error instanceof Error) {
+-    // 先按后端稳定码分支：码是契约，message 是给人看的文案，会随措辞变化。
+     const code = (error as Error & { code?: unknown }).code;
+-    const message = error.message;
+-    if (code === "ai_not_configured" || message.includes("ai_not_configured") || message.includes("尚未配置")) {
+-      return "AI 服务尚未配置，请点击右上角设置填写 base_url、API Key 和模型名。";
+-    }
+-    if (code === "ai_session_busy" || message.includes("ai_session_busy") || message.includes("仍在生成中")) {
+-      return "上一轮回答还在生成中，请等它结束（或点击停止）后再发送。";
+-    }
+-    if (code === "ai_upstream_error" || message.includes("ai_upstream_error") || message.includes("模型服务调用失败")) {
+-      // 后端 detail 里带着真正的病因（上下文超长 / 401 / 429 / 超时），
+-      // 整句换成固定文案等于让用户照着“检查网络”盲猜。
+-      const detail = error.message
+-        .replace(/^模型服务调用失败/u, "")
+-        .replace(/^[\s（）:：-]+/u, "")
+-        .trim();
+-      const tail = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail;
+-      return `模型服务调用失败，请检查网络、API Key 与服务商状态后重试。${
+-        tail ? `服务商返回：${tail}。` : ""
+-      }若是回答过长或上下文超限，请新建对话后拆小问题再问。`;
++    // 已归类的助手故障统一收口，未识别异常仍沿用服务端说明。
++    if (code === "ai_not_configured" || code === "ai_session_busy" || code === "ai_upstream_error") {
++      return "AI 请求失败，请稍后重试。";
+     }
+     return error.message;
+   }

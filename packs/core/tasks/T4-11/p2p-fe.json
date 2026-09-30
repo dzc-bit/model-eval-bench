@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "task": "T4-11",
+  "note": "沿用 T3-09 前端基础行为白名单，作为 T4-11 的回归基线（基线全绿、注入不红）。",
+  "tests": [
+    "src/marketRefresh.test.ts::detects weekend and lunch-break market phases in China time",
+    "src/marketRefresh.test.ts::uses lower refresh pressure outside trading and after failures",
+    "src/marketRefresh.test.ts::昨日追踪后台刷新不会提高整个行情模块的轮询频率"
+  ]
+}

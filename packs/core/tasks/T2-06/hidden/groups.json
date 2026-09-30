@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "task": "T2-06",
+  "note": "组 = 一个端口（附录 B 结构），四端口 + coherence + p2p 回归。coherence 权重最高：断言同一年分区在读、覆盖数、诊断健康三个口径上互相印证——损坏被静默吞掉时，三口径必然出现『读得出/数不出』或『数不出/报健康』的自相矛盾。p2p 白名单见任务根 p2p.json，任一条红 → 本轮作废（0 分）。",
+  "groups": [
+    {
+      "id": "exclusive_write_exit",
+      "weight": 1,
+      "port": "跨进程互斥：两个真进程对同一分区，第二个写者必须被挡住",
+      "tests": [
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes"
+      ]
+    },
+    {
+      "id": "atomic_replace_exit",
+      "weight": 1,
+      "port": "原子替换：任何时刻盘上是整旧或整新，写失败不破坏旧分区",
+      "tests": [
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact"
+      ]
+    },
+    {
+      "id": "corrupt_visibility_exit",
+      "weight": 1,
+      "port": "损坏可见：坏分区读侧必须响并登记，缺失仍是空表",
+      "tests": [
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data"
+      ]
+    },
+    {
+      "id": "health_exit",
+      "weight": 1,
+      "port": "健康暴露：诊断口径必须把损坏与未采集分开报",
+      "tests": [
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "跨口径一致：同一分区的读、覆盖数、健康三处答案互恰",
+      "tests": [
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

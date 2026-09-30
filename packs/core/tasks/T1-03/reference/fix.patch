@@ -1,0 +1,117 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -89,7 +89,11 @@
+ 
+ 
+ def _stream_error_code(exc: Exception) -> str:
+-    """流式失败只区分输入问题与其余异常，具体原因继续放在说明文本里。"""
++    """把流式异常转换成供页面稳定分支的机器可读类别。"""
++    if isinstance(exc, LocalDataUnavailable):
++        return "no_local_data"
++    if isinstance(exc, KeyError):
++        return "payload_error"
+     if isinstance(exc, ValueError):
+         return "validation_error"
+     return "request_failed"
+@@ -624,11 +628,17 @@
+             return
+         except AiError as exc:
+             self.server.state.log("error", f"ai chat failed: {exc}")
+-            # 响应已经开始后只释放生成器，连接关闭由消费端统一识别。
+-            generator.close()
++            self._write_ai_error_event(generator, exc.code, str(exc))
+         except Exception as exc:
+             self.server.state.log("error", f"ai chat failed: {exc}")
+-            generator.close()
++            self._write_ai_error_event(generator, "request_failed", str(exc))
++
++    def _write_ai_error_event(self, generator: Any, code: str, message: str) -> None:
++        generator.close()
++        try:
++            self._write_ndjson({"type": "error", "code": code, "message": message})
++        except ClientDisconnected:
++            return
+ 
+     def _run_ai_optimize_stream(self, payload: dict[str, Any]) -> None:
+         """Grid-search the strategy's numeric knobs, then one AI commentary."""
+diff --git a/backend/astock_backtester/ai/facade.py b/backend/astock_backtester/ai/facade.py
+--- a/backend/astock_backtester/ai/facade.py
++++ b/backend/astock_backtester/ai/facade.py
+@@ -432,7 +432,8 @@
+                 if event is None:
+                     break
+                 yield event
+-            # 哨兵表示本轮消费已经收口，之后不再追加队列外事件。
++            if error_holder:
++                yield error_holder[0]
+         finally:
+             # 只有 worker 从未启动时才在这里释放锁；worker 已启动的路径由
+             # worker 自己在 finally 里释放（客户端断开后它仍在运行）。
+diff --git a/frontend/src/aiTypes.ts b/frontend/src/aiTypes.ts
+--- a/frontend/src/aiTypes.ts
++++ b/frontend/src/aiTypes.ts
+@@ -305,13 +305,54 @@
+ };
+ 
+ export function translateAiError(error: unknown): string {
+-  if (error instanceof Error) {
+-    const code = (error as Error & { code?: unknown }).code;
+-    // 已归类的助手故障统一收口，未识别异常仍沿用服务端说明。
+-    if (code === "ai_not_configured" || code === "ai_session_busy" || code === "ai_upstream_error") {
+-      return "AI 请求失败，请稍后重试。";
+-    }
+-    return error.message;
+-  }
+-  return "AI 请求失败，请稍后重试。";
++  if (!(error instanceof Error)) {
++    return "AI 请求失败，请稍后重试。";
++  }
++
++  // 稳定类别决定处理建议；说明文本只承载诊断细节和旧版本兼容。
++  const code = (error as Error & { code?: unknown }).code;
++  const message = error.message;
++  if (code === "ai_not_configured") {
++    return "AI 服务尚未配置，请点击右上角设置填写 base_url、API Key 和模型名。";
++  }
++  if (code === "ai_session_busy") {
++    return "上一轮回答还在生成中，请等它结束（或点击停止）后再发送。";
++  }
++  if (code === "ai_upstream_error") {
++    const detail = message
++      .replace(/^模型服务调用失败/u, "")
++      .replace(/^[\s（）:：-]+/u, "")
++      .trim();
++    const tail = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail;
++    return `模型服务调用失败，请检查网络、API Key 与服务商状态后重试。${
++      tail ? `服务商返回：${tail}。` : ""
++    }若是回答过长或上下文超限，请新建对话后拆小问题再问。`;
++  }
++  if (code === "ai_session_not_found") {
++    return "没有找到这段对话，它可能已被删除。请刷新历史记录后重试。";
++  }
++  if (code === "ai_memory_not_found") {
++    return "没有找到这条长期记忆，它可能已被删除。请刷新记忆列表后重试。";
++  }
++  if (code === "request_failed") {
++    return "AI 请求失败，请稍后重试。";
++  }
++
++  if (message.includes("ai_not_configured") || message.includes("尚未配置")) {
++    return "AI 服务尚未配置，请点击右上角设置填写 base_url、API Key 和模型名。";
++  }
++  if (message.includes("ai_session_busy") || message.includes("仍在生成中")) {
++    return "上一轮回答还在生成中，请等它结束（或点击停止）后再发送。";
++  }
++  if (message.includes("ai_upstream_error") || message.includes("模型服务调用失败")) {
++    const detail = message
++      .replace(/^模型服务调用失败/u, "")
++      .replace(/^[\s（）:：-]+/u, "")
++      .trim();
++    const tail = detail.length > 160 ? `${detail.slice(0, 160)}…` : detail;
++    return `模型服务调用失败，请检查网络、API Key 与服务商状态后重试。${
++      tail ? `服务商返回：${tail}。` : ""
++    }若是回答过长或上下文超限，请新建对话后拆小问题再问。`;
++  }
++  return message || "AI 请求失败，请稍后重试。";
+ }

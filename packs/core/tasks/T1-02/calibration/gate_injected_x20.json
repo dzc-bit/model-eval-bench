@@ -1,0 +1,1855 @@
+{
+  "task": "T1-02",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T1-02\\inject\\patches\\0001-backend-holiday-table.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-02\\inject\\patches\\0002-frontend-calendar-window.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000275FF3E54E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000002984AAA94E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000002122AC794E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000235468494E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000002275EC594E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000278FB5194E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000258C15F94E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001EB172094E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001ED800894E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000002BC71CD94E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001BD65A494E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x0000020FF7B694E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x0000014C423894E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001823DE894E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001D13D0594E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000221540594E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001C9F7E494E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x00000236FFAD94E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x000001E96EB294E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "backend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+              "outcome": "failed",
+              "message": "AssertionError: 2026-01-01~2026-01-03 是法定节假日，不应出现交易日：[Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')]\nassert not {Timestamp('2026-01-01 00:00:00'), Timestamp('2026-01-02 00:00:00')}"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+              "outcome": "failed",
+              "message": "AssertionError: 后端节日表缺年份：[2026]\nassert not [2026]"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+              "outcome": "failed",
+              "message": "AssertionError: 2025 年两端节假日不一致：\n    仅后端有 [('2025-01-01', '2025-01-01'), ('2025-01-28', '2025-02-04'), ('2025-04-04', '2025-04-06'), ('2025-05-01', '2025-05-05'), ('2025-05-31', '2025-06-02'), ('2025-10-01', '2025-10-08')]\n    仅前端有 []\nassert [('2025-01-01...'2025-10-08')] == []\n  \n  Left contains 6 more items, first extra item: ('2025-01-01', '2025-01-01')\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
+              "outcome": "failed",
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x0000017F92CC94E0>('2025-01-29')"
+            }
+          ]
+        },
+        {
+          "id": "frontend_calendar_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "outcome": "failed",
+              "message": "expected true to be false // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "default_window_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "outcome": "failed",
+              "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "outcome": "failed",
+              "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 166,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T00:44:38"
+}

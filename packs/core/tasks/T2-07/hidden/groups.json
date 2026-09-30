@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "task": "T2-07",
+  "note": "pytest 侧分组。组 = 一条取消协议的独立出口；coherence 组权重最高，把三个取消时点（模型流中 / 工具批中 / 收尾轮中）各自压过全部三条协议——只修一个时点或一条协议，它仍然红。",
+  "groups": [
+    {
+      "id": "cancel_boundary_exit",
+      "weight": 1,
+      "port": "取消边界：停止后不再消费模型流、不再开新的模型调用，已生成内容保留并带停止说明",
+      "tests": [
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls"
+      ]
+    },
+    {
+      "id": "pairing_exit",
+      "weight": 1,
+      "port": "配对协议：被取消批次当场逐条补齐结果，停止后的历史直接合法（不靠下一轮修复兜底）",
+      "tests": [
+        "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+        "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+        "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn"
+      ]
+    },
+    {
+      "id": "lock_release_exit",
+      "weight": 1,
+      "port": "锁释放：停止收尾完成后会话锁立即可复用，重发请求不白等（连续停止也不累积）",
+      "tests": [
+        "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+        "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "跨时点一致性：流中 / 工具批中 / 收尾轮中三个时点停止后，会话都处于一致且立即可用的状态",
+      "tests": [
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+        "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

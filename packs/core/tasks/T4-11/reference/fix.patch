@@ -1,0 +1,220 @@
+diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtester/data/realtime.py
+--- a/backend/astock_backtester/data/realtime.py
++++ b/backend/astock_backtester/data/realtime.py
+@@ -295,8 +295,15 @@
+             # call with a newer wall-clock time can never clobber a
+             # generation-tracked snapshot.  Example: gen=5 (no-generation
+             # legacy) with t=10:05 must not overwrite gen=6 with t=10:00.
+-            # 简化快照覆盖逻辑：统一按快照更新时间戳比较先后，时间相同也允许覆盖
+-            should_update = snapshot.updated_at >= current.updated_at
++            if generation is not None:
++                should_update = generation > self._last_snapshot_generation
++            elif self._last_snapshot_generation > 0:
++                # A generation-tracked snapshot is present — a legacy
++                # (no-generation) call must never overwrite it, even
++                # when the legacy call has a newer wall-clock timestamp.
++                should_update = False
++            else:
++                should_update = snapshot.updated_at > current.updated_at
+             if should_update:
+                 self._last_successful_snapshot = snapshot.model_copy(deep=True)
+                 if generation is not None:
+@@ -595,17 +602,27 @@
+         try:
+             deadline = monotonic_time.monotonic() + self.breadth_time_budget
+             cancel_event = Event()
++            # The worker writes only to its private diagnostics list.  The caller
++            # publishes those diagnostics ONLY when the future completes within the
++            # budget; on timeout the private list is discarded so a late worker can
++            # never pollute the shared diagnostics.
++            worker_diagnostics: list[str] = []
+             executor = self._get_breadth_executor()
+-            # 外部诊断列表直接传入 worker 记录底层明细
+             future = executor.submit(
+-                self._call_live_breadth, diagnostics, deadline, cancel_event
++                self._call_live_breadth, worker_diagnostics, deadline, cancel_event
+             )
+         except Exception:
+             self._breadth_in_flight.release()
+             raise
++        future.add_done_callback(lambda _future: self._breadth_in_flight.release())
+         try:
+             remaining = max(0.0, deadline - monotonic_time.monotonic())
+             result = future.result(timeout=remaining)
++            # Double-check: even after future.result returns, the computation
++            # itself may have exhausted the budget.  Discard the result if so.
++            if monotonic_time.monotonic() > deadline:
++                raise TimeoutError
++            diagnostics.extend(worker_diagnostics)
+             return result
+         except TimeoutError:
+             cancel_event.set()
+@@ -615,9 +632,6 @@
+         except Exception as exc:
+             diagnostics.append(f"实时红绿家数接口失败：{exc}，已继续返回可用行情。")
+             return None
+-        finally:
+-            # 退出当前调用时释放通道锁，确保后来的刷新请求可以立刻发起
+-            self._breadth_in_flight.release()
+ 
+     def _fetch_live_sectors_with_budget(
+         self,
+@@ -1235,7 +1249,8 @@
+         deadline: float | None,
+         diagnostics: list[str],
+     ) -> bool:
+-        # 直接输出板块明细，由外层调用方根据快照结果决定是否丢弃
++        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
++            return False
+         if sector_rows_out is not None:
+             sector_rows_out[:] = rows
+         return True
+diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
+--- a/frontend/src/marketRefresh.ts
++++ b/frontend/src/marketRefresh.ts
+@@ -49,7 +49,9 @@
+   hasError = false,
+   missingBreadth = false
+ ): number {
+-  // 保持标准轮询节奏，不因部分字段缺失导致请求过于密集
++  if (!hasError && missingBreadth) {
++    return DEGRADED_RETRY_MS;
++  }
+   return refreshIntervalForPhase(phase, hasError);
+ }
+ 
+@@ -109,6 +111,8 @@
+       ? current.last_success_at ?? null
+       : snapshot.status === "unavailable"
+       ? current.last_success_at ?? null
++      : current.last_success_at && snapshot.updated_at && snapshot.updated_at < current.last_success_at
++      ? current.last_success_at
+       : snapshot.updated_at,
+     last_error: snapshot.status === "unavailable" ? snapshot.message : undefined,
+     next_refresh_ms: nextInterval
+diff --git a/scripts/run-full-market-import.py b/scripts/run-full-market-import.py
+--- a/scripts/run-full-market-import.py
++++ b/scripts/run-full-market-import.py
+@@ -120,36 +120,6 @@
+     return completed
+ 
+ 
+-_PARTITION_SESSIONS: dict[str, pd.DataFrame] = {}
+-
+-
+-def _persist_batch(warehouse: Warehouse, frames: list[pd.DataFrame]) -> None:
+-    """把一批行并进分区会话，再把会话整段落盘。
+-
+-    分区一旦开过会话就以会话为准：后续批次只跟内存里那份合并，不再回读磁盘。
+-    回读整段分区是这条路上最贵的一步（分区越大越贵），而写入方是按批次顺序
+-    推进的，磁盘上此刻的内容与自己上一批写下的那份本来就该一致。
+-    """
+-    frame = pd.concat(frames, ignore_index=True)
+-    frame["trade_date"] = pd.to_datetime(frame["trade_date"], errors="coerce")
+-    frame = frame.dropna(subset=["trade_date"])
+-    if frame.empty:
+-        return
+-    for year, year_frame in frame.groupby(frame["trade_date"].dt.year):
+-        path = warehouse._partition_path(int(year))
+-        key = str(path)
+-        session = _PARTITION_SESSIONS.get(key)
+-        if session is None:
+-            session = warehouse._safe_read_parquet(path) if path.exists() else pd.DataFrame()
+-        merged = pd.concat([session, year_frame], ignore_index=True)
+-        if {"symbol", "trade_date"}.issubset(merged.columns):
+-            merged = merged.drop_duplicates(subset=["symbol", "trade_date"], keep="last")
+-        merged = merged.sort_values(["symbol", "trade_date"]).reset_index(drop=True)
+-        _PARTITION_SESSIONS[key] = merged
+-        path.parent.mkdir(parents=True, exist_ok=True)
+-        warehouse._atomic_write_parquet(merged, path)
+-
+-
+ def fetch_daily_bars(symbol: str, start_date: str, end_date: str, adata_provider: ADataProvider) -> tuple[pd.DataFrame, str]:
+     frame = adata_provider.fetch_daily_bars(symbol, start_date, end_date)
+     if not frame.empty:
+@@ -211,7 +181,7 @@
+     parser.add_argument("--refresh-symbols", action="store_true")
+     parser.add_argument("--source", choices=["auto", "adata", "http"], default="http")
+     parser.add_argument("--workers", type=int, default=6)
+-    parser.add_argument("--write-batch-size", type=int, default=1)
++    parser.add_argument("--write-batch-size", type=int, default=25)
+     args = parser.parse_args()
+ 
+     cache_dir = Path(args.cache_dir)
+@@ -248,10 +218,7 @@
+         nonlocal imported_rows
+         if not batch:
+             return
+-        # 每只票各自过一次分区会话：批越小，中途失败时丢的行越少，进度事件也
+-        # 更贴近实际落盘节奏；批边界仍由上面的 --write-batch-size 决定。
+-        for _symbol, frame, _source, _seconds, _rows, _index in batch:
+-            _persist_batch(warehouse, [frame])
++        warehouse.write_daily_bars(pd.concat([item[1] for item in batch], ignore_index=True))
+         for symbol, _frame, source, seconds, rows, index in batch:
+             imported_rows += rows
+             append_jsonl(
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -213,14 +213,13 @@
+             raise
+ 
+     def invalidate_gap_profile(self) -> None:
+-        """写入后丢弃缺口画像缓存，让下一次读取反映最新数据。
+-
+-        股票池计数与每交易日行数缓存仍按各自的 TTL（10 分钟）自然过期：
+-        每落一批数据就把两个全局统计缓存打穿，会让写入期间的读路径反复重算，
+-        整体读成本反而更高。
+-        """
++        """写入后丢弃缺口画像、股票池计数与每交易日行数缓存，让下一次读取反映最新数据。"""
+         with self._gap_profile_lock:
+             self._gap_profile_cache = None
++        with self._symbol_count_lock:
++            self._symbol_count_cache = None
++        with self._trade_date_counts_lock:
++            self._trade_date_counts_cache = None
+ 
+     def cached_symbol_count(self) -> int | None:
+         """本地 OHLC 股票池规模（只读缓存；``None`` = 缓存未热）。
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -215,13 +215,15 @@
+             self._coverage_refreshed_at = datetime.now(UTC)
+ 
+     def health_payload(self) -> ServiceHealth:
+-        # 健康检查保持轻量：只回报进程身份、最近一次 coverage 快照与"服务在跑"，
+-        # 不在这里触发或等待任何刷新。覆盖数据由数据中心的读写链路与后台定时
+-        # 刷新推进，健康检查不参与。
++        refresh_finished = self.start_coverage_refresh()
++        if refresh_finished is not None:
++            refresh_finished.wait(HEALTH_COVERAGE_WAIT_SECONDS)
++        with self._coverage_lock:
++            coverage_refreshing = self._coverage_refreshing
+         return ServiceHealth(
+             **self.identity_payload(),
+             coverage=self.coverage_snapshot(),
+-            coverage_refreshing=False,
++            coverage_refreshing=coverage_refreshing,
+         )
+ 
+     def diagnostics_payload(self) -> dict[str, Any]:
+diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
+--- a/backend/astock_backtester/data/operations.py
++++ b/backend/astock_backtester/data/operations.py
+@@ -44,10 +44,11 @@
+ # 三五天的窗口上抖动太大，分类结果不可信，此时退回平日历口径（旧行为）。
+ MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 5
+ 
+-# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时
+-# 之后不再叠加应用层重试：锁本身已经等了 120 秒，退避重试只是把写入方彼此
+-# 排队的时间再乘一遍重试次数，同时写库的程序越多、整体越慢。
+-WRITE_LOCK_RETRY_ATTEMPTS = 1
++# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时后的
++# 有界重试：抓取结果此刻还在内存里，锁持有者崩溃时 OS 会自动释放锁，短退避后再试
++# 一次就能避免整批数据被丢掉并变成 HTTP 400。3 次 = 首次 + 2 次重试，
++# 退避 0.5s/1.0s 线性递增（总等待 ≤ 1.5s，远小于锁本身的 120s 预算）。
++WRITE_LOCK_RETRY_ATTEMPTS = 3
+ WRITE_LOCK_RETRY_BACKOFF_SECONDS = 0.5
+ 
+ 

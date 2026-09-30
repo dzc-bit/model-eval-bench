@@ -1,0 +1,37 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -89,11 +89,7 @@
+ 
+ 
+ def _stream_error_code(exc: Exception) -> str:
+-    """Stable machine-readable error codes consumed by the frontend."""
+-    if isinstance(exc, LocalDataUnavailable):
+-        return "no_local_data"
+-    if isinstance(exc, KeyError):
+-        return "payload_error"
++    """流式失败只区分输入问题与其余异常，具体原因继续放在说明文本里。"""
+     if isinstance(exc, ValueError):
+         return "validation_error"
+     return "request_failed"
+@@ -628,17 +624,11 @@
+             return
+         except AiError as exc:
+             self.server.state.log("error", f"ai chat failed: {exc}")
+-            self._write_ai_error_event(generator, exc.code, str(exc))
++            # 响应已经开始后只释放生成器，连接关闭由消费端统一识别。
++            generator.close()
+         except Exception as exc:
+             self.server.state.log("error", f"ai chat failed: {exc}")
+-            self._write_ai_error_event(generator, "request_failed", str(exc))
+-
+-    def _write_ai_error_event(self, generator: Any, code: str, message: str) -> None:
+-        generator.close()
+-        try:
+-            self._write_ndjson({"type": "error", "code": code, "message": message})
+-        except ClientDisconnected:
+-            return
++            generator.close()
+ 
+     def _run_ai_optimize_stream(self, payload: dict[str, Any]) -> None:
+         """Grid-search the strategy's numeric knobs, then one AI commentary."""

@@ -1,0 +1,69 @@
+{
+  "task": "T2-04",
+  "state": "fixed",
+  "repo": "D:\\New project 6",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0001-operations.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0002-sync.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0003-warehouse.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\reference\\fix.patch"
+  ],
+  "touched_files": [
+    "backend/astock_backtester/data/operations.py",
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/data/warehouse.py"
+  ],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 100.0,
+      "weight_passed": 6,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-29T23:04:46"
+}

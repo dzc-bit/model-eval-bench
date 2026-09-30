@@ -1,0 +1,170 @@
+diff --git a/backend/astock_backtester/data/filelock.py b/backend/astock_backtester/data/filelock.py
+--- a/backend/astock_backtester/data/filelock.py
++++ b/backend/astock_backtester/data/filelock.py
+@@ -1,12 +1,15 @@
+-"""数据仓写入的哨兵文件协调器。
++"""跨进程文件锁 —— 数据仓写入互斥的最小实现。
+ 
+-写入方对同一分区各自认领一个 ``<target>.lock`` 哨兵文件，靠它的存在性
+-表达"我准备写这里"：进入临界区前创建哨兵，写完保持原样（下次直接复用，
+-避免 unlink/reopen 竞态）。只要双方都遵守这个约定，文件系统层面就有一
+-个共同的落点可以核对，排查并发问题时也有了明确的现场。
++为什么需要：`Warehouse.write_daily_bars` 是 read-modify-write + 整文件覆盖。
++桌面端 sidecar 与外部补齐脚本同时运行时，两方交错的「读 → 合 → 写」会
++**丢失更新**（后写者覆盖先写者）并可能产生 **撕裂写**（一方读到另一方
++写到一半的文件 → parquet footer 与数据块不匹配 → 分区损坏）。
+ 
+-保留 ``timeout`` 参数与超时异常，是为了兼容仍在等待旧锁语义的调用方；
+-默认等待时长保持 120 秒不变（写大分区 + 杀毒软件扫描时确实需要这么久）。
++`threading.Lock` 只在单进程内有效，因此这里用操作系统级文件锁：
++- Windows：`msvcrt.locking`（锁 1 字节区域）
++- POSIX：`fcntl.flock`
++
++锁的持有者是**文件描述符**，进程崩溃时由 OS 自动释放，不会留下死锁。
+ """
+ 
+ from __future__ import annotations
+@@ -94,7 +97,7 @@
+         try:
+             deadline = time.monotonic() + self.timeout
+             while True:
+-                if self._claim_sentinel(handle):
++                if _try_lock_file(handle):
+                     self._handle = handle
+                     return
+                 if time.monotonic() >= deadline:
+@@ -103,16 +106,6 @@
+         except BaseException:
+             handle.close()
+             raise
+-
+-    @staticmethod
+-    def _claim_sentinel(handle) -> bool:
+-        """认领哨兵：文件可打开即视为拿到了协调位。
+-
+-        各写入方的哨兵本来就是各自创建、各自可见的，再叠加字节级锁定
+-        只会让持有方之外的所有访问都排队；写入方按序落盘已经足够。
+-        """
+-        handle.seek(0)
+-        return not handle.read(1)
+ 
+     def release(self) -> None:
+         handle = self._handle
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -178,8 +178,8 @@
+             path = self._partition_path(int(year))
+             path.parent.mkdir(parents=True, exist_ok=True)
+             year_frame = year_frame.drop(columns=["year"])
+-            # 写入方先认领哨兵再落盘（filelock 模块）：桌面端 sidecar 与
+-            # 外部脚本各自核对协调位，避免同一分区的无序写。
++            # 跨进程互斥：read-modify-write 必须互斥，否则桌面端 sidecar 与
++            # 外部脚本并发写同一分区会丢失更新甚至撕裂文件（footer 不匹配）。
+             with CrossProcessFileLock(path):
+                 if path.exists():
+                     current = self._safe_read_parquet(path)
+@@ -197,13 +197,20 @@
+ 
+     @staticmethod
+     def _atomic_write_parquet(frame: pd.DataFrame, path: Path) -> None:
+-        """落盘日线分区。
+-
+-        落盘路径在写入前已被哨兵协调（见 ``write_daily_bars``），这里保持
+-        尽量少的文件操作：直接写目标路径，不在同目录留下任何中间产物，
+-        失败时也不会有半截的临时文件残留需要清理。
+-        """
+-        frame.to_parquet(path, index=False)
++        """临时文件写完后 ``os.replace`` 原子替换。
++
++        ``to_parquet`` 直接写目标路径时会先 truncate 再逐块写，任何并发读取者
++        （包括桌面端自己读 coverage）都可能读到半成品并报
++        ``Parquet magic bytes not found in footer``。写到同目录下的临时文件再
++        ``os.replace`` 保证读取者要么看到旧文件、要么看到完整新文件。
++        """
++        tmp_path = path.with_name(f"{path.name}.{os.getpid()}.tmp")
++        try:
++            frame.to_parquet(tmp_path, index=False)
++            os.replace(tmp_path, path)
++        except BaseException:
++            tmp_path.unlink(missing_ok=True)
++            raise
+ 
+     def invalidate_gap_profile(self) -> None:
+         """写入后丢弃缺口画像、股票池计数与每交易日行数缓存，让下一次读取反映最新数据。"""
+@@ -1321,23 +1328,24 @@
+         return counts
+ 
+     def _safe_read_parquet(self, path: Path, **kwargs) -> pd.DataFrame:
+-        """Read a partition, tolerating absent and unreadable files.
++        """Read a partition, distinguishing "absent" from "unreadable".
+ 
+         A missing file legitimately means "no data yet" and yields an empty
+-        frame.  A file that exists but cannot be parsed is recorded in
+-        ``corrupt_partitions`` with the original error, then treated the same
+-        way: one bad partition must never take down every reader that walks
+-        the directory — callers get an empty frame and the diagnostic record
+-        keeps the evidence for the health surface to report.
++        frame.  A file that exists but cannot be parsed means the partition is
++        corrupt — silently returning an empty frame there disguises corruption
++        as *missing rows*, which sends sync into a re-download loop that gets
++        overwritten again next round.  The original error is re-raised
++        unchanged, and the path is recorded in ``corrupt_partitions`` so the UI
++        and AI tools can tell "corrupt" apart from "not collected yet".
+         """
+         try:
+             return pd.read_parquet(path, **kwargs)
+         except FileNotFoundError:  # 文件不存在 == 还没有数据
+             return pd.DataFrame()
+-        except Exception as exc:  # noqa: BLE001 - 按分区隔离后继续
++        except Exception as exc:  # noqa: BLE001 - re-raised unchanged
+             if path.exists():
+                 self._note_corrupt_partition(path, exc)
+-            return pd.DataFrame()
++            raise
+ 
+     def _note_corrupt_partition(self, path: Path, exc: Exception) -> None:
+         with self._corrupt_partitions_lock:
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -782,25 +782,35 @@
+             """缺口画像：停更分布 / 疑似写入失败日 / 字段尾部（warehouse 缓存，只读不触发抓取）。"""
+             try:
+                 profile = self.server.state.warehouse.data_gap_profile()
+-                # 画像里的缺口分布已经覆盖"哪些日子少数据"；健康口径只表达
+-                # 这个端点自己有没有把画像算出来，不掺具体分区细节。
++                # 分区损坏必须与"数据缺失"分开暴露：否则损坏会被当成缺口，
++                # 反复触发全量重拉（历史上正是"补了又没补上"的成因之一）。
++                corrupt = getattr(self.server.state.warehouse, "corrupt_partitions", None) or {}
+                 self._send_json(
+                     {
+                         "ok": bool(profile.get("available")),
+                         "generated_at": datetime.now(UTC).isoformat(),
+                         "profile": profile,
+-                        "warehouse_health": {"healthy": True},
++                        "warehouse_health": {
++                            "corrupt_partitions": corrupt,
++                            "healthy": not corrupt,
++                        },
+                     }
+                 )
+             except Exception as exc:
+                 self.server.state.log("error", f"data gap profile failed: {exc}")
++                # 画像失败时最需要 health：分区损坏正是 data_gap_profile() 抛异常的
++                # 常见原因，若不在这里带上，前端只能看到 400、把损坏误判为缺失。
++                corrupt = getattr(self.server.state.warehouse, "corrupt_partitions", None) or {}
+                 self._send_json(
+                     {
+                         "ok": False,
+                         "code": "request_failed",
+                         "message": str(exc),
+                         "profile": {"available": False},
+-                        "warehouse_health": {"healthy": False},
++                        "warehouse_health": {
++                            "corrupt_partitions": corrupt,
++                            "healthy": not corrupt,
++                        },
+                     },
+                     HTTPStatus.BAD_REQUEST,
+                 )

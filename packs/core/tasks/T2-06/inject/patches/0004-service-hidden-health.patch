@@ -1,0 +1,43 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -782,35 +782,25 @@
+             """缺口画像：停更分布 / 疑似写入失败日 / 字段尾部（warehouse 缓存，只读不触发抓取）。"""
+             try:
+                 profile = self.server.state.warehouse.data_gap_profile()
+-                # 分区损坏必须与"数据缺失"分开暴露：否则损坏会被当成缺口，
+-                # 反复触发全量重拉（历史上正是"补了又没补上"的成因之一）。
+-                corrupt = getattr(self.server.state.warehouse, "corrupt_partitions", None) or {}
++                # 画像里的缺口分布已经覆盖"哪些日子少数据"；健康口径只表达
++                # 这个端点自己有没有把画像算出来，不掺具体分区细节。
+                 self._send_json(
+                     {
+                         "ok": bool(profile.get("available")),
+                         "generated_at": datetime.now(UTC).isoformat(),
+                         "profile": profile,
+-                        "warehouse_health": {
+-                            "corrupt_partitions": corrupt,
+-                            "healthy": not corrupt,
+-                        },
++                        "warehouse_health": {"healthy": True},
+                     }
+                 )
+             except Exception as exc:
+                 self.server.state.log("error", f"data gap profile failed: {exc}")
+-                # 画像失败时最需要 health：分区损坏正是 data_gap_profile() 抛异常的
+-                # 常见原因，若不在这里带上，前端只能看到 400、把损坏误判为缺失。
+-                corrupt = getattr(self.server.state.warehouse, "corrupt_partitions", None) or {}
+                 self._send_json(
+                     {
+                         "ok": False,
+                         "code": "request_failed",
+                         "message": str(exc),
+                         "profile": {"available": False},
+-                        "warehouse_health": {
+-                            "corrupt_partitions": corrupt,
+-                            "healthy": not corrupt,
+-                        },
++                        "warehouse_health": {"healthy": False},
+                     },
+                     HTTPStatus.BAD_REQUEST,
+                 )

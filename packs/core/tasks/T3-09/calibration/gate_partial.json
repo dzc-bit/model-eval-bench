@@ -1,0 +1,132 @@
+{
+  "task": "T3-09",
+  "state": "partial",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T3-09\\inject\\patches\\0001-realtime-arbitration.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-09\\inject\\patches\\0002-frontend-market-degrade.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-09\\reference\\partial.patch"
+  ],
+  "runs": [
+    {
+      "score": 28.57,
+      "raw_score": 28.57,
+      "groups": [
+        {
+          "id": "single_flight_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "late_publish_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
+              "outcome": "failed",
+              "message": "AssertionError: 迟到 worker 诊断泄漏进了对外共享状态\nassert 'late-private-diagnostic-probe' not in ['实时红绿家数接口超时：0.03秒，已继续返回可用行情。', 'late-private-diagnostic-probe']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
+              "outcome": "failed",
+              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+            }
+          ]
+        },
+        {
+          "id": "generation_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
+              "outcome": "failed",
+              "message": "AssertionError: 旧世代快照覆盖了新世代快照：当前源为 gen-1-late\nassert 'gen-1-late' == 'gen-2'\n  \n  - gen-2\n  + gen-1-late"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot",
+              "outcome": "failed",
+              "message": "AssertionError: 无世代遗留快照覆盖了权威世代快照：当前源为 legacy-unversioned\nassert 'legacy-unversioned' == 'gen-5-authoritative'\n  \n  - gen-5-authoritative\n  + legacy-unversioned"
+            }
+          ]
+        },
+        {
+          "id": "chain_budget_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "frontend_degrade_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "outcome": "failed",
+              "message": "expected 60000 to be 45000 // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "outcome": "failed",
+              "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
+            },
+            {
+              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 131,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 28.57,
+  "score_max": 28.57,
+  "stable": true,
+  "finished_at": "2026-09-30T01:28:53"
+}

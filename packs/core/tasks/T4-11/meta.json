@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "T4-11",
+  "tier": "king",
+  "attempts": 3,
+  "status": "draft",
+  "title": "实时行情与写入链路同时失去唯一事实",
+  "summary": "压轴题：并发快照仲裁、降级刷新、跨进程写入与健康口径必须共同保持一致。",
+  "symptom": "行情会回退、写入会丢行、统计会滞后，单独修一条链仍会被另一条链的迟到或缓存状态打破。",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py+fe",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/realtime.py",
+    "backend/astock_backtester/data/warehouse.py",
+    "backend/astock_backtester/data/operations.py",
+    "backend/astock_backtester/service.py",
+    "scripts/run-full-market-import.py",
+    "frontend/src/marketRefresh.ts"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "frontend/vitest.config.ts",
+    "backend/astock_backtester/data/filelock.py",
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/ai/**",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_realtime.py::test_gen5_legacy_newer_timestamp_must_not_overwrite_gen6_generation_tracked",
+      "tests/test_realtime.py::test_heavy_breadth_success_does_not_populate_shared_cache",
+      "tests/test_realtime.py::test_late_breadth_worker_cannot_publish_diagnostics_after_timeout",
+      "tests/test_realtime.py::test_late_breadth_worker_writes_only_private_diagnostics",
+      "tests/test_realtime.py::test_late_sector_worker_cannot_publish_diagnostics_after_timeout",
+      "tests/test_realtime.py::test_local_snapshot_timeout_blocks_late_sector_member_cache_write",
+      "tests/test_realtime.py::test_mixed_generation_then_timestamp_arbitration",
+      "tests/test_realtime.py::test_older_realtime_request_cannot_overwrite_newer_success_snapshot",
+      "tests/test_realtime.py::test_realtime_provider_reports_partial_yesterday_limit_up_pool_after_request_budget",
+      "tests/test_realtime.py::test_realtime_provider_single_flight_waiter_rejects_expired_cache_after_owner_failure",
+      "tests/test_realtime.py::test_realtime_provider_single_flight_waiter_survives_completed_cache_clear",
+      "tests/test_realtime.py::test_realtime_provider_single_flights_cls_home_payload",
+      "tests/test_realtime.py::test_remember_without_generation_uses_strict_timestamp",
+      "tests/test_realtime.py::test_resilient_get_clamps_each_attempt_to_remaining_budget",
+      "tests/test_realtime.py::test_same_timestamp_reverse_completion_does_not_overwrite",
+      "tests/test_realtime.py::test_sector_timeout_cannot_commit_rows_after_publication_check",
+      "tests/test_realtime.py::test_sector_worker_does_not_publish_rows_after_wrapper_timeout",
+      "tests/test_realtime.py::test_single_flight_breadth_rejects_second_concurrent_request",
+      "tests/test_realtime.py::test_single_flight_local_snapshot_rejects_second_concurrent_request",
+      "tests/test_realtime.py::test_single_flight_remains_busy_after_wrapper_timeout_until_worker_finishes",
+      "tests/test_realtime.py::test_single_flight_sector_rejects_second_concurrent_request",
+      "tests/test_warehouse.py::test_market_trade_date_counts_caches_by_window_until_written",
+      "tests/test_realtime.py::test_symbol_count_cache_refresh_and_write_invalidation",
+      "tests/test_data_operations.py::test_fetch_daily_bars_retries_cache_write_after_lock_timeout",
+      "tests/test_data_operations.py::test_import_daily_bars_retries_cache_write_after_lock_timeout",
+      "tests/test_data_operations.py::test_fetch_capital_flow_retries_cache_write_after_lock_timeout",
+      "tests/test_data_service_http.py::test_service_health_returns_json_when_warehouse_coverage_fails",
+      "tests/test_data_service_http.py::test_service_health_does_not_restart_coverage_refresh_when_snapshot_is_fresh",
+      "tests/test_data_service_http.py::test_service_health_reports_warehouse_market_cap_and_capital_flow_coverage",
+      "tests/test_data_warehouse_concurrency.py::test_run_full_market_batches_writes_instead_of_per_symbol"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "5",
+        "9",
+        "15"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.1",
+        "1.5.2",
+        "1.6.0",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    },
+    {
+      "kind": "vitest",
+      "hidden": "hidden-fe/tests_hidden_fe",
+      "groups": "hidden-fe/groups_fe.json",
+      "p2p": "p2p-fe.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 420,
+    "diff_line_cap": 6000
+  },
+  "calibration": {
+    "target_band": [
+      0.0,
+      0.02
+    ],
+    "target_metric": "pass_at_3",
+    "calibrated": false
+  }
+}

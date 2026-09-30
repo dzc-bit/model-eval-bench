@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "id": "T2-05",
+  "tier": "medium",
+  "attempts": 2,
+  "title": "同一批数据反复起 worker；偶发 409 后再也起不来",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/service.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "backend/astock_backtester/data/warehouse.py",
+    "backend/astock_backtester/models.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_data_service_http.py::test_service_reports_reused_sync_admission_and_capacity_conflict",
+      "tests/test_sync_jobs.py::test_expired_terminal_job_records_are_pruned_with_their_markers",
+      "tests/test_sync_jobs.py::test_identical_in_flight_sync_is_reused_without_a_second_worker",
+      "tests/test_sync_jobs.py::test_pruning_protects_running_and_recently_read_jobs",
+      "tests/test_sync_jobs.py::test_service_level_budget_rejects_extra_jobs_with_running_ids",
+      "tests/test_sync_jobs.py::test_terminal_job_records_are_capped_by_count_within_retention"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "9",
+        "15",
+        "18"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.2",
+        "1.6.0",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.25,
+      0.55
+    ],
+    "calibrated": false
+  }
+}

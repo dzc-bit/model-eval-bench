@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "id": "T1-03",
+  "tier": "primary",
+  "attempts": 1,
+  "title": "同一种失败，三段链路各说各话",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py+fe",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/service.py",
+    "backend/astock_backtester/ai/facade.py",
+    "backend/astock_backtester/ai/errors.py",
+    "frontend/src/api.ts",
+    "frontend/src/aiTypes.ts",
+    "frontend/src/App.tsx"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "frontend/vitest.config.ts",
+    "**/conftest.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_ai_service_http.py::test_ai_chat_stream_without_config_returns_error_event",
+      "tests/test_ai_service_http.py::test_ai_chat_stream_bad_session_id_isolated"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "15",
+        "18"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.2",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    },
+    {
+      "kind": "vitest",
+      "hidden": "hidden-fe/tests_hidden_fe",
+      "groups": "hidden-fe/groups_fe.json",
+      "p2p": "p2p-fe.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.6,
+      0.85
+    ],
+    "calibrated": false
+  }
+}

@@ -1,0 +1,1856 @@
+{
+  "task": "T2-07",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0001-agent.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0002-cancel.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0003-facade.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A9A62806E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A9B6F9F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A9B6ED4A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001A9A628FAD0>()\n +    where <built-in method locked of _thread.lock object at 0x000001A9A628FAD0> = <locked _thread.lock object at 0x000001A9A628FAD0>.locked\n +      where <locked _thread.lock object at 0x000001A9A628FAD0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001A9A61A8430>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001A9B877D6D0>()\n +    where <built-in method locked of _thread.lock object at 0x000001A9B877D6D0> = <locked _thread.lock object at 0x000001A9B877D6D0>.locked\n +      where <locked _thread.lock object at 0x000001A9B877D6D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001A9B8743D00>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002412134C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000024132057750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000024131F70A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000024131CBD510>()\n +    where <built-in method locked of _thread.lock object at 0x0000024131CBD510> = <locked _thread.lock object at 0x0000024131CBD510>.locked\n +      where <locked _thread.lock object at 0x0000024131CBD510> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000024130997550>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000024133AB9950>()\n +    where <built-in method locked of _thread.lock object at 0x0000024133AB9950> = <locked _thread.lock object at 0x0000024133AB9950>.locked\n +      where <locked _thread.lock object at 0x0000024133AB9950> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000024133B36FE0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000214CBFBC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000214DCD53750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000214DCBECA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000214CBFC5450>()\n +    where <built-in method locked of _thread.lock object at 0x00000214CBFC5450> = <locked _thread.lock object at 0x00000214CBFC5450>.locked\n +      where <locked _thread.lock object at 0x00000214CBFC5450> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000214CBEC7A90>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000214DE440790>()\n +    where <built-in method locked of _thread.lock object at 0x00000214DE440790> = <locked _thread.lock object at 0x00000214DE440790>.locked\n +      where <locked _thread.lock object at 0x00000214DE440790> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000214DE3FBCD0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001630F49C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000163201E3750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000016320130A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001631FEED090>()\n +    where <built-in method locked of _thread.lock object at 0x000001631FEED090> = <locked _thread.lock object at 0x000001631FEED090>.locked\n +      where <locked _thread.lock object at 0x000001631FEED090> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001631FF0F550>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000016321922550>()\n +    where <built-in method locked of _thread.lock object at 0x0000016321922550> = <locked _thread.lock object at 0x0000016321922550>.locked\n +      where <locked _thread.lock object at 0x0000016321922550> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000163218DBB50>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026FD278C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026FE3483750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026FE33D0A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000026FE30FD090>()\n +    where <built-in method locked of _thread.lock object at 0x0000026FE30FD090> = <locked _thread.lock object at 0x0000026FE30FD090>.locked\n +      where <locked _thread.lock object at 0x0000026FE30FD090> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000026FE311F550>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000026FE4C12550>()\n +    where <built-in method locked of _thread.lock object at 0x0000026FE4C12550> = <locked _thread.lock object at 0x0000026FE4C12550>.locked\n +      where <locked _thread.lock object at 0x0000026FE4C12550> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000026FE4BCBB50>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A3AAABC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A3BB7B3750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001A3BB6ECA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001A3BA1A54D0>()\n +    where <built-in method locked of _thread.lock object at 0x000001A3BA1A54D0> = <locked _thread.lock object at 0x000001A3BA1A54D0>.locked\n +      where <locked _thread.lock object at 0x000001A3BA1A54D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001A3AA9C5B10>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001A3BCFE7D50>()\n +    where <built-in method locked of _thread.lock object at 0x000001A3BCFE7D50> = <locked _thread.lock object at 0x000001A3BCFE7D50>.locked\n +      where <locked _thread.lock object at 0x000001A3BCFE7D50> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001A3BD065DB0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001778CF2C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001779DC23750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001779DB5CA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001779C5E54D0>()\n +    where <built-in method locked of _thread.lock object at 0x000001779C5E54D0> = <locked _thread.lock object at 0x000001779C5E54D0>.locked\n +      where <locked _thread.lock object at 0x000001779C5E54D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001778CE35B10>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001779F621250>()\n +    where <built-in method locked of _thread.lock object at 0x000001779F621250> = <locked _thread.lock object at 0x000001779F621250>.locked\n +      where <locked _thread.lock object at 0x000001779F621250> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001779F4D2080>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000224C9B2C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000224DA83F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000224DA758A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000224C9A95C90>()\n +    where <built-in method locked of _thread.lock object at 0x00000224C9A95C90> = <locked _thread.lock object at 0x00000224C9A95C90>.locked\n +      where <locked _thread.lock object at 0x00000224C9A95C90> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000224C9A37760>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000224DC041790>()\n +    where <built-in method locked of _thread.lock object at 0x00000224DC041790> = <locked _thread.lock object at 0x00000224DC041790>.locked\n +      where <locked _thread.lock object at 0x00000224DC041790> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000224DC1308E0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002503A78C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002504B4BF750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002504B494A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002504B2F62D0>()\n +    where <built-in method locked of _thread.lock object at 0x000002504B2F62D0> = <locked _thread.lock object at 0x000002504B2F62D0>.locked\n +      where <locked _thread.lock object at 0x000002504B2F62D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000250396C7730>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002504CCE8310>()\n +    where <built-in method locked of _thread.lock object at 0x000002504CCE8310> = <locked _thread.lock object at 0x000002504CCE8310>.locked\n +      where <locked _thread.lock object at 0x000002504CCE8310> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000002504CCE1360>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001CA6F77C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001CA0051F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001CA004F4A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001CA003562D0>()\n +    where <built-in method locked of _thread.lock object at 0x000001CA003562D0> = <locked _thread.lock object at 0x000001CA003562D0>.locked\n +      where <locked _thread.lock object at 0x000001CA003562D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001CA6F687730>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001CA01E81D50>()\n +    where <built-in method locked of _thread.lock object at 0x000001CA01E81D50> = <locked _thread.lock object at 0x000001CA01E81D50>.locked\n +      where <locked _thread.lock object at 0x000001CA01E81D50> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001CA01CFBCD0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001761375C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000017624503750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001762439CA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000017613765450>()\n +    where <built-in method locked of _thread.lock object at 0x0000017613765450> = <locked _thread.lock object at 0x0000017613765450>.locked\n +      where <locked _thread.lock object at 0x0000017613765450> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000017613667A90>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000017625D496D0>()\n +    where <built-in method locked of _thread.lock object at 0x0000017625D496D0> = <locked _thread.lock object at 0x0000017625D496D0>.locked\n +      where <locked _thread.lock object at 0x0000017625D496D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000017625D6AAA0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000183CE91C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000183DF657750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x00000183DF570A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000183DF4B1890>()\n +    where <built-in method locked of _thread.lock object at 0x00000183DF4B1890> = <locked _thread.lock object at 0x00000183DF4B1890>.locked\n +      where <locked _thread.lock object at 0x00000183DF4B1890> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000183DDE57550>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000183E0CBF310>()\n +    where <built-in method locked of _thread.lock object at 0x00000183E0CBF310> = <locked _thread.lock object at 0x00000183E0CBF310>.locked\n +      where <locked _thread.lock object at 0x00000183E0CBF310> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000183E0DE5D20>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000023211E2C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000023222B2F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000023222C0CA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000023222911650>()\n +    where <built-in method locked of _thread.lock object at 0x0000023222911650> = <locked _thread.lock object at 0x0000023222911650>.locked\n +      where <locked _thread.lock object at 0x0000023222911650> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000232224EF550>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000232242B6390>()\n +    where <built-in method locked of _thread.lock object at 0x00000232242B6390> = <locked _thread.lock object at 0x00000232242B6390>.locked\n +      where <locked _thread.lock object at 0x00000232242B6390> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000023224237700>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000021FC1EFC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000021FD2C8F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000021FD2B28A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000021FD2B97490>()\n +    where <built-in method locked of _thread.lock object at 0x0000021FD2B97490> = <locked _thread.lock object at 0x0000021FD2B97490>.locked\n +      where <locked _thread.lock object at 0x0000021FD2B97490> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000021FC0E37A90>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000021FD4372510>()\n +    where <built-in method locked of _thread.lock object at 0x0000021FD4372510> = <locked _thread.lock object at 0x0000021FD4372510>.locked\n +      where <locked _thread.lock object at 0x0000021FD4372510> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000021FD3D9F550>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001D3CB89C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001D3DC62F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001D3DC4C8A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001D3DC537490>()\n +    where <built-in method locked of _thread.lock object at 0x000001D3DC537490> = <locked _thread.lock object at 0x000001D3DC537490>.locked\n +      where <locked _thread.lock object at 0x000001D3DC537490> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001D3CA7D7A90>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001D3DDCDAB90>()\n +    where <built-in method locked of _thread.lock object at 0x000001D3DDCDAB90> = <locked _thread.lock object at 0x000001D3DDCDAB90>.locked\n +      where <locked _thread.lock object at 0x000001D3DDCDAB90> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001D3DD73F550>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001F5334BC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001F5441CF750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001F5441A4A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001F543F862D0>()\n +    where <built-in method locked of _thread.lock object at 0x000001F543F862D0> = <locked _thread.lock object at 0x000001F543F862D0>.locked\n +      where <locked _thread.lock object at 0x000001F543F862D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001F5333C7730>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001F545A6D550>()\n +    where <built-in method locked of _thread.lock object at 0x000001F545A6D550> = <locked _thread.lock object at 0x000001F545A6D550>.locked\n +      where <locked _thread.lock object at 0x000001F545A6D550> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001F5459BF9A0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002A36CD6C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002A37DA7F750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002A37DA54A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002A37D8862D0>()\n +    where <built-in method locked of _thread.lock object at 0x000002A37D8862D0> = <locked _thread.lock object at 0x000002A37D8862D0>.locked\n +      where <locked _thread.lock object at 0x000002A37D8862D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000002A36CC77730>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002A37F321D50>()\n +    where <built-in method locked of _thread.lock object at 0x000002A37F321D50> = <locked _thread.lock object at 0x000002A37F321D50>.locked\n +      where <locked _thread.lock object at 0x000002A37F321D50> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000002A37F19BCD0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026303FBC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026314CC7750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x0000026314BB4A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x0000026303FD5110>()\n +    where <built-in method locked of _thread.lock object at 0x0000026303FD5110> = <locked _thread.lock object at 0x0000026303FD5110>.locked\n +      where <locked _thread.lock object at 0x0000026303FD5110> = <astock_backtester.ai.facade._SessionLockEntry object at 0x0000026303EEB0A0>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x00000263164428D0>()\n +    where <built-in method locked of _thread.lock object at 0x00000263164428D0> = <locked _thread.lock object at 0x00000263164428D0>.locked\n +      where <locked _thread.lock object at 0x00000263164428D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x00000263160CF550>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002181B5FC6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002182C2FB750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000002182C3B4A50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002182C0E78D0>()\n +    where <built-in method locked of _thread.lock object at 0x000002182C0E78D0> = <locked _thread.lock object at 0x000002182C0E78D0>.locked\n +      where <locked _thread.lock object at 0x000002182C0E78D0> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000002182A8DF4F0>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000002182DA44650>()\n +    where <built-in method locked of _thread.lock object at 0x000002182DA44650> = <locked _thread.lock object at 0x000002182DA44650>.locked\n +      where <locked _thread.lock object at 0x000002182DA44650> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000002182DAFB880>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底：分片之间的取消边界没有生效\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001DA8704C6E0>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001DA97DC3750>.final_reached"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后模型流被读到了底，流尾 tool_calls 不该落盘\nassert True is False\n +  where True = <test_collab_cancel._GatedStreamModel object at 0x000001DA97C5CA50>.final_reached"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "failed",
+              "message": "AssertionError: 每个 tool_call 都要有配对结果：['c1']\nassert ['c1'] == ['c1', 'c2', 'c3']\n  \n  Right contains 2 more items, first extra item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止后的历史仍有配对缺口，靠下一轮修复兜底不合格\nassert [{'content': ...ll_id': 'c2'}] == [{'content': ...ll_id': 'c1'}]\n  \n  Left contains one more item: {'content': '[code=interrupted] （上一次运行在调用 second_tool 时被中断，没有返回结果；如需该数据请重新调用。）', 'role': 'tool', 'tool_call_id': 'c2'}\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001DA87055450>()\n +    where <built-in method locked of _thread.lock object at 0x000001DA87055450> = <locked _thread.lock object at 0x000001DA87055450>.locked\n +      where <locked _thread.lock object at 0x000001DA87055450> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001DA86F57A90>.lock"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "failed",
+              "message": "AssertionError: 停止收尾完成后会话锁仍被占用（下一次请求将白等到底）\nassert not True\n +  where True = <built-in method locked of _thread.lock object at 0x000001DA994D0790>()\n +    where <built-in method locked of _thread.lock object at 0x000001DA994D0790> = <locked _thread.lock object at 0x000001DA994D0790>.locked\n +      where <locked _thread.lock object at 0x000001DA994D0790> = <astock_backtester.ai.facade._SessionLockEntry object at 0x000001DA9948BCD0>.lock"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '第一段第二段第三段'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 被取消批次的每个调用都必须当场配对：['c1']\nassert ['c1'] == ['c1', 'c2']\n  \n  Right contains one more item: 'c2'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "failed",
+              "message": "AssertionError: 停止说明丢了\nassert '（本轮已被你停止：已生成的内容与工具结果都已保存，可重新提问。）' in '收尾段收尾尾'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T01:54:23"
+}

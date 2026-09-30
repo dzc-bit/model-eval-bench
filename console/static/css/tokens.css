@@ -1,0 +1,211 @@
+/* ==========================================================================
+   tokens.css — 设计令牌（颜色 / 间距 / 字号 / 圆角 / 阴影 / 动效 / 层级）
+   职责：本文件是前端唯一允许出现具体色值、像素尺寸、缓动曲线的位置。
+   依赖：无（最先加载）。
+   导出：CSS 自定义属性（:root 上的 --* 变量）。
+   规则：§10.5 / §12.4 / §12.8 —— 组件与视图里禁止硬编码色值，一律 var()。
+   ========================================================================== */
+
+:root {
+  /* ---------- 颜色 · 浅色主题（默认） ---------- */
+  --color-bg: #eef1f5;
+  --color-bg-grad: radial-gradient(1200px 600px at 15% -10%, #ffffff 0%, #eef1f5 60%);
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f6f9;
+  --color-surface-3: #e9edf3;
+  --color-border: #d3d9e2;
+  --color-border-strong: #9aa5b4;
+
+  /* 正文对比度 ≥ 4.5:1（§12.8），次要文本同样达标 */
+  --color-text: #121721;
+  --color-text-muted: #525d6e;
+  --color-text-faint: #6b7688;
+  --color-text-inverse: #ffffff;
+
+  --color-primary: #1a56b8;
+  --color-primary-hover: #16489a;
+  --color-primary-active: #123c80;
+  --color-primary-fg: #ffffff;
+  --color-primary-soft: #e4edfb;
+  --color-primary-border: #a8c3ec;
+
+  --color-success: #0f6b34;
+  --color-success-soft: #e2f4e8;
+  --color-success-border: #96cfa9;
+
+  --color-danger: #a81f17;
+  --color-danger-hover: #8d1a13;
+  --color-danger-soft: #fdeae8;
+  --color-danger-border: #f0a79f;
+
+  --color-warn: #7d5100;
+  --color-warn-soft: #fdf1dc;
+  --color-warn-border: #e2bd7c;
+
+  --color-info: #0a5177;
+  --color-info-soft: #e3f0f7;
+  --color-info-border: #9cc6dd;
+
+  --color-focus-ring: #1a56b8;
+  --color-focus-ring-offset: #ffffff;
+  --color-selection: #cfe0f8;
+
+  /* 档位（颜色 + 文字 + 形状三重编码，颜色永远不是唯一信号） */
+  --color-tier-t1: #0f6b34;
+  --color-tier-t1-soft: #e2f4e8;
+  --color-tier-t2: #7d5100;
+  --color-tier-t2-soft: #fdf1dc;
+  --color-tier-t3: #a81f17;
+  --color-tier-t3-soft: #fdeae8;
+  --color-tier-t4: #513a87;
+  --color-tier-t4-soft: #eee9f8;
+
+  /* 阴影（低彩度，靠透明度分层） */
+  --shadow-xs: 0 1px 2px rgba(18, 23, 33, 0.06);
+  --shadow-sm: 0 1px 3px rgba(18, 23, 33, 0.10), 0 1px 2px rgba(18, 23, 33, 0.06);
+  --shadow-md: 0 4px 12px rgba(18, 23, 33, 0.12), 0 1px 3px rgba(18, 23, 33, 0.08);
+  --shadow-lg: 0 16px 40px rgba(18, 23, 33, 0.18), 0 2px 8px rgba(18, 23, 33, 0.10);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  /* ---------- 间距（4px 基准） ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
+
+  /* ---------- 字号 / 行高 / 字重 ---------- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC",
+    "Hiragino Sans GB", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas,
+    "DejaVu Sans Mono", "Courier New", "Microsoft YaHei Mono", monospace;
+
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.8125rem; /* 13px */
+  --font-size-md: 0.9375rem; /* 15px */
+  --font-size-lg: 1.0625rem; /* 17px */
+  --font-size-xl: 1.3125rem; /* 21px */
+  --font-size-2xl: 1.625rem; /* 26px */
+  --font-size-3xl: 2rem;     /* 32px */
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.6;
+  --line-height-loose: 1.75;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ---------- 圆角 ---------- */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* ---------- 尺寸 ---------- */
+  --control-height-sm: 32px; /* §12.15 点击目标下限 */
+  --control-height-md: 36px;
+  --control-height-lg: 42px;
+  --tap-target-min: 32px;
+  --content-max: 1360px;
+  --prose-max: 76ch;
+  --log-height: 220px;
+
+  /* ---------- 焦点环（§12.4 统一令牌，禁止 outline:none 无替代） ---------- */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-style: solid;
+
+  /* ---------- 动效（§12.13 由 prefers-reduced-motion 统一收敛） ---------- */
+  --motion-fast: 90ms;
+  --motion-base: 150ms;
+  --motion-slow: 260ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* ---------- 层级 ---------- */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-errorbar: 300;
+  --z-toast: 400;
+  --z-modal: 500;
+
+  /* ---------- 其它 ---------- */
+  --border-width: 1px;
+  --border-width-thick: 2px;
+  --transition-base: color var(--motion-base) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    opacity var(--motion-base) var(--ease-out);
+}
+
+/* ---------- 颜色 · 深色主题（跟随系统；对比度同样 ≥ 4.5:1） ---------- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1319;
+    --color-bg-grad: radial-gradient(1200px 600px at 15% -10%, #1b2230 0%, #0f1319 60%);
+    --color-surface: #171d26;
+    --color-surface-2: #1e2530;
+    --color-surface-3: #262f3c;
+    --color-border: #333d4c;
+    --color-border-strong: #556375;
+
+    --color-text: #e8edf5;
+    --color-text-muted: #a9b4c4;
+    --color-text-faint: #8d99aa;
+    --color-text-inverse: #0b0f15;
+
+    --color-primary: #7db1ff;
+    --color-primary-hover: #9cc4ff;
+    --color-primary-active: #b9d6ff;
+    --color-primary-fg: #08111f;
+    --color-primary-soft: #17263c;
+    --color-primary-border: #34527d;
+
+    --color-success: #5fd08c;
+    --color-success-soft: #10281a;
+    --color-success-border: #2c5c3e;
+
+    --color-danger: #ff8a80;
+    --color-danger-hover: #ffa49c;
+    --color-danger-soft: #2c1513;
+    --color-danger-border: #6b2f29;
+
+    --color-warn: #e8b96a;
+    --color-warn-soft: #2a2113;
+    --color-warn-border: #5f4a24;
+
+    --color-info: #7cc4ea;
+    --color-info-soft: #10242e;
+    --color-info-border: #2c536b;
+
+    --color-focus-ring: #7db1ff;
+    --color-focus-ring-offset: #0f1319;
+    --color-selection: #24405f;
+
+    --color-tier-t1: #5fd08c;
+    --color-tier-t1-soft: #10281a;
+    --color-tier-t2: #e8b96a;
+    --color-tier-t2-soft: #2a2113;
+    --color-tier-t3: #ff8a80;
+    --color-tier-t3-soft: #2c1513;
+    --color-tier-t4: #c7b0ff;
+    --color-tier-t4-soft: #251d34;
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}

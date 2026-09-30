@@ -1,0 +1,126 @@
+{
+  "task": "T3-08",
+  "state": "fixed",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T3-08\\inject\\patches\\0001-agent-archive-trilemma.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-08\\reference\\fix.patch"
+  ],
+  "runs": [
+    {
+      "score": 100.0,
+      "raw_score": 100.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-30T01:44:51"
+}

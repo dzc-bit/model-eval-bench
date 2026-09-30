@@ -1,0 +1,21 @@
+diff --git a/backend/astock_backtester/engine.py b/backend/astock_backtester/engine.py
+--- a/backend/astock_backtester/engine.py
++++ b/backend/astock_backtester/engine.py
+@@ -315,14 +315,10 @@
+     pre_close = _optional_float(row, "pre_close")
+     if pre_close is None or pre_close <= 0:
+         return None
+-    symbol = str(row.get("symbol", ""))
+-    board = _board_limit_pct(symbol)
+-    # 先定板块再降 ST：ST 的 5% 是**在主板 10% 基础上**的限制，创业板/科创板
+-    # ST 股实际仍是 20%（先判 ST 会把它们按 5% 算，limit_up_blocks_buy 于是
+-    # 错误拦截真实涨停之外的价格）。北交所无 ST 降幅规则，保持 30%。
+-    if bool(row.get("is_st", False)) and board == 0.10:
++    # ST 股的涨跌幅限制统一收紧到 5%，其余按所属板块取。
++    if bool(row.get("is_st", False)):
+         return 0.05
+-    return board
++    return _board_limit_pct(str(row.get("symbol", "")))
+ 
+ 
+ def _is_open_near_limit(row: pd.Series, direction: str) -> bool:

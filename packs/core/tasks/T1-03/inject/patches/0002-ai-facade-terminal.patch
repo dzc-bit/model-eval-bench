@@ -1,0 +1,13 @@
+diff --git a/backend/astock_backtester/ai/facade.py b/backend/astock_backtester/ai/facade.py
+--- a/backend/astock_backtester/ai/facade.py
++++ b/backend/astock_backtester/ai/facade.py
+@@ -432,8 +432,7 @@
+                 if event is None:
+                     break
+                 yield event
+-            if error_holder:
+-                yield error_holder[0]
++            # 哨兵表示本轮消费已经收口，之后不再追加队列外事件。
+         finally:
+             # 只有 worker 从未启动时才在这里释放锁；worker 已启动的路径由
+             # worker 自己在 finally 里释放（客户端断开后它仍在运行）。

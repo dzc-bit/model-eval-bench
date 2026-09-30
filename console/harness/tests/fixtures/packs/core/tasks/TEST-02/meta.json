@@ -1,0 +1,40 @@
+{
+  "id": "TEST-02",
+  "title": "前端面板：换手率显示位数错位",
+  "tier": "easy",
+  "attempts": 1,
+  "summary": "面板把换手率按 4 位小数显示，正常量级下全是 0.0000。",
+  "symptom": "面板上换手率一栏显示 0.0000，看不出差异。",
+  "tags": ["前端", "node 守卫", "联接复用"],
+  "repo": {"id": "mini"},
+  "allowed_paths": ["frontend/src/**"],
+  "forbidden_paths": [
+    "tests/**",
+    "hidden/**",
+    "scripts/**",
+    "backend/**",
+    "frontend/vitest.config.ts",
+    "package.json",
+    ".gitignore"
+  ],
+  "visible": {"prune": []},
+  "redactions": [],
+  "checks": [
+    {
+      "kind": "script",
+      "command": ["node", "hidden/tests_hidden/panel_guard.mjs"],
+      "cwd": ".",
+      "parse": "^(?:PASS|FAIL)\\s+(\\S+)\\s+(\\S+)$",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {"grade_timeout_s": 90, "diff_line_cap": 4000},
+  "calibration": {
+    "calibrated": true,
+    "trials": 2,
+    "target_band": [0.0, 100.0],
+    "note": "用来验证 node_modules 联接在准备→校验→清空→重建全程完好。"
+  }
+}

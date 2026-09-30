@@ -1,0 +1,34 @@
+diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
+--- a/backend/astock_backtester/data/operations.py
++++ b/backend/astock_backtester/data/operations.py
+@@ -40,9 +40,8 @@
+ # date_coverage_shortfall 诊断同一 code，前端与 AI 复用同一套语义）。
+ DAILY_BARS_TAIL_SHORTFALL_TRADE_DAYS = 5
+ 
+-# 逐股缺口做停牌类剔除前，窗口至少要有这么多 A 股交易日：横截面中位数在
+-# 三五天的窗口上抖动太大，分类结果不可信，此时退回平日历口径（旧行为）。
+-MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 5
++# 逐股缺口做停牌类剔除前，窗口至少要有这么多 A 股交易日。
++MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 2
+ 
+ # 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时后的
+ # 有界重试：抓取结果此刻还在内存里，锁持有者崩溃时 OS 会自动释放锁，短退避后再试
+@@ -155,15 +154,9 @@
+         counts = warehouse.market_trade_date_counts(window_start.date().isoformat(), window_end.date().isoformat())
+         if not counts:
+             return None
+-        # 0 行日不进横截面：market_trade_date_counts 按交易日历补 0，而 coverage()
+-        # 与 sync 的计数都来自“有行日期”的 groupby——把 0 混进中位数会压低阈值，
+-        # 让三个出口对同一天给出不同分类。0 行日不在任一集合里，逐股缺口按平日历
+-        # 口径保留（0 行 < 任何阈值 → 可行动，与另两个出口行为一致）；全是 0 时
+-        # 整体退回平日历口径。
+-        positive_counts = {day: count for day, count in counts.items() if count > 0}
+-        if not positive_counts:
+-            return None
+-        classification = classify_market_days_by_cross_section(positive_counts)
++        # 交易日历铺出来的 0 行日一并参与横截面：中位数因此代表"窗口常态水位"，
++        # 分界点更贴近当日全市场实际写进来的行数。
++        classification = classify_market_days_by_cross_section(counts)
+     except Exception as exc:
+         logger.warning(
+             "market trade-date classification failed; per-symbol coverage falls back to the flat calendar: %s",

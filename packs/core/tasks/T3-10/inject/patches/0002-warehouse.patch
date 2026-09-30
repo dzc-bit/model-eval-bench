@@ -1,0 +1,23 @@
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -213,13 +213,14 @@
+             raise
+ 
+     def invalidate_gap_profile(self) -> None:
+-        """写入后丢弃缺口画像、股票池计数与每交易日行数缓存，让下一次读取反映最新数据。"""
++        """写入后丢弃缺口画像缓存，让下一次读取反映最新数据。
++
++        股票池计数与每交易日行数缓存仍按各自的 TTL（10 分钟）自然过期：
++        每落一批数据就把两个全局统计缓存打穿，会让写入期间的读路径反复重算，
++        整体读成本反而更高。
++        """
+         with self._gap_profile_lock:
+             self._gap_profile_cache = None
+-        with self._symbol_count_lock:
+-            self._symbol_count_cache = None
+-        with self._trade_date_counts_lock:
+-            self._trade_date_counts_cache = None
+ 
+     def cached_symbol_count(self) -> int | None:
+         """本地 OHLC 股票池规模（只读缓存；``None`` = 缓存未热）。

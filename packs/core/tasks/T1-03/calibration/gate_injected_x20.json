@@ -1,0 +1,1756 @@
+{
+  "task": "T1-03",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T1-03\\inject\\patches\\0001-service-error-contract.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-03\\inject\\patches\\0002-ai-facade-terminal.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-03\\inject\\patches\\0003-frontend-error-copy.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'validation_error' == 'no_local_data'\n  \n  - no_local_data\n  + validation_error"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "failed",
+              "message": "AssertionError: assert [] == [{'code': 'ai...pe': 'error'}]\n  \n  Right contains one more item: {'code': 'ai_not_configured', 'message': 'AI 服务尚未配置，请先在设置中填写 base_url、API Key 和模型名。', 'type': 'error'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "failed",
+              "message": "AssertionError: assert ['session'] == ['session', 'error']\n  \n  Right contains one more item: 'error'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "failed",
+              "message": "AssertionError: assert 'session' == 'error'\n  \n  - error\n  + session"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "failed",
+              "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
+            },
+            {
+              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T02:03:16"
+}

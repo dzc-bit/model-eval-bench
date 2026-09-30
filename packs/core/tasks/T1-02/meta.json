@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "id": "T1-02",
+  "tier": "primary",
+  "attempts": 1,
+  "title": "同一张休市表，两端各认各的节假日",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py+fe",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/trading_calendar.py",
+    "backend/astock_backtester/data/operations.py",
+    "frontend/src/tradingCalendar.ts",
+    "frontend/src/App.tsx"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "frontend/vitest.config.ts",
+    "**/conftest.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_data_operations.py::test_fetch_capital_flow_into_cache_clips_requested_range_to_a_share_trade_dates",
+      "tests/test_warehouse.py::test_market_trade_date_counts_skips_corrupt_partition",
+      "tests/test_warehouse.py::test_read_capital_flow_missing_symbols_spans_window_partitions",
+      "tests/test_data_operations.py::test_coverage_uses_a_share_trading_calendar_for_2026_holidays",
+      "tests/test_data_operations.py::test_coverage_reports_requested_range_edge_gaps_without_holiday_false_positives",
+      "frontend/src/tradingCalendar.test.ts"
+    ]
+  },
+  "redactions": [],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    },
+    {
+      "kind": "vitest",
+      "hidden": "hidden-fe/tests_hidden_fe",
+      "groups": "hidden-fe/groups_fe.json",
+      "p2p": "p2p-fe.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.6,
+      0.85
+    ],
+    "calibrated": false
+  }
+}

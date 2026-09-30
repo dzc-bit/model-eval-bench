@@ -1,0 +1,69 @@
+diff --git a/backend/astock_backtester/data/astock_adapter.py b/backend/astock_backtester/data/astock_adapter.py
+--- a/backend/astock_backtester/data/astock_adapter.py
++++ b/backend/astock_backtester/data/astock_adapter.py
+@@ -190,10 +190,7 @@
+     frame["change_pct"] = (frame["change"] / previous * 100).round(4)
+     # 成交额单位是元；公开 XHR 不提供成交额，用均价估算会引入误差，故留空。
+     frame["amount"] = float("nan")
+-    # turnover_rate 同理必须显式置空：``normalize_daily_bars`` 的缺列默认值是
+-    # ``0.0``，不置空就会把"未知"写成"换手率 0%"——假 0 会同时污染
+-    # ``turnover_between`` 条件与候选打分（0 是合法值，无法与真实 0% 区分）。
+-    # 真实换手率稍后由 ``_derive_turnover_rate`` 用 volume/流通股 补出来。
++    # 真实换手率稍后由 ``_apply_turnover_rate`` 用 volume/流通股 补出来。
+     frame["turnover_rate"] = float("nan")
+     return frame
+ 
+@@ -465,15 +462,12 @@
+         """Fill ``float_market_cap`` across the window.
+ 
+         A quote gives the *current* price and current float market cap, hence
+-        float shares; earlier rows then use ``float_shares * close``.  A constant
+-        snapshot is only used when shares cannot be derived.
+-
+-        Rows that already carry a per-date value (the Baidu path derives
+-        ``volume / (turnover / 100) * close`` per row) are **kept**: that
+-        derivation reflects the share count *on that date*, whereas the
+-        quote-based estimate applies today's share count to every historical
+-        close and therefore overstates market cap for any stock that has since
+-        issued or released shares (解禁/增发).  Only gaps are filled.
++        float shares; the whole window is then valued with those shares against
++        each row's close.  A constant snapshot is only used when shares cannot be
++        derived.
++
++        Valuing the whole window on one share count keeps the column on a single
++        source of truth and never mixes two units.
+         """
+         if float_market_cap > 0 or _to_float(quote.get("float_mcap_yi"), float("nan")) > 0:
+             price = _to_float(quote.get("price"), float("nan"))
+@@ -486,8 +480,7 @@
+                 derived = pd.Series(float_market_cap, index=bars.index)
+             else:
+                 return bars
+-            existing = pd.to_numeric(bars["float_market_cap"], errors="coerce")
+-            bars["float_market_cap"] = existing.fillna(derived)
++            bars["float_market_cap"] = derived
+         return bars
+ 
+     @staticmethod
+@@ -497,8 +490,7 @@
+         公开 XHR 日 K 不带换手率，而 ``turnover_rate`` 参与
+         ``turnover_between`` 条件与候选打分。用报价推出的流通股
+         （``float_market_cap / price``）即可逐行还原，量纲与仓库一致是**百分数**
+-        （实测仓库 median≈0.38）。推不出流通股的行保持 NaN（"未知"），
+-        绝不写 0。
++        （实测仓库 median≈0.38）。
+         """
+         if "float_market_cap" not in bars.columns or "close" not in bars.columns:
+             return bars
+@@ -509,8 +501,9 @@
+         derived = (volume / shares.replace(0, float("nan")) * 100.0).where(lambda value: value >= 0)
+         bars = bars.copy()
+         existing = pd.to_numeric(bars["turnover_rate"], errors="coerce")
+-        # 只补空缺：百度通道本身带 turnoverratio（同为百分数量纲），不要去覆盖它。
+-        bars["turnover_rate"] = existing.fillna(derived)
++        # 入库前把未知值归一：下游条件与打分都按数值比较，留空会在向量化路径上被
++        # 当成 0 处理。统一按 0 兜底，语义上等价于"当日无换手"。
++        bars["turnover_rate"] = existing.fillna(derived).fillna(0.0)
+         return bars
+ 
+     def _fetch_fund_flow_with_breaker(self, code: str) -> dict[str, Any]:

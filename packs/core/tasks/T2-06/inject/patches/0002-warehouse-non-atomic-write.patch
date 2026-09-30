@@ -1,0 +1,42 @@
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -178,8 +178,8 @@
+             path = self._partition_path(int(year))
+             path.parent.mkdir(parents=True, exist_ok=True)
+             year_frame = year_frame.drop(columns=["year"])
+-            # 跨进程互斥：read-modify-write 必须原子化，否则桌面端 sidecar 与
+-            # 外部脚本并发写同一分区会丢失更新甚至撕裂文件（footer 不匹配）。
++            # 写入方先认领哨兵再落盘（filelock 模块）：桌面端 sidecar 与
++            # 外部脚本各自核对协调位，避免同一分区的无序写。
+             with CrossProcessFileLock(path):
+                 if path.exists():
+                     current = self._safe_read_parquet(path)
+@@ -197,20 +197,13 @@
+ 
+     @staticmethod
+     def _atomic_write_parquet(frame: pd.DataFrame, path: Path) -> None:
+-        """临时文件写完后 ``os.replace`` 原子替换。
+-
+-        ``to_parquet`` 直接写目标路径时会先 truncate 再逐块写，任何并发读取者
+-        （包括桌面端自己读 coverage）都可能读到半成品并报
+-        ``Parquet magic bytes not found in footer``。写到同目录下的临时文件再
+-        ``os.replace`` 保证读取者要么看到旧文件、要么看到完整新文件。
+-        """
+-        tmp_path = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+-        try:
+-            frame.to_parquet(tmp_path, index=False)
+-            os.replace(tmp_path, path)
+-        except BaseException:
+-            tmp_path.unlink(missing_ok=True)
+-            raise
++        """落盘日线分区。
++
++        落盘路径在写入前已被哨兵协调（见 ``write_daily_bars``），这里保持
++        尽量少的文件操作：直接写目标路径，不在同目录留下任何中间产物，
++        失败时也不会有半截的临时文件残留需要清理。
++        """
++        frame.to_parquet(path, index=False)
+ 
+     def invalidate_gap_profile(self) -> None:
+         """写入后丢弃缺口画像、股票池计数与每交易日行数缓存，让下一次读取反映最新数据。"""

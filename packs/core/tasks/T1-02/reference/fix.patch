@@ -1,0 +1,79 @@
+diff --git a/backend/astock_backtester/data/trading_calendar.py b/backend/astock_backtester/data/trading_calendar.py
+--- a/backend/astock_backtester/data/trading_calendar.py
++++ b/backend/astock_backtester/data/trading_calendar.py
+@@ -103,6 +103,15 @@
+         ("2025-05-31", "2025-06-02"),
+         ("2025-10-01", "2025-10-08"),
+     ),
++    2026: (
++        ("2026-01-01", "2026-01-03"),
++        ("2026-02-15", "2026-02-23"),
++        ("2026-04-04", "2026-04-06"),
++        ("2026-05-01", "2026-05-05"),
++        ("2026-06-19", "2026-06-21"),
++        ("2026-09-25", "2026-09-27"),
++        ("2026-10-01", "2026-10-07"),
++    ),
+     2027: (
+         ("2027-01-01", "2027-01-03"),
+         ("2027-02-05", "2027-02-13"),
+diff --git a/frontend/src/tradingCalendar.ts b/frontend/src/tradingCalendar.ts
+--- a/frontend/src/tradingCalendar.ts
++++ b/frontend/src/tradingCalendar.ts
+@@ -11,6 +11,14 @@
+     ["2024-06-10", "2024-06-10"],
+     ["2024-09-15", "2024-09-17"],
+     ["2024-10-01", "2024-10-07"]
++  ],
++  2025: [
++    ["2025-01-01", "2025-01-01"],
++    ["2025-01-28", "2025-02-04"],
++    ["2025-04-04", "2025-04-06"],
++    ["2025-05-01", "2025-05-05"],
++    ["2025-05-31", "2025-06-02"],
++    ["2025-10-01", "2025-10-08"]
+   ],
+   2026: [
+     ["2026-01-01", "2026-01-03"],
+@@ -67,10 +75,13 @@
+   return previous;
+ }
+ 
+-export function recentAShareTradingDateRange(days = 5): { startDate: string; endDate: string } {
+-  // 窗口末端直接取今天：数据末日的对齐由上层裁剪，这里不必再回退一步
+-  const end = new Date();
+-  end.setHours(0, 0, 0, 0);
++// 默认窗口的唯一实现：末端先回退到最近的交易日，再往回数满 days 个交易日。
++// 两个对外入口都必须走这里，任何一处都不允许自行决定"落点要不要校验"。
++function tradingWindowEnding(
++  endDate: Date,
++  days = 5
++): { startDate: string; endDate: string } {
++  const end = previousAShareTradingDay(endDate);
+   const start = new Date(end);
+   let counted = 1;
+   while (counted < days) {
+@@ -82,18 +93,13 @@
+   return { startDate: formatLocalDate(start), endDate: formatLocalDate(end) };
+ }
+ 
++export function recentAShareTradingDateRange(days = 5): { startDate: string; endDate: string } {
++  return tradingWindowEnding(new Date(), days);
++}
++
+ export function recentAShareTradingDateRangeEnding(
+   endDate: string,
+   days = 5
+ ): { startDate: string; endDate: string } {
+-  const end = new Date(`${endDate}T00:00:00`);
+-  const start = new Date(end);
+-  let counted = 1;
+-  while (counted < days) {
+-    start.setDate(start.getDate() - 1);
+-    if (isAShareTradingDay(start)) {
+-      counted += 1;
+-    }
+-  }
+-  return { startDate: formatLocalDate(start), endDate };
++  return tradingWindowEnding(new Date(`${endDate}T00:00:00`), days);
+ }

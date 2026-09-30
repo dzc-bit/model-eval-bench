@@ -1,0 +1,24 @@
+{
+  "note": "命令型守卫：脚本自己打印 PASS/FAIL 行，checker 按正则拆成逐条用例。",
+  "groups": [
+    {
+      "id": "panel_digits_exit",
+      "title": "换手率显示位数",
+      "weight": 1,
+      "tests": ["panel_digits"]
+    },
+    {
+      "id": "panel_shape_exit",
+      "title": "面板结构不被改坏",
+      "weight": 1,
+      "tests": ["panel_shape"]
+    },
+    {
+      "id": "p2p",
+      "title": "既有通过用例（回归，不计分）",
+      "weight": 0,
+      "mode": "regression",
+      "tests": []
+    }
+  ]
+}

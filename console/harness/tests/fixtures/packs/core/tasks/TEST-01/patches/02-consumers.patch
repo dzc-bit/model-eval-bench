@@ -1,0 +1,27 @@
+--- a/backend/miniapp/adapters.py
++++ b/backend/miniapp/adapters.py
+@@ -12,9 +12,7 @@
+     return {
+         "symbol": code,
+         "close": float(row["close"]),
+-        "turnover": pricing.turnover_rate(
+-            float(row["close"]), float(row["volume"]), float(row["shares"])
+-        ),
++        "turnover": float(row["volume"]) / (float(row["shares"]) * 100.0),
+         "market_cap": pricing.market_cap(float(row["close"]), float(row["shares"])),
+         "special_treated": pricing.is_special_treated(code),
+     }
+--- a/backend/miniapp/engine.py
++++ b/backend/miniapp/engine.py
+@@ -14,10 +14,7 @@
+     derived = adapters.row_to_derived(row)
+     if derived["special_treated"]:
+         return False
+-    return (
+-        derived["turnover"] > TURNOVER_FLOOR
+-        and derived["market_cap"] > MARKET_CAP_FLOOR
+-    )
++    return derived["market_cap"] > MARKET_CAP_FLOOR
+ 
+ 
+ def screen_candidates(rows):

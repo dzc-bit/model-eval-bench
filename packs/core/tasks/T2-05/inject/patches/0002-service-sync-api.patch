@@ -1,0 +1,29 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -943,7 +943,10 @@
+             if job is None:
+                 self._send_json({"code": "not_found", "message": job_id}, HTTPStatus.NOT_FOUND)
+                 return
+-            self._send_json({"job": job.model_dump(mode="json")})
++            payload = job.model_dump(mode="json")
++            # 复用准入只是内部去重的实现细节，对外状态保持纯净。
++            payload.pop("admission", None)
++            self._send_json({"job": payload})
+             return
+         self._send_json({"code": "not_found", "message": self.path}, HTTPStatus.NOT_FOUND)
+ 
+@@ -1254,11 +1257,10 @@
+                 return
+             self._send_json({"code": "not_found", "message": self.path}, HTTPStatus.NOT_FOUND)
+         except SyncCapacityError as exc:
+-            # 准入冲突必须是独立稳定码：它要告诉调用方"已有任务在跑"，
+-            # 而不是被归进 request_failed 让前端只能显示"请求失败"。
++            # 准入冲突直接返回冲突状态码与错误信息。
+             self.server.state.log("warning", str(exc))
+             self._send_json(
+-                {"code": "sync_capacity", "message": str(exc), "running_jobs": exc.running},
++                {"code": "sync_capacity", "message": str(exc)},
+                 HTTPStatus.CONFLICT,
+             )
+         except LocalDataUnavailable as exc:

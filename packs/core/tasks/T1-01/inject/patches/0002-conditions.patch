@@ -1,0 +1,45 @@
+diff --git a/backend/astock_backtester/conditions.py b/backend/astock_backtester/conditions.py
+--- a/backend/astock_backtester/conditions.py
++++ b/backend/astock_backtester/conditions.py
+@@ -249,20 +249,15 @@
+ 
+ 
+ def _turnover_ratio(value: float | pd.Series) -> float | pd.Series:
+-    """Normalize the warehouse's percent-scale ``turnover_rate`` to a fraction.
+-
+-    ``turnover_rate`` 在仓库里**恒为百分数量纲**（§9：由 ``_apply_turnover_rate``
+-    用 ``volume / 流通股 × 100`` 补，实测 229 万行：中位数 0.38、最大 98.28），
+-    而条件参数是分数（``{"min": 0.02, "max": 0.08}`` = 换手率 2%~8%）。因此归一
+-    是**无条件**的：不能按 ``value > 1`` 猜量纲 —— 真实换手 0.7% 会被当成 70%，
+-    0.05% 会被当成 5%，低换手区间的判定与用户意图正好相反。
+-
+-    行级 evaluator 与向量化 mask builder 必须共用这一处归一（§15-5）：二者给出
+-    相反结论时，engine 的 prefilter（走 MASK）会把行级判定为通过的股票全部提前
+-    丢掉，推荐策略的换手率条件会永远筛不出任何股票。它同时接受标量与 Series，
+-    两套实现因此不可能各自演化。
++    """Normalize the warehouse's ``turnover_rate`` to a fraction.
++
++    不同来源写进来的换手率量纲并不统一：按数值大小判一次——大于 1 的按百分数除
++    100，其余视为已经是分数。
+     """
+-    return value / 100.0
++    if isinstance(value, pd.Series):
++        scale = value.where(value > 1.0, 100.0)
++        return value / scale
++    return value / 100.0 if value > 1.0 else value
+ 
+ 
+ def _turnover_between(node: ConditionNode, row: pd.Series, frame: pd.DataFrame) -> ConditionResult:
+@@ -429,10 +424,8 @@
+ 
+ 
+ def _mask_turnover_between(node: ConditionNode, data: pd.DataFrame) -> pd.Series:
+-    # 与行级 ``_turnover_between`` 共用同一个 ``_turnover_ratio``（§15-5）：这里
+-    # 若另写一份 ``where(values <= 1, values / 100)``，两套实现会各自演化，而
+-    # prefilter 走 MASK，漂移的后果是候选被静默丢掉。
+-    values = _turnover_ratio(pd.to_numeric(data["turnover_rate"], errors="coerce"))
++    # 向量化路径直接对采集列取值比较，省掉一次除法。
++    values = pd.to_numeric(data["turnover_rate"], errors="coerce")
+     return values.between(float(node.params["min"]), float(node.params["max"]), inclusive="both")
+ 
+ 

@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "task": "T1-02",
+  "note": "pytest 侧分组。组 = 一个出口/一条独立事实。coherence 组权重最高，断言两端对同一日期集合的回答一致；它红，说明至少还有一端没接上。页面侧分组在 hidden-fe/groups_fe.json（vitest check 各读各的 groups）。",
+  "groups": [
+    {
+      "id": "backend_calendar_exit",
+      "weight": 1,
+      "port": "后端覆盖口径：节假日不得混进交易日序列",
+      "tests": [
+        "hidden/tests_hidden/test_calendar_two_sides.py::test_spring_festival_and_other_2026_holidays_are_not_trade_dates",
+        "hidden/tests_hidden/test_calendar_two_sides.py::test_adjacent_years_keep_their_own_holidays_and_regular_weeks"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "跨端一致性：同一日期，两端必须同答案；重叠年份逐条一致",
+      "tests": [
+        "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_cover_the_operational_years",
+        "hidden/tests_hidden/test_calendar_two_sides.py::test_both_ends_agree_on_every_operational_year",
+        "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "task": "T1-03",
+  "note": "vitest 不支持 pytest --collect-only；按基线源码手写 api.stream.test.ts 的 11 条与 aiApi.chat.test.ts 的 4 条标题，并由 packgate 实跑确认。",
+  "tests": [
+    "src/api.stream.test.ts::forwards blocked trade events to the trade handler",
+    "src/api.stream.test.ts::emits renderable partial snapshots before the final realtime result",
+    "src/api.stream.test.ts::aborts a stalled realtime stream after its idle timeout",
+    "src/api.stream.test.ts::aborts a stalled backtest stream after its idle timeout",
+    "src/api.stream.test.ts::cancels an active realtime stream from the caller signal",
+    "src/api.stream.test.ts::cancels an active backtest stream from the caller signal",
+    "src/api.stream.test.ts::keeps the backend business code from a non-2xx stream response",
+    "src/api.stream.test.ts::falls back to http_error when the error body is not JSON",
+    "src/api.stream.test.ts::reports an unfinished backtest stream instead of resolving with nothing",
+    "src/api.stream.test.ts::cancels the response body when an NDJSON event cannot be parsed",
+    "src/api.stream.test.ts::reports the stream idle timeout when a non-success response body stalls",
+    "src/aiApi.chat.test.ts::reports interruption after tokens when no result event arrives",
+    "src/aiApi.chat.test.ts::resolves once the result event has been unwrapped",
+    "src/aiApi.chat.test.ts::keeps the backend stable code carried by an error event",
+    "src/aiApi.chat.test.ts::passes a caller abort through as a cancellation, not a success"
+  ]
+}

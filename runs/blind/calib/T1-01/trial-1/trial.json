@@ -1,0 +1,8 @@
+{
+  "task": "T1-01",
+  "trial": 1,
+  "workspace": "D:\\new model test\\runs\\blind\\calib\\T1-01\\trial-1\\workspace",
+  "drive": "Q:",
+  "snapshot": "slim-py",
+  "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+}

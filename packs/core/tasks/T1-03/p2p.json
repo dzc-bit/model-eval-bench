@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "task": "T1-03",
+  "note": "在未注入基线树上从 tests/test_ai_service_http.py --collect-only 收集的非 AI 流式用例；目标流式守卫不混入回归白名单。",
+  "tests": [
+    "tests/test_ai_service_http.py::test_ai_chat_cancel_requires_session_id",
+    "tests/test_ai_service_http.py::test_ai_config_embedding_endpoint_and_schedule_roundtrip",
+    "tests/test_ai_service_http.py::test_ai_config_reveal_returns_full_key",
+    "tests/test_ai_service_http.py::test_ai_config_roundtrip_masks_key",
+    "tests/test_ai_service_http.py::test_ai_config_store_keeps_embedding_base_url_when_blank",
+    "tests/test_ai_service_http.py::test_ai_overfit_check_endpoint",
+    "tests/test_ai_service_http.py::test_ai_reports_list_and_file_roundtrip",
+    "tests/test_ai_service_http.py::test_ai_session_lock_not_evicted_between_fetch_and_acquire",
+    "tests/test_ai_service_http.py::test_ai_session_locks_are_bounded_and_reusable",
+    "tests/test_ai_service_http.py::test_ai_status_reports_unconfigured_by_default"
+  ]
+}

@@ -1,0 +1,201 @@
+diff --git a/backend/astock_backtester/models.py b/backend/astock_backtester/models.py
+--- a/backend/astock_backtester/models.py
++++ b/backend/astock_backtester/models.py
+@@ -5,6 +5,22 @@
+ from typing import Any, Literal
+ 
+ from pydantic import BaseModel, Field, field_validator, model_serializer, model_validator
++
++# 派生列口径（全仓唯一来源）。写侧（采集派生、入库归一化）与读侧（条件的行级
++# 判定与向量化预筛）必须接同一根线，否则同一行数据在几个出口会被解释成不同量纲。
++#   - 换手率恒为百分数量纲：1.0 表示 1%。条件参数是分数（0.02 表示 2%），所以
++#     读它的地方一律经 ``turnover_rate_to_fraction`` 归一；**不能**按数值大小
++#     猜量纲——低换手区间（0.05 ~ 1.0）与分数区间高度重合，猜错方向会让判定
++#     结果与用户口语正好相反。
++#   - 推不出或缺列的换手率是"未知"（NaN），不是 0.0。0 是合法换手率，写成 0
++#     之后无法与"当日真的没换手"区分，会同时污染条件判定与候选打分。
++TURNOVER_RATE_PERCENT = 100.0
++UNKNOWN_NUMERIC = float("nan")
++
++
++def turnover_rate_to_fraction(value: Any) -> Any:
++    """把仓库的换手率（百分数）归一成条件参数用的分数；未知保持未知。"""
++    return value / TURNOVER_RATE_PERCENT
+ 
+ 
+ class ConditionOperator(str, Enum):  # noqa: UP042 - str+Enum keeps pydantic JSON serialization stable
+diff --git a/backend/astock_backtester/data/importer.py b/backend/astock_backtester/data/importer.py
+--- a/backend/astock_backtester/data/importer.py
++++ b/backend/astock_backtester/data/importer.py
+@@ -3,6 +3,8 @@
+ from pathlib import Path
+ 
+ import pandas as pd
++
++from astock_backtester.models import UNKNOWN_NUMERIC
+ 
+ REQUIRED_DAILY_COLUMNS = ["symbol", "trade_date", "open", "high", "low", "close", "volume"]
+ 
+@@ -24,7 +26,7 @@
+         "amount": 0.0,
+         "change_pct": 0.0,
+         "change": 0.0,
+-        "turnover_rate": 0.0,
++        "turnover_rate": UNKNOWN_NUMERIC,
+         "pre_close": float("nan"),
+         "float_market_cap": float("nan"),
+         "total_market_cap": float("nan"),
+diff --git a/backend/astock_backtester/data/astock_adapter.py b/backend/astock_backtester/data/astock_adapter.py
+--- a/backend/astock_backtester/data/astock_adapter.py
++++ b/backend/astock_backtester/data/astock_adapter.py
+@@ -23,6 +23,7 @@
+ from astock_backtester.data.importer import normalize_daily_bars
+ from astock_backtester.data.parsing import parse_float
+ from astock_backtester.data.symbols import a_share_market_symbol, is_st_name, market_code, normalize_symbol
++from astock_backtester.models import TURNOVER_RATE_PERCENT, UNKNOWN_NUMERIC
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -190,8 +191,10 @@
+     frame["change_pct"] = (frame["change"] / previous * 100).round(4)
+     # 成交额单位是元；公开 XHR 不提供成交额，用均价估算会引入误差，故留空。
+     frame["amount"] = float("nan")
+-    # 真实换手率稍后由 ``_apply_turnover_rate`` 用 volume/流通股 补出来。
+-    frame["turnover_rate"] = float("nan")
++    # turnover_rate 必须显式置空（未知）：缺列默认值同样是未知，而 0.0 是合法
++    # 换手率，写成 0 无法与"当日真的没换手"区分。真实换手率稍后由
++    # ``_apply_turnover_rate`` 用 volume/流通股 补出来。
++    frame["turnover_rate"] = UNKNOWN_NUMERIC
+     return frame
+ 
+ 
+@@ -462,12 +465,15 @@
+         """Fill ``float_market_cap`` across the window.
+ 
+         A quote gives the *current* price and current float market cap, hence
+-        float shares; the whole window is then valued with those shares against
+-        each row's close.  A constant snapshot is only used when shares cannot be
+-        derived.
+-
+-        Valuing the whole window on one share count keeps the column on a single
+-        source of truth and never mixes two units.
++        float shares; earlier rows then use ``float_shares * close``.  A constant
++        snapshot is only used when shares cannot be derived.
++
++        Rows that already carry a per-date value (the Baidu path derives
++        ``volume / (turnover / TURNOVER_RATE_PERCENT) * close`` per row) are
++        **kept**: that derivation reflects the share count *on that date*,
++        whereas the quote-based estimate applies today's share count to every
++        historical close and therefore overstates market cap for any stock that
++        has since issued or released shares (解禁/增发).  Only gaps are filled.
+         """
+         if float_market_cap > 0 or _to_float(quote.get("float_mcap_yi"), float("nan")) > 0:
+             price = _to_float(quote.get("price"), float("nan"))
+@@ -480,7 +486,8 @@
+                 derived = pd.Series(float_market_cap, index=bars.index)
+             else:
+                 return bars
+-            bars["float_market_cap"] = derived
++            existing = pd.to_numeric(bars["float_market_cap"], errors="coerce")
++            bars["float_market_cap"] = existing.fillna(derived)
+         return bars
+ 
+     @staticmethod
+@@ -498,12 +505,14 @@
+         cap = pd.to_numeric(bars["float_market_cap"], errors="coerce")
+         shares = cap / close.replace(0, float("nan"))
+         volume = pd.to_numeric(bars["volume"], errors="coerce")
+-        derived = (volume / shares.replace(0, float("nan")) * 100.0).where(lambda value: value >= 0)
++        derived = (volume / shares.replace(0, float("nan")) * TURNOVER_RATE_PERCENT).where(
++            lambda value: value >= 0
++        )
+         bars = bars.copy()
+         existing = pd.to_numeric(bars["turnover_rate"], errors="coerce")
+-        # 入库前把未知值归一：下游条件与打分都按数值比较，留空会在向量化路径上被
+-        # 当成 0 处理。统一按 0 兜底，语义上等价于"当日无换手"。
+-        bars["turnover_rate"] = existing.fillna(derived).fillna(0.0)
++        # 只补空缺：百度通道本身带 turnoverratio（同为百分数量纲），不要去覆盖它；
++        # 也绝不把推不出的行写成 0.0——未知就是未知。
++        bars["turnover_rate"] = existing.fillna(derived)
+         return bars
+ 
+     def _fetch_fund_flow_with_breaker(self, code: str) -> dict[str, Any]:
+diff --git a/backend/astock_backtester/conditions.py b/backend/astock_backtester/conditions.py
+--- a/backend/astock_backtester/conditions.py
++++ b/backend/astock_backtester/conditions.py
+@@ -5,7 +5,12 @@
+ 
+ import pandas as pd
+ 
+-from astock_backtester.models import ConditionGroup, ConditionNode, ConditionOperator
++from astock_backtester.models import (
++    ConditionGroup,
++    ConditionNode,
++    ConditionOperator,
++    turnover_rate_to_fraction,
++)
+ 
+ 
+ @dataclass(frozen=True)
+@@ -249,15 +254,20 @@
+ 
+ 
+ def _turnover_ratio(value: float | pd.Series) -> float | pd.Series:
+-    """Normalize the warehouse's ``turnover_rate`` to a fraction.
+-
+-    不同来源写进来的换手率量纲并不统一：按数值大小判一次——大于 1 的按百分数除
+-    100，其余视为已经是分数。
++    """Normalize the warehouse's percent-scale ``turnover_rate`` to a fraction.
++
++    ``turnover_rate`` 在仓库里**恒为百分数量纲**（由采集侧派生，量纲常量见
++    :data:`astock_backtester.models.TURNOVER_RATE_PERCENT`），而条件参数是分数
++    （``{"min": 0.02, "max": 0.08}`` = 换手率 2%~8%）。因此归一是**无条件**的：
++    不能按 ``value > 1`` 猜量纲——真实换手 0.7% 会被当成 70%，0.05% 会被当成
++    5%，低换手区间的判定与用户意图正好相反。
++
++    行级 evaluator 与向量化 mask builder 必须共用这一处归一：二者给出相反结论
++    时，engine 的 prefilter（走 MASK）会把行级判定为通过的股票全部提前丢掉，
++    推荐策略的换手率条件会永远筛不出任何股票。它同时接受标量与 Series，两套
++    实现因此不可能各自演化。
+     """
+-    if isinstance(value, pd.Series):
+-        scale = value.where(value > 1.0, 100.0)
+-        return value / scale
+-    return value / 100.0 if value > 1.0 else value
++    return turnover_rate_to_fraction(value)
+ 
+ 
+ def _turnover_between(node: ConditionNode, row: pd.Series, frame: pd.DataFrame) -> ConditionResult:
+@@ -424,8 +434,9 @@
+ 
+ 
+ def _mask_turnover_between(node: ConditionNode, data: pd.DataFrame) -> pd.Series:
+-    # 向量化路径直接对采集列取值比较，省掉一次除法。
+-    values = pd.to_numeric(data["turnover_rate"], errors="coerce")
++    # 与行级 ``_turnover_between`` 共用同一个归一：这里若另写一份实现，两套
++    # 实现会各自演化，而 prefilter 走 MASK，漂移的后果是候选被静默丢掉。
++    values = _turnover_ratio(pd.to_numeric(data["turnover_rate"], errors="coerce"))
+     return values.between(float(node.params["min"]), float(node.params["max"]), inclusive="both")
+ 
+ 
+diff --git a/backend/astock_backtester/engine.py b/backend/astock_backtester/engine.py
+--- a/backend/astock_backtester/engine.py
++++ b/backend/astock_backtester/engine.py
+@@ -315,10 +315,14 @@
+     pre_close = _optional_float(row, "pre_close")
+     if pre_close is None or pre_close <= 0:
+         return None
+-    # ST 股的涨跌幅限制统一收紧到 5%，其余按所属板块取。
+-    if bool(row.get("is_st", False)):
++    symbol = str(row.get("symbol", ""))
++    board = _board_limit_pct(symbol)
++    # 先定板块再降 ST：ST 的 5% 是**在主板 10% 基础上**的限制，创业板/科创板
++    # ST 股实际仍是 20%（先判 ST 会把它们按 5% 算，涨停拦截于是会误伤真实
++    # 涨停之外的价格）。北交所无 ST 降幅规则，保持 30%。
++    if bool(row.get("is_st", False)) and board == 0.10:
+         return 0.05
+-    return _board_limit_pct(str(row.get("symbol", "")))
++    return board
+ 
+ 
+ def _is_open_near_limit(row: pd.Series, direction: str) -> bool:

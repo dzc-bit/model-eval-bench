@@ -1,0 +1,90 @@
+{
+  "port": 8899,
+  "host": "127.0.0.1",
+  "repo_root": "D:\\New project 6",
+  "sandbox_root": "sandboxes",
+  "packs_root": "packs",
+  "runs_root": "runs",
+  "static_root": "console/static",
+  "snapshot_cache": "sandboxes/.snapshots",
+  "drive_pool": [
+    "Q:",
+    "R:",
+    "S:"
+  ],
+  "timeouts": {
+    "prepare_s": 180,
+    "grade_default_s": 240,
+    "grade_max_s": 1800,
+    "api_grade_s": 300
+  },
+  "grade": {
+    "diff_line_cap": 4000,
+    "similarity_threshold": 0.6,
+    "log_tail_lines": 400
+  },
+  "snapshot": {
+    "include": [
+      "backend",
+      "frontend",
+      "tests",
+      "scripts",
+      "pyproject.toml",
+      "package.json",
+      ".gitignore"
+    ],
+    "docs_include": [
+      "README.md"
+    ],
+    "exclude_dirs": [
+      ".git",
+      "docs",
+      "release-assets",
+      "dist",
+      "src-tauri",
+      ".reference",
+      "运行产物",
+      ".tools",
+      ".venv",
+      ".venv-release",
+      ".astock-cache",
+      ".pytest_cache",
+      ".ruff_cache",
+      "__pycache__",
+      ".idea",
+      ".vscode"
+    ],
+    "exclude_globs": [
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/*.pyo",
+      "**/.pytest_cache/**",
+      "**/*.egg-info/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "**/htmlcov/**",
+      "**/*.log",
+      "**/.coverage"
+    ],
+    "secret_globs": [
+      "**/.env",
+      "**/.env.*",
+      "**/*.pem",
+      "**/*.key",
+      "**/id_rsa*",
+      "**/id_ed25519*",
+      "**/.npmrc",
+      "**/.pypirc",
+      "**/credentials*",
+      "**/*secret*",
+      "**/*token*.json"
+    ],
+    "forbidden_literals": [
+      "D:\\New project 6",
+      "醍醐测试"
+    ],
+    "max_file_bytes": 4194304
+  },
+  "models": []
+}

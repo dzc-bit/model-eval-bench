@@ -1,0 +1,14 @@
+diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
+--- a/frontend/src/marketRefresh.ts
++++ b/frontend/src/marketRefresh.ts
+@@ -49,9 +49,7 @@
+   hasError = false,
+   missingBreadth = false
+ ): number {
+-  if (!hasError && missingBreadth) {
+-    return DEGRADED_RETRY_MS;
+-  }
++  // 保持标准轮询节奏，不因部分字段缺失导致请求过于密集
+   return refreshIntervalForPhase(phase, hasError);
+ }
+ 

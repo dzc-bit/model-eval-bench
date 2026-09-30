@@ -1,0 +1,2097 @@
+{
+  "task": "T2-06",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0001-filelock-pseudo-lock.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0002-warehouse-non-atomic-write.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0003-warehouse-silent-corruption.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0004-service-hidden-health.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000024860B8C200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002486096A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002173E598200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002173E33A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001FCD8178200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001FCD7F1E740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001ECA8A58200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001ECA87FA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000022157F08200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000022157CAE740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001CBA4478200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001CBA421A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000021BFE608200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000021BFE3AA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000021DA2D38200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000021DA2ADA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000211FA368200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000211FA0DA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001E9AC3E8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001E9AC18E740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002D9A1B58200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002D9A18FA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001EF71FD8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001EF71D4A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001B4275C8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001B42736A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001AF21848200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001AF215EA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001BA26088200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001BA25E2A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001DF35978200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001DF3571A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001E4377A8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001E43754A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002C5EC658200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002C5EC3CA740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000014779BA8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001477994A740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.filelock.FileLockTimeout'>"
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "failed",
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000173FECF8200>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "failed",
+              "message": "AssertionError: 写失败破坏了原分区内容\nassert 4 == 5\n +  where 4 = pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1000,1000]]\\namount: [[0,0,0,0]]\\nchange_pct: [[0,0,0,0]]\\nchange: [[0,0,0,0]]\\n....num_rows\n +    where pyarrow.Table\\nsymbol: large_string\\ntrade_date: timestamp[ns]\\nopen: double\\nhigh: double\\nlow: double\\nclose: double\\nvolum....2,10.2,10.2,10.2]]\\nvolume: [[1000,1000,1"
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000173FEA9E740>)"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "failed",
+              "message": "AssertionError: 读侧与损坏登记对同一年分区给出了两个答案：读侧成功，登记有\nassert False == True"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T02:10:40"
+}

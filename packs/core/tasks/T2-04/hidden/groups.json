@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "task": "T2-04",
+  "note": "组 = 一个出口（附录 B 结构）。coherence 组权重最高，只断言四个出口对同一天给出同一个答案。",
+  "groups": [
+    {
+      "id": "coverage_exit",
+      "weight": 1,
+      "port": "覆盖汇总：内部洞按横截面证据分成可行动 / 停牌类",
+      "tests": [
+        "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary",
+        "tests_hidden/test_gap_exit_consistency.py::test_full_cross_section_day_keeps_its_gap_as_a_suspension"
+      ]
+    },
+    {
+      "id": "per_symbol_exit",
+      "weight": 1,
+      "port": "逐股覆盖：某只票的缺失日清单",
+      "tests": [
+        "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+        "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+        "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+      ]
+    },
+    {
+      "id": "sync_pool_exit",
+      "weight": 1,
+      "port": "同步补齐名单：还有活要干的票",
+      "tests": [
+        "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+        "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window",
+        "tests_hidden/test_gap_exit_consistency.py::test_sync_drops_the_symbol_when_the_gap_is_a_real_suspension"
+      ]
+    },
+    {
+      "id": "flow_exit",
+      "weight": 1,
+      "port": "资金流缺口名单",
+      "tests": [
+        "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+        "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window",
+        "tests_hidden/test_gap_exit_consistency.py::test_flow_drops_the_symbol_when_the_gap_is_a_real_suspension"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "跨出口一致性：同一天的同一个事实，四个出口只能有一个答案",
+      "tests": [
+        "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day",
+        "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_a_full_cross_section_suspension"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

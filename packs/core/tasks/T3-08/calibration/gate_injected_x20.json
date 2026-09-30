@@ -1,0 +1,2234 @@
+{
+  "task": "T3-08",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T3-08\\inject\\patches\\0001-agent-archive-trilemma.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+              "outcome": "failed",
+              "message": "AssertionError: 移出窗口的 MARK-R1 必须仍能在长期记忆层找回\nassert 'MARK-R1' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头必须仍是 user，不得切出孤儿 tool 结果\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+              "outcome": "failed",
+              "message": "AssertionError: 发出的请求协议不合法：['第 4 条 user 消息打断了未配对的调用']\nassert ['第 4 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 4 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results",
+              "outcome": "failed",
+              "message": "AssertionError: 窗口头不得是孤儿 tool 结果（实际 tool）\nassert 'tool' == 'user'\n  \n  - user\n  + tool"
+            }
+          ]
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+              "outcome": "failed",
+              "message": "AssertionError: 整理后真实发送体积 1204 仍超预算（口径 = 正文 + 调用参数体）\nassert 1204 <= 800"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+              "outcome": "failed",
+              "message": "AssertionError: 参数体必须计入预算口径：整理后真实体积 940 仍超限\nassert 940 <= 600"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+              "outcome": "failed",
+              "message": "AssertionError: 结果正文必须原文进入长期记忆层（归档是搬运不是裁剪）\nassert '独家结果体 MARK-R1-据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据据' in 'user: 开场要求 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 必须随归档进入压缩通道\nassert 'MARK-R1' in '请把以下对话历史压缩成一段不超过 400 字的“会话纪要”。\\n保留：用户目标、已确认的股票代码/策略/参数、已得出的关键数字与结论、未完成的问题。直接输出纪要正文。\\n\\n对话历史：\\nuser: 开场 MARK-U0\\nassistant:  probe_tool\\nassistant:  probe_tool'"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+              "outcome": "failed",
+              "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T01:37:22"
+}

@@ -1,0 +1,851 @@
+/**
+ * strings.js — 全部用户可见文案的唯一来源（§14 语言与文案规范）
+ *
+ * 职责：
+ *   1. 存放所有面向人的中文文案（按钮、标题、提示、确认框、引导、错误、live region 播报）。
+ *   2. 提供后端错误码 → 中文文案的映射（`ERROR_CODES`），未知码回落到通用文案并保留 code 原文。
+ *   3. 提供带占位符替换的取词函数 `t(key, vars)`。
+ *
+ * 依赖：无（core 层最底层）。
+ * 导出：S（文案表）、ERROR_CODES（错误码映射）、TIER_NAMES、PROTOCOL_NAMES、
+ *       t(key, vars)、S_UNKNOWN_ERROR。
+ *
+ * 文案风格（§14）：动词开头、短句、不用感叹号、不卖萌；同一动作全站用同一词。
+ * 术语表：沙箱、校验、提示词、轮次、组、部分分、记分板、揭晓、基线。
+ * 标识符（键名）保持英文，值为中文。
+ */
+
+/** 占位符替换：`{name}` 形式。 */
+function fill(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, key) =>
+    Object.prototype.hasOwnProperty.call(vars, key) ? String(vars[key]) : m,
+  );
+}
+
+/**
+ * 取词并填占位符。
+ *
+ * 两种入参都支持，写哪种都不会漏替换：
+ *   - 键名：  t('COPY_OK', { n: 3 })
+ *   - 文案：  t(S.COPY_OK, { n: 3 })
+ * 键名是 ASCII 大写下划线，文案是中文，两者不会互相撞车。
+ * 未知键回落到入参本身（键名或文案原样），便于开发期发现遗漏。
+ *
+ * @param {string} keyOrText
+ * @param {Record<string, unknown>} [vars]
+ * @returns {string}
+ */
+export function t(keyOrText, vars) {
+  if (typeof keyOrText !== 'string') return '';
+  const byKey = S[keyOrText];
+  const value = typeof byKey === 'string' ? byKey : keyOrText;
+  return fill(value, vars);
+}
+
+/** 未知错误码的兜底文案模板，{code} 为后端原始错误码。 */
+export const S_UNKNOWN_ERROR = '操作未完成（错误码 {code}）。请稍后重试；若反复出现，请查看帮助页的排障说明。';
+
+export const S = {
+  // ==================== 应用与导航 ====================
+  APP_NAME: '模型评测台',
+  APP_TAGLINE: '本地任务库 · 沙箱 · 校验 · 记分板',
+  NAV_TASKS: '任务库',
+  NAV_WORKSPACE: '工作台',
+  NAV_BATCH: '批量跑批',
+  NAV_SCOREBOARD: '记分板',
+  NAV_MODELS: '模型档案',
+  NAV_SETTINGS: '设置',
+  NAV_HELP: '帮助',
+  SKIP_TO_MAIN: '跳到主内容',
+  NAV_LABEL: '主导航',
+  APP_FOOTER: '模型评测台 · 全部数据留在本机 · 不联网',
+  MOCK_BANNER: '当前是模拟数据模式（?mock=1），页面上的任务、报告与分数都是样例，不反映真实评测结果。',
+  APP_BOOT_FAIL_TITLE: '页面没能正常启动',
+  APP_BOOT_FAIL_BODY:
+    '前端脚本在初始化时抛出了错误，视图没有挂载出来。请先刷新页面；如果反复出现，打开控制台把最后一条红色报错记下来，再看帮助页的排障说明。',
+  APP_UNEXPECTED_TITLE: '页面出了个未预料的错误',
+  APP_UNEXPECTED_BODY:
+    '有一条脚本错误没有被当前操作捕获，页面可能少了一块内容。已经完成的操作不受影响；刷新页面通常能恢复。详细信息在浏览器控制台里。',
+  APP_STORAGE_DEGRADED_TITLE: '本机保存功能已降级',
+  APP_STORAGE_DEGRADED_BODY:
+    '浏览器拒绝了本地存储（可能开了无痕模式或站点数据被清空）。界面偏好、上次停留位置这类小数据本次会话内有效，刷新后丢失；评测记录不受影响。',
+  APP_OFFLINE_BODY:
+    '本地服务连不上，页面读不到数据。请确认 启动.cmd 起的窗口还开着，地址是 127.0.0.1:8899，恢复后点「重试」。',
+  APP_ONLINE: '本地服务已恢复连接。',
+  NAV_WORKSPACE_EMPTY: '还没进过任何任务的工作台。先在任务库里选一个任务，这里就会直达上次的那个。',
+  APP_LOADING_VIEW: '正在打开页面…',
+
+  // ==================== 通用动作 ====================
+  ACTION_RETRY: '重试',
+  ACTION_REFRESH: '刷新',
+  ACTION_CANCEL: '取消',
+  ACTION_CONFIRM: '确定',
+  ACTION_CLOSE: '关闭',
+  ACTION_OPEN: '打开',
+  ACTION_COPY: '复制',
+  ACTION_COPY_ALL: '复制全部',
+  ACTION_SELECT_ALL: '全选',
+  ACTION_BACK: '返回',
+  ACTION_EXPAND: '展开',
+  ACTION_COLLAPSE: '收起',
+  ACTION_EDIT: '编辑',
+  ACTION_DELETE: '删除',
+  ACTION_ADD: '新增',
+  ACTION_SAVE: '保存',
+  ACTION_SAVED: '已保存',
+  ACTION_CONTINUE: '继续',
+  ACTION_DONE: '完成',
+  ACTION_LOADING: '正在加载',
+  ACTION_SHOW_ALL: '显示全部',
+  ACTION_SHOW_LESS: '收起列表',
+  ACTION_VIEW_ALL: '查看全部',
+
+  // ==================== 状态 ====================
+  STATE_LOADING: '正在加载',
+  STATE_EMPTY: '暂无数据',
+  STATE_ERROR: '出错了',
+  STATE_OFFLINE: '本地服务未连接',
+  STATE_READY: '就绪',
+  STATE_RUNNING: '进行中',
+  STATE_DONE: '已完成',
+  STATE_IDLE: '空闲',
+  STATE_FAILED: '失败',
+  STATE_UNKNOWN: '未知',
+  STATE_BLOCKED: '未解锁',
+  STATE_NEW: '新结果',
+  // 运行状态词表：与后端 runs.run_view 的 status 取值一一对应（§15）
+  RUN_STATUS_PREPARING: '正在准备沙箱',
+  RUN_STATUS_READY: '沙箱就绪',
+  RUN_STATUS_GRADING: '正在校验',
+  RUN_STATUS_GRADED: '已校验',
+  RUN_STATUS_QUEUED: '排队等盘符',
+  RUN_STATUS_ERROR: '出错',
+
+  // ==================== 任务库 ====================
+  LIB_TITLE: '任务库',
+  LIB_DESC: '选择一个任务进入工作台。初级一次机会、中级两次、高级与王者各三次。',
+  LIB_FILTER_TIER: '按档位筛选',
+  LIB_FILTER_ALL: '全部档位',
+  LIB_TIER_T1: '初级',
+  LIB_TIER_T2: '中级',
+  LIB_TIER_T3: '高级',
+  LIB_TIER_T4: '王者',
+  LIB_SEARCH_LABEL: '搜索任务',
+  LIB_SEARCH_PLACEHOLDER: '输入任务编号或标题',
+  LIB_SEARCH_EMPTY: '没有匹配的任务',
+  LIB_SEARCH_EMPTY_DESC: '换个关键词，或把档位筛选改回「全部档位」再试一次。',
+  LIB_CARD_ATTEMPTS: '允许尝试 {n} 次',
+  LIB_CARD_CALIBRATED: '已校准',
+  LIB_CARD_NOT_CALIBRATED: '未校准',
+  LIB_CARD_HISTORY: '历史最好 {score}',
+  LIB_CARD_HISTORY_NONE: '尚无记录',
+  LIB_CARD_TARGET_BAND: '目标通过率 {low}~{high}',
+  LIB_CARD_ENTER: '进入工作台',
+  LIB_LOADING_DESC: '正在读取任务包清单。',
+  LIB_ERROR_DESC: '任务列表没能加载出来。',
+  LIB_COUNT: '共 {n} 个任务',
+
+  // 首启三步引导（§13.1）
+  GUIDE_TITLE: '三步走完一轮评测',
+  GUIDE_DESC: '这是一个本地流程，全程不联网。按下面三步就能跑完一次「选题 → 沙箱 → 提示词」；中途可以随时关掉这个引导。',
+  GUIDE_STEP_1_TITLE: '第一步 · 选任务',
+  GUIDE_STEP_1_DESC: '在下面的任务列表里挑一个题目。初级只给一次机会，中级两次，高级与王者各三次。',
+  GUIDE_STEP_1_ACTION: '看任务列表',
+  GUIDE_STEP_2_TITLE: '第二步 · 准备沙箱',
+  GUIDE_STEP_2_DESC: '进入工作台后点「准备沙箱」，系统会把受测仓库拷成一份独立副本并映射成盘符，模型只能在沙箱里动手。',
+  GUIDE_STEP_2_ACTION: '去工作台准备',
+  GUIDE_STEP_3_TITLE: '第三步 · 复制提示词给模型',
+  GUIDE_STEP_3_DESC: '把「接线说明 + 当前轮提示词」复制到任意模型的对话框里，模型就在沙箱中改代码。改完回这里点「运行校验」。',
+  GUIDE_STEP_3_ACTION: '看提示词长什么样',
+  GUIDE_DISMISS: '不再显示这个引导',
+  GUIDE_DISMISSED_ANNOUNCE: '已关闭首次引导，可在设置页重新打开。',
+
+  // ==================== 工作台 · 题头 ====================
+  WS_TITLE: '工作台',
+  WS_TASK_LABEL: '任务',
+  WS_TIER_LABEL: '档位',
+  WS_ATTEMPTS_LABEL: '尝试',
+  WS_ATTEMPT_CURRENT: '第 {n} 轮（当前）',
+  WS_ATTEMPT_USED: '第 {n} 轮（已用）',
+  WS_ATTEMPT_UNLOCKED: '第 {n} 轮（已解锁）',
+  WS_ATTEMPT_LOCKED: '第 {n} 轮（未解锁）',
+  WS_DRIVE_LABEL: '沙箱盘符',
+  WS_BASELINE_LABEL: '基线哈希',
+  WS_NO_DRIVE: '未创建',
+  WS_BACK_TO_LIB: '返回任务库',
+  WS_JUMP_PROMPT: '跳到提示词区',
+  WS_JUMP_SANDBOX: '跳到沙箱区',
+  WS_JUMP_GRADE: '跳到校验区',
+  WS_JUMP_RUN: '跳到运行区',
+  WS_REVEALED_FLAG: '已揭晓',
+  WS_REVEALED_NOTE: '本轮已揭晓，不计入通过率统计。',
+
+  // ==================== 提示词区 ====================
+  PROMPT_TITLE: '提示词',
+  PROMPT_DESC: '把接线说明和当前轮提示词一起复制给模型。提示词内容与当前轮次严格对应，切换轮次后请重新复制。',
+  PROMPT_ROUND_TAB: '轮次',
+  PROMPT_ROUND_1: '第 1 级提示词',
+  PROMPT_ROUND_2: '第 2 级提示词',
+  PROMPT_ROUND_3: '第 3 级提示词',
+  PROMPT_ROUND_GENERIC: '第 {n} 级提示词',
+  PROMPT_ROUND_LOCKED_TITLE: '第 {n} 级提示词尚未解锁',
+  PROMPT_ROUND_LOCKED_DESC: '把第 {prev} 级提示词给模型跑完并校验后，才能解锁第 {n} 级。解锁只给更多线索，不会泄露文件名。',
+  TAB_LOCKED_HINT: '这一页签当前不可用。',
+  PROMPT_ROUND_USED_MARK: '已用',
+  PROMPT_WIRING_TITLE: '接线说明',
+  PROMPT_WIRING_DESC: '每次都固定，复制给模型，让它知道工作目录就是沙箱根目录。',
+  PROMPT_BODY_TITLE: '第 {n} 级提示词（症状级）',
+  PROMPT_BODY_TITLE_2: '第 {n} 级提示词（不一致清单）',
+  PROMPT_BODY_TITLE_3: '第 {n} 级提示词（不变量与否决项）',
+  PROMPT_COPY_WIRING: '复制接线说明',
+  PROMPT_COPY_BODY: '复制第 {n} 级提示词',
+  PROMPT_COPY_ALL: '复制全部（接线说明 + 提示词）',
+  PROMPT_EMPTY: '还没有提示词',
+  PROMPT_EMPTY_DESC: '准备沙箱之后，提示词会出现在这里。先在下面点「准备沙箱」。',
+  PROMPT_ROUND_HINT: '当前是第 {n} 级提示词，复制内容与之对应。',
+
+  // 复制结果播报（§9 / §11.1 copy-button）
+  COPY_OK: '已复制到剪贴板。',
+  COPY_OK_WIRING: '已复制接线说明。',
+  COPY_OK_BODY: '已复制第 {n} 级提示词。',
+  COPY_OK_ALL: '已复制接线说明与第 {n} 级提示词，共 {len} 个字符。',
+  COPY_FAIL: '复制失败，浏览器拒绝了剪贴板权限。',
+  COPY_FAIL_NEXT: '已为你选中文本，按 Ctrl+C（Mac 为 Command+C）即可手动复制。',
+  COPY_EMPTY: '没有可复制的内容。',
+  COPY_MANUAL_HINT: '复制失败：请手动选择上面的文本后按 Ctrl+C。',
+
+  // ==================== 沙箱区 ====================
+  SANDBOX_TITLE: '沙箱',
+  SANDBOX_DESC: '沙箱是受测仓库的独立副本，模型只能在这个目录里改动。清空改动只重置沙箱，不动任何评测记录。',
+  SANDBOX_PREPARE: '准备沙箱',
+  SANDBOX_PREPARING: '正在准备沙箱',
+  SANDBOX_PREPARED: '沙箱已就绪',
+  SANDBOX_OPEN_DIR: '打开沙箱目录',
+  SANDBOX_COPY_PATH: '复制沙箱路径',
+  SANDBOX_PATH_COPIED: '沙箱路径已复制，粘贴到文件管理器地址栏即可打开。',
+  SANDBOX_RESET: '清空改动',
+  SANDBOX_RESETTING: '正在清空改动',
+  SANDBOX_REBUILD: '重建沙箱',
+  SANDBOX_REBUILDING: '正在重建沙箱',
+  SANDBOX_PATH_LABEL: '沙箱路径',
+  SANDBOX_DRIVE_LABEL: '盘符',
+  SANDBOX_BASELINE_LABEL: '基线哈希',
+  SANDBOX_LOG_TITLE: '沙箱日志',
+  SANDBOX_LOG_EMPTY: '准备、清空、重建沙箱时，这里会逐步记下本机发过的每一步。',
+  SANDBOX_INTEGRITY_TITLE: '沙箱完整性自检',
+  SANDBOX_INTEGRITY_OK: '沙箱环境完好，可以直接交给模型。',
+  SANDBOX_INTEGRITY_EMPTY: '跑过一次校验后，这里会给出基线完整性结论。',
+  SANDBOX_NO_RUN: '还没有沙箱',
+  SANDBOX_NO_RUN_DESC: '当前任务还没有准备过沙箱。点「准备沙箱」会拷贝一份仓库快照，通常不到一秒。',
+  SANDBOX_IN_USE: '这一轮模型已经改过东西了。清空后它的工作会全部消失，但评测记录保留。',
+  SANDBOX_OPEN_DIR_HINT: '本地服务没有提供「打开目录」接口（见 NOTES.md 契约缺口）。已经把路径复制到剪贴板，请到文件管理器地址栏粘贴打开。',
+  SANDBOX_RESET_CLEANED: '已回退 {n} 处改动，用时 {time} 秒。',
+  SANDBOX_PREPARE_SUBMIT: '已提交准备请求：{task} · {model} · 第 {n} 轮',
+  SANDBOX_PREPARE_DONE: '沙箱就绪：{path}（盘符 {drive}）',
+  SANDBOX_REBUILD_SUBMIT: '已提交重建请求：{task}',
+  SANDBOX_REBUILD_DONE: '沙箱已重建：{path}（盘符 {drive}）',
+  SANDBOX_GRADING: '校验进行中，沙箱目录请不要手工改动。',
+
+  // ==================== 校验区 ====================
+  GRADE_TITLE: '校验',
+  GRADE_DESC: '校验在评分树里跑，模型改测试、改配置都不生效。结束后按组给红绿与部分分。',
+  GRADE_RUN: '运行校验',
+  GRADE_RUNNING: '正在校验',
+  GRADE_RERUN: '重新运行校验',
+  GRADE_ELAPSED: '已用 {time}，预计 {total}',
+  GRADE_ELAPSED_UNKNOWN: '已用 {time}，剩余时间未知',
+  GRADE_LOG_TITLE: '校验日志',
+  GRADE_LOG_EMPTY: '点「运行校验」后这里会实时滚动日志，结束后自动收起。',
+  GRADE_RESULT_TITLE: '分组结果',
+  GRADE_SCORE_LABEL: '部分分',
+  GRADE_GROUPS_COUNT: '共 {n} 组',
+  GRADE_GROUP_PASS: '通过',
+  GRADE_GROUP_FAIL: '未通过',
+  GRADE_GROUP_WEIGHT: '权重 {n}',
+  GRADE_GROUP_FAILURES: '{n} 条失败',
+  GRADE_GROUP_PASS_SUMMARY: '该组用例全部通过。',
+  GRADE_P2P_TITLE: '回归（p2p）',
+  GRADE_P2P_OK: '回归通过：{n} 条既有用例保持绿色。',
+  GRADE_P2P_BROKEN: '回归被破坏：{n} 条既有用例变红，本轮成绩作废。',
+  GRADE_P2P_OK_SHORT: '既有用例全部保持绿色。',
+  GRADE_P2P_BROKEN_SHORT: '有既有用例变红，本轮成绩作废。',
+  GRADE_DONE: '校验完成',
+  GRADE_COMPARE_TITLE: '与上一轮对比',
+  GRADE_VIOLATIONS_TITLE: '越界改动',
+  GRADE_VIOLATIONS_ITEM: '{path}：{reason}',
+  GRADE_VIOLATIONS_NONE: '没有越界改动。',
+  GRADE_SIMILARITY: '与参考解相似度 {n}（阈值 0.6）',
+  GRADE_SIMILARITY_HIGH: '与参考解高度相似（{n} ≥ 0.6），已标记「疑似抄历史」。',
+  GRADE_EXPORT: '导出报告',
+  GRADE_EMPTY: '还没有跑过校验',
+  GRADE_EMPTY_DESC: '把提示词给模型、让它在沙箱里改完之后，点「运行校验」看分组结果。',
+  GRADE_PROMOTE: '进入第 {n} 轮',
+  GRADE_PROMOTE_LAST: '这是最后一次机会了。跑完还不能全绿，就只能查看参考解或者换个模型重来。',
+  GRADE_REVEAL: '查看参考解',
+  GRADE_REVEAL_TITLE: '查看参考解？',
+  GRADE_REVEAL_BODY: '这条提示词会直接给出本题的标准改法，等于提前公布答案。',
+  GRADE_REVEAL_WARN_1: '该轮将标记为「已揭晓」，不计入通过率统计。',
+  GRADE_REVEAL_WARN_2: '换句话说，这一轮之后这道题的 pass@1 / pass@k 就不再计入记分板。',
+  GRADE_REVEAL_WARN_3: '记录与沙箱都不会被删除，随时可以再看。',
+  GRADE_REVEAL_DONE: '已揭晓：下方是本题参考解。',
+  GRADE_NEW_RESULT: '新结果',
+  GRADE_DONE_PASS: '全部通过，计入 pass@1。',
+  GRADE_DONE_PARTIAL: '部分分 {n}：还有 {m} 组没过。',
+  GRADE_DONE_FAIL: '本轮未通过：{m} 组红，且没有剩余轮次。',
+  GRADE_DONE_VOID: '本轮作废：回归被破坏或存在越界改动。',
+  GRADE_GROUP_SUMMARY: '{pass} 组通过 / {total} 组',
+  // 以下是按 §15 真实报告结构（harness/report.py）补的文案
+  GRADE_INVALID_REASON: '本轮作废：{reason}',
+  GRADE_REGRESSION_TITLE: '被破坏的既有用例',
+  GRADE_REGRESSION_ITEM: '{id}：{msg}',
+  GRADE_NOISE_TITLE: '算作噪声的改动（不判越界）',
+  GRADE_NOISE_ITEM: '{path}',
+  GRADE_DIFF_TITLE: '本轮 diff 统计',
+  GRADE_DIFF_LINE: '改动 {changed} 行（新增 {add} / 删除 {del}），上限 {cap} 行。',
+  GRADE_DIFF_OVER_CAP: '超出 diff 行数上限，报告会截断，统计只覆盖截断后的内容。',
+  GRADE_BASELINE_TITLE: '基线完整性',
+  GRADE_BASELINE_OK: '基线文件完好，没有被动过。',
+  GRADE_CHECKS_TITLE: '评分执行详情',
+  GRADE_CHECK_ITEM: '{kind} · 返回码 {code} · 用时 {time}s',
+  GRADE_CHECK_TIMEOUT: '超时被中止',
+  GRADE_ERROR_TITLE: '校验过程出错',
+  GRADE_ERROR_BODY: '评分程序没能正常跑完，本轮成绩不可信：{msg}',
+  GRADE_REVEAL_PATCH_TITLE: '参考解补丁（{file}）',
+  GRADE_REVEAL_NOTICE: '已揭晓提示：{notice}',
+  GRADE_PREV_ROUND: '与上一轮对比：第 {n} 轮部分分 {score}。',
+  GRADE_TURNED_GREEN: '由红转绿：{list}',
+  GRADE_STAYED_RED: '仍然为红：{list}',
+  GRADE_REGRESSED: '由绿转红：{list}',
+  GRADE_NEXT_HINT: '下一步：{label}',
+  GRADE_NEXT_REASON: '{reason}',
+  GRADE_CASE_DETAIL: '失败详情',
+  GRADE_CASE_NODE: '用例 {id}',
+  GRADE_CASE_TIME: '用时 {time}s',
+
+  // ==================== 运行区 ====================
+  RUN_TITLE: '本轮信息',
+  RUN_MODEL_LABEL: '模型档案',
+  RUN_MODEL_EMPTY: '尚未选择档案',
+  RUN_MODEL_HINT: '档案只用于记账：记分板按「任务 × 模型」统计通过率，不会替你向模型发消息。',
+  RUN_MODEL_REQUIRED: '先选一个模型档案，再准备沙箱。',
+  RUN_NOTES_LABEL: '本轮备注',
+  RUN_NOTES_PLACEHOLDER: '记录模型的反应、卡在哪一步、下一轮要盯什么',
+  RUN_NOTES_HINT: '备注只存在本机，会随这一轮记录一起保存。',
+  RUN_DIFF_TITLE: '本轮改动',
+  RUN_DIFF_FILES: '{n} 个文件',
+  RUN_DIFF_ADD: '新增 {n} 行',
+  RUN_DIFF_DEL: '删除 {n} 行',
+  RUN_DIFF_NONE: '模型还没有改动任何文件。',
+  RUN_STARTED_LABEL: '开始时间',
+  RUN_ATTEMPT_LABEL: '当前轮次',
+  RUN_RUN_ID_LABEL: '运行编号',
+  RUN_SAVE_NOTES: '保存备注',
+  RUN_NOTES_SAVED: '备注已保存。',
+  RUN_DIFF_PENDING: '改动统计在跑过一次校验后显示。',
+  RUN_DIFF_SHOW: '查看改动内容',
+  RUN_DIFF_LOADING: '正在取本轮改动…',
+  RUN_DIFF_EMPTY: '这一轮模型没有改动任何文件。',
+  RUN_CALIBRATION: '这一轮用的是校准沙箱。',
+  RUN_STATUS_LABEL: '运行状态',
+
+  // ==================== 批量跑批（并发） ====================
+  BATCH_TITLE: '批量跑批',
+  BATCH_DESC:
+    '一次把「多道题 × 多个模型」排进后台并发执行。并发数受盘符池约束（盘符即沙箱槽位），每条跑完自动回收沙箱给后面的条目让位。',
+  BATCH_SETUP_TITLE: '排一批',
+  BATCH_SETUP_DESC:
+    '勾选题与模型，点「开始跑批」。每条的沙箱在跑完后自动回收，成绩照常进记分板；想留着沙箱手动改代码请走工作台单轮流程。',
+  BATCH_PICK_TASKS: '要跑的任务',
+  BATCH_PICK_MODELS: '要用的模型',
+  BATCH_CONCURRENCY: '同时跑几条',
+  BATCH_CONCURRENCY_HINT: '上限等于盘符池大小（config.json 的 drive_pool）。填大了会被后端夹到上限。',
+  BATCH_DRIVE_NOTE: '并发上限 = 盘符池大小。',
+  BATCH_START: '开始跑批',
+  BATCH_STARTING: '正在排队…',
+  BATCH_STARTED: '跑批已开始',
+  BATCH_CANCEL: '取消跑批',
+  BATCH_CANCELLED: '已请求取消，正在跑的条目会跑完当前这一步',
+  BATCH_NEED_PICK: '请至少勾选一道题和一个模型。',
+  BATCH_ALREADY_RUNNING: '这一批还在跑，等它结束或先取消。',
+  BATCH_NOT_RUNNING: '这一批已经结束，没有可取消的内容。',
+  BATCH_PROGRESS_LABEL: '跑批进度',
+  BATCH_RUNNING: '进行中',
+  BATCH_PASSED: '通过',
+  BATCH_STATUS_RUNNING: '正在跑批',
+  BATCH_STATUS_DONE: '已完成',
+  BATCH_STATUS_CANCELLED: '已取消',
+  BATCH_FINISHED: '跑批结束',
+  BATCH_EMPTY_TITLE: '还没有跑批',
+  BATCH_EMPTY_DESC: '在上面选题、选模型，点「开始跑批」就会在这里看到逐条进度与得分。',
+  BATCH_PROBLEMS_TITLE: '被跳过的条目',
+
+  // ==================== 记分板 ====================
+  SB_TITLE: '记分板',
+  SB_DESC: '行是任务，列是模型。单元格显示一次通过（pass@1）、尝试次数与得分；揭晓过的轮次单列，不参与通过率。',
+  SB_TOOLBAR_EXPORT: '导出 CSV',
+  SB_TOOLBAR_REFRESH: '刷新',
+  SB_EMPTY: '还没有成绩',
+  SB_EMPTY_DESC: '跑完一轮校验后，这里会出现该任务与模型的成绩。先去工作台跑一次吧。',
+  SB_CELL_PASS: '一次通过',
+  SB_CELL_NO_PASS: '未通过',
+  SB_CELL_TRIES: '{n} 次通过',
+  SB_CELL_TRIES_TOTAL: '共 {n} 轮',
+  SB_CELL_WILSON: '区间 {low}~{high}',
+  SB_CELL_REVEALED: '{n} 轮已揭晓',
+  SB_CELL_NO_DATA: '—',
+  SB_TOTAL_LABEL: '全部任务合计',
+  SB_OFFBAND: '偏离目标带',
+  SB_OFFBAND_DESC: '真实通过率落在目标带 {low}~{high} 之外，可以考虑加码或降档（§6.4）。',
+  SB_LEGEND_PASS: '一次通过记 pass@1',
+  SB_LEGEND_REVEAL: '揭晓轮不计入统计',
+  SB_EXPORT_DONE: '记分板已导出为 CSV。',
+  SB_LOADING_DESC: '正在汇总各任务各模型的成绩。',
+
+  // ==================== 模型档案 ====================
+  MODELS_TITLE: '模型档案',
+  MODELS_DESC: '档案只用于记账与统计：每轮绑定一个档案，记分板按「任务 × 模型」出通过率。评测台不会替你调用模型。',
+  MODELS_FORM_NEW: '新增档案',
+  MODELS_FORM_EDIT: '编辑档案',
+  MODELS_FIELD_ID: '档案编号',
+  MODELS_FIELD_ID_HINT: '用小写字母、数字和连字符，例如 kimi-k3。',
+  MODELS_FIELD_ID_REQUIRED: '请填写档案编号。',
+  MODELS_FIELD_ID_DUP: '已有同编号的档案，换一个。',
+  MODELS_FIELD_ID_INVALID: '只能包含小写字母、数字和连字符。',
+  MODELS_FIELD_PROTOCOL: '协议',
+  MODELS_FIELD_API_MODE: '调用接口',
+  MODELS_FIELD_API_MODE_HINT: '接口地址填写 API 根地址（通常以 /v1 结尾）；这里选择追加的 endpoint。当前只记录配置，不会由评测台发送请求。',
+  MODELS_FIELD_API_MODE_NATIVE_HINT: '该协议使用供应商原生接口；评测台只保存档案，不会发送请求。',
+  MODELS_API_RESPONSES: 'Responses API（/responses）',
+  MODELS_API_CHAT_COMPLETIONS: 'Chat Completions（/chat/completions）',
+  MODELS_API_COMPLETIONS: 'Completions（/completions）',
+  MODELS_API_NATIVE: '供应商原生接口',
+  MODELS_ROW_API_MODE: '接口形态：{mode}',
+  MODELS_FIELD_MODEL: '模型名',
+  MODELS_FIELD_BASE_URL: '接口地址',
+  MODELS_FIELD_KEY: '接口密钥',
+  MODELS_FIELD_KEY_HINT:
+    '明文密钥不经过页面：服务只保存脱敏后的结果（列表里显示为「密钥 sk-…4f2a」）。要换密钥请手改 console\\config.json 里的 models 对应条目，改完重启服务。',
+  MODELS_FIELD_KEY_UNCHANGED: '留空表示不修改已保存的密钥。',
+  MODELS_FIELD_NOTE: '备注',
+  MODELS_SAVE: '保存档案',
+  MODELS_SAVED: '档案「{id}」已保存。',
+  MODELS_DELETE_CONFIRM_TITLE: '删除档案「{id}」？',
+  MODELS_DELETE_CONFIRM_BODY_1: '删除后，用这个档案跑过的历史记录仍然保留，但记分板会把它当作未知档案。',
+  MODELS_DELETE_CONFIRM_BODY_2: '这不能撤销，只能重新新建一个同编号的档案。',
+  MODELS_DELETED: '档案「{id}」已删除。',
+  MODELS_EMPTY: '还没有模型档案',
+  MODELS_EMPTY_DESC: '先新增一个档案，名字随意，只要你能对上用的是哪个模型。工作台准备沙箱时需要选一个。',
+  MODELS_ROW_KEY: '密钥 {masked}',
+  MODELS_LOADING_DESC: '正在读取本机配置里的模型档案。',
+
+  // ==================== 设置 ====================
+  SETTINGS_TITLE: '设置',
+  SETTINGS_DESC: '这里展示本地服务的自检结果与本机保存的界面偏好。服务端的端口与受测仓库路径由 config.json 决定，不在页面里改。',
+  SETTINGS_HEALTH_TITLE: '服务自检',
+  SETTINGS_HEALTH_OK: '本地服务正常。',
+  SETTINGS_HEALTH_DEGRADED: '本地服务在运行，但有 {n} 项自检没通过，工作台顶部会显示黄条。',
+  SETTINGS_HEALTH_LOADING: '正在自检运行环境。',
+  SETTINGS_HEALTH_COL_ITEM: '检查项',
+  SETTINGS_HEALTH_COL_RESULT: '结果',
+  SETTINGS_HEALTH_COL_VALUE: '详情',
+  SETTINGS_HEALTH_ITEM_OK: '正常',
+  SETTINGS_HEALTH_ITEM_FAIL: '不通过',
+  SETTINGS_HEALTH_CHECKERS: '可用的检查器',
+  SETTINGS_HEALTH_WARNINGS: '需要注意的地方',
+  SETTINGS_SELFTEST_SCOPE: '扫描范围：前端 js {js} 个文件，代码与脚本 {other} 个文件。',
+  SETTINGS_HEALTH_PYTHON: 'Python 版本',
+  SETTINGS_HEALTH_PYTEST: 'pytest 版本',
+  SETTINGS_HEALTH_NODE: 'Node 版本',
+  SETTINGS_HEALTH_REPO: '受测仓库',
+  SETTINGS_HEALTH_REPO_OK: '可读',
+  SETTINGS_HEALTH_REPO_FAIL: '不可读',
+  SETTINGS_HEALTH_DRIVES: '盘符池',
+  SETTINGS_HEALTH_DISK: '沙箱根可用空间',
+  SETTINGS_HEALTH_PORT: '服务端口',
+  SETTINGS_PREF_TITLE: '界面偏好',
+  SETTINGS_PREF_LOG: '校验时自动展开日志',
+  SETTINGS_PREF_LOG_HINT: '关闭则默认收起，需要时点日志标题展开。',
+  SETTINGS_PREF_CONFIRM: '破坏性操作前先确认',
+  SETTINGS_PREF_CONFIRM_HINT: '强烈建议保持开启。关闭后「清空改动」「重建沙箱」「查看参考解」将直接执行。',
+  SETTINGS_PREF_STATS: '参与难度校准统计',
+  SETTINGS_PREF_STATS_HINT: '关闭后本机新产生的记录不进入记分板。',
+  SETTINGS_DATA_TITLE: '本机数据',
+  SETTINGS_DATA_DESC: '界面偏好与上次停留位置只存在这台机器的浏览器里，清掉不影响评测记录。',
+  SETTINGS_CLEAR: '清除本机界面状态',
+  SETTINGS_CLEAR_CONFIRM_TITLE: '清除本机界面状态？',
+  SETTINGS_CLEAR_CONFIRM_BODY_1: '会清掉：上次任务、上次模型档案、上次查看的轮次、各区域滚动位置、界面偏好。',
+  SETTINGS_CLEAR_CONFIRM_BODY_2: '不会动：评测记录、报告、沙箱、模型档案。这不能撤销，清掉后刷新即回到默认位置。',
+  SETTINGS_CLEAR_DONE: '本机界面状态已清除。',
+  SETTINGS_SELFTEST: '运行静态自检',
+  SETTINGS_SELFTEST_HINT: '扫描前端源码里的禁止项（innerHTML 拼数据、内联事件、硬编码色值等），只读不改文件。',
+  SETTINGS_SELFTEST_RUNNING: '正在运行自检。',
+  SETTINGS_SELFTEST_OK: '自检通过，没有发现禁止项。',
+  SETTINGS_SELFTEST_ISSUES: '自检发现 {n} 处需要处理的问题。',
+  SETTINGS_ABOUT_TITLE: '关于',
+  SETTINGS_ABOUT_VERSION: '前端版本',
+  SETTINGS_ABOUT_DOC: '设计文档',
+  SETTINGS_ABOUT_DOC_HINT: '工程、无障碍、体验与文案的规范来源，全部条款都能在本文件里查到。',
+
+  // ==================== 帮助 ====================
+  HELP_TITLE: '帮助',
+  HELP_DESC: '从零跑通一轮评测：选题、准备沙箱、复制提示词、校验、读报告、换模型重来。',
+  HELP_FLOW_TITLE: '一轮评测的完整流程',
+  HELP_FLOW_DESC: '评测台不做「一键跑完」，每一步都要你确认，因为每一步都会影响这一轮成绩的可信度。',
+  HELP_STEP_1: '在任务库挑一个任务，记住它的档位：初级只给一次机会。',
+  HELP_STEP_2: '进工作台，选一个模型档案，点「准备沙箱」。沙箱是仓库的独立副本，会映射成一个盘符。',
+  HELP_STEP_3: '复制「接线说明 + 第 1 级提示词」，贴进任意模型的对话框。',
+  HELP_STEP_4: '模型在沙箱盘符里改代码。改完回工作台，点「运行校验」。',
+  HELP_STEP_5: '看分组结果：全绿记 pass@1；有红但还有轮次就点「进入下一轮」；轮次用尽才看参考解。',
+  HELP_STEP_6: '换个模型重来时，点「清空改动」——沙箱回到基线，成绩保留。',
+  HELP_SANDBOX_TITLE: '沙箱到底是什么',
+  HELP_SANDBOX_DESC: '沙箱 = 受测仓库的一份拷贝，经过脱敏（删文档里点名答案的段落、隐藏守卫测试），再映射成盘符交给模型。沙箱里 git 只有一个基线提交，没有历史可查。',
+  HELP_SANDBOX_WHY_1: '模型改不动测试：校验不在沙箱里跑，而是拼一棵「评分树」，用仓库的原始测试文件加隐藏测试。',
+  HELP_SANDBOX_WHY_2: '模型爬不出目录：提示词只给盘符根，相对路径爬不回真实仓库。',
+  HELP_SANDBOX_WHY_3: '改动会被记账：校验前会全树哈希，越权改动记成「越界」，本轮直接作废。',
+  HELP_GRADE_TITLE: '怎么读校验结果',
+  HELP_GRADE_DESC: '校验按「组」给红绿，每组是一个对外出口或一条不变量。得分 = 通过组权重之和 / 总权重。',
+  HELP_GRADE_TERM_1: '部分分：只修通两个出口的解拿不到满分，这是刻意的——区分「修了一半」。',
+  HELP_GRADE_TERM_2: '回归（p2p）：既有用例被改红说明引入了新问题，本轮作废。',
+  HELP_GRADE_TERM_3: '越界：改了测试、配置或依赖清单的产物不会进入评分树，只会被记成违规。',
+  HELP_GRADE_TERM_4: '下一轮：点「进入下一轮」只是解锁更进一步的提示词，同一个沙箱继续改。',
+  HELP_SHORTCUT_TITLE: '快捷键',
+  HELP_SHORTCUT_DESC: '焦点在输入框里时单键快捷键失效；Ctrl / Command 组合一律放行，不与浏览器抢。',
+  HELP_SHORTCUT_COL_KEY: '按键',
+  HELP_SHORTCUT_COL_ACTION: '作用',
+  HELP_SHORTCUT_COL_WHEN: '生效条件',
+  HELP_SHORTCUT_C: '复制当前轮提示词',
+  HELP_SHORTCUT_C_WHEN: '在工作台，焦点不在输入框',
+  HELP_SHORTCUT_G: '运行校验',
+  HELP_SHORTCUT_G_WHEN: '沙箱就绪且没有正在进行的校验',
+  HELP_SHORTCUT_R: '清空改动（先弹确认）',
+  HELP_SHORTCUT_R_WHEN: '沙箱已存在',
+  HELP_SHORTCUT_1: '切到第 1 轮',
+  HELP_SHORTCUT_2: '切到第 2 轮',
+  HELP_SHORTCUT_3: '切到第 3 轮',
+  HELP_SHORTCUT_N_WHEN: '该轮已解锁',
+  HELP_SHORTCUT_QUESTION: '打开这张快捷键表',
+  HELP_SHORTCUT_QUESTION_WHEN: '全局',
+  HELP_SHORTCUT_ESC: '关闭浮层或取消当前弹窗',
+  HELP_SHORTCUT_ESC_WHEN: '有浮层打开时',
+  HELP_TERM_TITLE: '术语表',
+  HELP_TERM_DESC: '全站统一用这几个词，看到它们就按这里的定义理解。',
+  HELP_A11Y_TITLE: '无障碍与键盘',
+  HELP_A11Y_DESC: '整站可以用纯键盘走完：Tab 依次走过所有操作，Enter 或空格触发，Esc 关闭浮层并把焦点还回原来的地方。',
+  HELP_A11Y_1: '页面顶部有「跳到主内容」链接，按一次 Tab 就能跳过导航。',
+  HELP_A11Y_2: '焦点框统一是蓝色描边，鼠标点击不显示、键盘导航显示。',
+  HELP_A11Y_3: '状态变化（复制成功、校验开始、校验完成、沙箱已重置）会自动播报。',
+  HELP_A11Y_4: '红绿状态除了颜色，还带符号和文字，不靠颜色单独传达。',
+  HELP_A11Y_5: '浏览器放大到 200% 不会破版，日志和代码区内部滚动。',
+  HELP_TROUBLE_TITLE: '排障',
+  HELP_TROUBLE_DESC: '出问题时按这里的顺序查，大部分情况不用看代码。',
+  HELP_TROUBLE_1: '顶部黄条说「本地服务未连接」：确认 启动.cmd 起的那个黑色窗口还开着，地址是 127.0.0.1:8899。',
+  HELP_TROUBLE_2: '复制没反应：点复制按钮后如果变成「复制失败」，页面会自动帮你选中文本，按 Ctrl+C 手动复制。',
+  HELP_TROUBLE_3: '校验说「沙箱环境损坏」：模型可能删了 .gitignore 或动了 node_modules 联接，点「重建沙箱」后重试。',
+  HELP_TROUBLE_4: '校验超时：把日志展开看停在哪一步，通常是某条用例死等；重建沙箱再跑一次。',
+  HELP_TROUBLE_5: '记分板和档案页打开慢：这两页是按需加载的，第一次会慢一点，之后浏览器会缓存。',
+  HELP_TOC_TITLE: '本页目录',
+
+  // ==================== 模态与确认框 ====================
+  MODAL_CLOSE_LABEL: '关闭对话框',
+  MODAL_LOADING_TITLE: '正在处理',
+  CONFIRM_DEFAULT_CANCEL: '取消',
+  CONFIRM_DEFAULT_OK: '确定',
+  CONFIRM_RESET_TITLE: '清空沙箱改动？',
+  CONFIRM_RESET_BODY_1: '沙箱会回到基线状态：模型写的代码、删掉的文件都会被丢弃。',
+  CONFIRM_RESET_BODY_2: '评测记录不会被删除 —— 报告、diff、得分、备注全部保留。',
+  CONFIRM_RESET_BODY_3: '这不能撤销。清空后可以换模型，从第 1 级提示词重新开始。',
+  CONFIRM_RESET_DONE: '沙箱已清空，模型的工作被丢弃，评测记录保留。可以换模型，从第 1 级提示词重新开始。',
+  CONFIRM_RESET_DONE_HINT: '只重置沙箱，不动任何评测记录：记分板里这一轮的成绩原样保留。想让另一个模型试同一道题，就在下面的「本轮信息」区换档案，再点一次「准备沙箱」。',
+  CONFIRM_REBUILD_TITLE: '重建沙箱？',
+  CONFIRM_REBUILD_BODY_1: '会删掉当前沙箱整棵目录，重新从仓库快照生成一份，并重新映射盘符。',
+  CONFIRM_REBUILD_BODY_2: '模型这一轮写在沙箱里的所有内容都会丢失；评测记录、沙箱日志、报告都保留。',
+  CONFIRM_REBUILD_BODY_3: '通常一秒内完成。如果只是想让模型重写一遍，用「清空改动」就够了，不必重建。',
+  CONFIRM_REBUILD_DONE: '沙箱已重建，可以把提示词再给模型一次。',
+  CONFIRM_RESET_BUSY: '正在清空改动',
+  CONFIRM_REBUILD_BUSY: '正在重建沙箱',
+  CONFIRM_GRADE_TITLE: '确认运行校验？',
+  CONFIRM_GRADE_BODY_1: '校验会跑仓库的原始测试加隐藏测试，通常 5 秒到 2 分钟。',
+  CONFIRM_GRADE_BODY_2: '期间沙箱保持打开，但请不要在沙箱里改文件，否则会被记成越界改动。',
+  CONFIRM_PROMOTE_TITLE: '进入第 {n} 轮？',
+  CONFIRM_PROMOTE_BODY_1: '会解锁第 {n} 级提示词，同一个沙箱继续用，模型已经写的代码保留。',
+  CONFIRM_PROMOTE_BODY_2: '这是本题最后一次机会，用掉就没有了。确定模型已经尽力了吗？',
+
+  // ==================== 进度与日志 ====================
+  PROGRESS_PREPARE: '正在准备沙箱',
+  PROGRESS_GRADE: '正在校验',
+  PROGRESS_RESET: '正在清空改动',
+  PROGRESS_REBUILD: '正在重建沙箱',
+  PROGRESS_IDLE: '空闲',
+  LOG_FOLD: '收起日志',
+  LOG_UNFOLD: '展开日志',
+  LOG_LINES_COUNT: '共 {n} 行',
+  LOG_TRUNCATED: '已截断显示前 100 行。',
+
+  // ==================== live region 播报 ====================
+  ANNOUNCE_ROUTE: '已进入{page}',
+  ANNOUNCE_SANDBOX_PREPARING: '正在准备沙箱。',
+  ANNOUNCE_SANDBOX_READY: '沙箱已就绪，{drive}。',
+  ANNOUNCE_GRADE_STARTED: '校验已开始。',
+  ANNOUNCE_GRADE_DONE: '校验完成，部分分 {n}，{summary}。',
+  ANNOUNCE_GRADE_FAILED: '校验失败。',
+  ANNOUNCE_ROUND_CHANGED: '已切到第 {n} 级提示词。',
+  ANNOUNCE_TAB_CHANGED: '已切到{page}。',
+  ANNOUNCE_SANDBOX_RESET_DONE: '沙箱已清空。',
+  ANNOUNCE_SANDBOX_RESET_DONE_PENDING: '正在清空改动，请稍候。',
+  ANNOUNCE_TASKS_LOADED: '任务列表已加载，共 {n} 个。',
+  ANNOUNCE_SB_LOADED: '记分板已加载。',
+  ANNOUNCE_CLEAR_DONE: '本机界面状态已清除。',
+
+  // ==================== 档位 / 协议 / 状态中文名 ====================
+  TIER_EASY: '初级',
+  TIER_MEDIUM: '中级',
+  TIER_HARD: '高级',
+  TIER_KING: '王者',
+  PROTOCOL_OPENAI: 'OpenAI 兼容',
+  PROTOCOL_ANTHROPIC: 'Anthropic',
+  PROTOCOL_GEMINI: 'Gemini',
+  PROTOCOL_CUSTOM: '自定义',
+
+  // ==================== 错误（结构 = 发生了什么 + 影响 + 下一步，§13.7） ====================
+  ERR_OFFLINE_TITLE: '本地服务未连接',
+  ERR_OFFLINE_BODY: '无法访问 127.0.0.1:8899。评测台的数据、报告与沙箱都在本机服务上，服务没起来就什么都读不到。请确认 启动.cmd 起的窗口还开着，然后点「重试」。',
+  ERR_TIMEOUT: '请求超时',
+  ERR_TIMEOUT_BODY: '后端在 {n} 秒内没有返回。这通常是某条耗时操作卡住了。稍等片刻再点「重试」；反复超时请看帮助页的排障说明。',
+  ERR_ABORTED: '请求已取消',
+  ERR_ABORTED_BODY: '你离开了当前页面，这次请求就中止了。回到页面后会自动重新拉取。',
+  ERR_PARSE: '返回内容读不懂',
+  ERR_PARSE_BODY: '本地服务返回了前端解析不了的内容，评测结果可能不完整。点「重试」；反复出现请检查 server.py 是否与设计文档 §15 一致。',
+  ERR_LOAD: '读取失败',
+  ERR_LOAD_BODY: '没有拿到数据，当前区域可能不完整。点「重试」重新读取。',
+  ERR_SAVE: '保存失败',
+  ERR_SAVE_BODY: '改动没有写进去。点「重试」；反复失败请检查沙箱根目录是否可写。',
+  ERR_ACTION: '操作失败',
+  ERR_ACTION_BODY: '这一步没有生效，状态保持原样。点「重试」；反复失败请看帮助页的排障说明。',
+  ERR_UNKNOWN_CODE: '后端返回了前端还不认识的错误码：{code}',
+  ERR_NO_SANDBOX: '还没有沙箱',
+  ERR_NO_SANDBOX_BODY: '模型没有可写的地方，这一轮无法进行。先在沙箱区点「准备沙箱」，等它显示就绪再复制提示词。',
+  ERR_SANDBOX_DIRTY: '沙箱被外部修改',
+  ERR_SANDBOX_DIRTY_BODY: '基线哈希与登记值对不上，校验已中止。本轮成绩未写入，不会污染记分板。点「重建沙箱」后重新开始。',
+  ERR_GRADE_TIMEOUT: '校验超时',
+  ERR_GRADE_TIMEOUT_BODY: '测试跑了 {n} 秒还没结束，本轮判为失败但日志保留。展开日志看停在哪一步，必要时重建沙箱再试。',
+  ERR_P2P_BROKEN: '回归被破坏',
+  ERR_P2P_BROKEN_BODY: '本轮引入了新问题，成绩按 0 分处理且不进通过率主统计。展开失败摘要看是哪条既有用例变红。',
+  ERR_VIOLATION: '存在越界改动',
+  ERR_VIOLATION_BODY: '模型改了不允许改的文件（测试、配置或依赖清单）。这些改动不会进入评分树，但本轮判红。建议清空改动后重跑。',
+  ERR_NO_RUN: '这一轮还不存在',
+  ERR_NO_RUN_BODY: '当前任务还没有生成运行记录。先在沙箱区点「准备沙箱」，系统会创建第 1 轮。',
+  ERR_NOT_FOUND: '找不到内容',
+  ERR_NOT_FOUND_BODY: '请求的对象不存在，可能已被删除或编号写错了。回到任务库重新选一个。',
+  ERR_FORBIDDEN: '这一步现在不能做',
+  ERR_FORBIDDEN_BODY: '前置条件不满足，动作被拒绝，状态未变。回到页面确认沙箱是否就绪、轮次是否解锁。',
+  ERR_UNKNOWN_TASK: '找不到这个任务',
+  ERR_UNKNOWN_TASK_BODY: '任务编号不在本机任务包里，可能任务包没装好或编号写错了。回到任务库看看现有列表。',
+  ERR_BUSY: '已有操作在进行',
+  ERR_BUSY_BODY: '同一时间只允许一个长操作，重复点击已被忽略。等当前操作结束后再试。',
+  ERR_STORAGE_FULL: '本机存储写满了',
+  ERR_STORAGE_FULL_BODY: '界面偏好这类小数据暂时存不下，本次改动不会在刷新后保留。不影响评测记录，可以点「重试」或清掉一些浏览器数据。',
+  ERR_SETTINGS_LOCKED: '设置项不可用',
+  ERR_SETTINGS_LOCKED_BODY: '该项由 config.json 决定，页面不提供修改。改完 config.json 后重启服务即可生效。',
+  ERR_SELFTEST_RUN: '自检没跑起来',
+  ERR_SELFTEST_RUN_BODY: '没有拿到自检结果。确认 console\\harness\\selfcheck.py 是否存在，不影响评测流程。',
+  ERR_REPORT_EXPORT: '报告没导出成',
+  ERR_REPORT_EXPORT_BODY: '没有拿到可导出的报告内容。可以刷新报告区再试一次，或改用浏览器截图留档。',
+  ERR_OPEN_DIR: '打不开沙箱目录',
+  ERR_OPEN_DIR_BODY: '本地服务没有提供「打开目录」能力。请手动在文件管理器里打开上面的沙箱路径。',
+  ERR_TASK_INVALID: '任务包有问题',
+  ERR_TASK_INVALID_BODY: '这道题的任务包不符合规范（缺 meta.json、缺隐藏测试或分组配置）。这一题没法评分，换一道题试试。',
+  ERR_MODEL_NOT_FOUND: '找不到这个模型档案',
+  ERR_MODEL_NOT_FOUND_BODY: 'config.json 里没有这个 id 的模型档案。用这个档案跑过的历史记录会保留，但记分板会把它当作未知档案。去「模型档案」页核对编号。',
+  ERR_SNAPSHOT_FAILED: '沙箱快照生成失败',
+  ERR_SNAPSHOT_FAILED_BODY: '从受测仓库复制沙箱时失败了，这一轮没有建起来。评测记录不受影响；确认受测仓库还在、磁盘有空间后重试。',
+  ERR_LEAK_DETECTED: '快照里混进了不该出现的东西',
+  ERR_LEAK_DETECTED_BODY: '复制沙箱时发现了受测仓库的绝对路径或敏感目录名，为了不把答案带进沙箱，这一步被中止了。点「重建沙箱」重试，反复出现请联系维护者。',
+  ERR_DRIVE_BUSY: '盘符用完了',
+  ERR_DRIVE_BUSY_BODY: '盘符池（Q:/R:/S:）已经被别的沙箱占满，新沙箱建不起来。关掉不再用的沙箱或重建一个旧的腾出盘符，然后再点「准备沙箱」。',
+  ERR_GRADE_FAILED: '校验没跑完',
+  ERR_GRADE_FAILED_BODY: '测试执行器报错了，这一轮没有成绩。展开日志看具体报错；如果是任务包缺隐藏测试，这道题需要先补齐。',
+  ERR_REPO_UNREADABLE: '读不到受测仓库',
+  ERR_REPO_UNREADABLE_BODY: 'config.json 里的 repo_root 指向的目录读不出来。沙箱是从那里复制出来的，所以准备沙箱也会失败。检查路径后重启服务。',
+  ERR_CONFIG_INVALID: 'config.json 有问题',
+  ERR_CONFIG_INVALID_BODY: '服务端配置缺项或类型不对，很多接口会用兜底值工作。评测结果可能不准，先把 config.json 对照设计文档 §15 校一遍。',
+  ERR_UNKNOWN: '出了点问题',
+  ERR_UNKNOWN_BODY: '这一步没有完成，状态保持原样。点「重试」；反复出现请把下面的错误码连同现象记下来。',
+
+  // 折叠里的技术细节前缀
+  ERROR_DETAIL_LABEL: '技术细节',
+};
+
+/** 档位（tier）→ 中文名 + CSS 变体类名后缀。 */
+export const TIER_NAMES = {
+  easy: { label: S.LIB_TIER_T1, variant: 't1' },
+  primary: { label: S.LIB_TIER_T1, variant: 't1' }, // 后端 packs 里的档位值是 primary，与 mock 的 easy 同义
+  medium: { label: S.LIB_TIER_T2, variant: 't2' },
+  hard: { label: S.LIB_TIER_T3, variant: 't3' },
+  king: { label: S.LIB_TIER_T4, variant: 't4' },
+};
+
+/**
+ * 档位值归一：后端 packs 返回 primary / medium / hard，
+ * mock 与一部分旧数据用 easy 指初级。统一成 packs 的写法，
+ * 筛选比较、徽章取词都走这一道，避免「初级筛不出初级」。
+ * @param {string} tier
+ * @returns {string}
+ */
+export function normalizeTier(tier) {
+  if (tier === 'easy') return 'primary';
+  if (tier === '王者' || tier === 't4') return 'king';
+  return String(tier || '');
+}
+
+/** 协议（protocol）→ 中文名。 */
+export const PROTOCOL_NAMES = {
+  openai: S.PROTOCOL_OPENAI,
+  anthropic: S.PROTOCOL_ANTHROPIC,
+  gemini: S.PROTOCOL_GEMINI,
+  custom: S.PROTOCOL_CUSTOM,
+};
+
+/** OpenAI 兼容 API 形态的可读名称。 */
+export const API_MODE_NAMES = {
+  responses: S.MODELS_API_RESPONSES,
+  chat_completions: S.MODELS_API_CHAT_COMPLETIONS,
+  completions: S.MODELS_API_COMPLETIONS,
+  native: S.MODELS_API_NATIVE,
+};
+
+/**
+ * 后端错误码 → 中文文案（§14：错误码与用户文案分离）。
+ * 每条文案结构统一为「发生了什么 + 对用户的影响 + 下一步做什么」。
+ */
+export const ERROR_CODES = {
+  OFFLINE: S.ERR_OFFLINE_TITLE,
+  TIMEOUT: S.ERR_TIMEOUT,
+  ABORTED: S.ERR_ABORTED,
+  PARSE_ERROR: S.ERR_PARSE,
+  LOAD_FAILED: S.ERR_LOAD,
+  SAVE_FAILED: S.ERR_SAVE,
+  ACTION_FAILED: S.ERR_ACTION,
+  NO_SANDBOX: S.ERR_NO_SANDBOX,
+  SANDBOX_DIRTY: S.ERR_SANDBOX_DIRTY,
+  GRADE_TIMEOUT: S.ERR_GRADE_TIMEOUT,
+  P2P_BROKEN: S.ERR_P2P_BROKEN,
+  VIOLATION: S.ERR_VIOLATION,
+  NO_RUN: S.ERR_NO_RUN,
+  NOT_FOUND: S.ERR_NOT_FOUND,
+  FORBIDDEN: S.ERR_FORBIDDEN,
+  UNKNOWN_TASK: S.ERR_UNKNOWN_TASK,
+  BUSY: S.ERR_BUSY,
+  STORAGE_FULL: S.ERR_STORAGE_FULL,
+  SETTINGS_LOCKED: S.ERR_SETTINGS_LOCKED,
+  SELFTEST_FAILED: S.ERR_SELFTEST_RUN,
+  EXPORT_FAILED: S.ERR_REPORT_EXPORT,
+  OPEN_DIR_UNSUPPORTED: S.ERR_OPEN_DIR,
+  TASK_INVALID: S.ERR_TASK_INVALID,
+  MODEL_NOT_FOUND: S.ERR_MODEL_NOT_FOUND,
+  SNAPSHOT_FAILED: S.ERR_SNAPSHOT_FAILED,
+  LEAK_DETECTED: S.ERR_LEAK_DETECTED,
+  DRIVE_BUSY: S.ERR_DRIVE_BUSY,
+  GRADE_FAILED: S.ERR_GRADE_FAILED,
+  REPO_UNREADABLE: S.ERR_REPO_UNREADABLE,
+  CONFIG_INVALID: S.ERR_CONFIG_INVALID,
+  INTERNAL: S.ERR_UNKNOWN,
+};
+
+/**
+ * 错误码 → 用户可读的「发生 + 影响 + 下一步」三段文案。
+ * 与 ERROR_CODES 并存：前者是短标题（toast / 状态条用），本表是详情正文。
+ */
+export const ERROR_BODIES = {
+  OFFLINE: S.ERR_OFFLINE_BODY,
+  TIMEOUT: S.ERR_TIMEOUT_BODY,
+  ABORTED: S.ERR_ABORTED_BODY,
+  PARSE_ERROR: S.ERR_PARSE_BODY,
+  LOAD_FAILED: S.ERR_LOAD_BODY,
+  SAVE_FAILED: S.ERR_SAVE_BODY,
+  ACTION_FAILED: S.ERR_ACTION_BODY,
+  NO_SANDBOX: S.ERR_NO_SANDBOX_BODY,
+  SANDBOX_DIRTY: S.ERR_SANDBOX_DIRTY_BODY,
+  GRADE_TIMEOUT: S.ERR_GRADE_TIMEOUT_BODY,
+  P2P_BROKEN: S.ERR_P2P_BROKEN_BODY,
+  VIOLATION: S.ERR_VIOLATION_BODY,
+  NO_RUN: S.ERR_NO_RUN_BODY,
+  NOT_FOUND: S.ERR_NOT_FOUND_BODY,
+  FORBIDDEN: S.ERR_FORBIDDEN_BODY,
+  UNKNOWN_TASK: S.ERR_UNKNOWN_TASK_BODY,
+  BUSY: S.ERR_BUSY_BODY,
+  STORAGE_FULL: S.ERR_STORAGE_FULL_BODY,
+  SETTINGS_LOCKED: S.ERR_SETTINGS_LOCKED_BODY,
+  SELFTEST_FAILED: S.ERR_SELFTEST_RUN_BODY,
+  EXPORT_FAILED: S.ERR_REPORT_EXPORT_BODY,
+  OPEN_DIR_UNSUPPORTED: S.ERR_OPEN_DIR_BODY,
+  TASK_INVALID: S.ERR_TASK_INVALID_BODY,
+  MODEL_NOT_FOUND: S.ERR_MODEL_NOT_FOUND_BODY,
+  SNAPSHOT_FAILED: S.ERR_SNAPSHOT_FAILED_BODY,
+  LEAK_DETECTED: S.ERR_LEAK_DETECTED_BODY,
+  DRIVE_BUSY: S.ERR_DRIVE_BUSY_BODY,
+  GRADE_FAILED: S.ERR_GRADE_FAILED_BODY,
+  REPO_UNREADABLE: S.ERR_REPO_UNREADABLE_BODY,
+  CONFIG_INVALID: S.ERR_CONFIG_INVALID_BODY,
+};
+
+/**
+ * 后端 `console/harness/errors.py` 的稳定错误码 → 前端归一化错误码。
+ * 前端只认右边这批短码，所有后端码先过这张表再查文案，
+ * 这样后端加码时前端不会静默退化成「未知错误」。
+ */
+export const BACKEND_CODE_ALIASES = {
+  E_BAD_REQUEST: 'ACTION_FAILED',
+  E_NOT_FOUND: 'NOT_FOUND',
+  E_METHOD_NOT_ALLOWED: 'FORBIDDEN',
+  E_TASK_NOT_FOUND: 'UNKNOWN_TASK',
+  E_TASK_INVALID: 'TASK_INVALID',
+  E_MODEL_NOT_FOUND: 'MODEL_NOT_FOUND',
+  E_MODEL_INVALID: 'ACTION_FAILED',
+  E_RUN_NOT_FOUND: 'NO_RUN',
+  E_RUN_BUSY: 'BUSY',
+  E_STORE_FAILED: 'SAVE_FAILED',
+  E_SANDBOX_MISSING: 'NO_SANDBOX',
+  E_SANDBOX_BROKEN: 'SANDBOX_DIRTY',
+  E_SNAPSHOT_FAILED: 'SNAPSHOT_FAILED',
+  E_LEAK_DETECTED: 'LEAK_DETECTED',
+  E_DRIVE_UNAVAILABLE: 'DRIVE_BUSY',
+  E_GRADE_TIMEOUT: 'GRADE_TIMEOUT',
+  E_GRADE_FAILED: 'GRADE_FAILED',
+  E_CHECK_TIMEOUT: 'GRADE_TIMEOUT',
+  E_REPO_UNREADABLE: 'REPO_UNREADABLE',
+  E_CONFIG_INVALID: 'CONFIG_INVALID',
+  E_INTERNAL: 'INTERNAL',
+};
+
+/**
+ * 把后端错误码归一化成前端短码。
+ * @param {string} code
+ * @returns {string}
+ */
+export function normalizeCode(code) {
+  if (!code) return 'INTERNAL';
+  return BACKEND_CODE_ALIASES[code] || code;
+}
+
+/**
+ * 按错误码取中文标题；未知码回落到通用标题。
+ * @param {string} code 后端稳定错误码（E_* 或前端短码都认）
+ * @returns {string} 中文短标题
+ */
+export function errorTitle(code) {
+  return ERROR_CODES[normalizeCode(code)] || S.ERR_UNKNOWN;
+}
+
+/**
+ * 按错误码取中文详情正文（含影响与下一步）；未知码用通用正文并把 code 原文嵌进去。
+ * @param {string} code 后端稳定错误码
+ * @param {object} [vars] 占位符变量（如 TIMEOUT 需要的 n）
+ * @returns {string} 中文详情
+ */
+export function errorBody(code, vars) {
+  const key = normalizeCode(code);
+  const body = ERROR_BODIES[key];
+  const merged = { ...(vars || {}), code: code || 'UNKNOWN' };
+  return body ? fill(body, merged) : fill(S.ERR_UNKNOWN_BODY, merged);
+}

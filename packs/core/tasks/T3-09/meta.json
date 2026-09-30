@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "id": "T3-09",
+  "tier": "hard",
+  "attempts": 3,
+  "title": "行情偶发退回旧快照；一次慢请求后整条源链超时",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py+fe",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/realtime.py",
+    "backend/astock_backtester/service.py",
+    "frontend/src/marketRefresh.ts",
+    "frontend/src/components/MarketDashboard.tsx"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "frontend/vitest.config.ts",
+    "**/conftest.py",
+    "backend/astock_backtester/data/warehouse.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_realtime.py::test_gen5_legacy_newer_timestamp_must_not_overwrite_gen6_generation_tracked",
+      "tests/test_realtime.py::test_heavy_breadth_success_does_not_populate_shared_cache",
+      "tests/test_realtime.py::test_late_breadth_worker_cannot_publish_diagnostics_after_timeout",
+      "tests/test_realtime.py::test_late_breadth_worker_writes_only_private_diagnostics",
+      "tests/test_realtime.py::test_late_sector_worker_cannot_publish_diagnostics_after_timeout",
+      "tests/test_realtime.py::test_local_snapshot_timeout_blocks_late_sector_member_cache_write",
+      "tests/test_realtime.py::test_mixed_generation_then_timestamp_arbitration",
+      "tests/test_realtime.py::test_older_realtime_request_cannot_overwrite_newer_success_snapshot",
+      "tests/test_realtime.py::test_realtime_provider_reports_partial_yesterday_limit_up_pool_after_request_budget",
+      "tests/test_realtime.py::test_realtime_provider_single_flight_waiter_rejects_expired_cache_after_owner_failure",
+      "tests/test_realtime.py::test_realtime_provider_single_flight_waiter_survives_completed_cache_clear",
+      "tests/test_realtime.py::test_realtime_provider_single_flights_cls_home_payload",
+      "tests/test_realtime.py::test_remember_without_generation_uses_strict_timestamp",
+      "tests/test_realtime.py::test_resilient_get_clamps_each_attempt_to_remaining_budget",
+      "tests/test_realtime.py::test_same_timestamp_reverse_completion_does_not_overwrite",
+      "tests/test_realtime.py::test_sector_timeout_cannot_commit_rows_after_publication_check",
+      "tests/test_realtime.py::test_sector_worker_does_not_publish_rows_after_wrapper_timeout",
+      "tests/test_realtime.py::test_single_flight_breadth_rejects_second_concurrent_request",
+      "tests/test_realtime.py::test_single_flight_local_snapshot_rejects_second_concurrent_request",
+      "tests/test_realtime.py::test_single_flight_remains_busy_after_wrapper_timeout_until_worker_finishes",
+      "tests/test_realtime.py::test_single_flight_sector_rejects_second_concurrent_request"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "5"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.1",
+        "1.6.0"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    },
+    {
+      "kind": "vitest",
+      "hidden": "hidden-fe/tests_hidden_fe",
+      "groups": "hidden-fe/groups_fe.json",
+      "p2p": "p2p-fe.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 300,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.05,
+      0.25
+    ],
+    "calibrated": false
+  }
+}

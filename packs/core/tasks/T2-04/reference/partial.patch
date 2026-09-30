@@ -1,0 +1,55 @@
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -48,8 +48,12 @@
+ KNOWN_CAPITAL_FLOW_SOURCE_START_SYMBOLS = {"001872", "001914", "601360"}
+ KNOWN_CAPITAL_FLOW_SOURCE_START_DATES = {pd.Timestamp("2021-12-29")}
+ KNOWN_CAPITAL_FLOW_LISTING_LAG_DAYS = 90
+-# 资金流缺口名单做停牌类豁免前，窗口至少要有这么多 A 股交易日。
+-MIN_TRADE_DAYS_FOR_CAPITAL_FLOW_SUSPENSION_EXEMPTION = 1
++# 资金流缺口名单做停牌类豁免前，窗口至少要有这么多 A 股交易日：横截面中位数
++# 在短窗口上抖动太大，样本不足时退回平日历口径（旧行为）。与
++# data/operations.py::MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION、
++# data/sync.py::MIN_SUSPENSION_CLASSIFICATION_DAYS 同为 5（各自模块持有，
++# warehouse 不反向依赖它们）。
++MIN_TRADE_DAYS_FOR_CAPITAL_FLOW_SUSPENSION_EXEMPTION = 5
+ 
+ 
+ class Warehouse:
+@@ -750,10 +754,12 @@
+         spanning(d) = 满足 [起, 止]（生命周期截断后）覆盖 d 的股票数。某股票
+         在 d 有行则必然 spanning d，因此实有 ≤ spanning 恒成立。
+ 
+-        分界点（当日行数 ≥ 中位数 × thin_day_ratio 的市场正常日）在窗口日历上
+-        就地算：thin day（疑似写入失败）的缺行计入 missing_rows（可行动）；
+-        市场正常日的缺行是停牌类（公开渠道天然没有，不可补），计入
+-        suspension_rows。
++        分类委托给模块级纯函数 :func:`classify_market_days_by_cross_section`
++        （threshold = 当日行数 ≥ 中位数 × thin_day_ratio 的市场正常日）：thin
++        day（疑似写入失败）的缺行计入 missing_rows（可行动）；市场正常日的
++        缺行是停牌类（公开渠道天然没有，不可补），计入 suspension_rows。
++        输入 ``rows_per_date`` 没有覆盖的交易日（0 行）不属于任何市场正常日
++        → 按 thin day 计入 missing_rows。
+ 
+         返回 (missing_rows, suspension_rows)。无生命周期记录的股票按在市
+         处理（保守口径不变）。
+@@ -787,9 +793,7 @@
+             return 0, 0
+         starts.sort()
+         ends.sort()
+-        day_counts = {day: rows_per_date.get(day, 0) for day in calendar}
+-        threshold = max(1.0, float(median(day_counts.values())) * thin_day_ratio)
+-        market_normal_days = {day for day, count in day_counts.items() if count >= threshold}
++        classification = classify_market_days_by_cross_section(rows_per_date, thin_day_ratio=thin_day_ratio)
+         missing_total = 0
+         suspension_total = 0
+         for day in calendar:
+@@ -798,7 +802,7 @@
+             internal = spanning - rows_per_date.get(day, 0)
+             if internal <= 0:
+                 continue
+-            if day in market_normal_days:
++            if day in classification.market_normal_days:
+                 suspension_total += internal
+             else:
+                 missing_total += internal

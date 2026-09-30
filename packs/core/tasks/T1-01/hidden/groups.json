@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "task": "T1-01",
+  "note": "组 = 一个出口/一条独立事实。coherence 组权重最高，只断言多个出口对同一事实口径一致，不点名任何具体口径常量——它红，往往是因为某一边还没接上。",
+  "groups": [
+    {
+      "id": "turnover_column_exit",
+      "weight": 1,
+      "port": "采集侧：换手率列的量纲与未知取值",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_unknown_turnover_stays_unknown_when_float_shares_are_not_derivable",
+        "tests_hidden/test_derived_metric_caliber.py::test_turnover_column_is_percentage_scale_across_a_multi_day_window",
+        "tests_hidden/test_derived_metric_caliber.py::test_frame_without_turnover_column_normalizes_to_unknown_not_zero"
+      ]
+    },
+    {
+      "id": "market_cap_column_exit",
+      "weight": 1,
+      "port": "采集侧：流通市值补值不得覆盖通道自带的逐日值",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_quote_top_up_preserves_the_per_date_market_cap_the_source_channel_computed",
+        "tests_hidden/test_derived_metric_caliber.py::test_quote_top_up_fills_only_the_rows_that_have_no_market_cap"
+      ]
+    },
+    {
+      "id": "condition_row_exit",
+      "weight": 1,
+      "port": "条件行级判定",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_row_evaluator_reads_low_turnover_band_as_percentage",
+        "tests_hidden/test_derived_metric_caliber.py::test_row_evaluator_reads_wide_band_as_percentage"
+      ]
+    },
+    {
+      "id": "condition_mask_exit",
+      "weight": 1,
+      "port": "条件向量化预筛",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_prefilter_mask_selects_the_documented_turnover_band",
+        "tests_hidden/test_derived_metric_caliber.py::test_prefilter_mask_agrees_on_a_second_band_with_nan_and_boundary_rows"
+      ]
+    },
+    {
+      "id": "limit_board_exit",
+      "weight": 1,
+      "port": "引擎：涨跌幅上限的判定顺序",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_st_flagged_growth_board_names_are_not_treated_as_five_percent[300001]",
+        "tests_hidden/test_derived_metric_caliber.py::test_st_flagged_growth_board_names_are_not_treated_as_five_percent[301001]",
+        "tests_hidden/test_derived_metric_caliber.py::test_st_flagged_growth_board_names_are_not_treated_as_five_percent[688001]",
+        "tests_hidden/test_derived_metric_caliber.py::test_st_flagged_growth_board_names_are_not_treated_as_five_percent[430001]",
+        "tests_hidden/test_derived_metric_caliber.py::test_main_board_risk_flagged_name_still_uses_five_percent_and_is_blocked"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "跨出口一致性（采集 → 行级 → 预筛；采集 → 市值条件）",
+      "tests": [
+        "tests_hidden/test_derived_metric_caliber.py::test_collection_row_and_prefilter_agree_on_the_same_turnover_fact",
+        "tests_hidden/test_derived_metric_caliber.py::test_collection_and_market_cap_condition_see_the_same_capitalisation"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

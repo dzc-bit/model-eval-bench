@@ -1,0 +1,1203 @@
+{
+  "task": "T2-04",
+  "state": "injected",
+  "repo": "D:\\New project 6",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0001-operations.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0002-sync.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0003-warehouse.patch"
+  ],
+  "touched_files": [
+    "backend/astock_backtester/data/operations.py",
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/data/warehouse.py"
+  ],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "weight_passed": 0,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_weak_cross_section_day_keeps_its_gaps_actionable_in_the_coverage_summary"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_flow_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-29T22:48:55"
+}

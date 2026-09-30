@@ -1,0 +1,78 @@
+{
+  "task": "T1-01",
+  "state": "fixed",
+  "repo": "D:\\New project 6",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0001-astock_adapter.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0002-conditions.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0003-engine.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T1-01\\reference\\fix.patch"
+  ],
+  "touched_files": [
+    "backend/astock_backtester/conditions.py",
+    "backend/astock_backtester/data/astock_adapter.py",
+    "backend/astock_backtester/data/importer.py",
+    "backend/astock_backtester/engine.py",
+    "backend/astock_backtester/models.py"
+  ],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 100.0,
+      "weight_passed": 7,
+      "weight_total": 7,
+      "groups": [
+        {
+          "id": "turnover_column_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "market_cap_column_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "condition_row_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "condition_mask_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "limit_board_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 147,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-29T22:20:12"
+}

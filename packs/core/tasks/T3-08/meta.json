@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "id": "T3-08",
+  "tier": "hard",
+  "attempts": 3,
+  "title": "长对话的两难：存不住，删不掉，预算不干活",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/ai/agent.py",
+    "backend/astock_backtester/ai/memory.py",
+    "backend/astock_backtester/ai/context.py",
+    "backend/astock_backtester/ai/facade.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "backend/astock_backtester/ai/cancel.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_ai_agent.py::test_agent_archives_nothing_when_no_safe_cut_point_exists",
+      "tests/test_ai_agent.py::test_agent_avoids_splitting_tool_pair_at_window_edge",
+      "tests/test_ai_agent.py::test_agent_repairs_dangling_tool_calls_from_interrupted_run"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "15",
+        "16"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.6.1",
+        "1.4.0"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.05,
+      0.25
+    ],
+    "calibrated": false
+  }
+}

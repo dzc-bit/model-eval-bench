@@ -1,0 +1,109 @@
+{
+  "task": "T2-07",
+  "state": "fixed",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0001-agent.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0002-cancel.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0003-facade.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-07\\reference\\fix.patch"
+  ],
+  "runs": [
+    {
+      "score": 100.0,
+      "raw_score": 100.0,
+      "groups": [
+        {
+          "id": "cancel_boundary_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_halts_consumption_and_keeps_partial",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_late_in_stream_keeps_only_the_generated_prefix",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_during_stream_never_lands_the_trailing_tool_calls",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_tool_batch_pairs_every_call_in_place",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_three_tool_batch_pairs_every_remaining_call",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_cancelled_history_needs_no_repair_before_next_turn",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "lock_release_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_session_lock_reusable_right_after_a_cancelled_turn",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_repeated_cancels_never_stack_lock_waits",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_mid_stream_leaves_session_valid_and_reusable",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_in_tool_batch_leaves_session_valid_and_reusable",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_collab_cancel.py::test_stop_between_rounds_leaves_session_valid_and_reusable",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 37,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-30T01:46:23"
+}

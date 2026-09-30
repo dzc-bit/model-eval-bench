@@ -1,0 +1,36 @@
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -1321,24 +1321,23 @@
+         return counts
+ 
+     def _safe_read_parquet(self, path: Path, **kwargs) -> pd.DataFrame:
+-        """Read a partition, distinguishing "absent" from "unreadable".
++        """Read a partition, tolerating absent and unreadable files.
+ 
+         A missing file legitimately means "no data yet" and yields an empty
+-        frame.  A file that exists but cannot be parsed means the partition is
+-        corrupt — silently returning an empty frame there disguises corruption
+-        as *missing rows*, which sends sync into a re-download loop that gets
+-        overwritten again next round.  The original error is re-raised
+-        unchanged, and the path is recorded in ``corrupt_partitions`` so the UI
+-        and AI tools can tell "corrupt" apart from "not collected yet".
++        frame.  A file that exists but cannot be parsed is recorded in
++        ``corrupt_partitions`` with the original error, then treated the same
++        way: one bad partition must never take down every reader that walks
++        the directory — callers get an empty frame and the diagnostic record
++        keeps the evidence for the health surface to report.
+         """
+         try:
+             return pd.read_parquet(path, **kwargs)
+         except FileNotFoundError:  # 文件不存在 == 还没有数据
+             return pd.DataFrame()
+-        except Exception as exc:  # noqa: BLE001 - re-raised unchanged
++        except Exception as exc:  # noqa: BLE001 - 按分区隔离后继续
+             if path.exists():
+                 self._note_corrupt_partition(path, exc)
+-            raise
++            return pd.DataFrame()
+ 
+     def _note_corrupt_partition(self, path: Path, exc: Exception) -> None:
+         with self._corrupt_partitions_lock:

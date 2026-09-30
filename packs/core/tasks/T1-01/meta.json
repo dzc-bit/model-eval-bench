@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "id": "T1-01",
+  "tier": "primary",
+  "attempts": 1,
+  "title": "同一行行情，在不同出口被解释成了三种口径",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/models.py",
+    "backend/astock_backtester/conditions.py",
+    "backend/astock_backtester/engine.py",
+    "backend/astock_backtester/data/importer.py",
+    "backend/astock_backtester/data/astock_adapter.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_astock_adapter.py::test_public_kline_path_never_writes_fake_zero_turnover_rate",
+      "tests/test_core.py::test_turnover_between_accepts_percent_unit_values",
+      "tests/test_core.py::test_turnover_between_row_and_mask_agree_on_percent_scale",
+      "tests/test_engine.py::test_stock_limit_pct_follows_board_before_st",
+      "tests/test_engine.py::test_limit_up_block_uses_board_specific_thresholds",
+      "tests/test_engine.py::test_limit_down_block_uses_board_specific_thresholds"
+    ]
+  },
+  "redactions": [],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [0.6, 0.85],
+    "calibrated": false
+  }
+}

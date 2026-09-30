@@ -1,0 +1,122 @@
+{
+  "task": "T2-06",
+  "state": "fixed",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0001-filelock-pseudo-lock.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0002-warehouse-non-atomic-write.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0003-warehouse-silent-corruption.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\inject\\patches\\0004-service-hidden-health.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-06\\reference\\fix.patch"
+  ],
+  "runs": [
+    {
+      "score": 100.0,
+      "raw_score": 100.0,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_lock_held_by_another_process_blocks_a_second_writer",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_external_writer_holding_the_lock_defers_warehouse_writes",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_is_reported_not_swallowed",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_corrupt_partition_does_not_disguise_as_empty_in_daily_read",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_missing_partition_still_means_no_data",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-30T02:06:12"
+}

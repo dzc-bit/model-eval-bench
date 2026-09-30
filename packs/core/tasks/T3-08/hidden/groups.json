@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "task": "T3-08",
+  "note": "pytest 侧分组。组 = 一个出口/一条独立事实。coherence 组权重最高，断言三条承诺在同一组长会话里同时成立；它红，说明归档/配对/预算三机制仍有至少一处没接上。每个记分测试都有第二数据场景，硬编码或特判必然挂。",
+  "groups": [
+    {
+      "id": "archive_integrity_exit",
+      "weight": 1,
+      "port": "归档完整性：移出窗口的内容必须原文到达长期记忆层；切点永不落在配对中间，找不到安全切点就本轮不归档并留告警",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_archive_moves_complete_rounds_into_long_term_memory",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_archive_boundary_never_splits_a_pair"
+      ]
+    },
+    {
+      "id": "pairing_exit",
+      "weight": 1,
+      "port": "协议配对：每次真实请求发出前，悬空调用必须补齐结果、窗口头不得是孤儿 tool 结果",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_dangling_calls_are_repaired_before_the_next_request",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_archive_cut_never_ships_orphan_results"
+      ]
+    },
+    {
+      "id": "budget_effective_exit",
+      "weight": 1,
+      "port": "预算有效：整理之后真实发送体积（正文 + 调用参数体）必须回到预算内；整理动作的压缩调用每轮至多一次",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_brings_real_payload_back_under_budget",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_tidy_keeps_model_calls_batched_per_turn"
+      ]
+    },
+    {
+      "id": "no_data_loss_exit",
+      "weight": 1,
+      "port": "数据零丢失：工具结果原文必须随归档保留；压缩失败保留归档；条数兜底裁剪留占位说明",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_no_tool_result_is_lost_when_archiving",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_compaction_failure_keeps_archive_and_cap_leaves_placeholder"
+      ]
+    },
+    {
+      "id": "recall_reference_exit",
+      "weight": 1,
+      "port": "召回参照：长期记忆召回的预算语义保持严格（对照锚）；归档原料必须完整进入压缩通道",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_recall_budget_stays_strict",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_archived_findings_still_reach_the_summary_channel"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "合取：记得的只多不少 + 发送体积受控 + 配对完整，在同一组长会话里同时成立",
+      "tests": [
+        "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

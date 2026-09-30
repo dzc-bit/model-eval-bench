@@ -1,0 +1,47 @@
+diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
+--- a/backend/astock_backtester/data/sync.py
++++ b/backend/astock_backtester/data/sync.py
+@@ -349,7 +349,8 @@
+         self._jobs[status.job_id] = status
+         if status.status in ("running", "cancelling"):
+             self._finished_at.pop(status.job_id, None)
+-            # 失活判定看的是"有没有人在推进"，写回本身不代表推进，这里不再盖进度戳。
++            # 每次写回都算一次进度推进：作业还在动就不会被判失活。
++            self._last_progress_at[status.job_id] = time.monotonic()
+         else:
+             self._finished_at.setdefault(status.job_id, time.monotonic())
+             self._last_progress_at.pop(status.job_id, None)
+@@ -357,22 +358,21 @@
+     def _admit(self, status: SyncJobStatus, signature: str) -> tuple[SyncJobStatus, bool]:
+         """同签名在途任务直接复用，否则在预算内新建。
+ 
+-        先做一次无锁快照查询，命中在途任务就不必再抢锁；未命中才进锁写入。
+-        返回的快照带 ``admission`` 告诉本次调用方发生了什么，存储里的记录保持原样。
++        判定与写入必须在同一把锁里完成：两个请求各自"查不到相同任务"再各自建
++        job 就是这个竞态的结果。返回的快照带 ``admission`` 告诉本次调用方发生
++        了什么，存储里的记录保持原样。
+         """
+-        for job_id, existing_signature in list(self._signatures.items()):
+-            if existing_signature != signature:
+-                continue
+-            existing = self._jobs.get(job_id)
+-            if existing is None or existing.status not in ("running", "cancelling"):
+-                continue
+-            with self._lock:
+-                self._last_read[job_id] = time.monotonic()
+-            return existing.model_copy(deep=True, update={"admission": "reused"}), False
+-
+         with self._lock:
+             now = time.monotonic()
+             self._prune_locked(now)
++            for job_id, existing_signature in self._signatures.items():
++                if existing_signature != signature:
++                    continue
++                existing = self._jobs.get(job_id)
++                if existing is None or existing.status not in ("running", "cancelling"):
++                    continue
++                self._last_read[job_id] = now
++                return existing.model_copy(deep=True, update={"admission": "reused"}), False
+             running = self.running_job_ids_locked()
+             if len(running) >= max(1, self.max_concurrent_jobs):
+                 raise SyncCapacityError(running, self.max_concurrent_jobs)

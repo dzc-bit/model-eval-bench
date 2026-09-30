@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "task": "T3-09",
+  "note": "vitest 侧分组。负责前端降级重试与旧快照晚到防护。",
+  "groups": [
+    {
+      "id": "frontend_degrade_exit",
+      "weight": 1,
+      "port": "前端降级重试：部分成功触发 45s 降级重试；旧快照晚到不得回跳成功时间戳",
+      "tests": [
+        "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+        "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+        "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "前端既有用例白名单见任务根 p2p-fe.json。"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "task": "T1-03",
+  "note": "pytest 侧分组：稳定分类、有限流终态和跨出口一致性。coherence 权重最高，并包含前端翻译对后端 AiError 全码集合的文本级镜像守卫。",
+  "groups": [
+    {
+      "id": "error_code_exit",
+      "weight": 1,
+      "port": "服务层流式失败按异常语义保留稳定分类",
+      "tests": [
+        "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+        "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks"
+      ]
+    },
+    {
+      "id": "stream_terminal_exit",
+      "weight": 1,
+      "port": "有限对话流在失败和成功时都必须给出明确终态",
+      "tests": [
+        "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+        "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+        "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "同一故障跨 JSON/流式出口同码，页面镜像后端全部 AI 类别",
+      "tests": [
+        "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+        "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有 pytest 白名单见任务根 p2p.json；任一条失败，本轮记 0 分。"
+    }
+  ]
+}

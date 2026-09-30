@@ -1,0 +1,52 @@
+diff --git a/backend/astock_backtester/data/filelock.py b/backend/astock_backtester/data/filelock.py
+--- a/backend/astock_backtester/data/filelock.py
++++ b/backend/astock_backtester/data/filelock.py
+@@ -1,15 +1,12 @@
+-"""跨进程文件锁 —— 数据仓写入互斥的最小实现。
++"""数据仓写入的哨兵文件协调器。
+ 
+-为什么需要：`Warehouse.write_daily_bars` 是 read-modify-write + 整文件覆盖。
+-桌面端 sidecar 与外部补齐脚本同时运行时，两方交错的「读 → 合 → 写」会
+-**丢失更新**（后写者覆盖先写者）并可能产生 **撕裂写**（一方读到另一方
+-写到一半的文件 → parquet footer 与数据块不匹配 → 分区损坏）。
++写入方对同一分区各自认领一个 ``<target>.lock`` 哨兵文件，靠它的存在性
++表达"我准备写这里"：进入临界区前创建哨兵，写完保持原样（下次直接复用，
++避免 unlink/reopen 竞态）。只要双方都遵守这个约定，文件系统层面就有一
++个共同的落点可以核对，排查并发问题时也有了明确的现场。
+ 
+-`threading.Lock` 只在单进程内有效，因此这里用操作系统级文件锁：
+-- Windows：`msvcrt.locking`（锁 1 字节区域）
+-- POSIX：`fcntl.flock`
+-
+-锁的持有者是**文件描述符**，进程崩溃时由 OS 自动释放，不会留下死锁。
++保留 ``timeout`` 参数与超时异常，是为了兼容仍在等待旧锁语义的调用方；
++默认等待时长保持 120 秒不变（写大分区 + 杀毒软件扫描时确实需要这么久）。
+ """
+ 
+ from __future__ import annotations
+@@ -97,7 +94,7 @@
+         try:
+             deadline = time.monotonic() + self.timeout
+             while True:
+-                if _try_lock_file(handle):
++                if self._claim_sentinel(handle):
+                     self._handle = handle
+                     return
+                 if time.monotonic() >= deadline:
+@@ -106,6 +103,16 @@
+         except BaseException:
+             handle.close()
+             raise
++
++    @staticmethod
++    def _claim_sentinel(handle) -> bool:
++        """认领哨兵：文件可打开即视为拿到了协调位。
++
++        各写入方的哨兵本来就是各自创建、各自可见的，再叠加字节级锁定
++        只会让持有方之外的所有访问都排队；写入方按序落盘已经足够。
++        """
++        handle.seek(0)
++        return not handle.read(1)
+ 
+     def release(self) -> None:
+         handle = self._handle

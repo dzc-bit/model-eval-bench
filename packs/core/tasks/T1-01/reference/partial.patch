@@ -1,0 +1,20 @@
+diff --git a/backend/astock_backtester/conditions.py b/backend/astock_backtester/conditions.py
+--- a/backend/astock_backtester/conditions.py
++++ b/backend/astock_backtester/conditions.py
+@@ -251,13 +251,10 @@
+ def _turnover_ratio(value: float | pd.Series) -> float | pd.Series:
+     """Normalize the warehouse's ``turnover_rate`` to a fraction.
+ 
+-    不同来源写进来的换手率量纲并不统一：按数值大小判一次——大于 1 的按百分数除
+-    100，其余视为已经是分数。
++    ``turnover_rate`` 在仓库里**恒为百分数量纲**，而条件参数是分数，所以归一是
++    **无条件**的。
+     """
+-    if isinstance(value, pd.Series):
+-        scale = value.where(value > 1.0, 100.0)
+-        return value / scale
+-    return value / 100.0 if value > 1.0 else value
++    return value / 100.0
+ 
+ 
+ def _turnover_between(node: ConditionNode, row: pd.Series, frame: pd.DataFrame) -> ConditionResult:

@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "task": "T2-05",
+  "calibrated": false,
+  "target_band": [
+    0.25,
+    0.55
+  ],
+  "owner": "author",
+  "policy": "§6.4 硬纪律：出题模型不得给自己出的题做校准。本表在盲测完成前保持空表，calibrated 恒为 false。",
+  "gate": {
+    "note": "出题侧门禁（§5.3）由 runs/blind/tools/packgate.py 跑，原始输出见 gate_*.json。这些不是校准数据，不参与 pass@1 统计。",
+    "anchor_solution": "gate_fixed.json",
+    "partial_solution": "gate_partial.json",
+    "injected_state": "gate_injected_x20.json"
+  },
+  "blind_runs": {
+    "note": "每一行 = 一次『只给第 1 级提示词』的完整作答。由非出题模型填写。",
+    "columns": [
+      "run_id",
+      "model",
+      "tier",
+      "prompt_level",
+      "pass@1",
+      "score",
+      "failed_groups",
+      "p2p_broken",
+      "notes"
+    ],
+    "rows": []
+  },
+  "summary": {
+    "runs": 0,
+    "pass_at_1": null,
+    "confidence_interval": null,
+    "in_band": null,
+    "conclusion": null
+  }
+}

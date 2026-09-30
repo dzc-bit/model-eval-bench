@@ -1,0 +1,43 @@
+diff --git a/backend/astock_backtester/ai/agent.py b/backend/astock_backtester/ai/agent.py
+--- a/backend/astock_backtester/ai/agent.py
++++ b/backend/astock_backtester/ai/agent.py
+@@ -25,7 +25,7 @@
+ )
+ from astock_backtester.ai.llm_client import ChatModel
+ from astock_backtester.ai.prompts import build_compaction_messages, build_final_answer_messages
+-from astock_backtester.ai.tools.registry import ToolRegistry
++from astock_backtester.ai.tools.registry import CODE_INTERRUPTED, ToolExecution, ToolRegistry
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -254,9 +254,14 @@
+         steps: list[dict[str, Any]] = []
+         for plan, execution in zip(plans, executions, strict=True):
+             if execution is None:
+-                # 被停止而没启动的槽位拿不到结果：跳过即可，缺口留给下一轮
+-                # 运行开始时的修复逻辑补齐。
+-                continue
++                # 取消后未启动的工具：立刻补一条 interrupted 结果，配对不能留到下次修复。
++                execution = ToolExecution(
++                    ok=False,
++                    payload={"ok": False, "error_code": CODE_INTERRUPTED, "error": "用户已停止，未执行该工具。"},
++                    summary="用户已停止，本次未执行该工具。",
++                    duration_ms=0,
++                    code=CODE_INTERRUPTED,
++                )
+             self._result_store.put(
+                 ToolResult(
+                     call_id=plan.call_id,
+@@ -334,9 +339,9 @@
+         the assistant(tool_calls)->tool pairing ``_repair_interrupted_turn``
+         relies on intact.
+ 
+-        取消后**不再启动**新工具（槽位返回 ``None``）；已经提交的任务不杀线程，
+-        让它跑完自己的安全边界——半途杀线程会留下写到一半的数据分区。未启动的
+-        槽位不写结果，缺口留给下一轮运行开始时的修复兜底。
++        取消后**不再启动**新工具（槽位返回 ``None``，由调用方写成 interrupted 结
++        果）；已经提交的任务不杀线程，让它跑完自己的安全边界——半途杀线程会
++        留下写到一半的数据分区。
+         """
+         if len(plans) > 1 and not any(self._must_serialize(plan) for plan in plans):
+             with ThreadPoolExecutor(

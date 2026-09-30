@@ -1,0 +1,46 @@
+{
+  "id": "TEST-01",
+  "title": "派生指标口径不一致：换手率被算成了三份",
+  "tier": "medium",
+  "attempts": 2,
+  "summary": "选股引擎把低换手票也放进了候选池。派生指标在 pricing / adapters / engine 三处各算各的。",
+  "symptom": "候选池里混进了换手率只有 0.5% 的票；换手率本身也明显偏大。",
+  "tags": ["后端", "口径一致", "三处出口"],
+  "repo": {"id": "mini"},
+  "allowed_paths": ["backend/miniapp/**"],
+  "forbidden_paths": [
+    "tests/**",
+    "hidden/**",
+    "scripts/**",
+    "frontend/**",
+    "pyproject.toml",
+    "package.json",
+    ".gitignore",
+    "**/conftest.py"
+  ],
+  "visible": {
+    "prune": ["tests/test_pricing.py::test_turnover_rate_*"]
+  },
+  "redactions": [
+    {"file": "AGENTS.md", "sections": ["9", "15", "18"]},
+    {"file": "CHANGELOG.md", "versions": ["1.5.2", "1.6.0", "1.6.1"]}
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 120,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "calibrated": true,
+    "trials": 3,
+    "target_band": [16.7, 33.3, 100.0],
+    "note": "三处端口全坏 → 16.7 分；只修 pricing → 33.3 分；三处全修 → 100 分。"
+  }
+}

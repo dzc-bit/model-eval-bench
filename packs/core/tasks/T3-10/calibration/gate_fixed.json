@@ -1,0 +1,151 @@
+{
+  "task": "T3-10",
+  "state": "fixed",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0001-run-full-market-import.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0002-warehouse.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0003-service.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0004-operations.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\reference\\fix.patch"
+  ],
+  "runs": [
+    {
+      "score": 100.0,
+      "raw_score": 100.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-30T03:05:46"
+}

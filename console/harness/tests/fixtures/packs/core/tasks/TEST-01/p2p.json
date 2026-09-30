@@ -1,0 +1,7 @@
+{
+  "note": "这些用例在注入前就是绿的，坏了就是回归破坏：整轮判 0（设计文档 §5.4）。",
+  "tests": [
+    "tests/test_p2p.py::test_normalize_symbol_stable",
+    "tests/test_p2p.py::test_market_cap_stable"
+  ]
+}

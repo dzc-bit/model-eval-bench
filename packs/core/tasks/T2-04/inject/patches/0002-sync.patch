@@ -1,0 +1,61 @@
+diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
+--- a/backend/astock_backtester/data/sync.py
++++ b/backend/astock_backtester/data/sync.py
+@@ -5,6 +5,7 @@
+ from concurrent.futures import ThreadPoolExecutor, as_completed
+ from dataclasses import dataclass, field
+ from datetime import date, datetime, timedelta
++from statistics import median
+ from threading import Lock, Thread
+ from typing import Any, Literal
+ from uuid import uuid4
+@@ -21,14 +22,13 @@
+     fetch_capital_flow_into_cache,
+ )
+ from astock_backtester.data.trading_calendar import a_share_trade_dates
+-from astock_backtester.data.warehouse import Warehouse, classify_market_days_by_cross_section, lifecycle_bound
++from astock_backtester.data.warehouse import Warehouse, lifecycle_bound
+ from astock_backtester.models import SyncJobStatus
+ 
+ OHLC_COLUMNS = ["open", "high", "low", "close"]
+ 
+-# 停牌分类的横截面样本下限：窗口交易日太少时“当日行数 ≥ 中位数×0.5”不稳，
+-# 退回旧行为（整窗必需、照抓不误），宁可多抓也不误判成停牌。
+-MIN_SUSPENSION_CLASSIFICATION_DAYS = 5
++# 停牌分类的横截面样本下限。
++MIN_SUSPENSION_CLASSIFICATION_DAYS = 1
+ 
+ # 写批落盘的 FileLockTimeout 有界重试：1 次首发 + 2 次短退避，仍失败才上抛。
+ FULL_MARKET_WRITE_LOCK_ATTEMPTS = 3
+@@ -96,16 +96,17 @@
+ def _market_normal_days(window_frame: pd.DataFrame, required_dates: set[pd.Timestamp]) -> set[pd.Timestamp]:
+     """窗口横截面分类出的“市场正常日”；样本不足或无分类时返回空集合（退回旧口径）。
+ 
+-    与 ``Warehouse.coverage()`` 共用 :func:`classify_market_days_by_cross_section`
+-    的阈值口径：当日全市场 OHLC 完整行数 ≥ 中位数 × 0.5 → 市场正常日，它的
+-    缺行是停牌类（不可补）；行数异常低 → thin day（疑似写入失败，可补）。
++    窗口内每个交易日的落库行数 ≥ 全窗口中位数 × 0.5 → 市场正常日，它的缺行是
++    停牌类（不可补）；行数异常低 → thin day（疑似写入失败，可补）。分界点就地
++    算，快照路径不必绕模块级纯函数。
+     """
+     if len(required_dates) < MIN_SUSPENSION_CLASSIFICATION_DAYS:
+         return set()
+     rows_by_date = window_frame.groupby("_td_norm").size().to_dict()
+     if not rows_by_date:
+         return set()
+-    return classify_market_days_by_cross_section(rows_by_date).market_normal_days
++    threshold = max(1.0, float(median(rows_by_date.values())) * 0.5)
++    return {day for day, count in rows_by_date.items() if count >= threshold}
+ 
+ 
+ def _suspension_exempt_required_dates(
+@@ -116,8 +117,7 @@
+ ) -> set[pd.Timestamp]:
+     """把“窗口内已有行、却缺在市场正常日”的交易日按停牌类缺行剔除。
+ 
+-    三条例外与 ``Warehouse.coverage()`` 的 ``missing_rows``/``suspension_rows``
+-    口径一致（AGENTS §9）：
++    三条例外：
+     - 落在 thin day 的缺行仍必需（可行动缺口，照抓）；
+     - 落在市场正常日、但该股当天本就有行（缺的是市值字段而非行）仍必需；
+     - 该股窗口内零行 → 返回原集合（整窗必需，保持旧口径照抓）。

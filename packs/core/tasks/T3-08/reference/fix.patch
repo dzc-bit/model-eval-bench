@@ -1,0 +1,101 @@
+diff --git a/backend/astock_backtester/ai/agent.py b/backend/astock_backtester/ai/agent.py
+--- a/backend/astock_backtester/ai/agent.py
++++ b/backend/astock_backtester/ai/agent.py
+@@ -107,6 +107,9 @@
+         artifacts: dict[str, Any] = {}
+         token = cancel if cancel is not None else CancelToken()
+         now = datetime.now(UTC).isoformat()
++        # 上一次运行可能被中断（客户端断开/进程退出/模型异常），先修复悬空的
++        # tool_calls——否则下次请求会被上游 API 以协议错误拒绝，表现为“失忆”。
++        self._repair_interrupted_turn(session)
+         content = user_message
+         if context and context.get("kind") not in (None, "none"):
+             content = f"{user_message}\n\n{compact_context_payload(str(context.get('kind')), context.get('payload') or {}, self._budget)}"
+@@ -497,29 +500,43 @@
+     def _archive_overflow(self, session: dict[str, Any], on_event: EventHandler) -> None:
+         """Keep the live window within both the message-count and char budget.
+ 
+-        窗口整理是“搬运”：把放不下的条目移出窗口、登记进待归档区，等攒批
+-        压缩统一折进滚动纪要。搬运途中不做摘要、不改写正文；悬空调用的补齐
+-        有专门的修复阶段负责，搬运这里不重复检查配对关系。
++        归档是“搬运”而不是“摘要”，三条不变量必须同时成立：
++
++        1. 体积口径与真实发送一致：assistant(tool_calls) 的参数体和消息正文
++           一起计入字符预算——只数正文会系统性低估体积，超限会话看着不大，
++           实际每轮请求都超限。口径必须与 ``ContextBudget.count_tokens`` 一致：
++           一个出口数正文、一个出口数调用体，两个出口对同一会话必然各执一词。
++        2. 切点只能落在轮次边界：归档后的剩余窗口必须以 user 消息开头——
++           assistant(tool_calls)/tool 配对因此天然完整，不会在配对中间切出
++           孤儿 tool 头（上游都拒绝首条为 tool 的请求，孤儿一旦进窗口，
++           该会话此后每轮必败）。找不到安全切点就归档 0 条并留 warning：
++           宁可一轮超预算，绝不产生非法窗口。
++        3. 被移走的每一条都完整进 pending_archive（含 tool 结果正文）：
++           归档是长期记忆的唯一入口，搬运途中丢内容就是失忆。
+         """
+         messages = session["messages"]
+         overflow = max(len(messages) - SHORT_TERM_WINDOW, 0)
+-        total_chars = sum(len(str(message.get("content") or "")) for message in messages)
++        total_chars = sum(self._message_wire_chars(message) for message in messages)
+         if total_chars > SHORT_TERM_MAX_CHARS:
+-            # 字符超限：优先搬运不占内容统计的空壳条目（没有正文的调用声明、
+-            # 占位消息）。它们在统计里体积为零，搬走属于零成本清理；带正文的
+-            # 条目是对话本体，留给攒批压缩统一处理，这里一律不动。
++            # 字符超限：从最旧处开始按同一口径累计，直到剩余体积回到阈值内。
++            dropped_chars = 0
+             for index in range(len(messages)):
+-                if str(messages[index].get("content") or ""):
+-                    continue
++                if total_chars - dropped_chars <= SHORT_TERM_MAX_CHARS:
++                    break
++                dropped_chars += self._message_wire_chars(messages[index])
+                 overflow = max(overflow, index + 1)
+         if overflow <= 0:
+             return
+-        # user 消息是天然的轮次边界，优先按边界切；找不到边界就按统计切点
+-        # 直接切，超限的窗口不能因为找不到边界就一轮轮放着不管。
+         boundary = next(
+             (index for index in range(overflow, len(messages)) if messages[index].get("role") == "user"),
+-            overflow,
++            None,
+         )
++        if boundary is None:
++            logger.warning(
++                "短期窗口 %s 条超出阈值但找不到 user 边界（长工具轮中段），本轮不归档以保持协议合法",
++                len(messages),
++            )
++            return
+         overflow = boundary
+         dropped = messages[:overflow]
+         session["messages"] = messages[overflow:]
+@@ -528,15 +545,7 @@
+             text = str(message.get("content") or "")
+             calls = message.get("tool_calls") or []
+             if calls:
+-                # 调用侧只登记工具名：调用随时可以按原参数重发拿回同样的结果，
+-                # 归档里再留一份调用载荷只会把长期记忆撑爆。
+                 text += " " + ", ".join(call.get("function", {}).get("name", "") for call in calls)
+-                archive.append(f"{message.get('role')}: {text}")
+-                continue
+-            if message.get("role") == "tool":
+-                # 结果侧正文不进归档：结果仍按 call_id 留在内存结果仓里可取回，
+-                # 归档只保留对话主线，防止同一段数据在窗口和归档里存两份。
+-                continue
+             archive.append(f"{message.get('role')}: {text}")
+         # 压缩持续失败时归档只增不减，必须按条数兜底裁剪，否则会话文件会无限膨胀。
+         if len(archive) > ARCHIVE_MAX_ENTRIES:
+@@ -545,6 +554,15 @@
+             excess = len(archive) - (ARCHIVE_MAX_ENTRIES - 1)
+             archive[:] = [f"（更早的 {excess} 条对话因压缩失败已丢弃）", *archive[excess:]]
+         on_event({"type": "phase", "phase": "归档短期窗口之外的对话"})
++
++    @staticmethod
++    def _message_wire_chars(message: dict[str, Any]) -> int:
++        """单条消息的真实发送体积：正文 + 工具调用参数体（与 count_tokens 同口径）。"""
++        total = len(str(message.get("content") or ""))
++        for call in message.get("tool_calls") or []:
++            function = call.get("function") or {}
++            total += len(str(function.get("arguments") or ""))
++        return total
+ 
+     def _consolidate_archive(self, session: dict[str, Any], on_event: EventHandler) -> None:
+         """Fold archived dialogue into the rolling summary (one model call).

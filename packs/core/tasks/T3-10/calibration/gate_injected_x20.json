@@ -1,0 +1,2677 @@
+{
+  "task": "T3-10",
+  "state": "injected",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0001-run-full-market-import.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0002-warehouse.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0003-service.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T3-10\\inject\\patches\\0004-operations.patch"
+  ],
+  "runs": [
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001C8B9295FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 1
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001F3D17D9FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 2
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000021C50B71FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 3
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000021FD0421FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 4
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000024A7E1B1FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 5
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000014EC985DFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 6
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002C0C08E5FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 7
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000024F80AA9FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 8
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001B4DF5C5FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 9
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001894E09DFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 10
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000027A2C16DFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 11
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002436B7D5FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 12
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000027DCA70DFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 13
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002432DBCDFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 14
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000014400099FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 15
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000263975D9FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 16
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001C3CCF49FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 17
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000022CFDB71FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 18
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001133950DFD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 19
+    },
+    {
+      "score": 0.0,
+      "raw_score": 0.0,
+      "groups": [
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 应只落盘 3 次，实际 25 次：[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 应一次落盘，实际 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24（每次落盘都在重写整段分区）\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "failed",
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002A25BBC9FD0>.cached_symbol_count"
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "failed",
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T3-10-injected\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "failed",
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "failed",
+              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区丢了 4 只：['601001', '601002', '601003', '601004']\nassert not ['601001', '601002', '601003', '601004']"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只股票的两个补数进程互相覆盖了日期，盘上只有 ['2026-06-03', '2026-06-04']\nassert ['2026-06-03', '2026-06-04'] == ['2026-06-01'... '2026-06-04']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains 2 more items, first extra item: '2026-06-03'\n  Use -v to get more diff"
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "failed",
+              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "failed",
+              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 301,
+      "attempt": 20
+    }
+  ],
+  "repeat": 20,
+  "score_min": 0.0,
+  "score_max": 0.0,
+  "stable": true,
+  "finished_at": "2026-09-30T03:25:05"
+}

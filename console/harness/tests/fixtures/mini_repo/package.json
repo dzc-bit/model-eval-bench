@@ -1,0 +1,11 @@
+{
+  "name": "miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:ui": "vitest --config frontend/vitest.config.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

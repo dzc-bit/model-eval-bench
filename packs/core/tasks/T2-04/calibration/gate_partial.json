@@ -1,0 +1,78 @@
+{
+  "task": "T2-04",
+  "state": "partial",
+  "repo": "D:\\New project 6",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0001-operations.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0002-sync.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\inject\\patches\\0003-warehouse.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T2-04\\reference\\partial.patch"
+  ],
+  "touched_files": [
+    "backend/astock_backtester/data/operations.py",
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/data/warehouse.py"
+  ],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 33.33,
+      "weight_passed": 2,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_three_day_window",
+            "tests_hidden/test_gap_exit_consistency.py::test_sync_keeps_the_symbol_on_a_four_day_window"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": false,
+          "failed_tests": [
+            "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day"
+          ],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 33.33,
+  "score_max": 33.33,
+  "stable": true,
+  "finished_at": "2026-09-29T23:05:24"
+}

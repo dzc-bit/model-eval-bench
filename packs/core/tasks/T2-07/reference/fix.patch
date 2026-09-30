@@ -1,0 +1,97 @@
+diff --git a/backend/astock_backtester/ai/agent.py b/backend/astock_backtester/ai/agent.py
+--- a/backend/astock_backtester/ai/agent.py
++++ b/backend/astock_backtester/ai/agent.py
+@@ -25,7 +25,7 @@
+ )
+ from astock_backtester.ai.llm_client import ChatModel
+ from astock_backtester.ai.prompts import build_compaction_messages, build_final_answer_messages
+-from astock_backtester.ai.tools.registry import ToolRegistry
++from astock_backtester.ai.tools.registry import CODE_INTERRUPTED, ToolExecution, ToolRegistry
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -99,8 +99,8 @@
+         """Run one user turn to completion; returns UI artifacts (e.g. a
+         runnable strategy JSON produced by a successful backtest tool call).
+ 
+-        ``cancel`` 是协作停止信号：只在安全边界查询（轮次之间、每个工具
+-        启动之前），已经开始的工具会跑完它自己那一步。
++        ``cancel`` 是协作停止信号：只在安全边界查询（轮次之间、模型流的 token
++        之间、每个工具启动之前），已经开始的工具会跑完它自己那一步。
+         """
+         # 实例属性会把并发运行的两个会话的工件串在一起（A 拿到 B 的回测策略），
+         # 所以 artifacts 只活在单次 run 的作用域里。
+@@ -137,6 +137,10 @@
+                     if event[0] == "text":
+                         content_parts.append(event[1])
+                         on_event({"type": "token", "text": event[1]})
++                        if token.cancelled:
++                            return self._finish_cancelled(
++                                session, artifacts, on_event, partial="".join(content_parts)
++                            )
+                         continue
+                     turn = event[1]
+             finally:
+@@ -254,9 +258,14 @@
+         steps: list[dict[str, Any]] = []
+         for plan, execution in zip(plans, executions, strict=True):
+             if execution is None:
+-                # 被停止而没启动的槽位拿不到结果：跳过即可，缺口留给下一轮
+-                # 运行开始时的修复逻辑补齐。
+-                continue
++                # 取消后未启动的工具：立刻补一条 interrupted 结果，配对不能留到下次修复。
++                execution = ToolExecution(
++                    ok=False,
++                    payload={"ok": False, "error_code": CODE_INTERRUPTED, "error": "用户已停止，未执行该工具。"},
++                    summary="用户已停止，本次未执行该工具。",
++                    duration_ms=0,
++                    code=CODE_INTERRUPTED,
++                )
+             self._result_store.put(
+                 ToolResult(
+                     call_id=plan.call_id,
+@@ -334,9 +343,9 @@
+         the assistant(tool_calls)->tool pairing ``_repair_interrupted_turn``
+         relies on intact.
+ 
+-        取消后**不再启动**新工具（槽位返回 ``None``）；已经提交的任务不杀线程，
+-        让它跑完自己的安全边界——半途杀线程会留下写到一半的数据分区。未启动的
+-        槽位不写结果，缺口留给下一轮运行开始时的修复兜底。
++        取消后**不再启动**新工具（槽位返回 ``None``，由调用方写成 interrupted 结
++        果）；已经提交的任务不杀线程，让它跑完自己的安全边界——半途杀线程会
++        留下写到一半的数据分区。
+         """
+         if len(plans) > 1 and not any(self._must_serialize(plan) for plan in plans):
+             with ThreadPoolExecutor(
+diff --git a/backend/astock_backtester/ai/cancel.py b/backend/astock_backtester/ai/cancel.py
+--- a/backend/astock_backtester/ai/cancel.py
++++ b/backend/astock_backtester/ai/cancel.py
+@@ -1,9 +1,9 @@
+ """协作取消：一次请求的停止信号与在途轮次登记。
+ 
+ 停止不是杀线程、也不是只断开前端。worker 只在**安全边界**查询令牌——模型轮次
+-之间、工具批次里每个工具启动之前、寻优的每个组合之间——已经开始的写入跑到
+-边界再退出，会话保存与会话锁释放都发生在退出之后。因此令牌必须比 worker 活得
+-久一点，也不能被两个轮次共用。
++之间、模型流的 token 之间、工具批次里每个工具启动之前、寻优的每个组合之间——
++已经开始的写入跑到边界再退出，会话保存与会话锁释放都发生在退出之后。因此令牌
++必须比 worker 活得久一点，也不能被两个轮次共用。
+ """
+ 
+ from __future__ import annotations
+diff --git a/backend/astock_backtester/ai/facade.py b/backend/astock_backtester/ai/facade.py
+--- a/backend/astock_backtester/ai/facade.py
++++ b/backend/astock_backtester/ai/facade.py
+@@ -402,10 +402,8 @@
+                         release_turn()
+                         events.put(None)
+                         # 会话锁由 worker 释放：客户端断开（停止按钮）后 worker 仍在跑，
+-                        # 提前释放会让下一个请求与它并发写同一会话。被停止的轮次
+-                        # 例外：锁留在原地，让紧跟着的重发请求一定排在这轮收尾后面。
+-                        if not cancel_token.cancelled:
+-                            release_session_lock()
++                        # 提前释放会让下一个请求与它并发写同一会话。
++                        release_session_lock()
+                 if error_holder:
+                     return
+                 # 长期记忆提取在哨兵之后的独立 daemon 线程，绝不阻塞事件流

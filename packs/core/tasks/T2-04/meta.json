@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "id": "T2-04",
+  "tier": "medium",
+  "attempts": 2,
+  "title": "同一天的缺口，四个出口给了四种答案",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/warehouse.py",
+    "backend/astock_backtester/data/operations.py",
+    "backend/astock_backtester/data/sync.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "backend/astock_backtester/models.py",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_warehouse.py::test_coverage_delegates_cross_section_classification_to_module_function",
+      "tests/test_data_operations.py::test_coverage_keeps_missing_dates_when_window_is_below_classification_minimum",
+      "tests/test_data_operations.py::test_coverage_keeps_thin_day_gap_when_calendar_has_zero_row_days",
+      "tests/test_sync_jobs.py::test_incomplete_symbols_returns_gap_based_pool"
+    ]
+  },
+  "redactions": [
+    {"file": "AGENTS.md", "sections": ["9"]},
+    {"file": "CHANGELOG.md", "versions": ["1.5.2", "1.6.0", "1.6.1"]}
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [0.25, 0.55],
+    "calibrated": false
+  }
+}

@@ -1,0 +1,16 @@
+diff --git a/backend/astock_backtester/ai/facade.py b/backend/astock_backtester/ai/facade.py
+--- a/backend/astock_backtester/ai/facade.py
++++ b/backend/astock_backtester/ai/facade.py
+@@ -402,8 +402,10 @@
+                         release_turn()
+                         events.put(None)
+                         # 会话锁由 worker 释放：客户端断开（停止按钮）后 worker 仍在跑，
+-                        # 提前释放会让下一个请求与它并发写同一会话。
+-                        release_session_lock()
++                        # 提前释放会让下一个请求与它并发写同一会话。被停止的轮次
++                        # 例外：锁留在原地，让紧跟着的重发请求一定排在这轮收尾后面。
++                        if not cancel_token.cancelled:
++                            release_session_lock()
+                 if error_holder:
+                     return
+                 # 长期记忆提取在哨兵之后的独立 daemon 线程，绝不阻塞事件流

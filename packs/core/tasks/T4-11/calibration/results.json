@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "task": "T4-11",
+  "calibrated": false,
+  "target_band": [
+    0.0,
+    0.02
+  ],
+  "target_metric": "pass_at_3",
+  "target_note": "王者目标为三轮累计通过率；必须由非出题模型连续完成最多三轮盲测后报告。尚无样本前不得宣称已达到目标。",
+  "owner": "author",
+  "policy": "§6.4 硬纪律：出题模型不得给自己出的题做校准。本表在盲测完成前保持空表，calibrated 恒为 false。",
+  "gate": {
+    "note": "出题侧门禁（§5.3）由 runs/blind/tools/packgate.py 跑，原始输出见 gate_*.json。这些不是模型校准数据，不参与 pass_at_3 统计。",
+    "anchor_solution": "gate_fixed.json",
+    "partial_solution": "gate_partial.json",
+    "injected_state": "gate_injected_x20.json"
+  },
+  "blind_runs": {
+    "note": "每一行 = 非出题模型的一次完整会话：build 建同一沙箱；每轮 collect + grade 记录后，失败才解锁下一级提示并在同一沙箱继续，最多三轮；record 汇总 grade_history，首个 100 分计为 pass@3=true，三轮未过计 false。前后端隐藏分组和两侧 p2p 均参与评分。",
+    "columns": [
+      "run_id",
+      "model",
+      "tier",
+      "prompt_level",
+      "rounds_used",
+      "pass@3",
+      "score",
+      "failed_groups",
+      "p2p_broken",
+      "notes"
+    ],
+    "rows": []
+  },
+  "summary": {
+    "runs": 0,
+    "pass_at_3": null,
+    "confidence_interval": null,
+    "in_band": null,
+    "conclusion": null
+  }
+}

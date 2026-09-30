@@ -1,0 +1,15 @@
+# 统一行尾，避免 Windows/Linux 之间 CRLF 漂移把注入补丁与参考解弄失效。
+# 任务包里的 *.patch 必须逐字节稳定（git apply / 自研 diff 应用器都按行精确匹配），
+# 因此标记为不转换。
+* text=auto eol=lf
+*.patch -text
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.cmd text eol=crlf
+
+# 二进制（如后续加入截图）
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary

@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "id": "T2-06",
+  "tier": "medium",
+  "attempts": 2,
+  "title": "夜间一起写入，早上分区读不出来",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/data/warehouse.py",
+    "backend/astock_backtester/data/filelock.py",
+    "backend/astock_backtester/service.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "scripts/**",
+    "backend/astock_backtester/data/sync.py",
+    "frontend/**",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_data_warehouse_concurrency.py",
+      "tests/test_warehouse.py::test_warehouse_safe_read_parquet_only_treats_missing_files_as_empty",
+      "tests/test_warehouse.py::test_warehouse_surfaces_corrupt_recent_partition_for_latest_and_coverage",
+      "tests/test_warehouse.py::test_warehouse_does_not_overwrite_corrupt_partition_when_new_rows_arrive",
+      "tests/test_warehouse.py::test_market_trade_date_counts_skips_corrupt_partition"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "9"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.2",
+        "1.6.0",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 240,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.25,
+      0.55
+    ],
+    "calibrated": false
+  }
+}

@@ -1,0 +1,21 @@
+diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtester/data/realtime.py
+--- a/backend/astock_backtester/data/realtime.py
++++ b/backend/astock_backtester/data/realtime.py
+@@ -603,6 +603,7 @@
+         except Exception:
+             self._breadth_in_flight.release()
+             raise
++        future.add_done_callback(lambda _future: self._breadth_in_flight.release())
+         try:
+             remaining = max(0.0, deadline - monotonic_time.monotonic())
+             result = future.result(timeout=remaining)
+@@ -615,9 +616,6 @@
+         except Exception as exc:
+             diagnostics.append(f"实时红绿家数接口失败：{exc}，已继续返回可用行情。")
+             return None
+-        finally:
+-            # 退出当前调用时释放通道锁，确保后来的刷新请求可以立刻发起
+-            self._breadth_in_flight.release()
+ 
+     def _fetch_live_sectors_with_budget(
+         self,

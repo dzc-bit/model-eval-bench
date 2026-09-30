@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "task": "T1-02",
+  "note": "页面侧既有用例白名单（基线全绿、注入不红）。tradingCalendar.test.ts 因点名具体节日日期已整体裁剪。",
+  "tests": []
+}

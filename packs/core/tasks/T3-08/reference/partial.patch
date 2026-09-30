@@ -1,0 +1,47 @@
+diff --git a/backend/astock_backtester/ai/agent.py b/backend/astock_backtester/ai/agent.py
+--- a/backend/astock_backtester/ai/agent.py
++++ b/backend/astock_backtester/ai/agent.py
+@@ -498,19 +498,19 @@
+         """Keep the live window within both the message-count and char budget.
+ 
+         窗口整理是“搬运”：把放不下的条目移出窗口、登记进待归档区，等攒批
+-        压缩统一折进滚动纪要。搬运途中不做摘要、不改写正文；悬空调用的补齐
+-        有专门的修复阶段负责，搬运这里不重复检查配对关系。
++        压缩统一折进滚动纪要。体积统计与真实发送同口径：assistant(tool_calls)
++        的参数体和消息正文一起计入，只数正文会系统性低估体积。
+         """
+         messages = session["messages"]
+         overflow = max(len(messages) - SHORT_TERM_WINDOW, 0)
+-        total_chars = sum(len(str(message.get("content") or "")) for message in messages)
++        total_chars = sum(self._message_wire_chars(message) for message in messages)
+         if total_chars > SHORT_TERM_MAX_CHARS:
+-            # 字符超限：优先搬运不占内容统计的空壳条目（没有正文的调用声明、
+-            # 占位消息）。它们在统计里体积为零，搬走属于零成本清理；带正文的
+-            # 条目是对话本体，留给攒批压缩统一处理，这里一律不动。
++            # 字符超限：从最旧处开始按同一口径累计，直到剩余体积回到阈值内。
++            dropped_chars = 0
+             for index in range(len(messages)):
+-                if str(messages[index].get("content") or ""):
+-                    continue
++                if total_chars - dropped_chars <= SHORT_TERM_MAX_CHARS:
++                    break
++                dropped_chars += self._message_wire_chars(messages[index])
+                 overflow = max(overflow, index + 1)
+         if overflow <= 0:
+             return
+@@ -546,6 +546,15 @@
+             archive[:] = [f"（更早的 {excess} 条对话因压缩失败已丢弃）", *archive[excess:]]
+         on_event({"type": "phase", "phase": "归档短期窗口之外的对话"})
+ 
++    @staticmethod
++    def _message_wire_chars(message: dict[str, Any]) -> int:
++        """单条消息的真实发送体积：正文 + 工具调用参数体（与 count_tokens 同口径）。"""
++        total = len(str(message.get("content") or ""))
++        for call in message.get("tool_calls") or []:
++            function = call.get("function") or {}
++            total += len(str(function.get("arguments") or ""))
++        return total
++
+     def _consolidate_archive(self, session: dict[str, Any], on_event: EventHandler) -> None:
+         """Fold archived dialogue into the rolling summary (one model call).
+ 

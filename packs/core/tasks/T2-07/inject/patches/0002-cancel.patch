@@ -1,0 +1,16 @@
+diff --git a/backend/astock_backtester/ai/cancel.py b/backend/astock_backtester/ai/cancel.py
+--- a/backend/astock_backtester/ai/cancel.py
++++ b/backend/astock_backtester/ai/cancel.py
+@@ -1,9 +1,9 @@
+ """协作取消：一次请求的停止信号与在途轮次登记。
+ 
+ 停止不是杀线程、也不是只断开前端。worker 只在**安全边界**查询令牌——模型轮次
+-之间、模型流的 token 之间、工具批次里每个工具启动之前、寻优的每个组合之间——
+-已经开始的写入跑到边界再退出，会话保存与会话锁释放都发生在退出之后。因此令牌
+-必须比 worker 活得久一点，也不能被两个轮次共用。
++之间、工具批次里每个工具启动之前、寻优的每个组合之间——已经开始的写入跑到
++边界再退出，会话保存与会话锁释放都发生在退出之后。因此令牌必须比 worker 活得
++久一点，也不能被两个轮次共用。
+ """
+ 
+ from __future__ import annotations

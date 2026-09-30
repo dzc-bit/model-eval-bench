@@ -1,0 +1,61 @@
+diff --git a/scripts/run-full-market-import.py b/scripts/run-full-market-import.py
+--- a/scripts/run-full-market-import.py
++++ b/scripts/run-full-market-import.py
+@@ -120,36 +120,6 @@
+     return completed
+ 
+ 
+-_PARTITION_SESSIONS: dict[str, pd.DataFrame] = {}
+-
+-
+-def _persist_batch(warehouse: Warehouse, frames: list[pd.DataFrame]) -> None:
+-    """把一批行并进分区会话，再把会话整段落盘。
+-
+-    分区一旦开过会话就以会话为准：后续批次只跟内存里那份合并，不再回读磁盘。
+-    回读整段分区是这条路上最贵的一步（分区越大越贵），而写入方是按批次顺序
+-    推进的，磁盘上此刻的内容与自己上一批写下的那份本来就该一致。
+-    """
+-    frame = pd.concat(frames, ignore_index=True)
+-    frame["trade_date"] = pd.to_datetime(frame["trade_date"], errors="coerce")
+-    frame = frame.dropna(subset=["trade_date"])
+-    if frame.empty:
+-        return
+-    for year, year_frame in frame.groupby(frame["trade_date"].dt.year):
+-        path = warehouse._partition_path(int(year))
+-        key = str(path)
+-        session = _PARTITION_SESSIONS.get(key)
+-        if session is None:
+-            session = warehouse._safe_read_parquet(path) if path.exists() else pd.DataFrame()
+-        merged = pd.concat([session, year_frame], ignore_index=True)
+-        if {"symbol", "trade_date"}.issubset(merged.columns):
+-            merged = merged.drop_duplicates(subset=["symbol", "trade_date"], keep="last")
+-        merged = merged.sort_values(["symbol", "trade_date"]).reset_index(drop=True)
+-        _PARTITION_SESSIONS[key] = merged
+-        path.parent.mkdir(parents=True, exist_ok=True)
+-        warehouse._atomic_write_parquet(merged, path)
+-
+-
+ def fetch_daily_bars(symbol: str, start_date: str, end_date: str, adata_provider: ADataProvider) -> tuple[pd.DataFrame, str]:
+     frame = adata_provider.fetch_daily_bars(symbol, start_date, end_date)
+     if not frame.empty:
+@@ -211,7 +181,7 @@
+     parser.add_argument("--refresh-symbols", action="store_true")
+     parser.add_argument("--source", choices=["auto", "adata", "http"], default="http")
+     parser.add_argument("--workers", type=int, default=6)
+-    parser.add_argument("--write-batch-size", type=int, default=1)
++    parser.add_argument("--write-batch-size", type=int, default=25)
+     args = parser.parse_args()
+ 
+     cache_dir = Path(args.cache_dir)
+@@ -248,10 +218,7 @@
+         nonlocal imported_rows
+         if not batch:
+             return
+-        # 每只票各自过一次分区会话：批越小，中途失败时丢的行越少，进度事件也
+-        # 更贴近实际落盘节奏；批边界仍由上面的 --write-batch-size 决定。
+-        for _symbol, frame, _source, _seconds, _rows, _index in batch:
+-            _persist_batch(warehouse, [frame])
++        warehouse.write_daily_bars(pd.concat([item[1] for item in batch], ignore_index=True))
+         for symbol, _frame, source, seconds, rows, index in batch:
+             imported_rows += rows
+             append_jsonl(

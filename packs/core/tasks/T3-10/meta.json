@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "id": "T3-10",
+  "tier": "hard",
+  "attempts": 3,
+  "title": "两个程序同时写库，越补越慢，越写越坏",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "scripts/run-full-market-import.py",
+    "backend/astock_backtester/data/warehouse.py",
+    "backend/astock_backtester/service.py",
+    "backend/astock_backtester/data/operations.py",
+    "scripts/backfill-market-cap.py"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/data/filelock.py",
+    "backend/astock_backtester/ai/**",
+    "frontend/**",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_warehouse.py::test_market_trade_date_counts_caches_by_window_until_written",
+      "tests/test_realtime.py::test_symbol_count_cache_refresh_and_write_invalidation",
+      "tests/test_data_operations.py::test_fetch_daily_bars_retries_cache_write_after_lock_timeout",
+      "tests/test_data_operations.py::test_import_daily_bars_retries_cache_write_after_lock_timeout",
+      "tests/test_data_operations.py::test_fetch_capital_flow_retries_cache_write_after_lock_timeout",
+      "tests/test_data_service_http.py::test_service_health_returns_json_when_warehouse_coverage_fails",
+      "tests/test_data_service_http.py::test_service_health_does_not_restart_coverage_refresh_when_snapshot_is_fresh",
+      "tests/test_data_service_http.py::test_service_health_reports_warehouse_market_cap_and_capital_flow_coverage",
+      "tests/test_data_warehouse_concurrency.py::test_run_full_market_batches_writes_instead_of_per_symbol"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "9",
+        "15"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.1",
+        "1.5.2",
+        "1.6.0",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 300,
+    "diff_line_cap": 4000
+  },
+  "calibration": {
+    "target_band": [
+      0.05,
+      0.25
+    ],
+    "calibrated": false
+  }
+}

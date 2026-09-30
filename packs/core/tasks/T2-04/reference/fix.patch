@@ -1,0 +1,205 @@
+diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
+--- a/backend/astock_backtester/data/operations.py
++++ b/backend/astock_backtester/data/operations.py
+@@ -40,8 +40,9 @@
+ # date_coverage_shortfall 诊断同一 code，前端与 AI 复用同一套语义）。
+ DAILY_BARS_TAIL_SHORTFALL_TRADE_DAYS = 5
+ 
+-# 逐股缺口做停牌类剔除前，窗口至少要有这么多 A 股交易日。
+-MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 2
++# 逐股缺口做停牌类剔除前，窗口至少要有这么多 A 股交易日：横截面中位数在
++# 三五天的窗口上抖动太大，分类结果不可信，此时退回平日历口径（旧行为）。
++MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 5
+ 
+ # 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时后的
+ # 有界重试：抓取结果此刻还在内存里，锁持有者崩溃时 OS 会自动释放锁，短退避后再试
+@@ -154,9 +155,15 @@
+         counts = warehouse.market_trade_date_counts(window_start.date().isoformat(), window_end.date().isoformat())
+         if not counts:
+             return None
+-        # 交易日历铺出来的 0 行日一并参与横截面：中位数因此代表"窗口常态水位"，
+-        # 分界点更贴近当日全市场实际写进来的行数。
+-        classification = classify_market_days_by_cross_section(counts)
++        # 0 行日不进横截面：market_trade_date_counts 按交易日历补 0，而 coverage()
++        # 与 sync 的计数都来自“有行日期”的 groupby——把 0 混进中位数会压低阈值，
++        # 让三个出口对同一天给出不同分类。0 行日不在任一集合里，逐股缺口按平日历
++        # 口径保留（0 行 < 任何阈值 → 可行动，与另两个出口行为一致）；全是 0 时
++        # 整体退回平日历口径。
++        positive_counts = {day: count for day, count in counts.items() if count > 0}
++        if not positive_counts:
++            return None
++        classification = classify_market_days_by_cross_section(positive_counts)
+     except Exception as exc:
+         logger.warning(
+             "market trade-date classification failed; per-symbol coverage falls back to the flat calendar: %s",
+diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
+--- a/backend/astock_backtester/data/sync.py
++++ b/backend/astock_backtester/data/sync.py
+@@ -5,7 +5,6 @@
+ from concurrent.futures import ThreadPoolExecutor, as_completed
+ from dataclasses import dataclass, field
+ from datetime import date, datetime, timedelta
+-from statistics import median
+ from threading import Lock, Thread
+ from typing import Any, Literal
+ from uuid import uuid4
+@@ -22,13 +21,14 @@
+     fetch_capital_flow_into_cache,
+ )
+ from astock_backtester.data.trading_calendar import a_share_trade_dates
+-from astock_backtester.data.warehouse import Warehouse, lifecycle_bound
++from astock_backtester.data.warehouse import Warehouse, classify_market_days_by_cross_section, lifecycle_bound
+ from astock_backtester.models import SyncJobStatus
+ 
+ OHLC_COLUMNS = ["open", "high", "low", "close"]
+ 
+-# 停牌分类的横截面样本下限。
+-MIN_SUSPENSION_CLASSIFICATION_DAYS = 1
++# 停牌分类的横截面样本下限：窗口交易日太少时“当日行数 ≥ 中位数×0.5”不稳，
++# 退回旧行为（整窗必需、照抓不误），宁可多抓也不误判成停牌。
++MIN_SUSPENSION_CLASSIFICATION_DAYS = 5
+ 
+ # 写批落盘的 FileLockTimeout 有界重试：1 次首发 + 2 次短退避，仍失败才上抛。
+ FULL_MARKET_WRITE_LOCK_ATTEMPTS = 3
+@@ -96,17 +96,16 @@
+ def _market_normal_days(window_frame: pd.DataFrame, required_dates: set[pd.Timestamp]) -> set[pd.Timestamp]:
+     """窗口横截面分类出的“市场正常日”；样本不足或无分类时返回空集合（退回旧口径）。
+ 
+-    窗口内每个交易日的落库行数 ≥ 全窗口中位数 × 0.5 → 市场正常日，它的缺行是
+-    停牌类（不可补）；行数异常低 → thin day（疑似写入失败，可补）。分界点就地
+-    算，快照路径不必绕模块级纯函数。
++    与 ``Warehouse.coverage()`` 共用 :func:`classify_market_days_by_cross_section`
++    的阈值口径：当日全市场 OHLC 完整行数 ≥ 中位数 × 0.5 → 市场正常日，它的
++    缺行是停牌类（不可补）；行数异常低 → thin day（疑似写入失败，可补）。
+     """
+     if len(required_dates) < MIN_SUSPENSION_CLASSIFICATION_DAYS:
+         return set()
+     rows_by_date = window_frame.groupby("_td_norm").size().to_dict()
+     if not rows_by_date:
+         return set()
+-    threshold = max(1.0, float(median(rows_by_date.values())) * 0.5)
+-    return {day for day, count in rows_by_date.items() if count >= threshold}
++    return classify_market_days_by_cross_section(rows_by_date).market_normal_days
+ 
+ 
+ def _suspension_exempt_required_dates(
+@@ -117,7 +116,8 @@
+ ) -> set[pd.Timestamp]:
+     """把“窗口内已有行、却缺在市场正常日”的交易日按停牌类缺行剔除。
+ 
+-    三条例外：
++    三条例外与 ``Warehouse.coverage()`` 的 ``missing_rows``/``suspension_rows``
++    口径一致（AGENTS §9）：
+     - 落在 thin day 的缺行仍必需（可行动缺口，照抓）；
+     - 落在市场正常日、但该股当天本就有行（缺的是市值字段而非行）仍必需；
+     - 该股窗口内零行 → 返回原集合（整窗必需，保持旧口径照抓）。
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -48,8 +48,12 @@
+ KNOWN_CAPITAL_FLOW_SOURCE_START_SYMBOLS = {"001872", "001914", "601360"}
+ KNOWN_CAPITAL_FLOW_SOURCE_START_DATES = {pd.Timestamp("2021-12-29")}
+ KNOWN_CAPITAL_FLOW_LISTING_LAG_DAYS = 90
+-# 资金流缺口名单做停牌类豁免前，窗口至少要有这么多 A 股交易日。
+-MIN_TRADE_DAYS_FOR_CAPITAL_FLOW_SUSPENSION_EXEMPTION = 1
++# 资金流缺口名单做停牌类豁免前，窗口至少要有这么多 A 股交易日：横截面中位数
++# 在短窗口上抖动太大，样本不足时退回平日历口径（旧行为）。与
++# data/operations.py::MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION、
++# data/sync.py::MIN_SUSPENSION_CLASSIFICATION_DAYS 同为 5（各自模块持有，
++# warehouse 不反向依赖它们）。
++MIN_TRADE_DAYS_FOR_CAPITAL_FLOW_SUSPENSION_EXEMPTION = 5
+ 
+ 
+ class Warehouse:
+@@ -750,10 +754,12 @@
+         spanning(d) = 满足 [起, 止]（生命周期截断后）覆盖 d 的股票数。某股票
+         在 d 有行则必然 spanning d，因此实有 ≤ spanning 恒成立。
+ 
+-        分界点（当日行数 ≥ 中位数 × thin_day_ratio 的市场正常日）在窗口日历上
+-        就地算：thin day（疑似写入失败）的缺行计入 missing_rows（可行动）；
+-        市场正常日的缺行是停牌类（公开渠道天然没有，不可补），计入
+-        suspension_rows。
++        分类委托给模块级纯函数 :func:`classify_market_days_by_cross_section`
++        （threshold = 当日行数 ≥ 中位数 × thin_day_ratio 的市场正常日）：thin
++        day（疑似写入失败）的缺行计入 missing_rows（可行动）；市场正常日的
++        缺行是停牌类（公开渠道天然没有，不可补），计入 suspension_rows。
++        输入 ``rows_per_date`` 没有覆盖的交易日（0 行）不属于任何市场正常日
++        → 按 thin day 计入 missing_rows。
+ 
+         返回 (missing_rows, suspension_rows)。无生命周期记录的股票按在市
+         处理（保守口径不变）。
+@@ -787,9 +793,7 @@
+             return 0, 0
+         starts.sort()
+         ends.sort()
+-        day_counts = {day: rows_per_date.get(day, 0) for day in calendar}
+-        threshold = max(1.0, float(median(day_counts.values())) * thin_day_ratio)
+-        market_normal_days = {day for day, count in day_counts.items() if count >= threshold}
++        classification = classify_market_days_by_cross_section(rows_per_date, thin_day_ratio=thin_day_ratio)
+         missing_total = 0
+         suspension_total = 0
+         for day in calendar:
+@@ -798,7 +802,7 @@
+             internal = spanning - rows_per_date.get(day, 0)
+             if internal <= 0:
+                 continue
+-            if day in market_normal_days:
++            if day in classification.market_normal_days:
+                 suspension_total += internal
+             else:
+                 missing_total += internal
+@@ -1234,7 +1238,11 @@
+         """资金流缺口名单用的“市场正常日”集合；样本不足或计数拿不到时返回空集合（退回平日历口径）。
+ 
+         与 ``data/sync.py`` 的窗口快照、``data/operations.py`` 的逐股覆盖共用
+-        :func:`classify_market_days_by_cross_section` 的阈值口径。
++        :func:`classify_market_days_by_cross_section` 的阈值口径，且只喂**有行**
++        的交易日：``market_trade_date_counts`` 按交易日历补的 0 行日不是横截面
++        证据（通常是节假日表覆盖问题或全市场未写入），混进中位数会压低阈值，
++        让各出口对同一天给出不同分类——``coverage()`` / sync 的计数都来自有行
++        日期的 groupby，这里必须对齐。
+         """
+         if trade_day_count < MIN_TRADE_DAYS_FOR_CAPITAL_FLOW_SUSPENSION_EXEMPTION:
+             return set()
+@@ -1243,7 +1251,10 @@
+         except Exception as exc:  # noqa: BLE001 - 分类拿不到就退回平日历口径（旧行为）
+             logger.warning("capital-flow suspension exemption skipped; market trade-date counts failed: %s", exc)
+             return set()
+-        return classify_market_days_by_cross_section(counts).market_normal_days
++        positive_counts = {day: count for day, count in counts.items() if count > 0}
++        if not positive_counts:
++            return set()
++        return classify_market_days_by_cross_section(positive_counts).market_normal_days
+ 
+     def market_trade_date_counts(self, start_date: str, end_date: str) -> dict[str, int]:
+         """窗口内每个交易日的全市场 OHLC 完整行数（``{"YYYY-MM-DD": 行数}``）。
+@@ -1251,7 +1262,9 @@
+         只读 ``symbol/trade_date/open/high/low/close`` 六列，OHLC 四列全非空的
+         行才计数。键覆盖 ``[start_date, end_date]`` 内的每个 A 股交易日：没有
+         完整行的交易日记 0，仓库里落在非交易日的行也会以真实行数出现在结果里。
+-        供按横截面阈值判定"市场正常日 / thin day"时充当输入。
++        供复用 :func:`classify_market_days_by_cross_section` 横截面阈值时充当输入
++        （``data/sync.py`` / ``data/operations.py`` 与本模块的资金流缺口名单）；
++        0 值键按交易日历补出、不是横截面证据，喂给分类器前应由调用方过滤。
+ 
+         按窗口年份选分区；单个损坏分区跳过并登记 ``corrupt_partitions``，不让
+         一个坏分区炸掉整个调用。10 分钟 TTL 单条缓存，缓存 key 即
+@@ -1378,9 +1391,15 @@
+     全市场行数异常低，疑似写入失败，缺行可补）。2025 年实测 15,095 个缺口
+     **100%** 落在市场正常日——旧"累计真实缺口"口径就是因此被实证推翻。
+ 
+-    纯函数、不读仓。键会被归一化为 ``pd.Timestamp``（同日多键行数累加）；
+-    返回的两个集合只覆盖输入里出现的日期——输入里没有行的交易日不在任一集合
+-    中。空输入返回两个空集合。
++    纯函数、不读仓：``Warehouse.coverage()``（内部洞分类）与后续
++    ``data/sync.py`` / ``data/operations.py`` 共用同一阈值口径。键会被归一化为
++    ``pd.Timestamp``（同日多键行数累加）；返回的两个集合只覆盖输入里出现的
++    日期——输入里没有行的交易日不在任一集合中，调用方按"0 行 < 任何阈值"
++    自行归入 thin。0 值键传进来也会被分进 thin，但各调用方约定先把 0 行日
++    过滤掉再分类：0 行日不是横截面证据，混入中位数会压低阈值，让三个出口对
++    同一天给出不同分类（``market_trade_date_counts`` 按交易日历补 0，其调用方
++    见 operations 的 ``_market_day_classification`` 与 warehouse 的
++    ``_capital_flow_market_normal_days``）。空输入返回两个空集合。
+     """
+     counts: dict[pd.Timestamp, int] = {}
+     for day, value in rows_by_date.items():

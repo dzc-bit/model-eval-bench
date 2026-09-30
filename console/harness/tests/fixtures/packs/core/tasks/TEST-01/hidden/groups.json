@@ -1,0 +1,45 @@
+{
+  "note": "组 = 一个出口（设计文档 §5.1）。coherence 权重最高，断言三处对同一事实口径一致。",
+  "groups": [
+    {
+      "id": "turnover_exit",
+      "title": "pricing：换手率口径",
+      "weight": 1,
+      "tests": ["hidden/tests_hidden/test_pricing_hidden.py::test_turnover_rate_uses_shares"]
+    },
+    {
+      "id": "adapter_exit",
+      "title": "adapters：派生列只搬运不重算",
+      "weight": 1,
+      "tests": ["hidden/tests_hidden/test_pricing_hidden.py::test_adapter_delegates_turnover_to_pricing"]
+    },
+    {
+      "id": "engine_exit",
+      "title": "engine：换手率闸门",
+      "weight": 1,
+      "tests": ["hidden/tests_hidden/test_pricing_hidden.py::test_engine_rejects_low_turnover_row"]
+    },
+    {
+      "id": "market_cap_exit",
+      "title": "pricing：市值口径未被动过",
+      "weight": 1,
+      "tests": ["hidden/tests_hidden/test_pricing_hidden.py::test_market_cap_formula_unchanged"]
+    },
+    {
+      "id": "coherence",
+      "title": "三处出口对同一事实口径一致",
+      "weight": 2,
+      "tests": [
+        "hidden/tests_hidden/test_pricing_hidden.py::test_all_exits_agree_on_same_fact",
+        "hidden/tests_hidden/test_pricing_hidden.py::test_summary_counts_candidates"
+      ]
+    },
+    {
+      "id": "p2p",
+      "title": "既有通过用例（回归，不计分）",
+      "weight": 0,
+      "mode": "regression",
+      "tests": []
+    }
+  ]
+}

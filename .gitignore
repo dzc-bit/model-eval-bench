@@ -1,0 +1,45 @@
+# ---- 运行时产物（可重建，不入库）----
+sandboxes/*
+!sandboxes/.gitkeep
+packs/core/tools/_work/
+runs/_quarantine/
+runs/blind/gates/*/
+!runs/blind/gates/.gitkeep
+runs/blind/calib/*/trial-*/workspace/
+# harness 自检的临时工作区（conftest 固定放在评测台根内，跑完即弃）
+.pytest-tmp/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.venv/
+.venv-*/
+
+# ---- 编辑器 / 操作系统 ----
+.idea/
+.vscode/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- 本地 agent 工具状态 ----
+.zcode/
+
+# ---- 密钥与凭据（本仓库不含，防止误提交）----
+.env
+.env.*
+*.pem
+*.key
+credentials*.json
+*secret*.json
+*token*.json

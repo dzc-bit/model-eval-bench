@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "task": "T3-09",
+  "note": "pytest 侧分组。高级题硬规格：≥5 组隐藏不变量 + coherence 权重 2 + p2p 组。节点 ID 带 hidden/tests_hidden/ 前缀。",
+  "groups": [
+    {
+      "id": "single_flight_exit",
+      "weight": 1,
+      "port": "single-flight 生命周期：超时后直到 worker 结束前保持繁忙，不放行新请求排队",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking"
+      ]
+    },
+    {
+      "id": "late_publish_exit",
+      "weight": 1,
+      "port": "迟到发布防护：超时或取消后的迟到诊断与分块行不得污染对外共享状态",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled"
+      ]
+    },
+    {
+      "id": "generation_exit",
+      "weight": 1,
+      "port": "代际仲裁：严格世代递增，旧世代与无世代旧数据绝不覆盖新世代快照",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot"
+      ]
+    },
+    {
+      "id": "chain_budget_exit",
+      "weight": 1,
+      "port": "整链预算硬约束：单源慢/超时不拖垮其他源，后续请求在 worker 结束后迅速恢复",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 2,
+      "port": "全局快照一致性：并发、迟到与失败交织下，对外保留的快照始终保持权威与隔离",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "既有用例白名单见任务根 p2p.json。任一条红 → 本轮作废（0 分）。"
+    }
+  ]
+}

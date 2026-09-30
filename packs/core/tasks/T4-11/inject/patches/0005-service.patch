@@ -1,0 +1,23 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -215,15 +215,13 @@
+             self._coverage_refreshed_at = datetime.now(UTC)
+ 
+     def health_payload(self) -> ServiceHealth:
+-        refresh_finished = self.start_coverage_refresh()
+-        if refresh_finished is not None:
+-            refresh_finished.wait(HEALTH_COVERAGE_WAIT_SECONDS)
+-        with self._coverage_lock:
+-            coverage_refreshing = self._coverage_refreshing
++        # 健康检查保持轻量：只回报进程身份、最近一次 coverage 快照与"服务在跑"，
++        # 不在这里触发或等待任何刷新。覆盖数据由数据中心的读写链路与后台定时
++        # 刷新推进，健康检查不参与。
+         return ServiceHealth(
+             **self.identity_payload(),
+             coverage=self.coverage_snapshot(),
+-            coverage_refreshing=coverage_refreshing,
++            coverage_refreshing=False,
+         )
+ 
+     def diagnostics_payload(self) -> dict[str, Any]:

@@ -1,0 +1,12 @@
+--- a/backend/miniapp/pricing.py
++++ b/backend/miniapp/pricing.py
+@@ -22,7 +22,8 @@
+     """换手率 = 成交量 / 流通股本。"""
+     if shares <= 0:
+         return 0.0
+-    return round(volume / close, 6)
++    # 参考修复：分母回到流通股本，这里是换手率的唯一口径出处
++    return round(volume / shares, 6)
+ 
+ 
+ def market_cap(close, shares):

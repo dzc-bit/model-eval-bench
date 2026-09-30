@@ -1,0 +1,277 @@
+{
+  "task": "T4-11",
+  "state": "fixed",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0001-realtime-arbitration.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0002-frontend-market-degrade.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0003-run-full-market-import.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0004-warehouse.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0005-service.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0006-operations.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\reference\\fix.patch"
+  ],
+  "runs": [
+    {
+      "score": 100.0,
+      "raw_score": 100.0,
+      "groups": [
+        {
+          "id": "single_flight_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "late_publish_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "generation_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "chain_budget_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence_realtime",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "batching_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "amplification_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "freshness_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "lock_retry_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "health_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cross_process_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence_write",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 3.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "frontend_degrade_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 283,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-09-30T14:45:57"
+}

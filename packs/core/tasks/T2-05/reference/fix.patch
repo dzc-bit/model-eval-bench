@@ -1,0 +1,119 @@
+diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
+--- a/backend/astock_backtester/data/sync.py
++++ b/backend/astock_backtester/data/sync.py
+@@ -341,15 +341,17 @@
+         if now - self._last_read.get(job_id, 0.0) < JOB_READ_STALE_SECONDS:
+             return
+         self._jobs.pop(job_id, None)
+-        # 签名与取消标记不随记录清理：同签名任务之后仍可能再进来，留着它们可以让下一次同签名提交直接命中。
++        self._signatures.pop(job_id, None)
+         self._finished_at.pop(job_id, None)
+         self._last_read.pop(job_id, None)
++        self._cancelled.discard(job_id)
+ 
+     def _put_locked(self, status: SyncJobStatus) -> None:
+         self._jobs[status.job_id] = status
+         if status.status in ("running", "cancelling"):
+             self._finished_at.pop(status.job_id, None)
+-            # 失活判定看的是"有没有人在推进"，写回本身不代表推进，这里不再盖进度戳。
++            # 每次写回都算一次进度推进：作业还在动就不会被判失活。
++            self._last_progress_at[status.job_id] = time.monotonic()
+         else:
+             self._finished_at.setdefault(status.job_id, time.monotonic())
+             self._last_progress_at.pop(status.job_id, None)
+@@ -357,22 +359,21 @@
+     def _admit(self, status: SyncJobStatus, signature: str) -> tuple[SyncJobStatus, bool]:
+         """同签名在途任务直接复用，否则在预算内新建。
+ 
+-        先做一次无锁快照查询，命中在途任务就不必再抢锁；未命中才进锁写入。
+-        返回的快照带 ``admission`` 告诉本次调用方发生了什么，存储里的记录保持原样。
++        判定与写入必须在同一把锁里完成：两个请求各自"查不到相同任务"再各自建
++        job 就是这个竞态的结果。返回的快照带 ``admission`` 告诉本次调用方发生
++        了什么，存储里的记录保持原样。
+         """
+-        for job_id, existing_signature in list(self._signatures.items()):
+-            if existing_signature != signature:
+-                continue
+-            existing = self._jobs.get(job_id)
+-            if existing is None or existing.status not in ("running", "cancelling"):
+-                continue
+-            with self._lock:
+-                self._last_read[job_id] = time.monotonic()
+-            return existing.model_copy(deep=True, update={"admission": "reused"}), False
+-
+         with self._lock:
+             now = time.monotonic()
+             self._prune_locked(now)
++            for job_id, existing_signature in self._signatures.items():
++                if existing_signature != signature:
++                    continue
++                existing = self._jobs.get(job_id)
++                if existing is None or existing.status not in ("running", "cancelling"):
++                    continue
++                self._last_read[job_id] = now
++                return existing.model_copy(deep=True, update={"admission": "reused"}), False
+             running = self.running_job_ids_locked()
+             if len(running) >= max(1, self.max_concurrent_jobs):
+                 raise SyncCapacityError(running, self.max_concurrent_jobs)
+@@ -479,13 +480,11 @@
+ 
+     def get_job(self, job_id: str) -> SyncJobStatus | None:
+         with self._lock:
+-            now = time.monotonic()
+-            self._prune_locked(now)
+             status = self._jobs.get(job_id)
+             if status is None:
+                 return None
+             # 读一次就等于"还在被用"：回收不能把正在轮询的任务抽走。
+-            self._last_read[job_id] = now
++            self._last_read[job_id] = time.monotonic()
+             return status.model_copy(deep=True)
+ 
+     def running_job_ids_locked(self) -> list[str]:
+@@ -527,7 +526,7 @@
+             status.errors.append(message)
+             status.last_error = message
+             status.recent_failures = [*status.recent_failures, {"message": message}][-20:]
+-            self._jobs[job_id] = status
++            self._put_locked(status)
+ 
+     def _is_cancel_requested(self, job_id: str) -> bool:
+         with self._lock:
+@@ -964,7 +963,7 @@
+                 *status.recent_failures,
+                 {"symbol": symbol, "reason": message},
+             ][-20:]
+-            self._jobs[job_id] = status
++            self._put_locked(status)
+ 
+ 
+ def _call_capital_flow_fetcher(
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -943,10 +943,7 @@
+             if job is None:
+                 self._send_json({"code": "not_found", "message": job_id}, HTTPStatus.NOT_FOUND)
+                 return
+-            payload = job.model_dump(mode="json")
+-            # 复用准入只是内部去重的实现细节，对外状态保持纯净。
+-            payload.pop("admission", None)
+-            self._send_json({"job": payload})
++            self._send_json({"job": job.model_dump(mode="json")})
+             return
+         self._send_json({"code": "not_found", "message": self.path}, HTTPStatus.NOT_FOUND)
+ 
+@@ -1257,10 +1254,11 @@
+                 return
+             self._send_json({"code": "not_found", "message": self.path}, HTTPStatus.NOT_FOUND)
+         except SyncCapacityError as exc:
+-            # 准入冲突直接返回冲突状态码与错误信息。
++            # 准入冲突必须是独立稳定码：它要告诉调用方"已有任务在跑"，
++            # 而不是被归进 request_failed 让前端只能显示"请求失败"。
+             self.server.state.log("warning", str(exc))
+             self._send_json(
+-                {"code": "sync_capacity", "message": str(exc)},
++                {"code": "sync_capacity", "message": str(exc), "running_jobs": exc.running},
+                 HTTPStatus.CONFLICT,
+             )
+         except LocalDataUnavailable as exc:

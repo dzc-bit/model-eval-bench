@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "task": "T1-02",
+  "note": "页面侧（vitest）分组，由 vitest check 加载；与 pytest 侧共用同一张计分表。",
+  "groups": [
+    {
+      "id": "frontend_calendar_exit",
+      "weight": 1,
+      "port": "页面口径：页面侧的休市判定",
+      "tests": [
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日"
+      ]
+    },
+    {
+      "id": "default_window_exit",
+      "weight": 1,
+      "port": "默认窗口：起止两端必须落在真实交易日",
+      "tests": [
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+        "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "页面侧既有用例白名单见任务根 p2p-fe.json。"
+    }
+  ]
+}

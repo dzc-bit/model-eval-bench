@@ -1,0 +1,7 @@
+node_modules/
+__pycache__/
+.pytest_cache/
+dist/
+运行产物/
+*.log
+!tests/**/*.log

@@ -1,0 +1,323 @@
+{
+  "schema": 1,
+  "pack": "core",
+  "title": "core 任务包：A 股回测系统（§7 起步十一题）",
+  "spec": "设计文档 v2.2 §6/§7/§8",
+  "repo": {
+    "id": "core",
+    "snapshot_commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "notes": [
+    "status=active 的题目已完成 §5.3 门禁自验与 packcheck 全绿；status=draft 的题目只有骨架（meta + 症状草案 + 注入点清单），入库前须走完 README 第三节流水线。",
+    "target_band 是各题 target_metric 的强模型目标带（既有题目多为 pass@1，王者为 pass_at_3）。盲测由用户组织的非出题模型完成（§6.4），出题者不校准。",
+    "本清单不含答案细节；allowed_paths、注入点、参考解在各题 meta.json 与 reference/ 内。",
+    "packcheck_red = 该题当前 packcheck 红项数（由 tools/regenerate_index.py 重算）；只有红项为 0 的题目登记为 status=active。"
+  ],
+  "tasks": [
+    {
+      "id": "T1-01",
+      "tier": "primary",
+      "status": "active",
+      "attempts": 1,
+      "title": "同一行行情，在不同出口被解释成了三种口径",
+      "target_band": [
+        0.6,
+        0.85
+      ],
+      "prune_count": 6,
+      "p2p_count": 147,
+      "hidden_groups": [
+        "turnover_column_exit",
+        "market_cap_column_exit",
+        "condition_row_exit",
+        "condition_mask_exit",
+        "limit_board_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 14.29,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T1-02",
+      "tier": "primary",
+      "status": "active",
+      "attempts": 1,
+      "title": "同一张休市表，两端各认各的节假日",
+      "target_band": [
+        0.6,
+        0.85
+      ],
+      "prune_count": 6,
+      "p2p_count": 166,
+      "hidden_groups": [
+        "backend_calendar_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 20.0,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T1-03",
+      "tier": "primary",
+      "status": "active",
+      "attempts": 1,
+      "title": "同一种失败，三段链路各说各话",
+      "target_band": [
+        0.6,
+        0.85
+      ],
+      "prune_count": 2,
+      "p2p_count": 25,
+      "hidden_groups": [
+        "error_code_exit",
+        "stream_terminal_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 40.0,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T2-04",
+      "tier": "medium",
+      "status": "active",
+      "attempts": 2,
+      "title": "同一天的缺口，四个出口给了四种答案",
+      "target_band": [
+        0.25,
+        0.55
+      ],
+      "prune_count": 4,
+      "p2p_count": 125,
+      "hidden_groups": [
+        "coverage_exit",
+        "per_symbol_exit",
+        "sync_pool_exit",
+        "flow_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 33.33,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T2-05",
+      "tier": "medium",
+      "status": "draft",
+      "attempts": 2,
+      "title": "同一批数据反复起 worker；偶发 409 后再也起不来",
+      "target_band": [
+        0.25,
+        0.55
+      ],
+      "prune_count": 6,
+      "p2p_count": 35,
+      "hidden_groups": [
+        "admission_exit",
+        "heartbeat_exit",
+        "reclaim_exit",
+        "consumer_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 33.33,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 2
+    },
+    {
+      "id": "T2-06",
+      "tier": "medium",
+      "status": "active",
+      "attempts": 2,
+      "title": "夜间一起写入，早上分区读不出来",
+      "target_band": [
+        0.25,
+        0.55
+      ],
+      "prune_count": 5,
+      "p2p_count": 50,
+      "hidden_groups": [
+        "exclusive_write_exit",
+        "atomic_replace_exit",
+        "corrupt_visibility_exit",
+        "health_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 33.33,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T2-07",
+      "tier": "medium",
+      "status": "active",
+      "attempts": 2,
+      "title": "按下停止之后，答案丢了，下次还白等",
+      "target_band": [
+        0.25,
+        0.55
+      ],
+      "prune_count": 2,
+      "p2p_count": 35,
+      "hidden_groups": [
+        "cancel_boundary_exit",
+        "pairing_exit",
+        "lock_release_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 20.0,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T3-08",
+      "tier": "hard",
+      "status": "draft",
+      "attempts": 3,
+      "title": "长对话的两难：存不住，删不掉，预算不干活",
+      "target_band": [
+        0.05,
+        0.25
+      ],
+      "prune_count": 3,
+      "p2p_count": 30,
+      "hidden_groups": [
+        "archive_integrity_exit",
+        "pairing_exit",
+        "budget_effective_exit",
+        "no_data_loss_exit",
+        "recall_reference_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 14.29,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 2
+    },
+    {
+      "id": "T3-09",
+      "tier": "hard",
+      "status": "active",
+      "attempts": 3,
+      "title": "行情偶发退回旧快照；一次慢请求后整条源链超时",
+      "target_band": [
+        0.05,
+        0.25
+      ],
+      "prune_count": 21,
+      "p2p_count": 131,
+      "hidden_groups": [
+        "single_flight_exit",
+        "late_publish_exit",
+        "generation_exit",
+        "chain_budget_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 28.57,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T3-10",
+      "tier": "hard",
+      "status": "active",
+      "attempts": 3,
+      "title": "两个程序同时写库，越补越慢，越写越坏",
+      "target_band": [
+        0.05,
+        0.25
+      ],
+      "prune_count": 9,
+      "p2p_count": 301,
+      "hidden_groups": [
+        "batching_exit",
+        "amplification_exit",
+        "freshness_exit",
+        "lock_retry_exit",
+        "health_exit",
+        "cross_process_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 37.5,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0
+    },
+    {
+      "id": "T4-11",
+      "tier": "king",
+      "status": "draft",
+      "attempts": 3,
+      "title": "实时行情与写入链路同时失去唯一事实",
+      "target_band": [
+        0.0,
+        0.02
+      ],
+      "prune_count": 30,
+      "p2p_count": 283,
+      "hidden_groups": [
+        "single_flight_exit",
+        "late_publish_exit",
+        "generation_exit",
+        "chain_budget_exit",
+        "coherence_realtime",
+        "batching_exit",
+        "amplification_exit",
+        "freshness_exit",
+        "lock_retry_exit",
+        "health_exit",
+        "cross_process_exit",
+        "coherence_write",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "fixed": 100.0,
+        "partial": 27.78,
+        "injected_x20": "stable 0.0"
+      },
+      "packcheck_red": 0,
+      "target_metric": "pass_at_3",
+      "calibrated": false
+    }
+  ]
+}
