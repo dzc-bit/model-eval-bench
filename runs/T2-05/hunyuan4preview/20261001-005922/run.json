@@ -1,0 +1,23 @@
+{
+  "run_id": "T2-05__hunyuan4preview__20261001-005922",
+  "task": "T2-05",
+  "model": "hunyuan4preview",
+  "attempt": 1,
+  "attempts_allowed": 2,
+  "status": "ready",
+  "created_at": "2026-10-01T00:59:22",
+  "updated_at": "2026-10-01T00:59:32",
+  "revealed": false,
+  "rounds": [],
+  "note": "",
+  "calibration": false,
+  "drive": "",
+  "sandbox": "D:\\new model test\\sandboxes\\T2-05__hunyuan4preview__20261001-005922",
+  "baseline_commit": "1235c149dc60490416c3cef2727652cdb75d411e",
+  "baseline_digest": "73f29e981efe7aaf87a76c6df5f89269b14a561e1f7bf3484c711d879b342727",
+  "run_dir": "D:\\new model test\\runs\\T2-05\\hunyuan4preview\\20261001-005922",
+  "gitignore_digest": "985642d9a814e09acd3eb0e8dbb4f935543c0efb602cc415a2987aab947289c5",
+  "injected": 2,
+  "node_modules_target": "",
+  "node_modules_baseline": ""
+}

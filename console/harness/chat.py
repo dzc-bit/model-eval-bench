@@ -19,7 +19,7 @@ from typing import Callable, Dict, Iterator, List, Optional
 from urllib import error as url_error
 from urllib import request as url_request
 
-from . import config, errors, util
+from . import config, errors, keyring, util
 
 MAX_HISTORY = 100
 MAX_TOOL_ROUNDS = 8
@@ -147,7 +147,10 @@ def messages(run: dict) -> List[dict]:
 
 
 def _model_key(model: dict) -> str:
-    """按显式 key_env → 模型专属环境变量 → OPENAI_API_KEY 读取密钥。"""
+    """按本机密钥文件（页面粘贴）→ 显式 key_env → 模型专属环境变量 → OPENAI_API_KEY 读取密钥。"""
+    stored = keyring.get_key(str(model.get("id") or ""))
+    if stored:
+        return stored
     configured = str(model.get("key_env") or model.get("api_key_env") or "").strip()
     candidates = []
     if configured and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", configured):
@@ -163,7 +166,7 @@ def _model_key(model: dict) -> str:
             return value
     raise errors.HarnessError(
         errors.E_MODEL_INVALID,
-        "模型档案未配置服务端 API Key。请在服务端环境变量中设置对应密钥后重试。",
+        "模型档案还没有可用密钥。到「模型档案」页编辑该档案并粘贴 API 密钥，或在服务端环境变量中设置后重试。",
         "可用变量：%s" % "、".join(candidates),
     )
 

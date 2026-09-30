@@ -23,7 +23,7 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
-from . import chat, config, errors, grade, packs, report as report_mod, sandbox, util
+from . import chat, config, errors, grade, keyring, packs, report as report_mod, sandbox, util
 
 Log = Callable[[str], None]
 
@@ -851,7 +851,7 @@ def list_models(cfg: dict) -> List[dict]:
 
 
 def upsert_model(cfg: dict, payload: dict) -> dict:
-    """新增或更新模型档案；只保存脱敏值和服务端环境变量名。"""
+    """新增或更新模型档案；明文密钥只进本机密钥文件，config.json 只存脱敏值。"""
     model_id = util.sanitize_id(payload.get("id"))
     if not model_id:
         raise errors.HarnessError(errors.E_MODEL_INVALID, "模型档案需要一个 id（英文标识即可）。")
@@ -870,7 +870,13 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
             "key_env 必须是合法的服务端环境变量名。",
             key_env,
         )
+    api_key = str(payload.get("api_key") or "").strip()
+    previous_id = util.sanitize_id(payload.get("previous_id"))
     models = list_models(cfg)
+    if previous_id and previous_id != model_id:
+        # 改编号：旧档案连同它的密钥一起搬走，而不是留下重复档案
+        models = [m for m in models if str(m.get("id")) != previous_id]
+        keyring.rename_key(previous_id, model_id)
     entry = {
         "id": model_id,
         "protocol": protocol,
@@ -881,6 +887,8 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
         "key_env": key_env,
         "note": str(payload.get("note") or "")[:500],
     }
+    if api_key:
+        entry["key_masked"] = keyring.set_key(model_id, api_key)
     for index, item in enumerate(models):
         if str(item.get("id")) == model_id:
             models[index] = entry
@@ -898,4 +906,5 @@ def delete_model(cfg: dict, model_id: str) -> dict:
         raise errors.HarnessError(
             errors.E_MODEL_NOT_FOUND, "找不到模型档案 %s，删除失败。" % model_id, str(model_id))
     config.update_models(remaining)
+    keyring.remove_key(model_id)
     return {"id": model_id, "deleted": True, "remaining": len(remaining)}

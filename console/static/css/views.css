@@ -1188,6 +1188,24 @@
   gap: var(--space-3);
 }
 
+.models__advanced {
+  grid-column: 1 / -1;
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.models__advanced-summary {
+  margin-bottom: var(--space-3);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  user-select: none;
+}
+
+.models__advanced > .field,
+.models__advanced > .models__form-row {
+  margin-bottom: var(--space-3);
+}
+
 .models__endpoint-preview {
   display: grid;
   gap: var(--space-1);
@@ -1327,7 +1345,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .models__fieldset--notes {
+  .models__advanced {
     grid-column: auto;
   }
 

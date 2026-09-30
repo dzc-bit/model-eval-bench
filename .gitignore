@@ -48,3 +48,5 @@ desktop.ini
 credentials*.json
 *secret*.json
 *token*.json
+# 模型档案的粘贴密钥（服务端本机密钥文件，绝不入库）
+console/keys.local.json
