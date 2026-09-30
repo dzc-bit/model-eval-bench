@@ -1,0 +1,120 @@
+- generic [ref=f2e1]:
+  - link "跳到主内容" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - link "模型评测台" [ref=f2e6] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=f2e7]: 评
+        - navigation "主导航" [ref=f2e9]:
+          - link "任务库" [ref=f2e10] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=f2e11]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=f2e12] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=f2e13] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=f2e14] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=f2e15] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=f2e16] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=f2e17]:
+      - generic [ref=f2e256]:
+        - generic [ref=f2e257]:
+          - generic [ref=f2e258]:
+            - heading "模型档案" [level=1] [ref=f2e259]
+            - paragraph [ref=f2e260]: 档案只用于记账与统计：每轮绑定一个档案，记分板按「任务 × 模型」出通过率。评测台不会替你调用模型。
+          - generic [ref=f2e262]:
+            - button "新增档案" [active] [ref=f2e263] [cursor=pointer]
+            - note
+        - generic [ref=f2e265]:
+          - region [ref=f2e266]:
+            - heading "已配置档案" [level=2] [ref=f2e268]
+            - list [ref=f2e270]:
+              - listitem [ref=f2e271]:
+                - generic [ref=f2e272]:
+                  - generic [ref=f2e273]:
+                    - strong [ref=f2e274]: "1"
+                    - generic [ref=f2e275]: ID · 1
+                  - generic [ref=f2e276]:
+                    - generic [aria-hidden] [ref=f2e277]: ·
+                    - generic [ref=f2e278]: OpenAI 兼容
+                - generic [ref=f2e279]:
+                  - generic [ref=f2e280]:
+                    - term [ref=f2e281]: 接口形态
+                    - definition [ref=f2e282]:
+                      - generic [ref=f2e283]: Chat Completions（/chat/completions）
+                      - code [ref=f2e284]: POST /chat/completions
+                  - generic [ref=f2e285]:
+                    - term [ref=f2e286]: API 根地址
+                    - definition [ref=f2e287]: —
+                - generic [ref=f2e288]:
+                  - generic [ref=f2e289]:
+                    - button "编辑 1" [ref=f2e290] [cursor=pointer]:
+                      - generic [ref=f2e291]: 编辑
+                    - note
+                  - generic [ref=f2e292]:
+                    - button "删除 1" [ref=f2e293] [cursor=pointer]:
+                      - generic [ref=f2e294]: 删除
+                    - note
+          - region [ref=f2e295]:
+            - heading "新增档案" [level=2] [ref=f2e296]
+            - generic [ref=f2e297]:
+              - generic [ref=f2e298]:
+                - group "档案身份" [ref=f2e299]:
+                  - generic [ref=f2e301]:
+                    - generic [ref=f2e302]:
+                      - generic [ref=f2e303]: 档案编号＊
+                      - textbox "档案编号" [ref=f2e304]:
+                        - /placeholder: ""
+                      - generic [ref=f2e305]: 用小写字母、数字和连字符，例如 kimi-k3。
+                    - generic [ref=f2e306]:
+                      - generic [ref=f2e307]: 模型名＊
+                      - textbox "模型名" [ref=f2e308]:
+                        - /placeholder: ""
+                - group "接口定位" [ref=f2e309]:
+                  - generic [ref=f2e311]:
+                    - generic [ref=f2e312]:
+                      - generic [ref=f2e313]: 协议
+                      - combobox "协议" [ref=f2e314]:
+                        - option "OpenAI 兼容" [selected]
+                        - option "Anthropic"
+                        - option "Gemini"
+                        - option "自定义"
+                    - generic [ref=f2e315]:
+                      - generic [ref=f2e316]: API 根地址
+                      - textbox "API 根地址" [ref=f2e317]:
+                        - /placeholder: https://
+                    - generic [ref=f2e318]:
+                      - generic [ref=f2e319]: 调用接口
+                      - combobox "调用接口" [ref=f2e320]:
+                        - option "Responses API（/responses）"
+                        - option "Chat Completions（/chat/completions）" [selected]
+                        - option "Completions（/completions）"
+                      - generic [ref=f2e321]: 接口地址填写 API 根地址（通常以 /v1 结尾）；这里选择追加的 endpoint。当前只记录配置，不会由评测台发送请求。
+                  - generic [ref=f2e322]:
+                    - generic [ref=f2e323]: 实际请求地址
+                    - code [ref=f2e324]: POST /chat/completions
+                - group "凭据与备注" [ref=f2e325]:
+                  - generic [ref=f2e327]:
+                    - generic [ref=f2e328]: 备注
+                    - textbox "备注" [ref=f2e329]:
+                      - /placeholder: ""
+                  - paragraph [ref=f2e330]: 明文密钥不经过页面：服务只保存脱敏后的结果（列表里显示为「密钥 sk-…4f2a」）。要换密钥请手改 console\config.json 里的 models 对应条目，改完重启服务。
+              - generic [ref=f2e331]:
+                - generic [ref=f2e332]:
+                  - button "保存档案" [ref=f2e333] [cursor=pointer]
+                  - note
+                - generic [ref=f2e335]:
+                  - button "取消" [ref=f2e336] [cursor=pointer]
+                  - note
+    - contentinfo [ref=f2e251]:
+      - paragraph [ref=f2e252]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=f2e253]: 已进入模型档案
+    - alert [ref=f2e254]

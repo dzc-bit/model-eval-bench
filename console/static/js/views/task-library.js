@@ -18,7 +18,7 @@
 import { el, setText, patchList } from '../core/dom.js';
 import { S, t, normalizeTier } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
-import { storage } from '../core/storage.js';
+import { storage, STORAGE_KEYS } from '../core/storage.js';
 import { announce } from '../core/a11y.js';
 import { createButton } from '../components/button.js';
 import { createBadge, tierBadge } from '../components/badge.js';
@@ -50,6 +50,7 @@ export function createTaskLibrary(props = {}) {
   let error = null;
   let filterTier = '';
   let keyword = '';
+  const leaderboardCache = new Map();
 
   const h1 = el('h1', { tabindex: '-1' }, S.LIB_TITLE);
   const listEl = el('ul', { class: 'lib__grid' });
@@ -57,7 +58,17 @@ export function createTaskLibrary(props = {}) {
   const countLine = el('p', { class: 'u-faint', role: 'status', 'aria-live': 'polite' });
 
   // ---- 首启三步引导 ----
-  const guideDismissed = Boolean(storage.get('guide-dismissed', false));
+  const guideDismissed = readGuideDismissed();
+  const guideDismissBtn = createButton({
+    label: S.GUIDE_DISMISS,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      guide.hidden = true;
+      storage.set(STORAGE_KEYS.GUIDE_DISMISSED, true);
+      announce('已关闭首次引导。');
+    },
+  });
   const guide = el(
     'section',
     { class: 'guide', 'aria-labelledby': 'guide-title' },
@@ -69,16 +80,7 @@ export function createTaskLibrary(props = {}) {
         el('p', { class: 'guide__desc' }, S.GUIDE_DESC),
       ),
       el('span', { class: 'u-spacer' }),
-      createButton({
-        label: S.GUIDE_DISMISS,
-        variant: 'ghost',
-        size: 'sm',
-        onClick: () => {
-          guide.hidden = true;
-          storage.set('guide-dismissed', true);
-          announce(S.GUIDE_DISMISSED_ANNOUNCE);
-        },
-      }).el,
+      guideDismissBtn.el,
     ),
   );
   [
@@ -205,6 +207,21 @@ export function createTaskLibrary(props = {}) {
         onClick: () => enterTask(task.id),
       }).el,
     );
+    const leaderboardButton = createButton({
+      label: '查看排行榜',
+      variant: 'ghost',
+      size: 'sm',
+      onClick: () => toggleLeaderboard(task, leaderboardButton, leaderboardPanel, leaderboardHost),
+    });
+    const leaderboardHost = el('div', { class: 'task-card__leaderboard-content' });
+    const leaderboardPanel = el(
+      'section',
+      { class: 'task-card__leaderboard', 'aria-label': `${task.id} 排行榜`, hidden: true },
+      el('h3', {}, '排行榜'),
+      leaderboardHost,
+    );
+    leaderboardButton.getButton().setAttribute('aria-expanded', 'false');
+    foot.insertBefore(leaderboardButton.el, foot.lastChild);
     return el(
       'li',
       { class: 'task-card' },
@@ -218,7 +235,85 @@ export function createTaskLibrary(props = {}) {
       el('p', { class: 'task-card__symptom' }, task.symptom),
       el('p', { class: 'u-faint' }, band ? t(S.LIB_CARD_TARGET_BAND, band) : ''),
       foot,
+      leaderboardPanel,
     );
+  }
+
+  /** 展开时才请求排行榜；同一页面内复用结果。 */
+  function toggleLeaderboard(task, button, panel, host) {
+    const open = panel.hidden;
+    panel.hidden = !open;
+    button.update({ label: open ? '收起排行榜' : '查看排行榜' });
+    button.getButton().setAttribute('aria-expanded', String(open));
+    if (!open) return;
+
+    const cached = leaderboardCache.get(task.id);
+    if (cached && !cached.error) {
+      renderLeaderboard(host, cached);
+      return;
+    }
+    if (cached && cached.loading) return;
+
+    const state = { loading: true, entries: [] };
+    leaderboardCache.set(task.id, state);
+    renderLeaderboard(host, state);
+    api.get(`/tasks/${encodeURIComponent(task.id)}/leaderboard`, { scope })
+      .then((data) => {
+        state.loading = false;
+        state.entries = Array.isArray(data && data.entries) ? data.entries : [];
+        leaderboardCache.set(task.id, state);
+        if (panel.isConnected && !panel.hidden) renderLeaderboard(host, state);
+      })
+      .catch((err) => {
+        if (err instanceof ApiError && err.code === 'ABORTED') return;
+        state.loading = false;
+        state.error = true;
+        leaderboardCache.set(task.id, state);
+        if (panel.isConnected && !panel.hidden) renderLeaderboard(host, state);
+      });
+  }
+
+  /** 展示排名、轮次与用时；列表顺序由服务端依评测规则决定。 */
+  function renderLeaderboard(host, state) {
+    host.textContent = '';
+    if (state.loading) {
+      host.appendChild(el('p', { class: 'u-faint', role: 'status' }, '正在載入排行榜…'));
+      return;
+    }
+    if (state.error) {
+      host.appendChild(el('p', { class: 'u-faint', role: 'status' }, '排行榜暂时无法加载，重新展开即可重试。'));
+      return;
+    }
+    if (state.entries.length === 0) {
+      host.appendChild(el('p', { class: 'u-faint', role: 'status' }, '暂无已完成并计入排名的记录。'));
+      return;
+    }
+    const list = el('ol', { class: 'task-card__leaderboard-list' });
+    state.entries.forEach((entry) => {
+      list.appendChild(el(
+        'li',
+        { class: 'task-card__leaderboard-row' },
+        el('span', { class: 'task-card__leaderboard-rank' }, String(entry.rank)),
+        el('strong', {}, entry.model || '未知模型'),
+        el('span', { class: 'u-faint' }, `第 ${entry.rounds} 轮`),
+        el('span', { class: 'u-faint' }, formatDuration(entry.duration_s)),
+        el('span', { class: 'task-card__leaderboard-score' }, `${entry.score} 分`),
+      ));
+    });
+    host.appendChild(list);
+  }
+
+  /** 用秒数保留足够精度，便于同轮次成绩按耗时比较。 */
+  function formatDuration(value) {
+    if (value === null || value === undefined || value === '') return '用时未知';
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds < 0) return '用时未知';
+    if (seconds >= 60) {
+      const minutes = Math.floor(seconds / 60);
+      const remainder = seconds - minutes * 60;
+      return `${minutes} 分 ${remainder.toFixed(1)} 秒`;
+    }
+    return `${seconds.toFixed(seconds < 10 ? 2 : 1)} 秒`;
   }
 
   /**
@@ -347,6 +442,13 @@ export function createTaskLibrary(props = {}) {
       tierField.destroy();
       searchField.destroy();
       refreshBtn.destroy();
+      guideDismissBtn.destroy();
     },
   };
+}
+
+/** 接受当前布尔值及旧版序列化字符串，避免已有偏好失效。 */
+function readGuideDismissed() {
+  const value = storage.get(STORAGE_KEYS.GUIDE_DISMISSED, false);
+  return value === true || value === 1 || value === 'true';
 }

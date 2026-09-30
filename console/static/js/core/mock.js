@@ -714,12 +714,52 @@ async function dispatch(url, init = {}) {
       count: list.length,
     });
   }
+  if (route.indexOf('tasks/') === 0 && route.endsWith('/leaderboard') && method === 'GET') {
+    const id = decodeURIComponent(route.slice('tasks/'.length, -'/leaderboard'.length));
+    const task = TASKS.find((t) => t.id === id);
+    if (!task) return fail(404, 'E_TASK_NOT_FOUND', `没有这道题：${id}`);
+    const entries = Array.from(runs.values())
+      .filter((run) => run.task === id && !run.revealed)
+      .map((run) => {
+        const success = (run.rounds || [])
+          .filter((round) => round.passed && !round.invalidated)
+          .sort((a, b) => Number(a.attempt) - Number(b.attempt))[0];
+        if (!success) return null;
+        const created = Date.parse(run.created_at);
+        const completed = Date.parse(success.graded_at);
+        const duration = Number.isFinite(created) && Number.isFinite(completed)
+          ? Math.max(0, (completed - created) / 1000)
+          : null;
+        return {
+          run_id: run.run_id,
+          model: run.model,
+          rounds: Number(success.attempt),
+          duration_s: duration === null ? null : Math.round(duration * 1000) / 1000,
+          completed_at: success.graded_at,
+          score: Number(success.score) || 0,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.rounds - b.rounds
+        || (a.duration_s === null ? Infinity : a.duration_s) - (b.duration_s === null ? Infinity : b.duration_s)
+        || String(a.completed_at).localeCompare(String(b.completed_at))
+        || String(a.model).localeCompare(String(b.model)));
+    entries.forEach((entry, index) => { entry.rank = index + 1; });
+    return ok({ task: task.id, title: task.title, entries });
+  }
   if (route.indexOf('tasks/') === 0 && method === 'GET') {
     const id = decodeURIComponent(route.slice('tasks/'.length));
     const task = TASKS.find((t) => t.id === id);
     if (!task) return fail(404, 'E_TASK_NOT_FOUND', `没有这道题：${id}`);
     const levels = PROMPTS[id] || PROMPTS['T2-04'];
-    const latest = Array.from(runs.values()).find((r) => r.task === id) || null;
+    const requestedRunId = q.get('run_id');
+    const taskRuns = Array.from(runs.values()).filter((r) => r.task === id);
+    const latest = requestedRunId
+      ? runs.get(requestedRunId)
+      : taskRuns.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null;
+    if (requestedRunId && (!latest || latest.task !== id)) {
+      return fail(404, 'E_RUN_NOT_FOUND', `没有这条运行记录：${requestedRunId}`);
+    }
     const unlocked = latest ? Number(latest.attempt) || 1 : 0;
     const maxLevel = Math.max(task.attempts, 3);
     const prompts = [];

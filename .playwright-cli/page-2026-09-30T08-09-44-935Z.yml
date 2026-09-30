@@ -1,0 +1,217 @@
+- generic [ref=e1]:
+  - link "跳到主内容" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - note [ref=e5]:
+      - generic [ref=e6]: 当前是模拟数据模式（?mock=1），页面上的任务、报告与分数都是样例，不反映真实评测结果。
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "模型评测台" [ref=e9] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=e10]: 评
+        - navigation "主导航" [ref=e12]:
+          - link "任务库" [ref=e13] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=e14]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=e15] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=e16] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=e17] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=e18] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=e19] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=e20]:
+      - generic [ref=e381]:
+        - generic [ref=e383]:
+          - heading "任务库" [level=1] [ref=e384]
+          - paragraph [ref=e385]: 选择一个任务进入工作台。初级一次机会、中级两次、高级与王者各三次。
+        - generic [ref=e386]:
+          - generic [ref=e387]:
+            - generic [ref=e388]: 按档位筛选
+            - combobox "按档位筛选" [ref=e389]:
+              - option "全部档位" [selected]
+              - option "初级"
+              - option "中级"
+              - option "高级"
+              - option "王者"
+          - generic [ref=e390]:
+            - generic [ref=e391]: 搜索任务
+            - searchbox "搜索任务" [ref=e392]
+          - generic [ref=e393]:
+            - button "刷新" [ref=e394] [cursor=pointer]
+            - note
+        - status [ref=e404]: 共 8 个任务
+        - list [ref=e405]:
+          - listitem [ref=e406]:
+            - generic [ref=e407]:
+              - generic [ref=e408]: T1-01
+              - generic [ref=e409]:
+                - generic [aria-hidden] [ref=e410]: ●
+                - generic [ref=e411]: 初级 · 允许尝试 1 次
+            - paragraph [ref=e412]: 三处派生口径不一致
+            - paragraph [ref=e413]: 推荐策略一个候选都筛不出；新写库的行换手率全是 0%。
+            - paragraph [ref=e414]: 目标通过率 60%~85%
+            - generic [ref=e415]:
+              - generic [ref=e416]:
+                - generic [aria-hidden] [ref=e417]: ✓
+                - generic [ref=e418]: 已校准
+              - generic [ref=e419]: 历史最好 100
+              - generic [ref=e420]:
+                - button "收起排行榜" [expanded] [active] [ref=e566] [cursor=pointer]
+                - note
+              - generic [ref=e423]:
+                - button "进入工作台" [ref=e424] [cursor=pointer]
+                - note
+            - region "T1-01 排行榜" [ref=e567]:
+              - heading "排行榜" [level=3] [ref=e568]
+              - status [ref=e570]: 排行榜暫時無法載入，重新展開即可重試。
+          - listitem [ref=e426]:
+            - generic [ref=e427]:
+              - generic [ref=e428]: T1-02
+              - generic [ref=e429]:
+                - generic [aria-hidden] [ref=e430]: ●
+                - generic [ref=e431]: 初级 · 允许尝试 1 次
+            - paragraph [ref=e432]: 交易日历双端一致性
+            - paragraph [ref=e433]: 覆盖表把春节算成缺失交易日；跨年默认日期落在休市日。
+            - paragraph [ref=e434]: 目标通过率 60%~85%
+            - generic [ref=e435]:
+              - generic [ref=e436]:
+                - generic [aria-hidden] [ref=e437]: ✓
+                - generic [ref=e438]: 已校准
+              - generic [ref=e439]: 历史最好 75
+              - generic [ref=e440]:
+                - button "查看排行榜" [ref=e441] [cursor=pointer]
+                - note
+              - generic [ref=e443]:
+                - button "进入工作台" [ref=e444] [cursor=pointer]
+                - note
+          - listitem [ref=e446]:
+            - generic [ref=e447]:
+              - generic [ref=e448]: T1-03
+              - generic [ref=e449]:
+                - generic [aria-hidden] [ref=e450]: ●
+                - generic [ref=e451]: 初级 · 允许尝试 1 次
+            - paragraph [ref=e452]: 错误码链路
+            - paragraph [ref=e453]: 错误码在跨进程传递时被压平成一段中文。
+            - paragraph [ref=e454]: 目标通过率 60%~85%
+            - generic [ref=e455]:
+              - generic [ref=e456]:
+                - generic [aria-hidden] [ref=e457]: ○
+                - generic [ref=e458]: 未校准
+              - generic [ref=e459]: 尚无记录
+              - generic [ref=e460]:
+                - button "查看排行榜" [ref=e461] [cursor=pointer]
+                - note
+              - generic [ref=e463]:
+                - button "进入工作台" [ref=e464] [cursor=pointer]
+                - note
+          - listitem [ref=e466]:
+            - generic [ref=e467]:
+              - generic [ref=e468]: T2-04
+              - generic [ref=e469]:
+                - generic [aria-hidden] [ref=e470]: ◆
+                - generic [ref=e471]: 中级 · 允许尝试 2 次
+            - paragraph [ref=e472]: 缺口四出口一致性
+            - paragraph [ref=e473]: 覆盖表说没缺，同步每次都在重抓同一批 3000 只。
+            - paragraph [ref=e474]: 目标通过率 25%~55%
+            - generic [ref=e475]:
+              - generic [ref=e476]:
+                - generic [aria-hidden] [ref=e477]: ✓
+                - generic [ref=e478]: 已校准
+              - generic [ref=e479]: 历史最好 80
+              - generic [ref=e480]:
+                - button "查看排行榜" [ref=e481] [cursor=pointer]
+                - note
+              - generic [ref=e483]:
+                - button "进入工作台" [ref=e484] [cursor=pointer]
+                - note
+          - listitem [ref=e486]:
+            - generic [ref=e487]:
+              - generic [ref=e488]: T2-05
+              - generic [ref=e489]:
+                - generic [aria-hidden] [ref=e490]: ◆
+                - generic [ref=e491]: 中级 · 允许尝试 2 次
+            - paragraph [ref=e492]: 同步任务准入与失活回收
+            - paragraph [ref=e493]: 并发去重键没有在异常路径上释放。
+            - paragraph [ref=e494]: 目标通过率 25%~55%
+            - generic [ref=e495]:
+              - generic [ref=e496]:
+                - generic [aria-hidden] [ref=e497]: ✓
+                - generic [ref=e498]: 已校准
+              - generic [ref=e499]: 尚无记录
+              - generic [ref=e500]:
+                - button "查看排行榜" [ref=e501] [cursor=pointer]
+                - note
+              - generic [ref=e503]:
+                - button "进入工作台" [ref=e504] [cursor=pointer]
+                - note
+          - listitem [ref=e506]:
+            - generic [ref=e507]:
+              - generic [ref=e508]: T3-09
+              - generic [ref=e509]:
+                - generic [aria-hidden] [ref=e510]: ▲
+                - generic [ref=e511]: 高级 · 允许尝试 3 次
+            - paragraph [ref=e512]: 实时快照仲裁全链
+            - paragraph [ref=e513]: 行情偶发退回旧快照；一次慢请求后整条源链超时。
+            - paragraph [ref=e514]: 目标通过率 5%~25%
+            - generic [ref=e515]:
+              - generic [ref=e516]:
+                - generic [aria-hidden] [ref=e517]: ✓
+                - generic [ref=e518]: 已校准
+              - generic [ref=e519]: 历史最好 40
+              - generic [ref=e520]:
+                - button "查看排行榜" [ref=e521] [cursor=pointer]
+                - note
+              - generic [ref=e523]:
+                - button "进入工作台" [ref=e524] [cursor=pointer]
+                - note
+          - listitem [ref=e526]:
+            - generic [ref=e527]:
+              - generic [ref=e528]: T3-10
+              - generic [ref=e529]:
+                - generic [aria-hidden] [ref=e530]: ▲
+                - generic [ref=e531]: 高级 · 允许尝试 3 次
+            - paragraph [ref=e532]: 跨进程写仓 + 攒批 + 服务健康
+            - paragraph [ref=e533]: 分区损坏后补数反而更慢。
+            - paragraph [ref=e534]: 目标通过率 5%~25%
+            - generic [ref=e535]:
+              - generic [ref=e536]:
+                - generic [aria-hidden] [ref=e537]: ○
+                - generic [ref=e538]: 未校准
+              - generic [ref=e539]: 尚无记录
+              - generic [ref=e540]:
+                - button "查看排行榜" [ref=e541] [cursor=pointer]
+                - note
+              - generic [ref=e543]:
+                - button "进入工作台" [ref=e544] [cursor=pointer]
+                - note
+          - listitem [ref=e546]:
+            - generic [ref=e547]:
+              - generic [ref=e548]: T4-11
+              - generic [ref=e549]:
+                - generic [aria-hidden] [ref=e550]: ★
+                - generic [ref=e551]: 王者 · 允许尝试 3 次
+            - paragraph [ref=e552]: 实时行情与写入链路同时失去唯一事实
+            - paragraph [ref=e553]: 行情会回退、写入会丢行、统计会滞后，单独修一条链仍会被另一条链的迟到或缓存状态打破。
+            - paragraph [ref=e554]: 目标通过率 0%~2%
+            - generic [ref=e555]:
+              - generic [ref=e556]:
+                - generic [aria-hidden] [ref=e557]: ○
+                - generic [ref=e558]: 未校准
+              - generic [ref=e559]: 尚无记录
+              - generic [ref=e560]:
+                - button "查看排行榜" [ref=e561] [cursor=pointer]
+                - note
+              - generic [ref=e563]:
+                - button "进入工作台" [ref=e564] [cursor=pointer]
+                - note
+    - contentinfo [ref=e25]:
+      - paragraph [ref=e26]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=e233]: 任务列表已加载，共 8 个。
+    - alert [ref=e234]

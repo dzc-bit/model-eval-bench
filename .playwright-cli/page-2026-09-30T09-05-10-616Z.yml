@@ -1,0 +1,180 @@
+- generic [ref=f2e1]:
+  - link "跳到主内容" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - link "模型评测台" [ref=f2e6] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=f2e7]: 评
+        - navigation "主导航" [ref=f2e9]:
+          - link "任务库" [ref=f2e10] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [ref=f2e11] [cursor=pointer]:
+            - /url: "#/workspace/T1-02"
+          - link "批量跑批" [ref=f2e12] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=f2e13] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=f2e14] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=f2e15] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=f2e16] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=f2e17]:
+      - generic [ref=f2e487]:
+        - generic [ref=f2e488]:
+          - generic [ref=f2e489]:
+            - heading "T1-02 · 同一张休市表，两端各认各的节假日" [active] [level=1] [ref=f2e490]
+            - generic [ref=f2e491]:
+              - generic [ref=f2e492]: T1-02
+              - generic [ref=f2e494]:
+                - generic [aria-hidden] [ref=f2e495]: ●
+                - generic [ref=f2e496]: 初级 · 允许尝试 1 次
+              - generic "尝试" [ref=f2e497]:
+                - generic [aria-hidden] [ref=f2e498]: "1"
+              - generic [ref=f2e499]:
+                - generic [aria-hidden] [ref=f2e501]: ●
+                - generic [ref=f2e502]: 正在加载
+          - generic [ref=f2e503]:
+            - generic [ref=f2e504]:
+              - generic [ref=f2e505]: 沙箱盘符
+              - generic [ref=f2e506]: 未创建
+            - generic [ref=f2e507]:
+              - generic [ref=f2e508]: 基线哈希
+              - generic [ref=f2e509]: —
+          - generic [ref=f2e510]:
+            - generic [ref=f2e511]:
+              - button "跳到提示词区" [ref=f2e512] [cursor=pointer]
+              - note
+            - generic [ref=f2e514]:
+              - button "对话记录" [ref=f2e515] [cursor=pointer]
+              - note
+            - generic [ref=f2e517]:
+              - button "跳到沙箱区" [ref=f2e518] [cursor=pointer]
+              - note
+            - generic [ref=f2e520]:
+              - button "跳到校验区" [ref=f2e521] [cursor=pointer]
+              - note
+            - generic [ref=f2e523]:
+              - button "跳到运行区" [ref=f2e524] [cursor=pointer]
+              - note
+        - generic [ref=f2e526]:
+          - region [ref=f2e527]:
+            - heading "提示词" [level=2] [ref=f2e529]
+            - status [ref=f2e531]:
+              - generic [aria-hidden] [ref=f2e532]: ○
+              - paragraph [ref=f2e533]: 还没有提示词
+              - paragraph [ref=f2e534]: 准备沙箱之后，提示词会出现在这里。先在下面点「准备沙箱」。
+              - generic [ref=f2e536]:
+                - button "准备沙箱" [ref=f2e537] [cursor=pointer]
+                - note
+          - region [ref=f2e539]:
+            - generic [ref=f2e540]:
+              - heading "沙箱" [level=2] [ref=f2e541]
+              - generic [ref=f2e543]:
+                - generic [aria-hidden] [ref=f2e545]: ○
+                - generic [ref=f2e546]: 还没有沙箱
+            - paragraph [ref=f2e547]: 沙箱是受测仓库的独立副本，模型只能在这个目录里改动。清空改动只重置沙箱，不动任何评测记录。
+            - generic [ref=f2e548]:
+              - status [ref=f2e549]:
+                - generic [aria-hidden] [ref=f2e550]: ○
+                - paragraph [ref=f2e551]: 还没有沙箱
+                - paragraph [ref=f2e552]: 当前任务还没有准备过沙箱。点「准备沙箱」会拷贝一份仓库快照，通常不到一秒。
+                - generic [ref=f2e554]:
+                  - button "准备沙箱" [ref=f2e555] [cursor=pointer]
+                  - note
+              - group [ref=f2e557]:
+                - generic "沙箱日志" [ref=f2e558] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f2e559]: ›
+          - region [ref=f2e561]:
+            - generic [ref=f2e562]:
+              - heading "对话记录" [level=2] [ref=f2e563]
+              - status
+              - generic [ref=f2e564]:
+                - button "复制当前提示词" [disabled] [ref=f2e565]
+                - note
+            - paragraph [ref=f2e567]: 准备沙箱后，可在此记录与外部模型的实际交流。
+            - generic [ref=f2e568]:
+              - generic [ref=f2e569]:
+                - generic [ref=f2e570]: 模型答复（粘贴）
+                - textbox "模型答复（粘贴）" [disabled] [ref=f2e571]:
+                  - /placeholder: 把模型实际返回的答复粘贴到这里
+              - generic [ref=f2e572]:
+                - generic [ref=f2e573]: 过程摘要（手动填写）
+                - textbox "过程摘要（手动填写）" [disabled] [ref=f2e574]:
+                  - /placeholder: 记录已验证的改动、结果和下一步
+          - region [ref=f2e575]:
+            - heading "校验" [level=2] [ref=f2e577]
+            - paragraph [ref=f2e578]: 校验在评分树里跑，模型改测试、改配置都不生效。结束后按组给红绿与部分分。
+            - generic [ref=f2e579]:
+              - generic [ref=f2e581]:
+                - button "运行校验" [disabled] [ref=f2e582]:
+                  - generic [aria-hidden] [ref=f2e583]: ▶
+                  - generic [aria-hidden] [ref=f2e585]: G
+                - note [ref=f2e586]: 还没有沙箱
+              - status [ref=f2e587]:
+                - generic [aria-hidden] [ref=f2e588]: ○
+                - paragraph [ref=f2e589]: 还没有跑过校验
+                - paragraph [ref=f2e590]: 把提示词给模型、让它在沙箱里改完之后，点「运行校验」看分组结果。
+                - generic [ref=f2e592]:
+                  - button "跳到沙箱区" [ref=f2e593] [cursor=pointer]
+                  - note
+          - region [ref=f2e595]:
+            - heading "本轮信息" [level=2] [ref=f2e597]
+            - generic [ref=f2e598]:
+              - generic [ref=f2e599]:
+                - generic [ref=f2e600]: 模型档案＊
+                - combobox "模型档案" [ref=f2e601]:
+                  - option "尚未选择档案" [selected]
+                  - option "1"
+                - generic [ref=f2e602]: 档案只用于记账：记分板按「任务 × 模型」统计通过率，不会替你向模型发消息。
+              - generic [ref=f2e603]:
+                - generic [ref=f2e604]: 本轮备注
+                - textbox "本轮备注" [ref=f2e605]:
+                  - /placeholder: 记录模型的反应、卡在哪一步、下一轮要盯什么
+                - generic [ref=f2e606]: 备注只存在本机，会随这一轮记录一起保存。
+              - generic [ref=f2e608]:
+                - button "保存备注" [disabled] [ref=f2e609]
+                - note [ref=f2e611]: 这一轮还不存在
+              - generic "改动统计在跑过一次校验后显示。" [ref=f2e612]:
+                - generic [ref=f2e613]: 本轮改动
+                - generic [ref=f2e614]:
+                  - generic [ref=f2e615]:
+                    - generic [ref=f2e616]: —
+                    - generic [ref=f2e617]: 文件
+                  - generic [ref=f2e618]:
+                    - generic [ref=f2e619]: —
+                    - generic [ref=f2e620]: 新增行
+                  - generic [ref=f2e621]:
+                    - generic [ref=f2e622]: —
+                    - generic [ref=f2e623]: 删除行
+              - generic [ref=f2e624]:
+                - generic [ref=f2e625]:
+                  - button "查看改动内容" [disabled] [ref=f2e626]
+                  - note [ref=f2e628]: 这一轮还不存在
+                - button "复制沙箱路径" [ref=f2e630] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f2e631]: ⧉
+              - group [ref=f2e633]:
+                - generic "查看改动内容" [ref=f2e634] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f2e635]: ›
+              - generic [ref=f2e637]:
+                - generic [ref=f2e638]:
+                  - generic [ref=f2e639]: 开始时间
+                  - generic [ref=f2e640]: —
+                - generic [ref=f2e641]:
+                  - generic [ref=f2e642]: 当前轮次
+                  - generic [ref=f2e643]: —
+                - generic [ref=f2e644]:
+                  - generic [ref=f2e645]: 运行状态
+                  - generic [ref=f2e646]: —
+                - generic [ref=f2e647]:
+                  - generic [ref=f2e648]: 运行编号
+                  - generic [ref=f2e649]: —
+    - contentinfo [ref=f2e182]:
+      - paragraph [ref=f2e183]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=f2e184]: 已进入工作台
+    - alert [ref=f2e185]

@@ -1,0 +1,53 @@
+- generic [ref=f4e1]:
+  - link "跳到主内容" [ref=f4e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f4e3]:
+    - banner [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - link "模型评测台" [ref=f4e6] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=f4e7]: 评
+        - navigation "主导航" [ref=f4e9]:
+          - link "任务库" [ref=f4e10] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=f4e11]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=f4e12] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=f4e13] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=f4e14] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=f4e15] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=f4e16] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=f4e17]:
+      - generic [ref=f4e106]:
+        - generic [ref=f4e108]:
+          - heading "任务库" [active] [level=1] [ref=f4e109]
+          - paragraph [ref=f4e110]: 选择一个任务进入工作台。初级一次机会、中级两次、高级与王者各三次。
+        - generic [ref=f4e111]:
+          - generic [ref=f4e112]:
+            - generic [ref=f4e113]: 按档位筛选
+            - combobox "按档位筛选" [ref=f4e114]:
+              - option "全部档位" [selected]
+              - option "初级"
+              - option "中级"
+              - option "高级"
+              - option "王者"
+          - generic [ref=f4e115]:
+            - generic [ref=f4e116]: 搜索任务
+            - searchbox "搜索任务" [ref=f4e117]
+          - generic [ref=f4e118]:
+            - button "刷新" [ref=f4e119] [cursor=pointer]
+            - note
+        - status
+        - list
+        - generic [ref=f4e121]: 正在加载：正在读取任务包清单。
+    - contentinfo [ref=f4e59]:
+      - paragraph [ref=f4e60]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=f4e61]
+    - alert [ref=f4e62]

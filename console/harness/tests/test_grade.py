@@ -277,7 +277,7 @@ def test_grade_env_is_hermetic(bench):
 def test_broken_sandbox_aborts_before_scoring(bench):
     """完整性自检不过就直接中止，不要拿一个坏环境去跑分。"""
     cfg, run, meta, _grade_with = bench
-    sandbox.release_drive(run["drive"])
+    sandbox.release_drive(run["drive"], expected_target=run["sandbox"])
     result = grade.run_grade(cfg, run, meta, log=lambda m: None)
     assert result["score"] == 0.0
     assert result["error"] == "sandbox_broken"

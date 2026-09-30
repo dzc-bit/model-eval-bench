@@ -433,6 +433,7 @@ function createView(route) {
       return createWorkspace({
         taskId: route.params.taskId,
         region: route.params.region,
+        runId: route.params.runId,
         navigate,
         models: state.models,
         prefs: state.prefs,

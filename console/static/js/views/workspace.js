@@ -35,13 +35,14 @@ import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { createPoller } from '../core/poller.js';
 import { createStore } from '../core/store.js';
 import { storage } from '../core/storage.js';
-import { announce, isEditableTarget } from '../core/a11y.js';
+import { announce, isEditableTarget, scrollBelowStickyHeader } from '../core/a11y.js';
 import { tierBadge } from '../components/badge.js';
 import { createStatusDot } from '../components/status-dot.js';
 import { confirmDialog } from '../components/confirm-dialog.js';
 import { showToast } from '../components/toast.js';
 import { createButton } from '../components/button.js';
 import { createPromptPanel } from './workspace/prompt-panel.js';
+import { createChatPanel } from './workspace/chat-panel.js';
 import { createSandboxPanel } from './workspace/sandbox-panel.js';
 import { createGradePanel } from './workspace/grade-panel.js';
 import { createRunBar } from './workspace/run-bar.js';
@@ -74,6 +75,7 @@ const TICK_MS = 1000;
  * @param {{
  *   taskId: string,
  *   region?: string,
+ *   runId?: string,
  *   navigate?: (name: string, params: object, opts?: object) => void,
  *   models?: Array,
  *   prefs?: object
@@ -81,7 +83,7 @@ const TICK_MS = 1000;
  * @returns {{el: HTMLElement, destroy: Function, focusRegion: Function, restoreScroll: Function, el_h1: HTMLElement, actions: object}}
  */
 export function createWorkspace(props = {}) {
-  const { taskId, navigate = () => {}, models = [], prefs = {} } = props;
+  const { taskId, runId: routeRunId = '', navigate = () => {}, models = [], prefs = {} } = props;
   const scope = api.scope();
   /** 工作台自己的状态树（区域级订阅，避免整页重绘）。 */
   const store = createStore({
@@ -121,6 +123,7 @@ export function createWorkspace(props = {}) {
     'div',
     { class: 'u-row' },
     createButton({ label: S.WS_JUMP_PROMPT, size: 'sm', variant: 'ghost', onClick: () => focusRegion('prompt') }).el,
+    createButton({ label: '对话记录', size: 'sm', variant: 'ghost', onClick: () => focusRegion('chat') }).el,
     createButton({ label: S.WS_JUMP_SANDBOX, size: 'sm', variant: 'ghost', onClick: () => focusRegion('sandbox') }).el,
     createButton({ label: S.WS_JUMP_GRADE, size: 'sm', variant: 'ghost', onClick: () => focusRegion('grade') }).el,
     createButton({ label: S.WS_JUMP_RUN, size: 'sm', variant: 'ghost', onClick: () => focusRegion('run') }).el,
@@ -176,11 +179,12 @@ export function createWorkspace(props = {}) {
   };
 
   const promptPanel = createPromptPanel(promptHandlers);
+  const chatPanel = createChatPanel({ onCopyPrompt: () => promptPanel.copyPrompt() });
   const sandboxPanel = createSandboxPanel(sandboxHandlers);
   const gradePanel = createGradePanel(gradeHandlers);
   const runBar = createRunBar(runHandlers);
 
-  const regions = el('div', { class: 'ws-regions' }, promptPanel.el, sandboxPanel.el, gradePanel.el, runBar.el);
+  const regions = el('div', { class: 'ws-regions' }, promptPanel.el, sandboxPanel.el, chatPanel.el, gradePanel.el, runBar.el);
   const root = el('div', { class: 'view ws' }, head, regions);
 
   // ==================== 心跳（长操作的已用时间，§13.2） ====================
@@ -274,6 +278,7 @@ export function createWorkspace(props = {}) {
 
       if (loadingChanged || errorChanged) {
         promptPanel.update({ loading: next.loading, error: next.error, run: next.run, task: next.task, round: next.round });
+        chatPanel.update({ run: next.run });
         sandboxPanel.update({
           loading: next.loading, error: next.error, run: next.run, busy: next.busy,
           opLog: next.opLog, elapsed: next.elapsed,
@@ -295,6 +300,7 @@ export function createWorkspace(props = {}) {
       }
 
       if (runChanged || busyChanged) {
+        if (runChanged) chatPanel.update({ run: next.run });
         sandboxPanel.update({
           run: next.run,
           busy: next.busy,
@@ -806,9 +812,12 @@ export function createWorkspace(props = {}) {
     const target = node.querySelector('h2') || node;
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
-    node.scrollIntoView({ behavior: 'auto', block: 'start' });
+    scrollBelowStickyHeader(node);
     wsStore.set('region', region);
-    if (navigate) navigate('workspace', { taskId, region }, { replace: true });
+    const activeRunId = store.getState().run && store.getState().run.run_id;
+    const params = { taskId, region };
+    if (region === 'chat' && (activeRunId || routeRunId)) params.runId = activeRunId || routeRunId;
+    if (navigate) navigate('workspace', params, { replace: true });
   }
 
   // ==================== 快捷键（§13.4） ====================
@@ -865,8 +874,9 @@ export function createWorkspace(props = {}) {
    * 载入任务详情（meta + 已解锁提示词）。
    * @returns {Promise<void>}
    */
-  async function loadTask() {
-    const task = await api.get(`/tasks/${encodeURIComponent(taskId)}`, { scope });
+  async function loadTask(runId = '') {
+    const query = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
+    const task = await api.get(`/tasks/${encodeURIComponent(taskId)}${query}`, { scope });
     patch({ task });
     return task;
   }
@@ -877,9 +887,13 @@ export function createWorkspace(props = {}) {
    */
   async function load() {
     patch({ loading: true, error: null });
+    const lastRunId = routeRunId || wsStore.get('run_id', '');
     try {
-      await loadTask();
-      patch({ loading: false, round: Number(wsStore.get('round', 1)) || 1 });
+      const task = await loadTask(lastRunId);
+      const taskRound = task.run && Number(task.run.attempt);
+      const round = taskRound > 0 ? taskRound : Number(wsStore.get('round', 1)) || 1;
+      patch({ loading: false, round });
+      if (taskRound > 0) wsStore.set('round', round);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'ABORTED') return;
       patch({ loading: false, error: { code: err.code || 'INTERNAL' } });
@@ -888,7 +902,6 @@ export function createWorkspace(props = {}) {
     }
 
     // 这一任务是否已有运行记录：有就接上，没有就显示空态（等用户点「准备沙箱」）
-    const lastRunId = wsStore.get('run_id', '');
     if (lastRunId) {
       try {
         await loadRun(lastRunId);
@@ -920,7 +933,14 @@ export function createWorkspace(props = {}) {
     restoreScroll() {
       const y = Number(wsStore.get('scroll', 0)) || 0;
       if (y <= 0) return false;
-      window.requestAnimationFrame(() => window.scrollTo(0, y));
+      window.requestAnimationFrame(() => {
+        window.scrollTo(0, y);
+        const headerBottom = document.querySelector('.app-header')?.getBoundingClientRect().bottom || 0;
+        const headingBounds = h1.getBoundingClientRect();
+        if (headingBounds.bottom > 0 && headingBounds.top < headerBottom + 8) {
+          scrollBelowStickyHeader(h1);
+        }
+      });
       return true;
     },
     /** 导出给快捷键 / 外部调用的动作集合。 */
@@ -938,6 +958,7 @@ export function createWorkspace(props = {}) {
       }
       scope.cancelAll();
       promptPanel.destroy();
+      chatPanel.destroy();
       sandboxPanel.destroy();
       gradePanel.destroy();
       runBar.destroy();

@@ -20,7 +20,7 @@
 /** 路由表：name → 匹配函数。 */
 export const ROUTES = {
   tasks: { name: 'tasks', pattern: ['tasks'] },
-  workspace: { name: 'workspace', pattern: ['workspace', ':taskId', ':region?'] },
+  workspace: { name: 'workspace', pattern: ['workspace', ':taskId', ':region?', ':runId?'] },
   batch: { name: 'batch', pattern: ['batch'] },
   scoreboard: { name: 'scoreboard', pattern: ['scoreboard'] },
   models: { name: 'models', pattern: ['models'] },
@@ -32,7 +32,7 @@ export const ROUTES = {
 export const FALLBACK_ROUTE = 'tasks';
 
 /** 工作台允许的子区域名。 */
-export const WORKSPACE_REGIONS = ['prompt', 'sandbox', 'grade', 'run'];
+export const WORKSPACE_REGIONS = ['prompt', 'sandbox', 'grade', 'run', 'chat'];
 
 /**
  * 把 hash 拆成片段数组。
@@ -68,7 +68,7 @@ export function matchRoute(segments) {
 }
 
 /**
- * 单条模式匹配：`['workspace', ':taskId', ':region?']`。
+ * 单条模式匹配：`['workspace', ':taskId', ':region?', ':runId?']`。
  * @param {string[]} pattern
  * @param {string[]} segments
  * @returns {object|null}
@@ -151,6 +151,10 @@ export function createRouter(options = {}) {
     // 工作台子区域做白名单校验，非法值当作没写
     if (matched.name === 'workspace' && params.region && !WORKSPACE_REGIONS.includes(params.region)) {
       delete params.region;
+      delete params.runId;
+    }
+    if (matched.name === 'workspace' && params.runId && params.region !== 'chat') {
+      return { name: FALLBACK_ROUTE, params: {}, hash: `#/${FALLBACK_ROUTE}`, invalid: true };
     }
     return { name: matched.name, params, hash };
   }

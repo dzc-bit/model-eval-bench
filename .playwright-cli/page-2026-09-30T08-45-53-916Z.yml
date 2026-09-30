@@ -1,0 +1,68 @@
+- generic [ref=e1]:
+  - link "跳到主内容" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "模型评测台" [ref=e6] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=e7]: 评
+        - navigation "主导航" [ref=e9]:
+          - link "任务库" [ref=e10] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=e11]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=e12] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=e13] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=e14] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=e15] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=e16] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=e17]:
+      - generic [ref=e292]:
+        - generic [ref=e293]:
+          - generic [ref=e294]:
+            - heading "模型档案" [active] [level=1] [ref=e295]
+            - paragraph [ref=e296]: 档案只用于记账与统计：每轮绑定一个档案，记分板按「任务 × 模型」出通过率。评测台不会替你调用模型。
+          - generic [ref=e298]:
+            - button "新增档案" [ref=e299] [cursor=pointer]
+            - note
+        - region [ref=e302]:
+          - heading "已配置档案" [level=2] [ref=e304]
+          - list [ref=e312]:
+            - listitem [ref=e313]:
+              - generic [ref=e314]:
+                - generic [ref=e315]:
+                  - strong [ref=e316]: "1"
+                  - generic [ref=e317]: ID · 1
+                - generic [ref=e318]:
+                  - generic [aria-hidden] [ref=e319]: ·
+                  - generic [ref=e320]: OpenAI 兼容
+              - generic [ref=e321]:
+                - generic [ref=e322]:
+                  - term [ref=e323]: 接口形态
+                  - definition [ref=e324]:
+                    - generic [ref=e325]: Chat Completions（/chat/completions）
+                    - code [ref=e326]: POST /chat/completions
+                - generic [ref=e327]:
+                  - term [ref=e328]: API 根地址
+                  - definition [ref=e329]: —
+              - generic [ref=e330]:
+                - generic [ref=e331]:
+                  - button "编辑 1" [ref=e332] [cursor=pointer]:
+                    - generic [ref=e333]: 编辑
+                  - note
+                - generic [ref=e334]:
+                  - button "删除 1" [ref=e335] [cursor=pointer]:
+                    - generic [ref=e336]: 删除
+                  - note
+    - contentinfo [ref=e280]:
+      - paragraph [ref=e281]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=e282]: 已进入模型档案
+    - alert [ref=e283]

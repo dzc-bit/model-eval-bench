@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from harness import calibrate, checks, config, errors, packs, report as report_mod  # noqa: E402
 from harness import batch as batch_mod  # noqa: E402
-from harness import runs, selfcheck, util  # noqa: E402
+from harness import runs, sandbox as sandbox_mod, selfcheck, util  # noqa: E402
 from harness.sandbox import list_subst  # noqa: E402
 
 #: 服务启动时间（用于 /api/health 的运行时长）
@@ -222,14 +222,21 @@ def _task_history(cfg: dict) -> dict:
     return out
 
 
-def api_task_detail(cfg: dict, task_id: str) -> dict:
-    """meta + 已解锁提示词。"""
+def api_task_detail(cfg: dict, task_id: str, run_id: str = "") -> dict:
+    """meta + 对应运行记录已解锁的提示词。"""
     meta = packs.load_meta(cfg, task_id)
     latest = None
-    for run in runs.list_runs(cfg):
-        if run.get("task") == task_id:
-            latest = run
-            break
+    task_runs = [run for run in runs.list_runs(cfg) if run.get("task") == task_id]
+    if run_id:
+        latest = next((run for run in task_runs if run.get("run_id") == run_id), None)
+        if latest is None:
+            raise errors.HarnessError(
+                errors.E_RUN_NOT_FOUND,
+                "这次运行记录不属于该任务或已被删除。",
+                run_id,
+            )
+    elif task_runs:
+        latest = task_runs[0]
     unlocked = int(latest.get("attempt") or 1) if latest else 0
     prompts = [p for p in packs.load_prompts(meta) if p["level"] <= (unlocked or meta["attempts"])]
     detail = {
@@ -340,7 +347,8 @@ def build_router() -> Router:
     r = Router()
     r.add("GET", r"/api/health", lambda ctx: (api_health(ctx["cfg"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/tasks", lambda ctx: (api_tasks(ctx["cfg"], ctx["query"]), "application/json; charset=utf-8"))
-    r.add("GET", r"/api/tasks/(?P<task_id>[^/]+)", lambda ctx: (api_task_detail(ctx["cfg"], ctx["task_id"]), "application/json; charset=utf-8"))
+    r.add("GET", r"/api/tasks/(?P<task_id>[^/]+)/leaderboard", lambda ctx: (runs.task_leaderboard(ctx["cfg"], ctx["task_id"]), "application/json; charset=utf-8"))
+    r.add("GET", r"/api/tasks/(?P<task_id>[^/]+)", lambda ctx: (api_task_detail(ctx["cfg"], ctx["task_id"], str(ctx["query"].get("run_id") or "")), "application/json; charset=utf-8"))
     r.add("GET", r"/api/runs", lambda ctx: (_list_runs(ctx["cfg"], ctx["query"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs", lambda ctx: (api_create_run(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (api_run_view(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
@@ -645,6 +653,10 @@ def serve(host: str, port: int, open_browser: bool = False) -> int:
     try:
         cfg = config.load()
         config.ensure_workspace_dirs(cfg)
+        recovered = sandbox_mod.recover_interrupted_prepares(
+            cfg, log=lambda message: sys.stdout.write("[恢复] %s\n" % message))
+        if recovered:
+            sys.stdout.flush()
     except errors.HarnessError as exc:
         sys.stderr.write("配置有问题：%s\n%s\n" % (exc.message, exc.detail))
         return 2

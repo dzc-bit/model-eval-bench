@@ -26,6 +26,8 @@ _SUBST_LINE = re.compile(r"^([A-Za-z]):\\:\s*=>\s*(.+?)\s*$")
 #: 进程内串行化盘符池，避免并发准备沙箱时抢同一个盘符
 _DRIVE_LOCK = threading.RLock()
 
+_DRIVE_LEASE = ".drive-lease.json"
+
 #: 沙箱里永远不该出现的路径（评测台侧产物）
 _FORBIDDEN_IN_SANDBOX = ("packs",)
 
@@ -85,6 +87,8 @@ def list_subst() -> dict:
 
     用 `subst` 的文本输出当真相：指向已删目录的「残留映射」在那里照样列得出来，
     而 os.path.isdir 探针会把它漏掉——漏掉了后面 subst 就会报"已经映射"。
+    只有 run lease 能证明归属的中断映射才由恢复流程释放；没有 lease 的映射
+    一律视为外部映射并跳过，即使目标目录已经不存在。
     唯一要注意的是列表按 ANSI/OEM 码页编码，码页选错中文路径就会乱码（见
     :func:`_subst_codepages`）。
     """
@@ -110,8 +114,57 @@ def resolve_drive(drive: str) -> str:
     return list_subst().get(drive.upper(), "")
 
 
+def _lease_path(run: dict) -> str:
+    run_dir = str(run.get("run_dir") or "")
+    return os.path.join(run_dir, _DRIVE_LEASE) if run_dir else ""
+
+
+def _write_drive_lease(run: dict, drive: str, target: str, phase: str) -> None:
+    """持久化盘符所有权，确保进程崩溃后能区分本程序映射与用户映射。"""
+    path = _lease_path(run)
+    if not path:
+        return
+    util.write_json_atomic(path, {
+        "version": 1,
+        "run_id": str(run.get("run_id") or ""),
+        "drive": drive.upper(),
+        "sandbox": util.norm(target),
+        "phase": phase,
+        "pid": os.getpid(),
+    })
+
+
+def _persist_run_state(run: dict) -> None:
+    """尽早保存准备中盘符，避免 run.json 落后于实际 subst 状态。"""
+    run_dir = str(run.get("run_dir") or "")
+    if not run_dir:
+        return
+    run["updated_at"] = util.iso_now()
+    slim = {key: value for key, value in run.items() if key != "baseline_manifest"}
+    util.write_json_atomic(os.path.join(run_dir, "run.json"), slim)
+
+
+def _same_path(left: str, right: str) -> bool:
+    return bool(left and right and util.norm(left).casefold() == util.norm(right).casefold())
+
+
+def _pid_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
 def allocate_drive(cfg: dict, target: str, reserved: dict | None = None,
-                   wait_s: float = 0.0, log: Log = _noop) -> str:
+                   wait_s: float = 0.0, log: Log = _noop,
+                   run: dict | None = None) -> str:
     """给沙箱分配一个盘符并建立 subst 映射。
 
     :param target: 沙箱绝对路径
@@ -126,7 +179,7 @@ def allocate_drive(cfg: dict, target: str, reserved: dict | None = None,
     deadline = time.time() + max(0.0, float(wait_s))
     while True:
         try:
-            return _allocate_drive_once(cfg, target, reserved, log)
+            return _allocate_drive_once(cfg, target, reserved, log, run)
         except errors.HarnessError as exc:
             if exc.code != errors.E_DRIVE_UNAVAILABLE or time.time() >= deadline:
                 raise
@@ -134,31 +187,61 @@ def allocate_drive(cfg: dict, target: str, reserved: dict | None = None,
             time.sleep(0.5)
 
 
-def _allocate_drive_once(cfg: dict, target: str, reserved: dict, log: Log) -> str:
+def _allocate_drive_once(cfg: dict, target: str, reserved: dict, log: Log,
+                         run: dict | None = None) -> str:
     """分配一次（不等待）。"""
     with _DRIVE_LOCK:
         current = list_subst()
         for drive in cfg["drive_pool"]:
-            if reserved.get(drive):
-                continue
             existing = current.get(drive)
             if existing:
-                if util.norm(existing) == util.norm(target):
-                    log("盘符 %s 已指向本沙箱，沿用" % drive)
+                lease_path = _lease_path(run) if run else ""
+                lease = util.read_json(lease_path, default={}) if lease_path else {}
+                lease_owns_existing = (
+                    run is not None
+                    and _same_path(existing, target)
+                    and isinstance(lease, dict)
+                    and lease.get("run_id") == run.get("run_id")
+                    and str(lease.get("drive") or "").upper() == drive
+                    and _same_path(str(lease.get("sandbox") or ""), target)
+                    and lease.get("phase") in {"preparing", "ready"}
+                )
+                record_owns_existing = (
+                    run is not None
+                    and _same_path(existing, target)
+                    and str(run.get("drive") or "").upper() == drive
+                    and _same_path(str(run.get("sandbox") or ""), target)
+                    and run.get("status") in {"preparing", "ready"}
+                )
+                owns_existing = lease_owns_existing or record_owns_existing
+                if owns_existing:
+                    run["sandbox"] = util.norm(target)
+                    run["drive"] = drive
+                    run["status"] = "preparing"
+                    _persist_run_state(run)
+                    _write_drive_lease(run, drive, target, "preparing")
+                    log("盘符 %s 已由本运行占用，沿用" % drive)
                     return drive
-                if not os.path.isdir(existing):
-                    # 上一轮崩在准备中途，沙箱没了但映射还挂着：这是残留，占着池子不放
-                    log("盘符 %s 指向已不存在的目录（%s），回收" % (drive, existing))
-                    release_drive(drive, log)
-                    existing = ""
-                else:
-                    log("盘符 %s 已被 %s 占用，跳过" % (drive, existing))
-                    continue
+                log("盘符 %s 已被占用（%s），跳过" % (drive, existing))
+                continue
+
+            if reserved.get(drive):
+                continue
+
+            if run:
+                run["sandbox"] = util.norm(target)
+                run["drive"] = drive
+                run["status"] = "preparing"
+                _persist_run_state(run)
+                _write_drive_lease(run, drive, target, "preparing")
             result = util.run_cmd(["subst", drive, target], timeout=30)
             if result.ok:
                 log("已建立盘符映射 %s → %s" % (drive, target))
                 return drive
             log("盘符 %s 映射失败：%s" % (drive, result.tail(2)))
+
+            if run:
+                _clear_drive_claim(run, drive, target)
         raise errors.HarnessError(
             errors.E_DRIVE_UNAVAILABLE,
             "盘符池已用尽（%s 都已占用）。请先重建或释放其它沙箱再准备新的沙箱。"
@@ -167,19 +250,111 @@ def _allocate_drive_once(cfg: dict, target: str, reserved: dict, log: Log) -> st
         )
 
 
-def release_drive(drive: str, log: Log = _noop) -> bool:
-    """释放盘符映射（对未映射的盘符幂等）。"""
+def _clear_drive_claim(run: dict, drive: str, target: str) -> None:
+    lease_path = _lease_path(run)
+    lease = util.read_json(lease_path, default={}) if lease_path else {}
+    if isinstance(lease, dict) and (
+            str(lease.get("drive") or "").upper() == drive.upper()
+            and _same_path(str(lease.get("sandbox") or ""), target)):
+        try:
+            os.remove(lease_path)
+        except OSError:
+            pass
+    if str(run.get("drive") or "").upper() == drive.upper() and _same_path(
+            str(run.get("sandbox") or ""), target):
+        run["drive"] = ""
+        run["sandbox"] = ""
+        _persist_run_state(run)
+
+
+def release_drive(drive: str, expected_target: str = "", log: Log = _noop) -> bool:
+    """仅当盘符仍指向调用者指定的目标时释放；空目标不执行 subst /D。"""
     if not drive:
         return False
     drive = drive.upper()
+    if not expected_target:
+        log("拒绝释放盘符 %s：缺少预期目标路径" % drive)
+        return False
     with _DRIVE_LOCK:
-        if drive not in list_subst():
+        current = list_subst().get(drive, "")
+        if not current:
+            return False
+        if not _same_path(current, expected_target):
+            log("拒绝释放盘符 %s：当前目标 %s 与预期目标不符" % (drive, current))
             return False
         result = util.run_cmd(["subst", drive, "/D"], timeout=30)
         ok = result.ok or "无效参数" in (result.stdout + result.stderr)
         if ok:
             log("已释放盘符 %s" % drive)
         return ok
+
+
+def recover_interrupted_prepares(cfg: dict, log: Log = _noop) -> int:
+    """清理已退出进程遗留的准备中映射；无匹配 lease 的用户映射绝不触碰。"""
+    runs_root = cfg.get("runs_root") or ""
+    if not runs_root or not os.path.isdir(runs_root):
+        return 0
+    pool = {str(item).upper() for item in cfg.get("drive_pool") or []}
+    recovered = 0
+    for dirpath, _dirnames, filenames in os.walk(runs_root):
+        if "run.json" not in filenames or _DRIVE_LEASE not in filenames:
+            continue
+        run_path = os.path.join(dirpath, "run.json")
+        lease_path = os.path.join(dirpath, _DRIVE_LEASE)
+        run = util.read_json(run_path, default=None)
+        lease = util.read_json(lease_path, default=None)
+        if not isinstance(run, dict) or not isinstance(lease, dict):
+            continue
+
+        run_id = str(run.get("run_id") or "")
+        drive = str(lease.get("drive") or "").upper()
+        target = util.norm(str(lease.get("sandbox") or ""))
+        expected = util.norm(os.path.join(cfg["sandbox_root"], util.sanitize_id(run_id)))
+        phase = lease.get("phase")
+        if (not run_id or lease.get("run_id") != run_id or drive not in pool
+                or phase not in {"preparing", "cleanup_failed"}
+                or run.get("status") != "preparing"
+                or str(run.get("drive") or "").upper() != drive
+                or not _same_path(str(run.get("sandbox") or ""), target)
+                or not _same_path(target, expected)
+                or not util.path_within(cfg["sandbox_root"], target)):
+            continue
+        try:
+            owner_pid = int(lease.get("pid") or 0)
+        except (TypeError, ValueError):
+            continue
+        if phase == "preparing" and _pid_is_alive(owner_pid):
+            continue
+
+        mapped = list_subst().get(drive, "")
+        if mapped and not _same_path(mapped, target):
+            log("恢复时保留盘符 %s：当前映射已指向其它路径 %s" % (drive, mapped))
+            continue
+        if mapped and not release_drive(drive, expected_target=target, log=log):
+            if _same_path(resolve_drive(drive), target):
+                log("恢复时无法释放盘符 %s，保留沙箱以避免映射悬空" % drive)
+                continue
+        if _same_path(resolve_drive(drive), target):
+            log("恢复时盘符 %s 仍指向沙箱，保留以避免映射悬空" % drive)
+            continue
+
+        try:
+            util.remove_tree(target)
+            run["drive"] = ""
+            run["sandbox"] = ""
+            run["status"] = "error"
+            run["last_error"] = {
+                "code": "interrupted_prepare",
+                "message": "服务在准备沙箱时退出，已清理未完成的沙箱。",
+            }
+            _persist_run_state(run)
+            os.remove(lease_path)
+        except OSError:
+            log("中断沙箱 %s 已释放盘符，但清理记录或目录失败；下次启动会重试" % run_id)
+            continue
+        recovered += 1
+        log("已清理中断的沙箱准备：%s（%s）" % (run_id, drive))
+    return recovered
 
 
 # --------------------------------------------------------------------------
@@ -666,8 +841,8 @@ def prepare(cfg: dict, run: dict, meta: dict, reserved: dict | None = None,
             wait_s: float = 0.0, log: Log = _noop) -> dict:
     """准备沙箱：快照 → 脱敏 → 注入 → git init → subst → 联接（设计文档 §4.3）。
 
-    中途失败（盘符池用尽、联接建不起来）要把自己刚铺的那棵树清干净再抛：
-    run["sandbox"] 还没写进去，事后没人知道这个半成品在哪。
+    盘符在 subst 前写入 run 记录和 lease；中途失败会精确释放并清理，
+    进程崩溃时由启动恢复接手。
 
     :param wait_s: 盘符暂时用尽时的等待上限（秒），跑批时用。
     """
@@ -679,10 +854,32 @@ def prepare(cfg: dict, run: dict, meta: dict, reserved: dict | None = None,
     util.ensure_dir(sandbox)
     try:
         return _prepare_into(cfg, run, meta, sandbox, reserved, wait_s, log)
-    except Exception:
-        # 只删这一次刚建的树，不碰 run 里可能已有的盘符与旧沙箱
-        if run.get("sandbox") != sandbox:
-            util.remove_tree(sandbox)
+    except Exception as exc:
+        drive = str(run.get("drive") or "").upper()
+        owned_target = str(run.get("sandbox") or "")
+        mapped = resolve_drive(drive) if drive and _same_path(owned_target, sandbox) else ""
+        if mapped and _same_path(mapped, sandbox):
+            release_drive(drive, expected_target=sandbox, log=log)
+            if _same_path(resolve_drive(drive), sandbox):
+                # 留下 lease 与沙箱供下一次启动恢复，避免留下指向不存在目录的盘符。
+                run["status"] = "preparing"
+                try:
+                    _write_drive_lease(run, drive, sandbox, "cleanup_failed")
+                    _persist_run_state(run)
+                except OSError:
+                    pass
+                raise
+        if drive and _same_path(owned_target, sandbox):
+            _clear_drive_claim(run, drive, sandbox)
+        util.remove_tree(sandbox)
+        run["drive"] = ""
+        run["sandbox"] = ""
+        run["status"] = "error"
+        run["last_error"] = {
+            "code": getattr(exc, "code", "prepare_failed"),
+            "message": getattr(exc, "message", str(exc)),
+        }
+        _persist_run_state(run)
         raise
 
 
@@ -699,7 +896,8 @@ def _prepare_into(cfg: dict, run: dict, meta: dict, sandbox: str,
     manifest = util.tree_manifest(sandbox)
     digest = util.manifest_digest(manifest)
 
-    drive = allocate_drive(cfg, sandbox, reserved=reserved, wait_s=wait_s, log=log)
+    drive = allocate_drive(cfg, sandbox, reserved=reserved, wait_s=wait_s,
+                           log=log, run=run)
 
     node_modules = None
     if needs_frontend(meta):
@@ -708,8 +906,6 @@ def _prepare_into(cfg: dict, run: dict, meta: dict, sandbox: str,
     gitignore_path = os.path.join(sandbox, ".gitignore")
     gitignore_digest = util.sha256_file(gitignore_path) if os.path.isfile(gitignore_path) else ""
 
-    run["sandbox"] = sandbox
-    run["drive"] = drive
     run["baseline_commit"] = baseline["commit"]
     run["baseline_digest"] = digest
     run["gitignore_digest"] = gitignore_digest
@@ -721,6 +917,8 @@ def _prepare_into(cfg: dict, run: dict, meta: dict, sandbox: str,
     if run.get("run_dir"):
         util.write_json_atomic(
             os.path.join(run["run_dir"], "baseline_manifest.json"), manifest)
+    _persist_run_state(run)
+    _write_drive_lease(run, drive, sandbox, "ready")
     log("沙箱就绪：%s（盘符 %s，%d 个文件）" % (sandbox, drive, len(manifest)))
     return run
 
@@ -728,22 +926,44 @@ def _prepare_into(cfg: dict, run: dict, meta: dict, sandbox: str,
 def rebuild(cfg: dict, run: dict, meta: dict, reserved: dict | None = None,
             log: Log = _noop) -> dict:
     """重建沙箱：释放盘符 → 整树删除 → 重做全流程（秒级）。"""
-    if run.get("drive"):
-        release_drive(run["drive"], log)
-        run["drive"] = ""
-    if run.get("sandbox"):
-        log("整树删除旧沙箱：%s" % run["sandbox"])
-        util.remove_tree(run["sandbox"])
-        run["sandbox"] = ""
+    drive, old_sandbox = str(run.get("drive") or ""), str(run.get("sandbox") or "")
+    if drive and old_sandbox:
+        release_drive(drive, expected_target=old_sandbox, log=log)
+        if _same_path(resolve_drive(drive), old_sandbox):
+            raise errors.HarnessError(
+                errors.E_SANDBOX_BROKEN,
+                "旧沙箱盘符无法释放，已保留沙箱以避免映射悬空。",
+                drive,
+            )
+        _clear_drive_claim(run, drive, old_sandbox)
+    run["drive"] = ""
+    if old_sandbox:
+        log("整树删除旧沙箱：%s" % old_sandbox)
+        util.remove_tree(old_sandbox)
+    run["sandbox"] = ""
     run["status"] = "preparing"
     return prepare(cfg, run, meta, reserved=reserved, log=log)
 
 
 def destroy(cfg: dict, run: dict, log: Log = _noop) -> None:
     """彻底销毁一个沙箱（删除记录时用）：先释放盘符，再整树删除。"""
-    if run.get("drive"):
-        release_drive(run["drive"], log)
-        run["drive"] = ""
-    if run.get("sandbox") and util.path_within(cfg["sandbox_root"], run["sandbox"]):
-        util.remove_tree(run["sandbox"])
+    drive, old_sandbox = str(run.get("drive") or ""), str(run.get("sandbox") or "")
+    if drive and old_sandbox:
+        release_drive(drive, expected_target=old_sandbox, log=log)
+        if _same_path(resolve_drive(drive), old_sandbox):
+            raise errors.HarnessError(
+                errors.E_SANDBOX_BROKEN,
+                "沙箱盘符无法释放，已保留沙箱以避免映射悬空。",
+                drive,
+            )
+        _clear_drive_claim(run, drive, old_sandbox)
+    run["drive"] = ""
+    if old_sandbox and util.path_within(cfg["sandbox_root"], old_sandbox):
+        util.remove_tree(old_sandbox)
     run["sandbox"] = ""
+    lease_path = _lease_path(run)
+    if lease_path:
+        try:
+            os.remove(lease_path)
+        except OSError:
+            pass

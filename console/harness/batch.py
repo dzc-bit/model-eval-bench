@@ -1,4 +1,4 @@
-"""批量跑批：一次把「多道题 × 多个模型」排进后台并发执行（并发版评测台）。
+"""并行会话：一次为「多道题 × 多个模型」准备独立工作区。
 
 设计要点（与设计文档的盘符池硬约束对齐）：
 
@@ -10,8 +10,8 @@
    异步语义保持一致（`POST /api/runs/{id}/grade` 也是异步的）。
 3. **每个 item 独立成败**。一道题失败（题包坏了、模型档案没了）不能拖垮整批，
    记到该 item 的 `error` 里，批次继续。
-4. **不改动 runs/ 的落盘格式**。批量跑批产出的仍是普通 run 记录，
-   记分板、任务库历史、报告页不用改一行就能看到它们。
+4. 每个会话准备后保持就绪，直到用户在对应工作台提交评分；评分完成后回收沙箱，
+   释放盘符并继续准备排队会话。run 仍使用原有落盘格式。
 
 线程模型：一个「批次线程」负责调度，每个 item 再交给一个工作线程；
 批次线程只做派发与状态汇总，不持有任何长事务锁（避免与盘符锁互相等待）。
@@ -31,9 +31,6 @@ from . import config, errors, packs, runs, sandbox, util
 MAX_BATCHES = 40
 #: 单个批次的条目上限（题目 × 模型 的笛卡尔积）
 MAX_ITEMS = 100
-#: 单个条目的整体超时：准备 + 校验（秒）。超时记 error，不拖住整批。
-ITEM_TIMEOUT_S = 1800
-
 _LOCK = threading.RLock()
 #: batch_id → 批次状态（内存态；落盘只在 batch 目录留一份快照）
 _BATCHES: Dict[str, dict] = {}
@@ -75,7 +72,9 @@ def _save_batch(cfg: dict, batch: dict) -> None:
     try:
         path = os.path.join(_batch_dir(cfg, batch["batch_id"]), "batch.json")
         util.ensure_dir(os.path.dirname(path))
-        util.write_json_atomic(path, _public_batch(batch))
+        # Atomic writes share a pid-based temporary filename; serialize concurrent workers.
+        with _LOCK:
+            util.write_json_atomic(path, _public_batch(batch))
     except OSError:
         # 落盘失败不影响批次继续跑（内存态才是权威）
         pass
@@ -83,33 +82,34 @@ def _save_batch(cfg: dict, batch: dict) -> None:
 
 def _public_batch(batch: dict) -> dict:
     """给前端看的批次视图（去掉线程句柄之类的不可序列化字段）。"""
+    items = batch["items"]
     return {
         "batch_id": batch["batch_id"],
         "created_at": batch["created_at"],
         "updated_at": batch["updated_at"],
         "status": batch["status"],
+        "mode": batch.get("mode", "interactive"),
         "concurrency": batch["concurrency"],
+        "problems": batch.get("problems") or [],
         "total": len(batch["items"]),
-        "done": sum(1 for i in batch["items"] if i["status"] in {"graded", "error"}),
-        "passed": sum(1 for i in batch["items"] if i["status"] == "graded" and i.get("passed")),
-        "running": sum(1 for i in batch["items"] if i["status"] in {"preparing", "grading"}),
-        "items": batch["items"],
+        "done": sum(1 for i in items if i["status"] in {"graded", "error", "cancelled"}),
+        "passed": sum(1 for i in items if i["status"] == "graded" and i.get("passed")),
+        "running": sum(1 for i in items if i["status"] in {"preparing", "ready", "grading"}),
+        "queued": sum(1 for i in items if i["status"] == "pending"),
+        "items": items,
     }
 
 
 def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
           auto_release: bool = True, log=None) -> dict:
-    """建一个批次并立刻在后台开跑。
+    """建一个并行会话批次并在后台准备独立沙箱。
 
     :param items: `[{"task": "T1-01", "model": "gpt-x", "attempt": 1}, ...]`
     :param concurrency: 想同时跑几个；默认 = 盘符池大小
-    :param auto_release: 每条跑完后是否立刻回收它的沙箱与盘符。
+    :param auto_release: 每条完成评分后是否回收它的沙箱与盘符。
 
-        **默认开**。盘符池只有 Q/R/S 三个，而跑批动辄十几条；如果每条都把
-        沙箱留着占盘符，跑到第 4 条就会 `E_DRIVE_UNAVAILABLE`（实测正是如此）。
-        跑批的用途是"批量拿分"，报告已经落盘（`runs/<题>/<模型>/<时间>/`），
-        沙箱本体没有保留价值，回收掉才能让后面的条目排上队。
-        想要留着沙箱继续手动改代码的场景，走单轮流程（不经过批次）即可。
+        就绪会话一直占用一个槽位。用户在该 run 的工作台操作并启动评分后，批次
+        记录成绩并回收工作区，再派发下一条，避免清掉仍在使用的工作区。
     """
     if not items:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "批量跑批至少要有一个条目。")
@@ -147,11 +147,16 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
             "model": model,
             "attempt": attempt,
             "title": meta["title"],
+            "prompt": next((p.get("text", "") for p in packs.load_prompts(meta)
+                            if int(p.get("level", 0)) == attempt), ""),
             "status": "pending",
             "run_id": "",
+            "sandbox": "",
+            "drive": "",
             "score": None,
             "passed": False,
             "error": "",
+            "events": [],
             "started_at": "",
             "finished_at": "",
         })
@@ -170,6 +175,7 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
         "created_at": _now(),
         "updated_at": _now(),
         "status": "running",
+        "mode": "interactive",
         "concurrency": concurrency,
         "items": prepared,
         "problems": problems,
@@ -188,8 +194,8 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
     payload = _public_batch(batch)
     payload["problems"] = problems
     payload["notice"] = (
-        "已开始跑批：并发 %d（盘符池上限）。准备沙箱是同步耗时的，"
-        "进度请轮询本接口。" % concurrency
+        "已开始准备会话：并发 %d（盘符池上限）。会话就绪后请打开对应工作台；"
+        "提交评分并结束后，系统会回收该槽位并继续准备队列。" % concurrency
     )
     return payload
 
@@ -260,7 +266,7 @@ def _trim_batches() -> None:
 # --------------------------------------------------------------------------
 
 def _run_batch(cfg: dict, batch_id: str, log) -> None:
-    """批次线程体：按并发上限派发条目，等全部结束再收尾。"""
+    """批次线程体：按工作区槽位派发会话，等人工评分后继续排队。"""
     emit = log or (lambda m: None)
     with _LOCK:
         batch = _BATCHES.get(batch_id)
@@ -277,8 +283,18 @@ def _run_batch(cfg: dict, batch_id: str, log) -> None:
         if batch.get("cancel"):
             with _LOCK:
                 item["status"] = "cancelled"
+                _add_event(item, "排队会话已取消", "cancelled")
+            _save_batch(cfg, batch)
             continue
         gate.acquire()
+        if batch.get("cancel"):
+            gate.release()
+            with _LOCK:
+                item["status"] = "cancelled"
+                _add_event(item, "排队会话已取消", "cancelled")
+                batch["updated_at"] = _now()
+            _save_batch(cfg, batch)
+            continue
         worker = threading.Thread(
             target=_run_item, args=(cfg, batch, item, gate, emit),
             name="batch-item-%d" % item["index"], daemon=True)
@@ -298,12 +314,14 @@ def _run_batch(cfg: dict, batch_id: str, log) -> None:
 
 
 def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emit) -> None:
-    """单个条目：准备沙箱 → 校验 → 等结果。失败只记在本条上。"""
+    """准备一个独立会话；用户评分结束前保留沙箱和盘符。"""
+    run = None
     try:
         with _LOCK:
             item["status"] = "preparing"
             item["started_at"] = _now()
             batch["updated_at"] = _now()
+            _add_event(item, "正在准备独立工作区", "preparing")
         _save_batch(cfg, batch)
 
         # 准备沙箱（同步阻塞；盘符分配由 sandbox._DRIVE_LOCK 兜底串行）
@@ -316,26 +334,44 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
         )
         with _LOCK:
             item["run_id"] = run["run_id"]
-            item["status"] = "grading"
+            item["sandbox"] = run.get("sandbox", "")
+            item["drive"] = run.get("drive", "")
+            item["status"] = "ready"
             batch["updated_at"] = _now()
+            _add_event(item, "工作区已就绪，等待模型操作与人工评分", "ready")
         _save_batch(cfg, batch)
 
-        # 触发校验（异步），然后轮询直到落定
-        runs.start_grade(cfg, run["run_id"])
-        deadline = time.time() + ITEM_TIMEOUT_S
+        # 批量会话不代替用户触发评分，也不调用模型 API；保持工作区到评分结束。
         final = None
-        while time.time() < deadline:
-            time.sleep(1.0)
+        while True:
             current = runs.get_run(cfg, run["run_id"])
-            if current.get("status") in {"graded", "error"}:
+            current_status = current.get("status")
+            if current_status in {"graded", "error"}:
                 final = current
                 break
-        if final is None:
-            raise errors.HarnessError(
-                errors.E_GRADE_TIMEOUT,
-                "这一条超过 %d 秒还没结束，已放弃等待。" % ITEM_TIMEOUT_S,
-                run["run_id"],
-            )
+            if batch.get("cancel") and current_status != "grading":
+                with _LOCK:
+                    item["status"] = "cancelled"
+                    item["finished_at"] = _now()
+                    batch["updated_at"] = _now()
+                    _add_event(item, "会话已取消", "cancelled")
+                _save_batch(cfg, batch)
+                _release_item_sandbox(cfg, batch, run, emit)
+                _clear_item_workspace(cfg, batch, item)
+                return
+
+            if current_status == "grading":
+                with _LOCK:
+                    if item["status"] != "grading":
+                        item["status"] = "grading"
+                        batch["updated_at"] = _now()
+                        _add_event(item, "工作台已启动校验", "grading")
+                        changed = True
+                    else:
+                        changed = False
+                if changed:
+                    _save_batch(cfg, batch)
+            time.sleep(0.5)
 
         with _LOCK:
             if final.get("status") == "error":
@@ -348,14 +384,17 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
                 item["passed"] = bool(final.get("last_passed"))
             item["finished_at"] = _now()
             batch["updated_at"] = _now()
+            _add_event(item, "评分完成" if item["status"] == "graded" else "评分失败", item["status"])
         _save_batch(cfg, batch)
         _release_item_sandbox(cfg, batch, run, emit)
+        _clear_item_workspace(cfg, batch, item)
     except errors.HarnessError as exc:
         with _LOCK:
             item["status"] = "error"
             item["error"] = exc.message
             item["finished_at"] = _now()
             batch["updated_at"] = _now()
+            _add_event(item, "会话失败：%s" % exc.message, "error")
         _save_batch(cfg, batch)
         emit("[%s×%s] 条目失败：%s" % (item["task"], item["model"], exc.message))
     except Exception as exc:  # noqa: BLE001 - 单条失败绝不能带崩整批
@@ -364,10 +403,29 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
             item["error"] = "未预期错误：%r" % exc
             item["finished_at"] = _now()
             batch["updated_at"] = _now()
+            _add_event(item, "会话异常", "error")
         _save_batch(cfg, batch)
         emit("[%s×%s] 条目异常：%r" % (item["task"], item["model"], exc))
     finally:
+        if run and item.get("status") == "error" and run.get("status") != "grading":
+            _release_item_sandbox(cfg, batch, run, emit)
+            _clear_item_workspace(cfg, batch, item)
         gate.release()
+
+
+def _add_event(item: dict, message: str, kind: str) -> None:
+    events = item.setdefault("events", [])
+    events.append({"at": _now(), "kind": kind, "message": message})
+    del events[:-30]
+
+
+def _clear_item_workspace(cfg: dict, batch: dict, item: dict) -> None:
+    with _LOCK:
+        item["sandbox"] = ""
+        item["drive"] = ""
+        batch["updated_at"] = _now()
+        _add_event(item, "工作区槽位已释放", "released")
+    _save_batch(cfg, batch)
 
 
 def _release_item_sandbox(cfg: dict, batch: dict, run: dict, emit) -> None:
@@ -379,11 +437,13 @@ def _release_item_sandbox(cfg: dict, batch: dict, run: dict, emit) -> None:
     if not batch.get("auto_release"):
         return
     try:
-        sandbox.destroy(cfg, run, log=lambda m: None)
-        run["sandbox"] = ""
-        run["drive"] = ""
-        runs.save_run(cfg, run)
-        emit("[%s×%s] 已回收沙箱与盘符" % (run.get("task"), run.get("model")))
+        latest = runs.get_run(cfg, run["run_id"])
+        sandbox.destroy(cfg, latest, log=lambda m: None)
+        latest["sandbox"] = ""
+        latest["drive"] = ""
+        runs.save_run(cfg, latest)
+        run.update(latest)
+        emit("[%s×%s] 已回收沙箱与盘符" % (latest.get("task"), latest.get("model")))
     except Exception as exc:  # noqa: BLE001 - 回收失败不该翻掉已拿到成绩
         emit("[%s×%s] 回收沙箱失败（不影响成绩）：%r"
              % (run.get("task"), run.get("model"), exc))

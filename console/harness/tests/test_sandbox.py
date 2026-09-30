@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -105,13 +106,175 @@ def test_subst_points_at_this_sandbox(prepared):
 def test_integrity_flags_lost_subst(prepared):
     """盘符映射被外部撤掉 → 自检必须报出来（设计文档 §4.4 第 6 项）。"""
     cfg, run, meta = prepared
-    sandbox.release_drive(run["drive"])
+    sandbox.release_drive(run["drive"], expected_target=run["sandbox"])
     try:
         problems = sandbox.verify_integrity(cfg, run, meta)
         kinds = {p["kind"] for p in problems}
         assert "subst_missing" in kinds
     finally:
-        sandbox.allocate_drive(cfg, run["sandbox"], reserved={run["drive"]: run["run_id"]})
+        sandbox.allocate_drive(cfg, run["sandbox"], run=run)
+
+
+def test_release_drive_never_removes_a_different_mapping(monkeypatch, tmp_path):
+    """用户把池内盘符指向其它位置时，释放必须因目标不符而拒绝。"""
+    user_target = util.norm(str(tmp_path / "user-drive"))
+    mappings = {"Q:": user_target}
+    calls = []
+
+    monkeypatch.setattr(sandbox, "list_subst", lambda: dict(mappings))
+
+    def fake_run(args, timeout=30):
+        calls.append(args)
+        if args[-1] == "/D":
+            mappings.pop(args[1].upper(), None)
+        return SimpleNamespace(ok=True, stdout="", stderr="", tail=lambda _n: "")
+
+    monkeypatch.setattr(util, "run_cmd", fake_run)
+    assert sandbox.release_drive("Q:") is False
+    assert sandbox.release_drive("Q:", expected_target=str(tmp_path / "other")) is False
+    assert mappings["Q:"] == user_target
+    assert calls == []
+    assert sandbox.release_drive("Q:", expected_target=user_target) is True
+    assert "Q:" not in mappings
+
+
+def test_allocator_skips_user_subst_even_when_target_is_missing(monkeypatch, cfg, tmp_path):
+    """盘符池里失效或外部映射仍属于用户，不因目录不存在就被回收。"""
+    missing = util.norm(str(tmp_path / "missing"))
+    external = util.norm(str(tmp_path / "external"))
+    util.ensure_dir(external)
+    mappings = {"Q:": missing, "R:": external}
+    calls = []
+    monkeypatch.setattr(sandbox, "list_subst", lambda: dict(mappings))
+
+    def fake_run(args, timeout=30):
+        calls.append(args)
+        if len(args) == 3 and args[-1] != "/D":
+            mappings[args[1].upper()] = util.norm(args[2])
+        elif args[-1] == "/D":
+            mappings.pop(args[1].upper(), None)
+        return SimpleNamespace(ok=True, stdout="", stderr="", tail=lambda _n: "")
+
+    monkeypatch.setattr(util, "run_cmd", fake_run)
+    target = util.norm(str(tmp_path / "sandbox"))
+    util.ensure_dir(target)
+    drive = sandbox.allocate_drive(cfg, target, log=lambda _message: None)
+
+    assert drive == "S:"
+    assert mappings["Q:"] == missing
+    assert mappings["R:"] == external
+    assert [args[1].upper() for args in calls] == ["S:"]
+    assert sandbox.release_drive(drive, expected_target=target)
+
+
+def test_allocator_reuses_its_lease_instead_of_creating_another_mapping(
+        monkeypatch, cfg, tmp_path):
+    """同一 run 再次准备时沿用其有所有权标记的映射，不额外占一个盘符。"""
+    target = util.norm(str(tmp_path / "sandbox"))
+    run = make_run(cfg, BACKEND_TASK, "重复准备", run_id="TEST-01__重复准备__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    util.ensure_dir(target)
+    run.update({"status": "ready", "drive": "Q:", "sandbox": target})
+    util.write_json_atomic(os.path.join(run["run_dir"], "run.json"), run)
+    sandbox._write_drive_lease(run, "Q:", target, "ready")
+    mappings = {"Q:": target}
+    calls = []
+    monkeypatch.setattr(sandbox, "list_subst", lambda: dict(mappings))
+    monkeypatch.setattr(util, "run_cmd", lambda *a, **k: calls.append(a))
+
+    drive = sandbox.allocate_drive(
+        cfg, target, reserved={"Q:": "another-run"}, run=run,
+        log=lambda _message: None)
+
+    assert drive == "Q:"
+    assert mappings == {"Q:": target}
+    assert calls == []
+
+
+def test_prepare_failure_releases_only_its_mapping(monkeypatch, cfg):
+    """盘符建立后准备失败时，应释放映射并清理本次沙箱。"""
+    mappings = {}
+    calls = []
+    monkeypatch.setattr(sandbox, "list_subst", lambda: dict(mappings))
+
+    def fake_run(args, timeout=30):
+        calls.append(args)
+        if args[-1] == "/D":
+            mappings.pop(args[1].upper(), None)
+        else:
+            mappings[args[1].upper()] = util.norm(args[2])
+        return SimpleNamespace(ok=True, stdout="", stderr="", tail=lambda _n: "")
+
+    monkeypatch.setattr(util, "run_cmd", fake_run)
+    run = make_run(cfg, BACKEND_TASK, "失败回滚", run_id="TEST-01__失败回滚__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+
+    def fail_after_allocate(_cfg, current_run, _meta, target, reserved, wait_s, log):
+        sandbox.allocate_drive(_cfg, target, reserved, wait_s, log, run=current_run)
+        raise RuntimeError("simulated post-allocation failure")
+
+    monkeypatch.setattr(sandbox, "_prepare_into", fail_after_allocate)
+    with pytest.raises(RuntimeError, match="simulated post-allocation failure"):
+        sandbox.prepare(cfg, run, packs.load_meta(cfg, BACKEND_TASK), log=lambda _message: None)
+
+    assert mappings == {}
+    assert len(calls) == 2
+    assert calls[0][0] == "subst" and calls[1][-1] == "/D"
+    assert run["drive"] == run["sandbox"] == ""
+    assert run["status"] == "error"
+    assert not os.path.exists(os.path.join(cfg["sandbox_root"], util.sanitize_id(run["run_id"])))
+    assert not os.path.exists(sandbox._lease_path(run))
+
+
+def test_recovery_cleans_only_matching_dead_prepare_lease(monkeypatch, cfg):
+    """启动恢复只清理 run、lease、映射三者一致的死亡准备任务。"""
+    stale_id = "TEST-01__stale__20260101-000000"
+    stale_dir = os.path.join(cfg["runs_root"], "TEST-01", "stale", "20260101-000000")
+    stale_target = os.path.join(cfg["sandbox_root"], util.sanitize_id(stale_id))
+    util.ensure_dir(stale_dir)
+    util.ensure_dir(stale_target)
+    stale_run = {
+        "run_id": stale_id, "run_dir": stale_dir, "status": "preparing",
+        "drive": "Q:", "sandbox": util.norm(stale_target),
+    }
+    util.write_json_atomic(os.path.join(stale_dir, "run.json"), stale_run)
+    sandbox._write_drive_lease(stale_run, "Q:", stale_target, "preparing")
+
+    foreign_id = "TEST-01__foreign__20260101-000000"
+    foreign_dir = os.path.join(cfg["runs_root"], "TEST-01", "foreign", "20260101-000000")
+    foreign_target = os.path.join(cfg["sandbox_root"], util.sanitize_id(foreign_id))
+    foreign_mapping = util.norm(os.path.join(cfg["sandbox_root"], "user-owned"))
+    util.ensure_dir(foreign_dir)
+    util.ensure_dir(foreign_target)
+    foreign_run = {
+        "run_id": foreign_id, "run_dir": foreign_dir, "status": "preparing",
+        "drive": "R:", "sandbox": util.norm(foreign_target),
+    }
+    util.write_json_atomic(os.path.join(foreign_dir, "run.json"), foreign_run)
+    sandbox._write_drive_lease(foreign_run, "R:", foreign_target, "preparing")
+
+    mappings = {"Q:": util.norm(stale_target), "R:": foreign_mapping}
+    calls = []
+    monkeypatch.setattr(sandbox, "list_subst", lambda: dict(mappings))
+    monkeypatch.setattr(sandbox, "_pid_is_alive", lambda _pid: False)
+
+    def fake_run(args, timeout=30):
+        calls.append(args)
+        mappings.pop(args[1].upper(), None)
+        return SimpleNamespace(ok=True, stdout="", stderr="", tail=lambda _n: "")
+
+    monkeypatch.setattr(util, "run_cmd", fake_run)
+    assert sandbox.recover_interrupted_prepares(cfg, log=lambda _message: None) == 1
+
+    assert "Q:" not in mappings
+    assert mappings["R:"] == foreign_mapping
+    assert not os.path.exists(stale_target)
+    assert os.path.isdir(foreign_target)
+    assert calls == [["subst", "Q:", "/D"]]
+    recovered = util.read_json(os.path.join(stale_dir, "run.json"), default={})
+    assert recovered["status"] == "error"
+    assert recovered["drive"] == recovered["sandbox"] == ""
+    assert not os.path.exists(sandbox._lease_path(stale_run))
 
 
 # ------------------------------------------------------------------ 清空
@@ -239,7 +402,8 @@ def test_drive_pool_exhaustion_is_reported(cfg, log, tmp_path):
             holder_dir = os.path.join(str(tmp_path), "hold", str(index))
             util.ensure_dir(holder_dir)
             try:
-                occupied.append(sandbox.allocate_drive(cfg, holder_dir, log=lambda m: None))
+                drive = sandbox.allocate_drive(cfg, holder_dir, log=lambda m: None)
+                occupied.append((drive, holder_dir))
             except errors.HarnessError:
                 break          # 池子本来就快满了，无妨，后面照样能验报错
         # 此时池子必然一个空位都不剩，做一次真实准备必须给中文错误而不是崩
@@ -249,13 +413,13 @@ def test_drive_pool_exhaustion_is_reported(cfg, log, tmp_path):
             sandbox.prepare(cfg, crowded, meta, log=log)
         assert excinfo.value.code == errors.E_DRIVE_UNAVAILABLE
         assert "盘符池" in excinfo.value.message
-        assert "sandbox" not in crowded, "prepare 失败时不该把半成品沙箱登记成可用"
+        assert not crowded.get("sandbox"), "prepare 失败时不该把半成品沙箱登记成可用"
         assert not os.path.exists(os.path.join(cfg["sandbox_root"],
                                                util.sanitize_id(crowded["run_id"]))), \
             "prepare 失败后要把刚铺的半成品沙箱清干净"
     finally:
-        for drive in occupied:
-            sandbox.release_drive(drive)
+        for drive, target in occupied:
+            sandbox.release_drive(drive, expected_target=target)
 
 
 def test_prepare_rejects_unsafe_task_id(cfg, log):

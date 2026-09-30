@@ -86,5 +86,14 @@
     ],
     "max_file_bytes": 4194304
   },
-  "models": []
+  "models": [
+    {
+      "id": "1",
+      "protocol": "openai",
+      "base_url": "",
+      "model": "1",
+      "key_masked": "",
+      "note": ""
+    }
+  ]
 }

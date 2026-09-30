@@ -97,11 +97,11 @@ def sweep_stale_drives():
     """开跑前先回收上一轮崩溃残留的盘符映射。"""
     for drive, target in sandbox.list_subst().items():
         if util.path_within(PYTEST_TMP, target):
-            sandbox.release_drive(drive)
+            sandbox.release_drive(drive, expected_target=target)
     yield
     for drive, target in sandbox.list_subst().items():
         if util.path_within(PYTEST_TMP, target):
-            sandbox.release_drive(drive)
+            sandbox.release_drive(drive, expected_target=target)
 
 
 @pytest.fixture(autouse=True)
@@ -111,7 +111,7 @@ def reclaim_drives(tmp_path):
     root = util.norm(str(tmp_path))
     for drive, target in sandbox.list_subst().items():
         if util.path_within(root, target):
-            sandbox.release_drive(drive)
+            sandbox.release_drive(drive, expected_target=target)
     _drop_junctions(root)
 
 

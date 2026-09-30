@@ -24,7 +24,7 @@ if CONSOLE_DIR not in sys.path:
     sys.path.insert(0, CONSOLE_DIR)
 
 import server  # noqa: E402
-from harness import errors, util  # noqa: E402
+from harness import errors, runs, util  # noqa: E402
 
 
 @pytest.fixture
@@ -170,6 +170,34 @@ def test_task_detail_exposes_prompts(live):
     assert "Q:\\" in doc["wiring_note"]
 
 
+def test_task_detail_can_scope_unlocked_prompts_to_a_run(live, cfg):
+    """同题多个会话时，提示词解锁级别必须跟随指定 run。"""
+    runs.save_run(cfg, {
+        "run_id": "TEST-01__target__20260101-000001", "task": "TEST-01", "model": "target",
+        "attempt": 1, "status": "ready", "created_at": "2026-01-01T00:00:00",
+        "revealed": False, "rounds": [],
+    })
+    runs.save_run(cfg, {
+        "run_id": "TEST-01__newer__20260101-000002", "task": "TEST-01", "model": "newer",
+        "attempt": 2, "status": "ready", "created_at": "2026-01-01T00:00:01",
+        "revealed": False, "rounds": [],
+    })
+
+    status, body, _ = live("/api/tasks/TEST-01?run_id=TEST-01__target__20260101-000001")
+    assert status == 200
+    doc = as_json(body)
+    assert [p["level"] for p in doc["prompts"]] == [1]
+    assert doc["run"]["run_id"] == "TEST-01__target__20260101-000001"
+
+
+def test_task_leaderboard_route_returns_entries(live):
+    status, body, _ = live("/api/tasks/TEST-01/leaderboard")
+    assert status == 200
+    doc = as_json(body)
+    assert doc["task"] == "TEST-01"
+    assert isinstance(doc["entries"], list)
+
+
 # ---------------------------------------------------------------- 错误信封
 
 def test_unknown_api_returns_stable_code(live):
@@ -280,6 +308,9 @@ def test_model_crud_roundtrip(cfg, monkeypatch, tmp_path):
         original = fh.read()
     shadow = tmp_path / "config.json"
     shadow.write_bytes(original)
+    isolated_config = util.read_json(str(shadow), default={})
+    isolated_config["models"] = []
+    util.write_json_atomic(str(shadow), isolated_config)
     monkeypatch.setattr(server.config, "CONFIG_PATH", str(shadow))
 
     def loader():

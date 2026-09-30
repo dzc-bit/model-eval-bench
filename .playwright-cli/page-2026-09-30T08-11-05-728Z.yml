@@ -1,0 +1,137 @@
+- generic [ref=e1]:
+  - link "跳到主内容" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - note [ref=e5]:
+      - generic [ref=e6]: 当前是模拟数据模式（?mock=1），页面上的任务、报告与分数都是样例，不反映真实评测结果。
+    - banner [ref=e7]:
+      - generic [ref=e8]:
+        - link "模型评测台" [ref=e9] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=e10]: 评
+        - navigation "主导航" [ref=e12]:
+          - link "任务库" [ref=e13] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=e14]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=e15] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=e16] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=e17] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=e18] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=e19] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=e20]:
+      - generic [ref=e572]:
+        - generic [ref=e573]:
+          - generic [ref=e574]:
+            - heading "模型档案" [active] [level=1] [ref=e575]
+            - paragraph [ref=e576]: 档案只用于记账与统计：每轮绑定一个档案，记分板按「任务 × 模型」出通过率。评测台不会替你调用模型。
+          - generic [ref=e578]:
+            - button "新增档案" [ref=e579] [cursor=pointer]
+            - note
+        - region [ref=e582]:
+          - heading "已配置档案" [level=2] [ref=e584]
+          - list [ref=e586]:
+            - listitem [ref=e587]:
+              - generic [ref=e588]:
+                - generic [ref=e589]:
+                  - strong [ref=e590]: kimi-k3
+                  - generic [ref=e591]: kimi-k3
+                - generic [ref=e592]:
+                  - generic [aria-hidden] [ref=e593]: ·
+                  - generic [ref=e594]: OpenAI 兼容
+              - generic [ref=e595]:
+                - generic [ref=e596]:
+                  - term [ref=e597]: 接口形态
+                  - definition [ref=e598]:
+                    - generic [ref=e599]: Chat Completions（/chat/completions）
+                    - code [ref=e600]: POST https://api.moonshot.cn/v1/chat/completions
+                - generic [ref=e601]:
+                  - term [ref=e602]: 接口地址
+                  - definition [ref=e603]: https://api.moonshot.cn/v1
+                - generic [ref=e604]:
+                  - term [ref=e605]: 接口密钥
+                  - definition [ref=e606]: sk-****3f9a
+                - generic [ref=e607]:
+                  - term [ref=e608]: 备注
+                  - definition [ref=e609]: 主力对照模型
+              - generic [ref=e610]:
+                - generic [ref=e611]:
+                  - button "编辑 kimi-k3" [ref=e612] [cursor=pointer]:
+                    - generic [ref=e613]: 编辑
+                  - note
+                - generic [ref=e614]:
+                  - button "删除 kimi-k3" [ref=e615] [cursor=pointer]:
+                    - generic [ref=e616]: 删除
+                  - note
+            - listitem [ref=e617]:
+              - generic [ref=e618]:
+                - generic [ref=e619]:
+                  - strong [ref=e620]: gpt-5-codex
+                  - generic [ref=e621]: gpt-5-codex
+                - generic [ref=e622]:
+                  - generic [aria-hidden] [ref=e623]: ·
+                  - generic [ref=e624]: OpenAI 兼容
+              - generic [ref=e625]:
+                - generic [ref=e626]:
+                  - term [ref=e627]: 接口形态
+                  - definition [ref=e628]:
+                    - generic [ref=e629]: Responses API（/responses）
+                    - code [ref=e630]: POST https://api.openai.com/v1/responses
+                - generic [ref=e631]:
+                  - term [ref=e632]: 接口地址
+                  - definition [ref=e633]: https://api.openai.com/v1
+                - generic [ref=e634]:
+                  - term [ref=e635]: 接口密钥
+                  - definition [ref=e636]: sk-****7b21
+                - generic [ref=e637]:
+                  - term [ref=e638]: 备注
+                  - definition [ref=e639]: 强模型上界
+              - generic [ref=e640]:
+                - generic [ref=e641]:
+                  - button "编辑 gpt-5-codex" [ref=e642] [cursor=pointer]:
+                    - generic [ref=e643]: 编辑
+                  - note
+                - generic [ref=e644]:
+                  - button "删除 gpt-5-codex" [ref=e645] [cursor=pointer]:
+                    - generic [ref=e646]: 删除
+                  - note
+            - listitem [ref=e647]:
+              - generic [ref=e648]:
+                - generic [ref=e649]:
+                  - strong [ref=e650]: claude-sonnet-4
+                  - generic [ref=e651]: claude-sonnet
+                - generic [ref=e652]:
+                  - generic [aria-hidden] [ref=e653]: ·
+                  - generic [ref=e654]: Anthropic
+              - generic [ref=e655]:
+                - generic [ref=e656]:
+                  - term [ref=e657]: 接口形态
+                  - definition [ref=e658]:
+                    - generic [ref=e659]: 供应商原生接口
+                    - code [ref=e660]: 供应商原生接口
+                - generic [ref=e661]:
+                  - term [ref=e662]: 接口地址
+                  - definition [ref=e663]: https://api.anthropic.com
+                - generic [ref=e664]:
+                  - term [ref=e665]: 接口密钥
+                  - definition [ref=e666]: sk-****c04d
+              - generic [ref=e667]:
+                - generic [ref=e668]:
+                  - button "编辑 claude-sonnet" [ref=e669] [cursor=pointer]:
+                    - generic [ref=e670]: 编辑
+                  - note
+                - generic [ref=e671]:
+                  - button "删除 claude-sonnet" [ref=e672] [cursor=pointer]:
+                    - generic [ref=e673]: 删除
+                  - note
+    - contentinfo [ref=e25]:
+      - paragraph [ref=e26]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=e233]: 已进入模型档案
+    - alert [ref=e234]

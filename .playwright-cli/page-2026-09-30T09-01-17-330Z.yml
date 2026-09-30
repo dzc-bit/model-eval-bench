@@ -1,0 +1,293 @@
+- generic [ref=f4e1]:
+  - link "跳到主内容" [ref=f4e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f4e3]:
+    - banner [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - link "模型评测台" [ref=f4e6] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=f4e7]: 评
+        - navigation "主导航" [ref=f4e9]:
+          - link "任务库" [ref=f4e10] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=f4e11]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=f4e12] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=f4e13] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=f4e14] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=f4e15] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=f4e16] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=f4e17]:
+      - generic [ref=f4e106]:
+        - generic [ref=f4e108]:
+          - heading "任务库" [level=1] [ref=f4e109]
+          - paragraph [ref=f4e110]: 选择一个任务进入工作台。初级一次机会、中级两次、高级与王者各三次。
+        - generic [ref=f4e111]:
+          - generic [ref=f4e112]:
+            - generic [ref=f4e113]: 按档位筛选
+            - combobox "按档位筛选" [ref=f4e114]:
+              - option "全部档位" [selected]
+              - option "初级"
+              - option "中级"
+              - option "高级"
+              - option "王者"
+          - generic [ref=f4e115]:
+            - generic [ref=f4e116]: 搜索任务
+            - searchbox "搜索任务" [ref=f4e117]
+          - generic [ref=f4e118]:
+            - button "刷新" [ref=f4e119] [cursor=pointer]
+            - note
+        - status [ref=f4e129]: 共 11 个任务
+        - list [ref=f4e130]:
+          - listitem [ref=f4e131]:
+            - generic [ref=f4e132]:
+              - generic [ref=f4e133]: T1-01
+              - generic [ref=f4e134]:
+                - generic [aria-hidden] [ref=f4e135]: ●
+                - generic [ref=f4e136]: 初级 · 允许尝试 1 次
+            - paragraph [ref=f4e137]: 同一行行情，在不同出口被解释成了三种口径
+            - paragraph
+            - paragraph [ref=f4e138]: 目标通过率 60%~85%
+            - generic [ref=f4e139]:
+              - generic [ref=f4e140]:
+                - generic [aria-hidden] [ref=f4e141]: ○
+                - generic [ref=f4e142]: 未校准
+              - generic [ref=f4e143]: 历史最好 0
+              - generic [ref=f4e144]:
+                - button "查看排行榜" [ref=f4e145] [cursor=pointer]
+                - note
+              - generic [ref=f4e147]:
+                - button "进入工作台" [ref=f4e148] [cursor=pointer]
+                - note
+          - listitem [ref=f4e150]:
+            - generic [ref=f4e151]:
+              - generic [ref=f4e152]: T1-02
+              - generic [ref=f4e153]:
+                - generic [aria-hidden] [ref=f4e154]: ●
+                - generic [ref=f4e155]: 初级 · 允许尝试 1 次
+            - paragraph [ref=f4e156]: 同一张休市表，两端各认各的节假日
+            - paragraph
+            - paragraph [ref=f4e157]: 目标通过率 60%~85%
+            - generic [ref=f4e158]:
+              - generic [ref=f4e159]:
+                - generic [aria-hidden] [ref=f4e160]: ○
+                - generic [ref=f4e161]: 未校准
+              - generic [ref=f4e162]: 尚无记录
+              - generic [ref=f4e163]:
+                - button "收起排行榜" [expanded] [active] [ref=f4e164] [cursor=pointer]
+                - note
+              - generic [ref=f4e166]:
+                - button "进入工作台" [ref=f4e167] [cursor=pointer]
+                - note
+            - region "T1-02 排行榜" [ref=f4e169]:
+              - heading "排行榜" [level=3] [ref=f4e170]
+              - list [ref=f4e172]:
+                - listitem [ref=f4e173]:
+                  - generic [ref=f4e174]: "1"
+                  - strong [ref=f4e175]: one-round-slower
+                  - generic [ref=f4e176]: 第 1 轮
+                  - generic [ref=f4e177]: 30.0 秒
+                  - generic [ref=f4e178]: 100 分
+                - listitem [ref=f4e179]:
+                  - generic [ref=f4e180]: "2"
+                  - strong [ref=f4e181]: two-round-faster
+                  - generic [ref=f4e182]: 第 2 轮
+                  - generic [ref=f4e183]: 2.00 秒
+                  - generic [ref=f4e184]: 100 分
+                - listitem [ref=f4e185]:
+                  - generic [ref=f4e186]: "3"
+                  - strong [ref=f4e187]: two-round-slower
+                  - generic [ref=f4e188]: 第 2 轮
+                  - generic [ref=f4e189]: 5.00 秒
+                  - generic [ref=f4e190]: 100 分
+          - listitem [ref=f4e191]:
+            - generic [ref=f4e192]:
+              - generic [ref=f4e193]: T1-03
+              - generic [ref=f4e194]:
+                - generic [aria-hidden] [ref=f4e195]: ●
+                - generic [ref=f4e196]: 初级 · 允许尝试 1 次
+            - paragraph [ref=f4e197]: 同一种失败，三段链路各说各话
+            - paragraph
+            - paragraph [ref=f4e198]: 目标通过率 60%~85%
+            - generic [ref=f4e199]:
+              - generic [ref=f4e200]:
+                - generic [aria-hidden] [ref=f4e201]: ○
+                - generic [ref=f4e202]: 未校准
+              - generic [ref=f4e203]: 尚无记录
+              - generic [ref=f4e204]:
+                - button "查看排行榜" [ref=f4e205] [cursor=pointer]
+                - note
+              - generic [ref=f4e207]:
+                - button "进入工作台" [ref=f4e208] [cursor=pointer]
+                - note
+          - listitem [ref=f4e210]:
+            - generic [ref=f4e211]:
+              - generic [ref=f4e212]: T2-04
+              - generic [ref=f4e213]:
+                - generic [aria-hidden] [ref=f4e214]: ◆
+                - generic [ref=f4e215]: 中级 · 允许尝试 2 次
+            - paragraph [ref=f4e216]: 同一天的缺口，四个出口给了四种答案
+            - paragraph
+            - paragraph [ref=f4e217]: 目标通过率 25%~55%
+            - generic [ref=f4e218]:
+              - generic [ref=f4e219]:
+                - generic [aria-hidden] [ref=f4e220]: ○
+                - generic [ref=f4e221]: 未校准
+              - generic [ref=f4e222]: 尚无记录
+              - generic [ref=f4e223]:
+                - button "查看排行榜" [ref=f4e224] [cursor=pointer]
+                - note
+              - generic [ref=f4e226]:
+                - button "进入工作台" [ref=f4e227] [cursor=pointer]
+                - note
+          - listitem [ref=f4e229]:
+            - generic [ref=f4e230]:
+              - generic [ref=f4e231]: T2-05
+              - generic [ref=f4e232]:
+                - generic [aria-hidden] [ref=f4e233]: ◆
+                - generic [ref=f4e234]: 中级 · 允许尝试 2 次
+            - paragraph [ref=f4e235]: 同一批数据反复起 worker；偶发 409 后再也起不来
+            - paragraph
+            - paragraph [ref=f4e236]: 目标通过率 25%~55%
+            - generic [ref=f4e237]:
+              - generic [ref=f4e238]:
+                - generic [aria-hidden] [ref=f4e239]: ○
+                - generic [ref=f4e240]: 未校准
+              - generic [ref=f4e241]: 尚无记录
+              - generic [ref=f4e242]:
+                - button "查看排行榜" [ref=f4e243] [cursor=pointer]
+                - note
+              - generic [ref=f4e245]:
+                - button "进入工作台" [ref=f4e246] [cursor=pointer]
+                - note
+          - listitem [ref=f4e248]:
+            - generic [ref=f4e249]:
+              - generic [ref=f4e250]: T2-06
+              - generic [ref=f4e251]:
+                - generic [aria-hidden] [ref=f4e252]: ◆
+                - generic [ref=f4e253]: 中级 · 允许尝试 2 次
+            - paragraph [ref=f4e254]: 夜间一起写入，早上分区读不出来
+            - paragraph
+            - paragraph [ref=f4e255]: 目标通过率 25%~55%
+            - generic [ref=f4e256]:
+              - generic [ref=f4e257]:
+                - generic [aria-hidden] [ref=f4e258]: ○
+                - generic [ref=f4e259]: 未校准
+              - generic [ref=f4e260]: 尚无记录
+              - generic [ref=f4e261]:
+                - button "查看排行榜" [ref=f4e262] [cursor=pointer]
+                - note
+              - generic [ref=f4e264]:
+                - button "进入工作台" [ref=f4e265] [cursor=pointer]
+                - note
+          - listitem [ref=f4e267]:
+            - generic [ref=f4e268]:
+              - generic [ref=f4e269]: T2-07
+              - generic [ref=f4e270]:
+                - generic [aria-hidden] [ref=f4e271]: ◆
+                - generic [ref=f4e272]: 中级 · 允许尝试 2 次
+            - paragraph [ref=f4e273]: 按下停止之后，答案丢了，下次还白等
+            - paragraph
+            - paragraph [ref=f4e274]: 目标通过率 25%~55%
+            - generic [ref=f4e275]:
+              - generic [ref=f4e276]:
+                - generic [aria-hidden] [ref=f4e277]: ○
+                - generic [ref=f4e278]: 未校准
+              - generic [ref=f4e279]: 尚无记录
+              - generic [ref=f4e280]:
+                - button "查看排行榜" [ref=f4e281] [cursor=pointer]
+                - note
+              - generic [ref=f4e283]:
+                - button "进入工作台" [ref=f4e284] [cursor=pointer]
+                - note
+          - listitem [ref=f4e286]:
+            - generic [ref=f4e287]:
+              - generic [ref=f4e288]: T3-08
+              - generic [ref=f4e289]:
+                - generic [aria-hidden] [ref=f4e290]: ▲
+                - generic [ref=f4e291]: 高级 · 允许尝试 3 次
+            - paragraph [ref=f4e292]: 长对话的两难：存不住，删不掉，预算不干活
+            - paragraph
+            - paragraph [ref=f4e293]: 目标通过率 5%~25%
+            - generic [ref=f4e294]:
+              - generic [ref=f4e295]:
+                - generic [aria-hidden] [ref=f4e296]: ○
+                - generic [ref=f4e297]: 未校准
+              - generic [ref=f4e298]: 尚无记录
+              - generic [ref=f4e299]:
+                - button "查看排行榜" [ref=f4e300] [cursor=pointer]
+                - note
+              - generic [ref=f4e302]:
+                - button "进入工作台" [ref=f4e303] [cursor=pointer]
+                - note
+          - listitem [ref=f4e305]:
+            - generic [ref=f4e306]:
+              - generic [ref=f4e307]: T3-09
+              - generic [ref=f4e308]:
+                - generic [aria-hidden] [ref=f4e309]: ▲
+                - generic [ref=f4e310]: 高级 · 允许尝试 3 次
+            - paragraph [ref=f4e311]: 行情偶发退回旧快照；一次慢请求后整条源链超时
+            - paragraph
+            - paragraph [ref=f4e312]: 目标通过率 5%~25%
+            - generic [ref=f4e313]:
+              - generic [ref=f4e314]:
+                - generic [aria-hidden] [ref=f4e315]: ○
+                - generic [ref=f4e316]: 未校准
+              - generic [ref=f4e317]: 尚无记录
+              - generic [ref=f4e318]:
+                - button "查看排行榜" [ref=f4e319] [cursor=pointer]
+                - note
+              - generic [ref=f4e321]:
+                - button "进入工作台" [ref=f4e322] [cursor=pointer]
+                - note
+          - listitem [ref=f4e324]:
+            - generic [ref=f4e325]:
+              - generic [ref=f4e326]: T3-10
+              - generic [ref=f4e327]:
+                - generic [aria-hidden] [ref=f4e328]: ▲
+                - generic [ref=f4e329]: 高级 · 允许尝试 3 次
+            - paragraph [ref=f4e330]: 两个程序同时写库，越补越慢，越写越坏
+            - paragraph
+            - paragraph [ref=f4e331]: 目标通过率 5%~25%
+            - generic [ref=f4e332]:
+              - generic [ref=f4e333]:
+                - generic [aria-hidden] [ref=f4e334]: ○
+                - generic [ref=f4e335]: 未校准
+              - generic [ref=f4e336]: 尚无记录
+              - generic [ref=f4e337]:
+                - button "查看排行榜" [ref=f4e338] [cursor=pointer]
+                - note
+              - generic [ref=f4e340]:
+                - button "进入工作台" [ref=f4e341] [cursor=pointer]
+                - note
+          - listitem [ref=f4e343]:
+            - generic [ref=f4e344]:
+              - generic [ref=f4e345]: T4-11
+              - generic [ref=f4e346]:
+                - generic [aria-hidden] [ref=f4e347]: ★
+                - generic [ref=f4e348]: 王者 · 允许尝试 3 次
+            - paragraph [ref=f4e349]: 实时行情与写入链路同时失去唯一事实
+            - paragraph [ref=f4e350]: 行情会回退、写入会丢行、统计会滞后，单独修一条链仍会被另一条链的迟到或缓存状态打破。
+            - paragraph [ref=f4e351]: 目标通过率 0%~2%
+            - generic [ref=f4e352]:
+              - generic [ref=f4e353]:
+                - generic [aria-hidden] [ref=f4e354]: ○
+                - generic [ref=f4e355]: 未校准
+              - generic [ref=f4e356]: 历史最好 0
+              - generic [ref=f4e357]:
+                - button "查看排行榜" [ref=f4e358] [cursor=pointer]
+                - note
+              - generic [ref=f4e360]:
+                - button "进入工作台" [ref=f4e361] [cursor=pointer]
+                - note
+    - contentinfo [ref=f4e59]:
+      - paragraph [ref=f4e60]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status
+  - generic:
+    - status [ref=f4e61]: 任务列表已加载，共 11 个。
+    - alert [ref=f4e62]

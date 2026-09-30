@@ -104,14 +104,18 @@ def test_public_batch_shape():
             {"index": 0, "task": "A", "model": "m", "status": "graded", "passed": True, "score": 100},
             {"index": 1, "task": "A", "model": "m", "status": "grading", "passed": False, "score": None},
             {"index": 2, "task": "A", "model": "m", "status": "pending", "passed": False, "score": None},
-            {"index": 3, "task": "A", "model": "m", "status": "error", "passed": False, "score": None},
+            {"index": 3, "task": "A", "model": "m", "status": "ready", "passed": False, "score": None},
+            {"index": 4, "task": "A", "model": "m", "status": "error", "passed": False, "score": None},
+            {"index": 5, "task": "A", "model": "m", "status": "cancelled", "passed": False, "score": None},
         ],
     }
     view = batch._public_batch(doc)
-    assert view["total"] == 4
-    assert view["done"] == 2          # graded + error
+    assert view["total"] == 6
+    assert view["done"] == 3          # graded + error + cancelled
     assert view["passed"] == 1
-    assert view["running"] == 1       # grading 计入进行中
+    assert view["running"] == 2       # ready 与 grading 都占用一个槽位
+    assert view["queued"] == 1
+    assert view["mode"] == "interactive"
     assert "batch_id" in view and "items" in view
 
 
@@ -144,6 +148,10 @@ def test_release_item_sandbox_frees_drive(cfg, monkeypatch):
     monkeypatch.setattr(batch.sandbox, "destroy",
                         lambda c, r, log=None: (r.update({"sandbox": "", "drive": ""}), None)[1])
     saved = []
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: {
+        "run_id": run_id, "status": "ready", "sandbox": "x", "drive": "Q:",
+        "task": "T", "model": "M",
+    })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: saved.append(dict(r)))
 
     run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
@@ -155,11 +163,40 @@ def test_release_item_sandbox_frees_drive(cfg, monkeypatch):
     assert any("回收" in line for line in logs)
 
 
+def test_release_item_sandbox_preserves_latest_run_state(cfg, monkeypatch):
+    """回收时不能把旧 run 快照写回，覆盖评分结果或用户备注。"""
+    stale = {
+        "run_id": "r", "status": "ready", "note": "",
+        "sandbox": "x", "drive": "Q:", "task": "T", "model": "M",
+    }
+    latest = {
+        **stale, "status": "graded", "note": "人工摘要",
+        "last_score": 88.0, "last_passed": True,
+    }
+    saved = []
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: dict(latest))
+    monkeypatch.setattr(batch.sandbox, "destroy",
+                        lambda c, run, log=None: run.update({"sandbox": "", "drive": ""}))
+    monkeypatch.setattr(batch.runs, "save_run", lambda c, run: saved.append(dict(run)))
+
+    batch._release_item_sandbox(cfg, {"auto_release": True}, stale, lambda message: None)
+
+    assert saved[0]["status"] == "graded"
+    assert saved[0]["note"] == "人工摘要"
+    assert saved[0]["last_score"] == 88.0
+    assert saved[0]["last_passed"] is True
+    assert saved[0]["sandbox"] == "" and saved[0]["drive"] == ""
+
+
 def test_release_failure_does_not_raise(cfg, monkeypatch):
     """回收失败不能翻掉已经拿到的成绩。"""
     def boom(*a, **k):
         raise OSError("删不掉")
 
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: {
+        "run_id": run_id, "status": "ready", "sandbox": "x", "drive": "Q:",
+        "task": "T", "model": "M",
+    })
     monkeypatch.setattr(batch.sandbox, "destroy", boom)
     run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
     logs = []
@@ -173,88 +210,122 @@ def test_release_failure_does_not_raise(cfg, monkeypatch):
 
 def _stub_model(cfg, monkeypatch, model_id: str) -> None:
     """把模型档案挂进配置（避免真的写 config.json）。"""
+    accepted = set(model_id if isinstance(model_id, (list, tuple, set)) else [model_id])
     monkeypatch.setattr(
         batch.config, "find_model",
         lambda c, mid: {"id": mid, "protocol": "openai", "base_url": "", "model": mid}
-        if mid == model_id else (_ for _ in ()).throw(
+        if mid in accepted else (_ for _ in ()).throw(
             errors.HarnessError(errors.E_MODEL_NOT_FOUND, "找不到模型档案 %s。" % mid)),
     )
 
 
-def test_batch_runs_all_items_and_records_scores(cfg, monkeypatch):
-    """用桩跑一整批：4 条全部完成，得分正确落到每条上。"""
-    _stub_model(cfg, monkeypatch, "stub")
+def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatch):
+    """同题多模型同时就绪；完成一个评分后再为队列会话准备盘符。"""
+    _stub_model(cfg, monkeypatch, ["model-a", "model-b"])
+    cfg["drive_pool"] = ["Q:", "R:"]
 
     # 覆盖两个真实题的 meta 读取：给一个不会失败的最小 meta
     monkeypatch.setattr(batch.packs, "load_meta", lambda c, t: {
         "id": t, "title": "桩题 %s" % t, "tier": "easy", "attempts": 3, "pack_dir": ".",
     })
+    monkeypatch.setattr(batch.packs, "load_prompts", lambda meta: [
+        {"level": 1, "text": "公开提示词第一轮"}, {"level": 2, "text": "第二轮提示词"},
+    ])
 
-    counter = {"n": 0}
+    counter = {"n": 0, "active": 0, "max_active": 0}
     lock = __import__("threading").Lock()
+    run_status = {}
 
     def fake_create_run(c, task, model, attempt=1, claim_queued=True, wait_s=0.0, log=None):
         with lock:
             counter["n"] += 1
             idx = counter["n"]
+            counter["active"] += 1
+            counter["max_active"] = max(counter["max_active"], counter["active"])
         time.sleep(0.05)                      # 模拟铺沙箱的耗时
-        return {"run_id": "r%d" % idx, "task": task, "model": model, "status": "ready"}
+        run_id = "r%d" % idx
+        run_status[run_id] = "ready"
+        with lock:
+            counter["active"] -= 1
+        return {
+            "run_id": run_id, "task": task, "model": model, "status": "ready",
+            "sandbox": "sandbox-%d" % idx, "drive": ["Q:", "R:"][idx % 2],
+        }
 
     monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
-    monkeypatch.setattr(batch.runs, "start_grade", lambda c, rid: {"status": "grading"})
+    monkeypatch.setattr(batch.runs, "start_grade", lambda *_: pytest.fail("批次不能自动评分"))
     monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
-        "run_id": rid, "status": "graded", "last_score": 42.0, "last_passed": False,
+        "run_id": rid, "status": run_status[rid], "last_score": 42.0, "last_passed": False,
     })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
     monkeypatch.setattr(batch.sandbox, "destroy", lambda c, r, log=None: None)
-    monkeypatch.setattr(batch, "ITEM_TIMEOUT_S", 30)
 
     items = [
-        {"task": "TEST-01", "model": "stub"},
-        {"task": "TEST-01", "model": "stub"},
-        {"task": "TEST-02", "model": "stub"},
-        {"task": "TEST-02", "model": "stub"},
+        {"task": "TEST-01", "model": "model-a"},
+        {"task": "TEST-01", "model": "model-b"},
+        {"task": "TEST-02", "model": "model-a"},
     ]
     view = batch.start(cfg, items, concurrency=2)
     batch_id = view["batch_id"]
 
-    deadline = time.time() + 30
-    final = None
-    while time.time() < deadline:
-        doc = batch.get(cfg, batch_id)
-        if doc.get("status") in {"finished", "cancelled"}:
-            final = doc
-            break
-        time.sleep(0.1)
+    def wait_until(predicate):
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            doc = batch.get(cfg, batch_id)
+            if predicate(doc):
+                return doc
+            time.sleep(0.05)
+        pytest.fail("等待批次状态超时：%r" % batch.get(cfg, batch_id))
 
-    assert final is not None, "批次没有在预期时间内结束"
-    assert final["status"] == "finished"
-    assert final["done"] == 4 and final["total"] == 4
+    ready = wait_until(lambda doc: sum(i["status"] == "ready" for i in doc["items"]) == 2)
+    assert [i["model"] for i in ready["items"] if i["status"] == "ready"] == ["model-a", "model-b"]
+    assert ready["items"][0]["task"] == ready["items"][1]["task"] == "TEST-01"
+    assert ready["items"][0]["prompt"] == "公开提示词第一轮"
+    assert ready["items"][2]["status"] == "pending"
+    assert counter["max_active"] == 2
+    assert ready["mode"] == "interactive"
+
+    first_run_id = ready["items"][0]["run_id"]
+    run_status[first_run_id] = "grading"
+    wait_until(lambda doc: doc["items"][0]["status"] == "grading")
+    run_status[first_run_id] = "graded"
+    queued_ready = wait_until(lambda doc: doc["items"][2]["status"] == "ready")
+    remaining = [item for item in queued_ready["items"] if item["status"] == "ready"]
+    assert len(remaining) == 2
+    for item in remaining:
+        run_status[item["run_id"]] = "graded"
+
+    final = wait_until(lambda doc: doc.get("status") == "finished")
+    assert final["done"] == 3 and final["total"] == 3
     assert all(i["status"] == "graded" for i in final["items"])
     assert all(i["score"] == 42.0 for i in final["items"])
-    # 并发被夹到盘符池大小以内
+    assert all(not i["sandbox"] and not i["drive"] for i in final["items"])
     assert final["concurrency"] <= len(cfg["drive_pool"])
 
 
 def test_batch_survives_single_item_failure(cfg, monkeypatch):
-    """单条准备失败 → 该条 error，其余照常完成（整批不崩）。"""
+    """单条准备失败 → 该条 error，其余会话仍可准备并由用户评分。"""
     _stub_model(cfg, monkeypatch, "stub")
     monkeypatch.setattr(batch.packs, "load_meta", lambda c, t: {
         "id": t, "title": "桩题", "tier": "easy", "attempts": 3, "pack_dir": ".",
     })
 
     seen = {"n": 0}
+    run_status = {}
 
     def flaky_create_run(c, task, model, attempt=1, claim_queued=True, wait_s=0.0, log=None):
         seen["n"] += 1
         if seen["n"] == 1:
             raise errors.HarnessError(errors.E_DRIVE_UNAVAILABLE, "盘符池已用尽")
-        return {"run_id": "ok%d" % seen["n"], "task": task, "model": model, "status": "ready"}
+        run_id = "ok%d" % seen["n"]
+        run_status[run_id] = "ready"
+        return {"run_id": run_id, "task": task, "model": model, "status": "ready",
+                "sandbox": "sandbox", "drive": "Q:"}
 
     monkeypatch.setattr(batch.runs, "create_run", flaky_create_run)
-    monkeypatch.setattr(batch.runs, "start_grade", lambda c, rid: {"status": "grading"})
+    monkeypatch.setattr(batch.runs, "start_grade", lambda *_: pytest.fail("批次不能自动评分"))
     monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
-        "run_id": rid, "status": "graded", "last_score": 10.0, "last_passed": False,
+        "run_id": rid, "status": run_status[rid], "last_score": 10.0, "last_passed": False,
     })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
     monkeypatch.setattr(batch.sandbox, "destroy", lambda c, r, log=None: None)
@@ -266,14 +337,18 @@ def test_batch_survives_single_item_failure(cfg, monkeypatch):
     ], concurrency=1)
     batch_id = view["batch_id"]
 
-    deadline = time.time() + 30
+    deadline = time.time() + 10
     final = None
     while time.time() < deadline:
         doc = batch.get(cfg, batch_id)
+        if doc["items"][1]["status"] == "ready":
+            run_status[doc["items"][1]["run_id"]] = "graded"
+        if doc["items"][2]["status"] == "ready":
+            run_status[doc["items"][2]["run_id"]] = "graded"
         if doc.get("status") in {"finished", "cancelled"}:
             final = doc
             break
-        time.sleep(0.1)
+        time.sleep(0.05)
 
     assert final is not None
     statuses = [i["status"] for i in final["items"]]
@@ -298,3 +373,29 @@ def test_cancel_marks_batch_cancelling(cfg):
     finally:
         with batch._LOCK:
             batch._BATCHES.pop("b-cancel", None)
+
+
+def test_cancel_ready_session_releases_its_sandbox(cfg, monkeypatch):
+    """取消一个尚未评分的会话会结束等待并归还它占用的工作区槽位。"""
+    created = {"run_id": "r-cancel", "task": "TEST-01", "model": "stub",
+               "status": "ready", "sandbox": "sandbox", "drive": "Q:"}
+    destroyed = []
+    monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(created))
+    monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(created))
+    monkeypatch.setattr(batch.runs, "save_run", lambda *a, **k: None)
+    monkeypatch.setattr(batch.sandbox, "destroy", lambda c, run, log=None: destroyed.append(run["run_id"]))
+    doc = {
+        "batch_id": "b-cancel-ready", "created_at": "t", "updated_at": "t",
+        "status": "cancelling", "concurrency": 1,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "pending", "events": []}],
+        "problems": [], "cancel": True, "auto_release": True,
+    }
+    gate = __import__("threading").Semaphore(0)
+    batch._run_item(cfg, doc, doc["items"][0], gate, lambda message: None)
+
+    item = doc["items"][0]
+    assert item["status"] == "cancelled"
+    assert not item["sandbox"] and not item["drive"]
+    assert destroyed == ["r-cancel"]
+    assert gate.acquire(blocking=False)

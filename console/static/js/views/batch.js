@@ -26,6 +26,7 @@ import { S } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { announce } from '../core/a11y.js';
 import { createButton } from '../components/button.js';
+import { createCopyButton } from '../components/copy-button.js';
 import { createField } from '../components/field.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
@@ -39,6 +40,7 @@ const POLL_MS = 2000;
 const ITEM_STATE = {
   pending: { text: '排队中', kind: 'idle' },
   preparing: { text: '正在准备沙箱', kind: 'busy' },
+  ready: { text: '工作区就绪，等待评分', kind: 'ok' },
   grading: { text: '正在校验', kind: 'busy' },
   graded: { text: '已完成', kind: 'ok' },
   error: { text: '失败', kind: 'error' },
@@ -64,6 +66,8 @@ export function createBatch(props = {}) {
   let concurrency = 3;
   let batch = null;
   let pollTimer = null;
+  const itemViews = new Map();
+  let progressView = null;
 
   const h1 = el('h1', { tabindex: '-1' }, S.BATCH_TITLE);
   const setupHost = el('div', { class: 'batch__setup' });
@@ -73,7 +77,7 @@ export function createBatch(props = {}) {
     'div',
     { class: 'view' },
     el('div', { class: 'view__head' },
-      el('div', {}, h1, el('p', { class: 'view__desc' }, S.BATCH_DESC)),
+      el('div', {}, h1, el('p', { class: 'view__desc' }, '为每个题目和模型准备独立工作区。模型操作在对应工作台完成；本页不调用模型 API，也不展示隐藏思维链。')),
     ),
     setupHost,
     progressHost,
@@ -132,7 +136,7 @@ export function createBatch(props = {}) {
   setupHost.appendChild(
     el('section', { class: 'panel' },
       el('h2', { class: 'panel__title' }, S.BATCH_SETUP_TITLE),
-      el('p', { class: 'u-faint' }, S.BATCH_SETUP_DESC),
+      el('p', { class: 'u-faint' }, '勾选题与模型后，为每个组合准备独立工作区。就绪后打开对应工作台，在外部模型客户端操作并手动启动评分；评分结束会回收槽位，再继续准备排队项。本页不会调用模型 API。'),
       el('div', { class: 'batch__pickers' },
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_TASKS), taskListEl),
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_MODELS), modelListEl),
@@ -147,8 +151,9 @@ export function createBatch(props = {}) {
    */
   function refreshSummary() {
     const n = selectedTasks.size * selectedModels.size;
-    setText(summaryEl, `${selectedTasks.size} 题 × ${selectedModels.size} 模型 = ${n} 条；${S.BATCH_DRIVE_NOTE}`);
-    const ok = n > 0 && !batch;
+    setText(summaryEl, `${selectedTasks.size} 题 × ${selectedModels.size} 模型 = ${n} 个独立会话；同一题可同时分配给多个模型。${S.BATCH_DRIVE_NOTE}`);
+    const active = batch && (batch.status === 'running' || batch.status === 'cancelling');
+    const ok = n > 0 && !active;
     startBtn.update({ disabled: !ok, reason: ok ? '' : S.BATCH_NEED_PICK });
   }
 
@@ -204,101 +209,274 @@ export function createBatch(props = {}) {
    * @returns {HTMLElement}
    */
   function renderItem(item) {
-    const state = ITEM_STATE[item.status] || { text: item.status, kind: 'idle' };
-    const done = item.status === 'graded' || item.status === 'error';
-    const markKind = item.status === 'error' ? 'fail'
-      : item.status === 'graded' ? (item.passed ? 'pass' : 'fail')
-        : item.status === 'pending' ? 'idle' : 'busy';
-
-    const mark = createResultMark({
-      kind: markKind,
-      size: 28,
-      animate: done,
-      label: '',
-    });
-
-    const right = el('div', { class: 'batch__item-right' });
-    if (item.status === 'graded') {
-      right.appendChild(el('span', { class: 'batch__item-score' },
-        `${item.score === null || item.score === undefined ? '—' : item.score} 分`));
+    let view = itemViews.get(item.index);
+    if (!view) {
+      view = createItemView(item);
+      itemViews.set(item.index, view);
     }
-    right.appendChild(createStatusDot({ kind: state.kind, text: state.text }).el);
+    view.update(item);
+    return view.el;
+  }
 
-    return el(
-      'li',
-      { class: `batch__item batch__item--${item.status}` },
-      mark.el,
-      el('div', { class: 'batch__item-main' },
-        el('span', { class: 'batch__item-name' }, `${item.task} × ${item.model}`),
-        item.title ? el('span', { class: 'u-faint' }, item.title) : null,
-        item.error ? el('span', { class: 'batch__item-error' }, item.error) : null,
-      ),
-      right,
+  function createItemView(initialItem) {
+    let current = initialItem;
+    let noteEdited = false;
+    let hydratedRunId = '';
+    let gradeRequested = false;
+    let eventSignature = '';
+    const state = ITEM_STATE[initialItem.status] || { text: initialItem.status, kind: 'idle' };
+    const mark = createResultMark({ kind: 'idle', size: 28, animate: false, label: '' });
+    const statusDot = createStatusDot({ kind: state.kind, text: state.text });
+    const score = el('span', { class: 'batch__item-score', hidden: true });
+    const runId = el('span', { class: 'u-mono u-faint', hidden: true });
+    const path = el('span', { class: 'u-mono u-faint', hidden: true, style: { overflowWrap: 'anywhere' } });
+    const openLink = el('a', {
+      class: 'btn btn--primary', target: '_blank', rel: 'noopener', hidden: true,
+    }, '打开此模型工作台');
+    const gradeBtn = createButton({
+      label: '启动评分',
+      size: 'sm',
+      disabled: true,
+      onClick: async () => {
+        if (!current.run_id || current.status !== 'ready' || gradeRequested) return;
+        gradeBtn.update({ loading: true, busyLabel: '正在启动评分' });
+        try {
+          await api.post(`/runs/${encodeURIComponent(current.run_id)}/grade`, {}, { scope });
+          gradeRequested = true;
+          showToast({ message: '评分已启动', detail: `${current.task} × ${current.model}`, kind: 'success' });
+        } catch (err) {
+          const code = err instanceof ApiError ? err.code : 'INTERNAL';
+          if (code === 'RUN_BUSY' || code === 'BUSY' || err?.backendCode === 'E_RUN_BUSY') {
+            gradeRequested = true;
+          }
+          showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+        } finally {
+          gradeBtn.update({ loading: false, disabled: current.status !== 'ready' || gradeRequested });
+        }
+      },
+    });
+    const promptPre = el('pre', { class: 'code-block__pre', tabindex: '0' });
+    const promptCopy = createCopyButton({
+      label: '复制当前轮提示词',
+      size: 'sm',
+      getText: () => String(current.prompt || ''),
+      sourceEl: () => promptPre,
+      successMessage: () => '已复制当前轮提示词',
+    });
+    const promptDetails = el('details', { class: 'batch__session-prompt' },
+      el('summary', {}, '当前轮题目提示词'),
+      el('div', { class: 'u-row', style: { justifyContent: 'flex-end', margin: 'var(--space-2) 0' } }, promptCopy.el),
+      promptPre,
     );
+    const answerInput = el('textarea', {
+      class: 'batch__answer-input',
+      rows: '5',
+      placeholder: '在对应模型客户端完成任务后，可粘贴答复或记录人工摘要。',
+      'aria-label': `${initialItem.task} × ${initialItem.model} 的答复或人工摘要`,
+      onInput: (event) => {
+        noteEdited = true;
+        current.noteDraft = event.target.value;
+      },
+    });
+    const answerField = el('label', { class: 'batch__answer-field' },
+      el('span', { class: 'batch__pick-title' }, '模型答复 / 人工摘要（手动记录）'),
+      answerInput,
+      el('span', { class: 'u-faint' }, '记录保存在本轮备注中；系统不会读取或推断隐藏思维链。'),
+    );
+    const saveNote = createButton({
+      label: '保存记录',
+      size: 'sm',
+      onClick: async () => {
+        if (!current.run_id) return;
+        saveNote.update({ loading: true, busyLabel: '正在保存' });
+        try {
+          await api.post(`/runs/${encodeURIComponent(current.run_id)}/note`, { note: answerInput.value }, { scope });
+          current.noteDraft = answerInput.value;
+          noteEdited = false;
+          showToast({ message: '记录已保存', kind: 'success' });
+        } catch (err) {
+          const code = err instanceof ApiError ? err.code : 'INTERNAL';
+          showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+        } finally {
+          saveNote.update({ loading: false, disabled: !current.run_id });
+        }
+      },
+    });
+    const events = el('ol', { class: 'batch__events' });
+    const eventDetails = el('details', {}, el('summary', {}, '公开进度记录'), events);
+    const errorNode = el('span', { class: 'batch__item-error', hidden: true });
+    const main = el('div', { class: 'batch__item-main' },
+      el('span', { class: 'batch__item-name' }, `${initialItem.task} × ${initialItem.model}`),
+      initialItem.title ? el('span', { class: 'u-faint' }, initialItem.title) : null,
+      errorNode,
+    );
+    const head = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
+      mark.el, main, el('span', { class: 'u-spacer' }), score, statusDot.el);
+    const actions = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
+      openLink, gradeBtn.el, runId, path);
+    const card = el('li', {
+      class: `batch__item batch__item--${initialItem.status}`,
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '0' },
+    }, head, actions, promptDetails, answerField, el('div', { class: 'u-row' }, saveNote.el), eventDetails);
+
+    function hydrateNote(item) {
+      if (!item.run_id || hydratedRunId === item.run_id) return;
+      hydratedRunId = item.run_id;
+      api.get(`/runs/${encodeURIComponent(item.run_id)}`, { scope }).then((run) => {
+        if (!noteEdited && hydratedRunId === item.run_id) {
+          answerInput.value = String(run.note || '');
+          current.noteDraft = answerInput.value;
+        }
+      }).catch(() => {});
+    }
+
+    return {
+      el: card,
+      update(item) {
+        current = item;
+        const stateNow = ITEM_STATE[item.status] || { text: item.status, kind: 'idle' };
+        const done = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
+        const markKind = item.status === 'error' ? 'fail'
+          : item.status === 'graded' ? (item.passed ? 'pass' : 'fail')
+            : item.status === 'pending' ? 'idle' : 'busy';
+        mark.update({ kind: markKind, animate: done, label: '' });
+        statusDot.update({ kind: stateNow.kind, text: stateNow.text });
+        card.className = `batch__item batch__item--${item.status}`;
+        score.hidden = item.status !== 'graded';
+        setText(score, `${item.score === null || item.score === undefined ? '—' : item.score} 分`);
+        setText(runId, item.run_id ? `运行：${item.run_id}` : '');
+        runId.hidden = !item.run_id;
+        setText(path, item.sandbox ? `目录：${item.sandbox}` : '');
+        path.hidden = !item.sandbox;
+        openLink.hidden = !item.run_id;
+        if (item.run_id) {
+          openLink.href = `#/workspace/${encodeURIComponent(item.task)}/chat/${encodeURIComponent(item.run_id)}`;
+          if (item.status !== 'ready') gradeRequested = gradeRequested || item.status === 'grading'
+            || item.status === 'graded' || item.status === 'error';
+          gradeBtn.update({ disabled: item.status !== 'ready' || gradeRequested });
+          saveNote.update({ disabled: false });
+          hydrateNote(item);
+        } else {
+          saveNote.update({ disabled: true });
+          gradeBtn.update({ disabled: true });
+        }
+        if (!noteEdited && item.noteDraft !== undefined && answerInput.value !== item.noteDraft) {
+          answerInput.value = item.noteDraft;
+        }
+        promptPre.textContent = item.prompt || '这道题没有配置当前轮提示词。';
+        promptCopy.update({ getText: () => String(current.prompt || '') });
+        const nextEvents = item.events || [];
+        const nextSignature = nextEvents.map((entry) => `${entry.at}|${entry.kind}|${entry.message}`).join('\n');
+        if (nextSignature !== eventSignature) {
+          eventSignature = nextSignature;
+          clear(events);
+          nextEvents.forEach((entry) => events.appendChild(el('li', {}, `${entry.at || ''} ${entry.message || ''}`.trim())));
+        }
+        errorNode.hidden = !item.error;
+        setText(errorNode, item.error || '');
+      },
+      destroy() {
+        mark.destroy();
+        statusDot.destroy();
+        gradeBtn.destroy();
+        promptCopy.destroy();
+        saveNote.destroy();
+      },
+    };
   }
 
   /** 渲染批次进度。 */
   function renderProgress() {
-    clear(progressHost);
     if (!batch) {
-      progressHost.appendChild(
-        el('section', { class: 'panel' },
-          createEmptyState({
-            title: S.BATCH_EMPTY_TITLE,
-            desc: S.BATCH_EMPTY_DESC,
-          }).el,
-        ),
-      );
+      if (!progressHost.firstChild) {
+        progressHost.appendChild(el('section', { class: 'panel' }, createEmptyState({
+          title: S.BATCH_EMPTY_TITLE,
+          desc: S.BATCH_EMPTY_DESC,
+        }).el));
+      }
       return;
+    }
+
+    if (!progressView || progressView.batchId !== batch.batch_id) {
+      itemViews.forEach((view) => view.destroy());
+      itemViews.clear();
+      clear(progressHost);
+
+      const count = el('span', { class: 'batch__count' });
+      const runningValue = el('span');
+      const readyValue = el('span');
+      const queuedValue = el('span');
+      const passedValue = el('span');
+      const concurrencyValue = el('span', { class: 'u-faint' });
+      const batchState = createStatusDot({ kind: 'busy', text: S.BATCH_STATUS_RUNNING });
+      const fill = el('div', { class: 'batch__bar-fill' });
+      const bar = el('div', {
+        class: 'batch__bar',
+        role: 'progressbar',
+        'aria-valuenow': '0',
+        'aria-valuemin': '0',
+        'aria-valuemax': String(batch.total || 0),
+        'aria-label': S.BATCH_PROGRESS_LABEL,
+      }, fill);
+      const head = el('div', { class: 'batch__head' },
+        el('div', { class: 'u-stack', style: { gap: '2px' } },
+          el('span', { class: 'u-faint' }, S.BATCH_PROGRESS_LABEL), count),
+        el('div', { class: 'batch__stats' },
+          runningValue, readyValue, queuedValue, passedValue, concurrencyValue, batchState.el),
+        el('span', { class: 'u-spacer' }),
+        el('span', { class: 'u-mono u-faint' }, batch.batch_id || ''),
+      );
+      const list = el('ul', {
+        class: 'batch__list',
+        style: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+          gap: 'var(--space-3)',
+          padding: '0',
+        },
+      });
+      const section = el('section', { class: 'panel' }, head, bar, list);
+      if (batch.problems && batch.problems.length) {
+        const probs = el('ul', { class: 'batch__problems' });
+        batch.problems.forEach((problem) => probs.appendChild(el('li', {}, problem)));
+        section.appendChild(el('div', { class: 'batch__problems-wrap' },
+          el('h3', { class: 'batch__pick-title' }, S.BATCH_PROBLEMS_TITLE), probs));
+      }
+      progressHost.appendChild(section);
+      progressView = {
+        batchId: batch.batch_id,
+        count, runningValue, readyValue, queuedValue, passedValue,
+        concurrencyValue, batchState, bar, fill, list,
+      };
     }
 
     const total = batch.total || 0;
     const done = batch.done || 0;
     const passed = batch.passed || 0;
     const running = batch.running || 0;
+    const ready = (batch.items || []).filter((item) => item.status === 'ready').length;
+    const queued = batch.queued === undefined
+      ? (batch.items || []).filter((item) => item.status === 'pending').length
+      : batch.queued;
     const pct = total ? Math.round((done / total) * 100) : 0;
-
-    const bar = el('div', {
-      class: 'batch__bar',
-      role: 'progressbar',
-      'aria-valuenow': String(done),
-      'aria-valuemin': '0',
-      'aria-valuemax': String(total),
-      'aria-label': S.BATCH_PROGRESS_LABEL,
-    }, el('div', { class: 'batch__bar-fill', style: { width: `${pct}%` } }));
-
-    const head = el('div', { class: 'batch__head' },
-      el('div', { class: 'u-stack', style: { gap: '2px' } },
-        el('span', { class: 'u-faint' }, S.BATCH_PROGRESS_LABEL),
-        el('span', { class: 'batch__count' }, `${done} / ${total}`),
-      ),
-      el('div', { class: 'batch__stats' },
-        el('span', {}, `${S.BATCH_RUNNING} ${running}`),
-        el('span', {}, `${S.BATCH_PASSED} ${passed}`),
-        el('span', { class: 'u-faint' }, `并发 ${batch.concurrency}`),
-        createStatusDot({
-          kind: batch.status === 'finished' ? 'ok' : batch.status === 'cancelled' ? 'warn' : 'busy',
-          text: batch.status === 'finished' ? S.BATCH_STATUS_DONE
-            : batch.status === 'cancelled' ? S.BATCH_STATUS_CANCELLED : S.BATCH_STATUS_RUNNING,
-        }).el,
-      ),
-      el('span', { class: 'u-spacer' }),
-      el('span', { class: 'u-mono u-faint' }, batch.batch_id || ''),
-    );
-
-    const list = el('ul', { class: 'batch__list' });
-    (batch.items || []).forEach((item) => list.appendChild(renderItem(item)));
-
-    const section = el('section', { class: 'panel' }, head, bar, list);
-
-    if (batch.problems && batch.problems.length) {
-      const probs = el('ul', { class: 'batch__problems' });
-      batch.problems.forEach((p) => probs.appendChild(el('li', {}, p)));
-      section.appendChild(el('div', { class: 'batch__problems-wrap' },
-        el('h3', { class: 'batch__pick-title' }, S.BATCH_PROBLEMS_TITLE), probs));
-    }
-
-    progressHost.appendChild(section);
+    setText(progressView.count, `${done} / ${total}`);
+    setText(progressView.runningValue, `${S.BATCH_RUNNING} ${running}`);
+    setText(progressView.readyValue, `就绪 ${ready}`);
+    setText(progressView.queuedValue, `排队 ${queued}`);
+    setText(progressView.passedValue, `${S.BATCH_PASSED} ${passed}`);
+    setText(progressView.concurrencyValue, `并发 ${batch.concurrency}`);
+    progressView.batchState.update({
+      kind: batch.status === 'finished' ? 'ok' : batch.status === 'cancelled' ? 'warn' : 'busy',
+      text: batch.status === 'finished' ? S.BATCH_STATUS_DONE
+        : batch.status === 'cancelled' ? S.BATCH_STATUS_CANCELLED : S.BATCH_STATUS_RUNNING,
+    });
+    progressView.bar.setAttribute('aria-valuenow', String(done));
+    progressView.bar.setAttribute('aria-valuemax', String(total));
+    progressView.fill.style.width = `${pct}%`;
+    (batch.items || []).forEach((item) => {
+      const card = renderItem(item);
+      if (card.parentNode !== progressView.list) progressView.list.appendChild(card);
+    });
 
     // 结束态不再轮询，并恢复"开始"按钮
     const active = batch.status === 'running' || batch.status === 'cancelling';
@@ -448,6 +626,9 @@ export function createBatch(props = {}) {
     destroy() {
       stopPolling();
       scope.cancelAll();
+      itemViews.forEach((view) => view.destroy());
+      itemViews.clear();
+      if (progressView) progressView.batchState.destroy();
       concurrencyField.destroy();
       startBtn.destroy();
       cancelBtn.destroy();

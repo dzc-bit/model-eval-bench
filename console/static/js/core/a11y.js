@@ -9,7 +9,8 @@
  *   5. `isEditableTarget(node)` 供快捷键判断「焦点是否在输入控件」。
  *
  * 依赖：无（只操作 DOM 与 aria 属性）。
- * 导出：announce, trapFocus, restoreFocus, focusHeading, isEditableTarget, focusables
+ * 导出：announce, trapFocus, restoreFocus, focusHeading, scrollBelowStickyHeader,
+ *       isEditableTarget, focusables
  *
  * 纪律：
  *   - 全站只有这一处 live region（toast 容器是组件自带的第二个，见 toast.js 注释），
@@ -234,7 +235,19 @@ export function focusHeading(heading) {
   } catch {
     heading.focus();
   }
-  heading.scrollIntoView({ block: 'start', behavior: 'auto' });
+  scrollBelowStickyHeader(heading);
+}
+
+/**
+ * 将页面目标放在粘性导航下方，适配导航随视口换行后的实际高度。
+ * @param {HTMLElement} target 页面中的目标元素
+ * @returns {void}
+ */
+export function scrollBelowStickyHeader(target) {
+  if (!(target instanceof HTMLElement)) return;
+  const headerHeight = document.querySelector('.app-header')?.getBoundingClientRect().height || 0;
+  const targetTop = target.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top: Math.max(0, targetTop - headerHeight - 8), behavior: 'auto' });
 }
 
 /**

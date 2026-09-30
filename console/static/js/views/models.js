@@ -29,6 +29,11 @@ const PROTOCOL_OPTIONS = Object.entries(PROTOCOL_NAMES).map(([value, label]) => 
 const OPENAI_API_MODE_OPTIONS = ['responses', 'chat_completions', 'completions']
   .map((value) => ({ value, label: API_MODE_NAMES[value] }));
 const NATIVE_API_MODE_OPTIONS = [{ value: 'native', label: API_MODE_NAMES.native }];
+const OPENAI_ENDPOINT_PATHS = {
+  responses: '/responses',
+  chat_completions: '/chat/completions',
+  completions: '/completions',
+};
 
 /** 档案编号合法性：小写字母、数字、连字符。 */
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -52,7 +57,11 @@ export function createModels(props = {}) {
 
   const h1 = el('h1', { tabindex: '-1' }, S.MODELS_TITLE);
   const listHost = el('div', { class: 'models__list' });
-  const formHost = el('div', { class: 'panel' });
+  const formHost = el('section', {
+    class: 'models__editor panel',
+    'aria-labelledby': 'models-form-title',
+    hidden: true,
+  });
 
   const root = el(
     'div',
@@ -62,13 +71,15 @@ export function createModels(props = {}) {
       el('div', { class: 'view__actions' },
         createButton({
           label: S.MODELS_FORM_NEW,
-          onClick: () => startCreate(),
+          onClick: () => startCreate({ show: true }),
         }).el,
       ),
     ),
     el('div', { class: 'models__layout' },
-      el('section', { class: 'panel' },
-        el('h2', { class: 'panel__title' }, S.MODELS_TITLE),
+      el('section', { class: 'models__catalog', 'aria-labelledby': 'models-list-title' },
+        el('div', { class: 'models__section-head' },
+          el('h2', { id: 'models-list-title' }, '已配置档案'),
+        ),
         listHost,
       ),
       formHost,
@@ -97,6 +108,7 @@ export function createModels(props = {}) {
     options: OPENAI_API_MODE_OPTIONS,
     value: 'chat_completions',
     hint: S.MODELS_FIELD_API_MODE_HINT,
+    onChange: () => updateEndpointPreview(),
   });
   const modelField = createField({
     label: S.MODELS_FIELD_MODEL,
@@ -104,10 +116,11 @@ export function createModels(props = {}) {
     required: true,
   });
   const urlField = createField({
-    label: S.MODELS_FIELD_BASE_URL,
+    label: 'API 根地址',
     name: 'model-url',
     type: 'url',
     placeholder: 'https://',
+    onInput: () => updateEndpointPreview(),
   });
   const noteField = createField({
     label: S.MODELS_FIELD_NOTE,
@@ -126,8 +139,9 @@ export function createModels(props = {}) {
     onClick: () => startCreate(),
   });
 
-  const formTitle = el('h2', { class: 'panel__title' }, S.MODELS_FORM_NEW);
+  const formTitle = el('h2', { class: 'panel__title', id: 'models-form-title' }, S.MODELS_FORM_NEW);
   const formError = el('p', { class: 'field__error', role: 'alert' });
+  const endpointPreview = el('code', { class: 'models__endpoint-value' });
 
   /** 根据协议切换 endpoint 选择器，避免给非 OpenAI 档案留下歧义值。 */
   function syncApiModeControl(protocol, value) {
@@ -142,6 +156,30 @@ export function createModels(props = {}) {
       hint: openai ? S.MODELS_FIELD_API_MODE_HINT : S.MODELS_FIELD_API_MODE_NATIVE_HINT,
       value: mode,
     });
+    updateEndpointPreview();
+  }
+
+  /** 显示将由 API 根地址与 OpenAI endpoint 路径组成的请求地址。 */
+  function updateEndpointPreview() {
+    const protocol = String(protocolField.getValue() || '').toLowerCase();
+    const baseUrl = String(urlField.getValue() || '').trim().replace(/\/+$/, '');
+    if (protocol !== 'openai') {
+      setText(endpointPreview, '供应商原生接口');
+      return;
+    }
+    const mode = apiModeField.getValue() || 'chat_completions';
+    const path = OPENAI_ENDPOINT_PATHS[mode] || OPENAI_ENDPOINT_PATHS.chat_completions;
+    setText(endpointPreview, `POST ${baseUrl}${path}`);
+  }
+
+  /** 将编辑区滚到粘性导航下方，避免窄屏时标题与首个字段被遮挡。 */
+  function revealEditor() {
+    const header = document.querySelector('.app-header');
+    const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+    const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-3')) || 12;
+    const editorTop = formHost.getBoundingClientRect().top + window.scrollY;
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    window.scrollTo({ top: Math.max(0, editorTop - headerBottom - gap), behavior });
   }
 
   function buildForm() {
@@ -152,12 +190,27 @@ export function createModels(props = {}) {
       el(
         'div',
         { class: 'models__form' },
-        idField.el,
-        el('div', { class: 'models__form-row' }, protocolField.el, apiModeField.el, modelField.el),
-        urlField.el,
-        noteField.el,
-        el('p', { class: 'u-faint' }, S.MODELS_FIELD_KEY_HINT),
-        el('div', { class: 'u-row' }, saveBtn.el, cancelEditBtn.el),
+        el('div', { class: 'models__form-grid' },
+          el('fieldset', { class: 'models__fieldset' },
+            el('legend', {}, '档案身份'),
+            el('div', { class: 'models__form-row' }, idField.el, modelField.el),
+          ),
+          el('fieldset', { class: 'models__fieldset' },
+            el('legend', {}, '接口定位'),
+            el('div', { class: 'models__form-row' }, protocolField.el, urlField.el),
+            apiModeField.el,
+            el('div', { class: 'models__endpoint-preview' },
+              el('span', { class: 'models__endpoint-label' }, '实际请求地址'),
+              endpointPreview,
+            ),
+          ),
+          el('fieldset', { class: 'models__fieldset models__fieldset--notes' },
+            el('legend', {}, '凭据与备注'),
+            noteField.el,
+            el('p', { class: 'u-faint' }, S.MODELS_FIELD_KEY_HINT),
+          ),
+        ),
+        el('div', { class: 'models__form-actions' }, saveBtn.el, cancelEditBtn.el),
       ),
     );
   }
@@ -234,7 +287,7 @@ export function createModels(props = {}) {
   /**
    * 进入新建态。
    */
-  function startCreate() {
+  function startCreate({ show = false } = {}) {
     editingId = null;
     editingKeyMasked = '';
     setText(formTitle, S.MODELS_FORM_NEW);
@@ -245,6 +298,9 @@ export function createModels(props = {}) {
     urlField.update({ value: '' });
     noteField.update({ value: '' });
     cancelEditBtn.el.hidden = true;
+    formHost.hidden = !show;
+    updateEndpointPreview();
+    if (show) revealEditor();
   }
 
   /**
@@ -264,6 +320,9 @@ export function createModels(props = {}) {
     urlField.update({ value: m.base_url || '' });
     noteField.update({ value: m.note || '' });
     cancelEditBtn.el.hidden = false;
+    formHost.hidden = false;
+    updateEndpointPreview();
+    revealEditor();
     idField.focus();
   }
 
@@ -298,22 +357,46 @@ export function createModels(props = {}) {
    * @returns {HTMLElement}
    */
   function renderRow(m) {
+    const protocol = String(m.protocol || 'openai').toLowerCase();
+    const mode = protocol === 'openai' ? (m.api_mode || 'chat_completions') : 'native';
+    const baseUrl = String(m.base_url || '').trim().replace(/\/+$/, '');
+    const endpoint = protocol === 'openai'
+      ? `POST ${baseUrl}${OPENAI_ENDPOINT_PATHS[mode] || OPENAI_ENDPOINT_PATHS.chat_completions}`
+      : '路由由供应商协议决定';
     return el(
       'li',
       { class: 'model-row' },
-      el('span', { class: 'model-row__id' }, m.id),
-      createBadge({
-        label: PROTOCOL_NAMES[m.protocol] || m.protocol || S.PROTOCOL_CUSTOM,
-        variant: 'info',
-        glyph: '·',
-      }).el,
-      el('span', { class: 'model-row__meta' },
-        `${m.model || '—'}${m.base_url ? ` · ${m.base_url}` : ''}`,
-        el('div', { class: 'u-faint' }, t(S.MODELS_ROW_API_MODE, {
-          mode: API_MODE_NAMES[m.api_mode] || API_MODE_NAMES.native,
-        })),
-        m.key_masked ? el('div', { class: 'u-faint' }, t(S.MODELS_ROW_KEY, { masked: m.key_masked })) : null,
-        m.note ? el('div', { class: 'u-faint' }, m.note) : null,
+      el('div', { class: 'model-row__main' },
+        el('div', { class: 'model-row__identity' },
+          el('strong', { class: 'model-row__model' }, m.model || '—'),
+          el('span', { class: 'model-row__id' }, `ID · ${m.id}`),
+        ),
+        createBadge({
+          label: PROTOCOL_NAMES[protocol] || protocol || S.PROTOCOL_CUSTOM,
+          variant: 'info',
+          glyph: '·',
+        }).el,
+      ),
+      el('dl', { class: 'model-row__details' },
+        el('div', { class: 'model-row__detail model-row__detail--endpoint' },
+          el('dt', {}, '接口形态'),
+          el('dd', {},
+            el('span', { class: 'model-row__mode' }, API_MODE_NAMES[mode] || API_MODE_NAMES.native),
+            el('code', { class: 'model-row__endpoint' }, endpoint),
+          ),
+        ),
+        el('div', { class: 'model-row__detail' },
+          el('dt', {}, 'API 根地址'),
+          el('dd', { class: 'model-row__value' }, m.base_url || '—'),
+        ),
+        m.key_masked ? el('div', { class: 'model-row__detail' },
+          el('dt', {}, S.MODELS_FIELD_KEY),
+          el('dd', { class: 'model-row__value' }, m.key_masked),
+        ) : null,
+        m.note ? el('div', { class: 'model-row__detail model-row__detail--note' },
+          el('dt', {}, S.MODELS_FIELD_NOTE),
+          el('dd', {}, m.note),
+        ) : null,
       ),
       el(
         'div',
@@ -355,7 +438,7 @@ export function createModels(props = {}) {
         createEmptyState({
           title: S.MODELS_EMPTY,
           desc: S.MODELS_EMPTY_DESC,
-          actions: [createButton({ label: S.MODELS_FORM_NEW, variant: 'primary', onClick: () => startCreate() }).el],
+          actions: [createButton({ label: S.MODELS_FORM_NEW, variant: 'primary', onClick: () => startCreate({ show: true }) }).el],
         }).el,
       );
       return;

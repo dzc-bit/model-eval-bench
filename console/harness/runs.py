@@ -19,6 +19,7 @@ import math
 import os
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 from . import config, errors, grade, packs, report as report_mod, sandbox, util
@@ -656,6 +657,75 @@ def scoreboard_csv(board: dict) -> str:
             if cell.get("revealed"):
                 out.append("%s,%s,%d" % (row["task"], model, cell["revealed"]))
     return "\n".join(out) + "\n"
+
+
+def _timestamp_seconds(value: object) -> Optional[float]:
+    """把运行记录时间转为可比较的秒数；兼容带 Z 和无时区的旧记录。"""
+    if not value:
+        return None
+    try:
+        stamp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        return stamp.timestamp()
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def task_leaderboard(cfg: dict, task_id: str) -> dict:
+    """返回该题未揭晓、未作废且通过的记录，按轮数和用时升序。"""
+    meta = packs.load_meta(cfg, task_id)
+    entries = []
+    for run in list_runs(cfg):
+        if run.get("task") != meta["id"] or run.get("revealed"):
+            continue
+        passed_rounds = []
+        for result in run.get("rounds") or []:
+            if not isinstance(result, dict) or result.get("passed") is not True or result.get("invalidated"):
+                continue
+            try:
+                attempt = int(result.get("attempt") or 0)
+            except (TypeError, ValueError):
+                continue
+            if attempt > 0:
+                passed_rounds.append((attempt, result))
+        if not passed_rounds:
+            continue
+
+        attempt, result = min(passed_rounds, key=lambda pair: pair[0])
+        created_at = run.get("created_at")
+        completed_at = result.get("graded_at")
+        start_s = _timestamp_seconds(created_at)
+        finish_s = _timestamp_seconds(completed_at)
+        duration_s = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
+        try:
+            score = float(result.get("score") or 0)
+        except (TypeError, ValueError):
+            score = 0.0
+        entries.append({
+            "run_id": run.get("run_id", ""),
+            "model": str(run.get("model") or ""),
+            "rounds": attempt,
+            "duration_s": round(duration_s, 3) if duration_s is not None else None,
+            "completed_at": completed_at,
+            "score": score,
+        })
+
+    def sort_key(entry: dict) -> tuple:
+        completed_s = _timestamp_seconds(entry.get("completed_at"))
+        duration = entry.get("duration_s")
+        return (
+            entry["rounds"],
+            duration if duration is not None else float("inf"),
+            completed_s if completed_s is not None else float("inf"),
+            entry["model"].casefold(),
+            entry["run_id"],
+        )
+
+    entries.sort(key=sort_key)
+    for index, entry in enumerate(entries, start=1):
+        entry["rank"] = index
+    return {"task": meta["id"], "title": meta["title"], "entries": entries}
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,33 @@
+- generic [active] [ref=f2e1]:
+  - link "跳到主内容" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f2e3]:
+    - note [ref=f2e5]:
+      - generic [ref=f2e6]: 当前是模拟数据模式（?mock=1），页面上的任务、报告与分数都是样例，不反映真实评测结果。
+    - banner [ref=f2e7]:
+      - generic [ref=f2e8]:
+        - link "模型评测台" [ref=f2e9] [cursor=pointer]:
+          - /url: "#/tasks"
+          - generic [aria-hidden] [ref=f2e10]: 评
+        - navigation "主导航" [ref=f2e12]:
+          - link "任务库" [ref=f2e13] [cursor=pointer]:
+            - /url: "#/tasks"
+          - link "工作台" [disabled] [ref=f2e14]:
+            - /url: "#/tasks"
+          - link "批量跑批" [ref=f2e15] [cursor=pointer]:
+            - /url: "#/batch"
+          - link "记分板" [ref=f2e16] [cursor=pointer]:
+            - /url: "#/scoreboard"
+          - link "模型档案" [ref=f2e17] [cursor=pointer]:
+            - /url: "#/models"
+          - link "设置" [ref=f2e18] [cursor=pointer]:
+            - /url: "#/settings"
+          - link "帮助" [ref=f2e19] [cursor=pointer]:
+            - /url: "#/help"
+    - main [ref=f2e20]:
+      - generic [ref=f2e22]:
+        - heading "模型评测台" [level=1] [ref=f2e23]
+        - paragraph [ref=f2e24]: 正在载入界面…（如果长时间停在这里，说明前端脚本没有加载成功，请检查 console\static\js 目录是否完整，然后刷新页面。）
+    - contentinfo [ref=f2e25]:
+      - paragraph [ref=f2e26]: 模型评测台 · 全部数据留在本机 · 不联网
+  - status

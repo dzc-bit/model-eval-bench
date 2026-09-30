@@ -156,6 +156,35 @@ def test_scoreboard_matrix_rows_and_columns(cfg):
     assert board["totals"]["pass1"] == 1
 
 
+def test_task_leaderboard_prioritizes_rounds_then_elapsed_time(cfg):
+    """题目排行榜只列有效未揭晓的成功记录，先比通过轮次，再比总耗时。"""
+    slower = store_run(cfg, "TEST-01__慢模型__20260101-000001", BACKEND_TASK, "慢模型", True, 100.0)
+    slower["rounds"][0]["graded_at"] = "2026-01-01T00:00:20"
+    runs.save_run(cfg, slower)
+
+    faster = store_run(cfg, "TEST-01__快模型__20260101-000001", BACKEND_TASK, "快模型", True, 100.0)
+    faster["rounds"][0]["graded_at"] = "2026-01-01T00:00:05"
+    runs.save_run(cfg, faster)
+
+    later_round = store_run(cfg, "TEST-01__两轮模型__20260101-000001", BACKEND_TASK, "两轮模型", True, 100.0, attempts=2)
+    later_round["rounds"][0]["passed"] = False
+    later_round["rounds"][0]["score"] = 50.0
+    later_round["rounds"][1]["passed"] = True
+    later_round["rounds"][1]["graded_at"] = "2026-01-01T00:00:01"
+    runs.save_run(cfg, later_round)
+
+    invalidated = store_run(cfg, "TEST-01__作废模型__20260101-000001", BACKEND_TASK, "作废模型", True, 100.0)
+    invalidated["rounds"][0]["invalidated"] = True
+    runs.save_run(cfg, invalidated)
+    store_run(cfg, "TEST-01__揭晓模型__20260101-000001", BACKEND_TASK, "揭晓模型", True, 100.0, revealed=True)
+
+    result = runs.task_leaderboard(cfg, BACKEND_TASK)
+    assert [entry["model"] for entry in result["entries"]] == ["快模型", "慢模型", "两轮模型"]
+    assert [entry["rank"] for entry in result["entries"]] == [1, 2, 3]
+    assert [entry["rounds"] for entry in result["entries"]] == [1, 1, 2]
+    assert result["entries"][0]["duration_s"] == 5.0
+
+
 def test_revealed_rounds_are_excluded_from_main_stats(cfg):
     """揭晓过的轮次不进通过率，但要单独计数并出现在 CSV 的已揭晓块。"""
     store_run(cfg, "TEST-01__A__20260101-000001", BACKEND_TASK, "A", True, 100.0)
