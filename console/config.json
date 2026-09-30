@@ -19,6 +19,12 @@
     "similarity_threshold": 0.6,
     "log_tail_lines": 400
   },
+  "chat": {
+    "max_history": 100,
+    "max_context_chars": 160000,
+    "tool_summary_chars": 800,
+    "keep_first_prompt": true
+  },
   "snapshot": {
     "include": [
       "backend",

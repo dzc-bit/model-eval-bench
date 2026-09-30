@@ -127,3 +127,180 @@ def test_run_cmd_terminates_process_when_output_limit_is_reached(tmp_path):
     assert result.returncode != 0
     assert result.ok is False
     assert result.duration_s < 10
+
+
+# ---------------------------------------------------------------------------
+# 上下文窗口与压缩（NOTES.md 第五节的落地）
+# ---------------------------------------------------------------------------
+
+def _chat_run(cfg, tmp_path, rows):
+    """把一批记录写进运行目录，返回 run（只造数据，不碰真实题包与运行历史）。"""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    run = make_run(cfg, run_dir=str(run_dir), run_id="TEST-01__chat__20260101-000000")
+    for row in rows:
+        chat._append_message(run, row)
+    return run
+
+
+def _tool_round(prompt, call_id, name, arguments, payload, conclusion):
+    return [
+        {"role": "user", "content": prompt},
+        {"role": "assistant", "content": None, "tool_calls": [
+            {"id": call_id, "type": "function",
+             "function": {"name": name, "arguments": json.dumps(arguments, ensure_ascii=False)}}]},
+        {"role": "tool", "tool_call_id": call_id, "name": name,
+         "content": json.dumps(payload, ensure_ascii=False)},
+        {"role": "assistant", "content": conclusion},
+    ]
+
+
+def _assert_openai_sequence(items):
+    """压缩后的序列必须满足服务商校验：tool 紧跟带对应 tool_calls 的 assistant。"""
+    pending = set()
+    for item in items:
+        if item.get("role") == "tool":
+            assert item["tool_call_id"] in pending, "tool 消息必须紧跟带对应 tool_calls 的 assistant"
+            pending.discard(item["tool_call_id"])
+            continue
+        assert not pending, "assistant 的 tool_calls 必须全部等到响应"
+        calls = item.get("tool_calls") or []
+        pending = {call["id"] for call in calls if call.get("id")}
+    assert not pending
+
+
+def test_model_history_summarises_old_tools_but_keeps_write_targets(cfg, tmp_path):
+    body = "同一份事实只算一次。" * 3000
+    rows = _tool_round("第一轮：统一派生口径", "c1", "write_file",
+                       {"path": "backend/pricing.py", "content": body},
+                       {"path": "backend/pricing.py", "bytes": 12345},
+                       "第一轮结论：已改写 pricing.py")
+    rows[1]["reasoning_content"] = "先定位口径出处。"
+    rows.append({"role": "user", "content": "第二轮：继续修 adapters"})
+    run = _chat_run(cfg, tmp_path, rows)
+
+    history, dropped = chat._model_history(cfg, chat._read_records(run))
+
+    assert dropped == 0
+    tool_texts = [str(item.get("content")) for item in history if item["role"] == "tool"]
+    assert tool_texts and "write_file" in tool_texts[0]
+    assert "backend/pricing.py" in tool_texts[0] and "12345" in tool_texts[0]
+    assert body not in json.dumps(history, ensure_ascii=False), "历史轮的工具原文不该重发"
+    # 思维链按服务商要求原样回传（带 tools 的请求必须回传，见 NOTES.md 第五节第 3 条）
+    assert history[1]["reasoning_content"] == "先定位口径出处。"
+    # 前端展示与落盘仍是全量：正文留在 assistant 的调用参数里
+    persisted = chat.messages(run)
+    assert body in persisted[1]["tool_calls"][0]["function"]["arguments"]
+    assert "backend/pricing.py" in persisted[2]["content"]
+    _assert_openai_sequence(chat._history_for_api(history))
+
+
+def test_oversized_single_round_is_not_dropped_whole(cfg, tmp_path):
+    """受测模型一轮并行几十个工具调用时，续轮不能整轮忘记上一轮。"""
+    rows = [{"role": "user", "content": "题目提示词：修三个端口"},
+            {"role": "assistant", "content": None, "tool_calls": []}]
+    rows.pop(1)
+    for index in range(150):
+        rows.append({"role": "assistant", "content": None, "tool_calls": [
+            {"id": "c%d" % index, "type": "function",
+             "function": {"name": "read_file", "arguments": json.dumps({"path": "a%d.py" % index})}}]})
+        rows.append({"role": "tool", "tool_call_id": "c%d" % index, "name": "read_file",
+                     "content": json.dumps({"path": "a%d.py" % index, "content": "x" * 2000})})
+    rows.append({"role": "assistant", "content": "第一轮结论：已改 backend/service.py"})
+    rows.append({"role": "user", "content": "第二轮：继续"})
+    run = _chat_run(cfg, tmp_path, rows)
+
+    history, dropped = chat._model_history(cfg, chat._read_records(run))
+    count, _chars = chat._context_size(chat._group_rounds(history))
+
+    assert dropped == 0, "只剩一轮时不该整轮丢弃"
+    assert count <= chat._chat_option(cfg, "max_history"), "窗口必须有上界"
+    assert history[0]["content"] == "题目提示词：修三个端口"
+    assert "第一轮结论：已改 backend/service.py" in json.dumps(history, ensure_ascii=False)
+    assert history[-1]["content"] == "第二轮：继续"
+    assert any("已省略" in str(item.get("content")) for item in history)
+    _assert_openai_sequence(chat._history_for_api(history))
+
+
+def test_model_history_honours_configured_window(cfg, tmp_path):
+    small = dict(cfg)
+    small["chat"] = {"max_context_chars": 1200, "max_history": 12}
+    rows = _tool_round("第一轮题目", "c1", "run_command", {"command": ["pytest", "-q"]},
+                       {"exit_code": 0, "stdout": "ok " * 4000, "stderr": "", "output_limited": True},
+                       "第一轮结论：p2p 全绿")
+    rows += _tool_round("第二轮题目", "c2", "read_file", {"path": "a.py"},
+                        {"path": "a.py", "content": "y" * 8000}, "第二轮结论：读到内容")
+    rows.append({"role": "user", "content": "第三轮：收尾"})
+    run = _chat_run(cfg, tmp_path, rows)
+
+    wide, _ = chat._model_history(cfg, chat._read_records(run))
+    narrow, dropped = chat._model_history(small, chat._read_records(run))
+
+    assert len(narrow) < len(wide), "配置收紧窗口要真的生效"
+    assert narrow[0]["content"] == "第一轮题目", "第一条题目提示词必须钉住"
+    assert narrow[-1]["content"] == "第三轮：收尾"
+    assert dropped >= 0
+    _assert_openai_sequence(chat._history_for_api(narrow))
+
+
+def test_model_history_bad_window_values_fall_back(cfg, tmp_path):
+    broken = dict(cfg)
+    broken["chat"] = {"max_history": "很多", "max_context_chars": 0}
+
+    rows = _tool_round("题目", "c1", "list_files", {"path": "."}, {"path": ".", "entries": ["a"], "truncated": False}, "结论")
+    rows.append({"role": "user", "content": "继续"})
+    run = _chat_run(cfg, tmp_path, rows)
+
+    history, dropped = chat._model_history(broken, chat._read_records(run))
+    assert history and dropped == 0, "窗口数字写错不该让对话拿不到上下文"
+
+
+def test_history_for_api_drops_orphans_and_unanswered_calls():
+    rows = [
+        {"role": "tool", "tool_call_id": "ghost", "content": "{}"},
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "x1", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}]},
+        {"role": "user", "content": "接着说"},
+    ]
+
+    api = chat._history_for_api(rows)
+
+    assert [item["role"] for item in api] == ["assistant", "user"]
+    assert "tool_calls" not in api[0], "没等到响应的 tool_calls 必须摘掉，否则服务商 400"
+    assert api[0]["content"] == "（工具调用及其结果已省略）"
+
+
+def test_repeated_reads_elide_the_older_copy_within_one_round(cfg, tmp_path, monkeypatch):
+    run, sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    util.write_text_atomic(os.path.join(sandbox_root, "a.py"), "第一版内容")
+    calls = []
+    first = {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+        {"id": "r1", "type": "function", "function": {"name": "read_file", "arguments": '{"path":"a.py"}'}}]}}]}
+    second = {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+        {"id": "r2", "type": "function", "function": {"name": "read_file", "arguments": '{"path":"a.py"}'}}]}}]}
+    third = {"choices": [{"message": {"role": "assistant", "content": "读完了"}}]}
+
+    responses = [first, second, third]
+
+    def fake_post(url, payload, key, timeout):
+        calls.append(json.loads(json.dumps(payload)))
+        return responses.pop(0)
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    chat.send(cfg, run, "读两次同一个文件")
+
+    tool_contents = [m["content"] for m in calls[-1]["messages"] if m["role"] == "tool"]
+    assert "已省略" in tool_contents[0], "同一路径只保留最后一次原文"
+    assert "第一版内容" in tool_contents[-1]
+    persisted = chat.messages(run)
+    assert all("第一版内容" in str(item.get("content")) for item in persisted if item["role"] == "tool"), \
+        "落盘记录仍是全量原文"
+
+
+def test_run_command_blocks_git_network_operations(cfg, tmp_path):
+    _run, sandbox_root = _ready_run(cfg, tmp_path)
+
+    for command in (["git", "push", "origin"], ["git", "fetch", "origin"], ["git", "pull"]):
+        with pytest.raises(ValueError, match="网络"):
+            chat._tool_run_command(sandbox_root, {"command": command})

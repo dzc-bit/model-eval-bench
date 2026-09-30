@@ -26,6 +26,15 @@ OPENAI_API_MODES = ("responses", "chat_completions", "completions")
 MODEL_API_MODES = OPENAI_API_MODES + ("native",)
 DEFAULT_OPENAI_API_MODE = "chat_completions"
 
+#: 内置对话送给模型的上下文窗口默认值（config.json 的 chat 节可按字段覆盖）。
+#: 单位与取舍见 _defaults() 里的注释；前端展示与 chat.jsonl 落盘不受这些值约束。
+DEFAULT_CHAT = {
+    "max_history": 100,
+    "max_context_chars": 160_000,
+    "tool_summary_chars": 800,
+    "keep_first_prompt": True,
+}
+
 _WRITE_LOCK = threading.RLock()
 
 
@@ -53,6 +62,9 @@ def _defaults(overrides: dict) -> dict:
             "similarity_threshold": 0.6,
             "log_tail_lines": 400,
         },
+        # 内置对话送给模型的上下文窗口与压缩参数，逐项含义见 DEFAULT_CHAT 上方说明。
+        # 只影响发给模型的上下文；前端展示与 chat.jsonl 落盘都是完整记录。
+        "chat": dict(DEFAULT_CHAT),
         "snapshot": {
             "include": ["backend", "frontend", "tests", "scripts",
                         "pyproject.toml", "package.json", ".gitignore"],
@@ -74,6 +86,10 @@ def _defaults(overrides: dict) -> dict:
         "models": [],
     }
     base.update(overrides)
+    # chat 节按字段合并：config.json 里只写一项窗口参数时，其余仍取默认值。
+    chat = dict(DEFAULT_CHAT)
+    chat.update(overrides.get("chat") or {})
+    base["chat"] = chat
     return base
 
 
@@ -123,6 +139,9 @@ def load() -> dict:
             except (KeyError, TypeError, ValueError):
                 raise errors.HarnessError(
                     errors.E_CONFIG_INVALID, "配置项 %s.%s 必须是数字。" % (section, key))
+
+    if not isinstance(cfg.get("chat"), dict):
+        raise errors.HarnessError(errors.E_CONFIG_INVALID, "配置节 chat 必须是对象。")
 
     if not isinstance(cfg.get("models"), list):
         raise errors.HarnessError(errors.E_CONFIG_INVALID, "models 必须是数组。")
