@@ -303,6 +303,7 @@ def api_chat_history(cfg: dict, run_id: str) -> dict:
     return {
         "run_id": run_id,
         "messages": chat_mod.messages(run),
+        "chat_busy": chat_mod.send_active(run_id),
         "model": {"id": model.get("id"), "model": model.get("model"),
                    "protocol": model.get("protocol"), "api_mode": model.get("api_mode")},
         "tools": chat_mod.TOOLS,

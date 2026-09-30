@@ -565,19 +565,22 @@ export function createGradePanel(handlers) {
     }
     body.appendChild(actionRow);
 
-    // 运行校验的可用性：必须沙箱就绪
+    // 运行校验的可用性：必须沙箱就绪，且服务端没有还在跑的对话线程
+    const chatBusy = Boolean(run && run.chat_busy);
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
       loading: running,
       busyLabel: S.GRADE_RUNNING,
-      disabled: !sandboxOk || running || Boolean(busy),
+      disabled: !sandboxOk || running || Boolean(busy) || chatBusy,
       reason: !hasRun
         ? S.ERR_NO_SANDBOX
         : running
           ? S.GRADE_RUNNING
-          : !sandboxOk
-            ? S.SANDBOX_PREPARING
-            : '',
+          : chatBusy
+            ? (S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…')
+            : !sandboxOk
+              ? S.SANDBOX_PREPARING
+              : '',
     });
     revealBtn.update({ disabled: running || Boolean(busy) });
     promoteBtn.update({ disabled: running || Boolean(busy) });

@@ -625,6 +625,64 @@
   font-size: var(--font-size-xs);
 }
 
+/* 工具轮：默认折叠成一行摘要，展开后看每次调用的参数与返回原文 */
+.chat__toolround {
+  align-self: stretch;
+  max-width: none;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.chat__toolround-summary {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+
+.chat__toolcall {
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.chat__toolcall-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.chat__toolcall-args {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.chat__toolout {
+  max-height: 18rem;
+  overflow: auto;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat__toolout--pending {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .chat__composer {
   display: flex;
   flex-direction: column;

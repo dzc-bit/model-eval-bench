@@ -542,11 +542,21 @@ def load_report(cfg: dict, run: dict) -> Optional[dict]:
 
 
 def load_diff(cfg: dict, run: dict) -> str:
+    """改动正文：优先评分产物 diff.patch；还没跑过校验时回退到沙箱实时改动。
+
+    实时回退用与评分同一套全树比对语义（collect_changes + build_diff_text），
+    所以模型 write_file 之后、评分之前，工作台也能看到真实改动。
+    """
     run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run["run_id"])
     try:
         with open(os.path.join(run_dir_path, "diff.patch"), "rb") as fh:
             return util.decode_output(fh.read())
     except OSError:
+        pass
+    try:
+        changes = grade.collect_changes(cfg, run)
+        return grade.build_diff_text(cfg, run, changes, limit=50)["text"]
+    except (errors.HarnessError, OSError, ValueError, KeyError):
         return ""
 
 
@@ -570,6 +580,7 @@ def run_view(cfg: dict, run: dict, log_tail: int = 200) -> dict:
         "note": run.get("note", ""),
         "rounds": run.get("rounds") or [],
         "grading": is_grading(run["run_id"]),
+        "chat_busy": chat.send_active(run["run_id"]),
         "last_error": run.get("last_error"),
         "report": doc,
         "log": [],

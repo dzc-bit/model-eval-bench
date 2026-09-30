@@ -22,12 +22,14 @@ from urllib import request as url_request
 from . import config, errors, keyring, util
 
 MAX_HISTORY = 100
-MAX_TOOL_ROUNDS = 8
 MAX_FILE_CHARS = 200_000
 MAX_COMMAND_OUTPUT = 24_000
 MAX_COMMAND_SECONDS = 120
 _CHAT_LOCKS: Dict[str, threading.RLock] = {}
 _CHAT_LOCKS_GUARD = threading.Lock()
+#: 正在执行 send 的运行（浏览器关掉/刷新后服务端线程还在跑，前端靠这个感知）
+_ACTIVE_SENDS: set = set()
+_ACTIVE_SENDS_GUARD = threading.Lock()
 _CHAT_ENV_KEYS = {
     "COMSPEC", "PATH", "PATHEXT", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "TMP", "WINDIR",
 }
@@ -425,12 +427,33 @@ def _history_for_api(history: List[dict]) -> List[dict]:
     return out
 
 
-def send(cfg: dict, run: dict, text: str, *, max_tool_rounds: int = MAX_TOOL_ROUNDS) -> dict:
-    """发送一条用户消息并返回最终 assistant 消息及最新历史。"""
+def send_active(run_id: str) -> bool:
+    """该运行的模型发送线程是否仍在服务端执行；run_view / 对话记录用它告知前端。"""
+    return str(run_id or "") in _ACTIVE_SENDS
+
+
+def send(cfg: dict, run: dict, text: str) -> dict:
+    """发送一条用户消息并返回最终 assistant 消息及最新历史。
+
+    不限制工具轮数：模型自己停止调用工具才算本轮结束。每轮模型请求
+    仍受 ``timeouts.chat_s`` 网络超时约束，工具执行受沙箱各项上限约束。
+    发送期间即使浏览器断开，服务端线程也会继续跑完；期间
+    ``send_active()`` 为真，前端据此显示「模型仍在处理」并阻止并发校验。
+    """
     text = str(text or "").strip()
     if not text:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
     run_id = str(run.get("run_id") or "")
+    with _ACTIVE_SENDS_GUARD:
+        _ACTIVE_SENDS.add(run_id)
+    try:
+        return _send_locked(cfg, run, text, run_id)
+    finally:
+        with _ACTIVE_SENDS_GUARD:
+            _ACTIVE_SENDS.discard(run_id)
+
+
+def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
     with lock_for(run_id):
         run = _refresh_run(run)
         if run.get("status") != "ready":
@@ -452,7 +475,8 @@ def send(cfg: dict, run: dict, text: str, *, max_tool_rounds: int = MAX_TOOL_ROU
         try:
             if mode == "chat_completions":
                 api_messages = [{"role": "system", "content": _system_prompt(run, True)}] + _history_for_api(history)
-                for _round in range(max(1, min(MAX_TOOL_ROUNDS, int(max_tool_rounds or MAX_TOOL_ROUNDS)) + 1)):
+                # 不限工具轮数：模型不再发起工具调用时自然收束；单轮请求有超时兜底
+                while True:
                     response = _post_json(url, {"model": model.get("model") or model.get("id"), "messages": api_messages,
                                                 "tools": TOOLS, "tool_choice": "auto"}, key, timeout)
                     assistant = _extract_chat_message(response)
@@ -493,7 +517,6 @@ def send(cfg: dict, run: dict, text: str, *, max_tool_rounds: int = MAX_TOOL_ROU
                         serialized = json.dumps(result, ensure_ascii=False)
                         api_messages.append({"role": "tool", "tool_call_id": tool_id, "content": serialized})
                         _append_message(run, {"role": "tool", "tool_call_id": tool_id, "name": name, "content": serialized})
-                raise errors.HarnessError(errors.E_CHAT_FAILED, "模型连续调用工具超过上限，已停止本轮请求。")
 
             if mode == "responses":
                 response = _post_json(url, {"model": model.get("model") or model.get("id"),

@@ -597,6 +597,11 @@ export function createWorkspace(props = {}) {
       return;
     }
     if (s.busy) return;
+    if (s.run.chat_busy) {
+      showToast({ message: S.CHAT_REMOTE_BUSY, detail: S.CHAT_REMOTE_BUSY_DETAIL, kind: 'warn', duration: 8000 });
+      focusRegion('chat');
+      return;
+    }
     patch({ busy: 'grade', newResult: false, elapsed: 0, run: { ...s.run, status: 'grading' } });
     announce(S.ANNOUNCE_GRADE_STARTED);
     try {
@@ -605,6 +610,11 @@ export function createWorkspace(props = {}) {
       ensureTicker();
     } catch (err) {
       reportError(err, '运行校验');
+      // 失败必须把本地乐观状态打回服务端真相，否则计时器和日志区会永远停在「正在校验」
+      patch({ busy: '', elapsed: 0 });
+      try {
+        await loadRun(s.run.run_id);
+      } catch { /* 保留本地状态即可 */ }
     }
   }
 
