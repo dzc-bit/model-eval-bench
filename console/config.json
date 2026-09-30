@@ -89,7 +89,7 @@
       "api_mode": "chat_completions",
       "base_url": "http://127.0.0.1:20128/v1",
       "model": "cbcn/hy4-preview",
-      "key_masked": "",
+      "key_masked": "sk-1****8551",
       "key_env": "",
       "note": ""
     }
