@@ -1,6 +1,6 @@
 # NOTES.md — 前端实现备忘（§11.2 / §12 / §15 契约缺口）
 
-> 本文件只记录前端侧的实现决策与契约缺口。**共享文件（`console/server.py`、`console/harness/*`、`packs/*`）一律未改动。**
+> 本文件保留前端实现与历史验收记录；当前重构同时修改了后端和前端，最新验证见 `../harness/VALIDATION.md`。
 > 所有请求只打本机 `/api/*`，无第三方库、字体、CDN，无构建产物。
 
 ---
@@ -92,7 +92,7 @@
 
 - **`components/field.js` 是第 15 个组件**（§11.1 列了 14 个）：所有输入控件（含 select / textarea）的 label、hint、error、`aria-*` 关联都收敛在这一个组件里，否则 §12.12 会在每个视图重复一遍。
 - **`components/result-mark.js` 是第 16 个组件**（2026-09-30 新增）：校验结束/跑批逐条的成败标记，内联 SVG + `stroke-dashoffset` 描边动画。**不依赖任何第三方库**，颜色全部走 CSS 变量（`prefers-reduced-motion` 由 CSS 收敛为静态）。`core/dom.js` 的 `el()` 用 `createElement`，对 `<svg>` 子元素无效，所以这个组件内部用 `createElementNS` 自建节点。语义纪律：形状本身区分（对勾 / 叉 / 半环 / 转圈），另有文字标签；`svg` 在无标签时 `aria-hidden="true"`，有标签时挂 `aria-label`。
-- **`views/batch.js` 是第 7 个视图**（2026-09-30 新增，「批量跑批」）：`#/batch` 路由，把「多题 × 多模型」排进后端并发跑批，逐条轮询进度。并发数上限 = 盘符池大小（后端 `batch.max_concurrency` 会夹住）。
+- **`views/batch.js`**：「多题 × 多模型」并发准备，逐条进入工作台对话并提交评分。并发上限由 `max_concurrency` 控制。新增 `views/leaderboard.js` 为同级主导航，记分板按模型分区。
 - **两个 live region 分开**：polite（阶段推进播报）与 assertive（错误）分开，避免一条慢播报顶掉一条错误播报；toast 又是独立宿主（`components/toast.js`），因为 toast 会被自动移除，而 live region 的文本要留给读屏。
 - **innerHTML 纪律**：`grep -n "innerHTML\|insertAdjacentHTML\|outerHTML\|document.write" js/**/*.js` 命中 7 处，全部是注释或字符串常量，无一处真实调用。设计文档允许的「纯静态模板例外」本项目实测不需要，未使用。
 - **mock（`core/mock.js`）**：URL 带 `?mock=1` 时 `core/api.js` 用 `await import('./mock.js')` 顶替传输层，**真实 fetch 代码路径一行不改**。mock 的运行记录存 `sessionStorage`（键 `evalconsole:mock:runs`），仅为让「刷新回到同一轮」这条验收在 mock 下也能演出来；真实后端本来就落盘。
@@ -101,7 +101,7 @@
 - **`t()` 两种写法都支持**：`t('KEY', vars)` 与 `t(S.KEY, vars)` 等价（键名是 ASCII 大写下划线、文案是中文，不会撞车）。全站 80 处调用用的是 `t(S.KEY, vars)` 风格。
 - **工作台四区域的排版（2026-09-30 调整）**：提示词 / 沙箱并排，校验区与**运行区**各占整行。运行区原先挤在半栏里，右侧留出 **668px 的空半行**（实测 1440 视口下 1320 网格只用了 652），而且它内部是横向条状信息（模型下拉 + 备注 + diff 统计），改成整行后内部走 `repeat(auto-fit, minmax(260px,1fr))` 多列，页面总高从 1782 → 1482，空半行归零。`.ws-region--run` 这个类名由 `run-bar.js` 挂在根节点上。
 
-## 5. 验收记录（?mock=1）
+## 5. 历史验收记录（盘符版 ?mock=1，非当前版本）
 
 | 步骤 | 结果 |
 |---|---|

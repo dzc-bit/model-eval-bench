@@ -150,7 +150,7 @@ def notes_markdown(run: dict, meta: dict, report: dict) -> str:
         "",
         "- 时间：%s" % report.get("graded_at", ""),
         "- 得分：**%s / 100**" % report.get("score", 0),
-        "- 盘符：%s" % (run.get("drive") or "（已释放）"),
+        "- 沙箱目录：%s" % (run.get("sandbox") or "（已回收）"),
         "- 基线指纹：%s" % str(report.get("baseline_digest") or "")[:12],
         "",
         "## 分组",

@@ -2,7 +2,7 @@
 
 评分树（模型不可改，来自原始快照骨架）：
     pyproject.toml  backend/  tests/  scripts/  .gitignore  package.json  frontend/
-    node_modules -> 受测仓库实物（联接，仅前端题）
+    node_modules/（从受测仓库复制到评分树的实体目录，仅前端题）
   + 沙箱 overlay（仅 allowed_paths 内的文件，含模型删掉的文件）
   + hidden/ 隐藏测试（此刻才出现）
 
@@ -311,16 +311,13 @@ def build_grade_tree(cfg: dict, run: dict, meta: dict, changes: dict,
     _copy_skeleton(cfg, grade_dir, meta, log)
 
     if sandbox.needs_frontend(meta):
-        target = sandbox.repo_node_modules(cfg)
-        link = os.path.join(grade_dir, "node_modules")
-        result = util.run_cmd(["cmd", "/c", "mklink", "/J", link, target], timeout=60)
-        if not result.ok or not util.is_junction(link):
+        dependency_baseline = sandbox.node_modules_baseline(run)
+        if not dependency_baseline:
             raise errors.HarnessError(
                 errors.E_SANDBOX_BROKEN,
-                "评分树里没能接上 node_modules，前端题无法评分。请重建沙箱后重试。",
-                result.tail(6),
+                "评分树缺少 node_modules 本地基线，无法运行前端校验。",
             )
-        log("评分树已联接 node_modules（只读复用，不复制内容）")
+        sandbox.copy_node_modules(dependency_baseline, grade_dir, log)
 
     _apply_overlay(grade_dir, run["sandbox"], meta["allowed_paths"], changes, log)
     overlaid_layers = set()

@@ -366,7 +366,7 @@ const HEALTH = {
     { id: 'pytest', label: 'pytest', ok: true, value: '9.0.3' },
     { id: 'node', label: 'Node', ok: true, value: 'v24.19.0' },
     { id: 'repo', label: '仓库可读', ok: true, value: 'D:\\new model test' },
-    { id: 'drives', label: '盘符池', ok: true, value: 'Q 已占用 / R 空闲 / S 空闲' },
+    { id: 'sandbox_root', label: '沙箱目录', ok: true, value: 'sandboxes（文件夹工作区）' },
     { id: 'packs', label: '任务包', ok: true, value: '7 个任务' },
   ],
   warnings: [],
@@ -666,7 +666,7 @@ function createRun(taskId, modelId, attempt) {
  * @returns {object}
  */
 function runView(run) {
-  const { _preparing, _grading, ...rest } = run;
+  const { _preparing, _grading, chat_messages, ...rest } = run;
   const view = { ...rest };
   view.log = [];
   if (run.status === 'ready' || run.status === 'graded' || run.status === 'error') {
@@ -674,6 +674,118 @@ function runView(run) {
     if (run.status === 'graded' && run.log.length) view.log = run.log;
   }
   return view;
+}
+
+const MOCK_CHAT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_files', description: '列出沙箱内文件。',
+      parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' } } },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_file', description: '读取沙箱内文本文件。',
+      parameters: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, max_chars: { type: 'integer' } } },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'write_file', description: '写入沙箱内文件。',
+      parameters: { type: 'object', required: ['path', 'content'], properties: { path: { type: 'string' }, content: { type: 'string' } } },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_command', description: '在沙箱根目录运行一个受限命令。',
+      parameters: {
+        type: 'object', required: ['command'],
+        properties: {
+          command: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
+          timeout_s: { type: 'integer' },
+        },
+      },
+    },
+  },
+];
+
+function chatMessages(run) {
+  if (!Array.isArray(run.chat_messages)) run.chat_messages = [];
+  return run.chat_messages;
+}
+
+function appendChatMessage(run, message) {
+  const item = {
+    id: message.id || `mock-msg-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    created_at: message.created_at || isoNow(),
+    ...message,
+  };
+  chatMessages(run).push(item);
+  return item;
+}
+
+function chatModel(run) {
+  const model = models.find((item) => item.id === run.model) || {};
+  return {
+    id: model.id || run.model,
+    model: model.model || run.model,
+    protocol: model.protocol || 'openai',
+    api_mode: model.api_mode || 'chat_completions',
+  };
+}
+
+function chatHistoryResponse(run) {
+  return {
+    run_id: run.run_id,
+    messages: chatMessages(run),
+    model: chatModel(run),
+    tools: MOCK_CHAT_TOOLS,
+  };
+}
+
+function handleChatSend(run, body) {
+  const text = String(body.message || '').trim();
+  if (!text) return fail(400, 'E_BAD_REQUEST', '消息不能为空。');
+  if (run.status !== 'ready') {
+    return fail(409, 'E_RUN_BUSY', '只有沙箱就绪时才能对话；请等待当前操作结束后再试。');
+  }
+  const model = models.find((item) => item.id === run.model) || {};
+  if (model.protocol !== 'openai' || model.api_mode !== 'chat_completions') {
+    return fail(
+      400,
+      'E_CHAT_UNSUPPORTED',
+      '当前工作区对话需要 Chat Completions，以便让模型通过受限工具操作沙箱。',
+      { detail: `protocol=${model.protocol || 'unknown'}; api_mode=${model.api_mode || 'unknown'}` },
+    );
+  }
+  appendChatMessage(run, { role: 'user', content: text });
+  const toolId = `mock-tool-${Date.now()}`;
+  const toolCall = {
+    id: toolId,
+    type: 'function',
+    function: { name: 'list_files', arguments: JSON.stringify({ path: '', recursive: false }) },
+  };
+  appendChatMessage(run, {
+    role: 'assistant',
+    content: '',
+    tool_calls: [toolCall],
+    reasoning_content: '【模拟数据】先查看沙箱文件，再确定需要检查的模块。',
+  });
+  appendChatMessage(run, {
+    role: 'tool',
+    name: 'list_files',
+    tool_call_id: toolId,
+    content: JSON.stringify({ path: '.', entries: ['backend/', 'frontend/', 'tests/'], truncated: false }),
+  });
+  const final = appendChatMessage(run, {
+    role: 'assistant',
+    content: `已收到：${text}\n我先检查了当前沙箱的顶层目录，可以继续在这里修改文件。`,
+  });
+  return ok({ message: final, ...chatHistoryResponse(run) });
 }
 
 // ============================ 路由分发 ============================
@@ -821,6 +933,18 @@ async function dispatch(url, init = {}) {
     // 所以这里不模拟 preparing 推进，避免前端出现一段假进度。
     // （会异步推进的只有 /grade，那才是前端需要轮询的阶段。）
     return ok(runView(made));
+  }
+  if (route.indexOf('runs/') === 0 && route.endsWith('/chat') && method === 'GET') {
+    const id = runIdOf(route, '/chat');
+    const run = runs.get(id);
+    if (!run) return fail(404, 'E_RUN_NOT_FOUND', `没有这条运行记录：${id}`);
+    return ok(chatHistoryResponse(run));
+  }
+  if (route.indexOf('runs/') === 0 && route.endsWith('/chat') && method === 'POST') {
+    const id = runIdOf(route, '/chat');
+    const run = runs.get(id);
+    if (!run) return fail(404, 'E_RUN_NOT_FOUND', `没有这条运行记录：${id}`);
+    return handleChatSend(run, body);
   }
   if (route.indexOf('runs/') === 0 && method === 'GET') {
     const id = runIdOf(route, '');

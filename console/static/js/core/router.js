@@ -3,7 +3,7 @@
  *
  * 职责：
  *   1. 解析并监听 `location.hash`，支持七条路由：
- *      `#/tasks`、`#/workspace/<taskId>`、`#/batch`、`#/scoreboard`、`#/models`、`#/settings`、`#/help`。
+ *      `#/tasks`、`#/leaderboard/<taskId>?`、`#/workspace/<taskId>`、`#/batch`、`#/scoreboard/<modelId>?`、`#/models`、`#/settings`、`#/help`。
  *   2. 未知路由回退到任务库（并把地址改回 `#/tasks`，避免坏地址留在历史里）。
  *   3. 工作台支持可选的子区域段 `#/workspace/<taskId>/<region>`，刷新后回到同一区域（§13.5）。
  *   4. 切换后把焦点移到该视图 h1（由 onChange 回调里的 a11y.focusHeading 完成）。
@@ -20,9 +20,10 @@
 /** 路由表：name → 匹配函数。 */
 export const ROUTES = {
   tasks: { name: 'tasks', pattern: ['tasks'] },
+  leaderboard: { name: 'leaderboard', pattern: ['leaderboard', ':taskId?'] },
   workspace: { name: 'workspace', pattern: ['workspace', ':taskId', ':region?', ':runId?'] },
   batch: { name: 'batch', pattern: ['batch'] },
-  scoreboard: { name: 'scoreboard', pattern: ['scoreboard'] },
+  scoreboard: { name: 'scoreboard', pattern: ['scoreboard', ':modelId?'] },
   models: { name: 'models', pattern: ['models'] },
   settings: { name: 'settings', pattern: ['settings'] },
   help: { name: 'help', pattern: ['help'] },

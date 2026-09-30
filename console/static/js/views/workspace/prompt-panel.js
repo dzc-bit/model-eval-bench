@@ -269,6 +269,8 @@ export function createPromptPanel(handlers) {
     update,
     /** 供快捷键 C 触发复制全部。 */
     copyPrompt: () => copyAllBtn.copy(),
+    /** 把当前轮的完整提示词交给工作台内置对话输入框。 */
+    getPrompt: () => composeAll(),
     /** 解绑（§10.4）。 */
     destroy() {
       tabs.destroy();

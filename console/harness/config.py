@@ -19,9 +19,8 @@ EVAL_ROOT = os.path.dirname(CONSOLE_DIR)
 CONFIG_PATH = os.path.join(CONSOLE_DIR, "config.json")
 
 #: 配置里模型档案的字段（设计文档 §15）。
-#: ``api_mode`` 把 OpenAI 兼容协议下实际要接的 endpoint 记录清楚；
-#: 评测台目前不代发模型请求，但这个字段为后续直连模式保留了明确契约。
-MODEL_FIELDS = ("id", "protocol", "api_mode", "base_url", "model", "key_masked", "note")
+#: ``api_mode`` 把 OpenAI 兼容协议下实际要接的 endpoint 记录清楚。
+MODEL_FIELDS = ("id", "protocol", "api_mode", "base_url", "model", "key_masked", "key_env", "note")
 MODEL_PROTOCOLS = ("openai", "anthropic", "gemini", "custom")
 OPENAI_API_MODES = ("responses", "chat_completions", "completions")
 MODEL_API_MODES = OPENAI_API_MODES + ("native",)
@@ -41,7 +40,8 @@ def _defaults(overrides: dict) -> dict:
         "runs_root": "runs",
         "static_root": os.path.join("console", "static"),
         "snapshot_cache": os.path.join("sandboxes", ".snapshots"),
-        "drive_pool": ["Q:", "R:", "S:"],
+        # 批量并发只受进程内工作线程和配置限制，不创建任何盘符映射。
+        "max_concurrency": max(1, (os.cpu_count() or 2) // 2),
         "timeouts": {
             "prepare_s": 180,
             "grade_default_s": 240,
@@ -108,19 +108,10 @@ def load() -> dict:
                 errors.E_CONFIG_INVALID, "配置项 %s 必须是非空字符串。" % key)
         cfg[key] = _resolve(EVAL_ROOT, cfg[key])
 
-    pool = cfg.get("drive_pool")
-    if not isinstance(pool, list) or not pool:
-        raise errors.HarnessError(errors.E_CONFIG_INVALID, "drive_pool 至少要有一个盘符。")
-    normalized_pool = []
-    for item in pool:
-        text = str(item).strip().upper()
-        if len(text) != 2 or text[1] != ":" or not text[0].isalpha():
-            raise errors.HarnessError(
-                errors.E_CONFIG_INVALID, "drive_pool 里 %r 不是合法盘符（形如 Q:）。" % item)
-        if text in normalized_pool:
-            continue
-        normalized_pool.append(text)
-    cfg["drive_pool"] = normalized_pool
+    try:
+        cfg["max_concurrency"] = max(1, int(cfg.get("max_concurrency") or 1))
+    except (TypeError, ValueError):
+        raise errors.HarnessError(errors.E_CONFIG_INVALID, "配置项 max_concurrency 必须是正整数。")
 
     for section, keys in (("timeouts", ("prepare_s", "grade_default_s", "grade_max_s", "api_grade_s")),
                           ("grade", ("diff_line_cap", "similarity_threshold", "log_tail_lines"))):

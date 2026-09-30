@@ -304,7 +304,7 @@ export function createSandboxPanel(handlers) {
     }
 
     statusHost.appendChild(facts);
-    setText(driveValue, run.drive || S.WS_NO_DRIVE);
+    setText(driveValue, run.sandbox || S.WS_NO_DRIVE);
     setText(pathValue, run.sandbox || '—');
     setText(hashValue, run.baseline_digest || '—');
 

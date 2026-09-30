@@ -1,18 +1,9 @@
 /**
- * scoreboard.js — 记分板视图（重内容，动态 import 延迟加载）
+ * scoreboard.js — 按模型档案查看记分板
  *
- * 职责：
- *   1. 行=任务、列=模型的矩阵；单元格显示 pass@1 / 尝试数 / 得分 / Wilson 区间。
- *   2. 偏离目标带的行给「加码 / 降档」提示（§6.4）。
- *   3. 导出 CSV（走后端 format=csv，拿到文本后本地 Blob 下载）。
- *   4. 揭晓过的轮次单列标注，不参与通过率主统计（§16）。
- *
- * 状态：loading / ready / empty / error。
- * 键盘：表头排序按钮可 Tab + Enter；排序 aria-sort 同步。
- * ARIA：`<caption>`、scope=col / scope=row、aria-sort（§12.9）。
- *
- * 依赖：core/*、components/*
- * 导出：createScoreboard(props) → { el, destroy, el_h1 }
+ * 排行榜按题目展示竞争结果；记分板按模型档案展示跨题稳定性。后端仍返回
+ * 原有任务×模型矩阵，视图在档案切换后只渲染当前模型的一列，避免把不同
+ * 模型的成绩挤在一张难以阅读的宽表里。
  */
 
 import { el, clear } from '../core/dom.js';
@@ -29,19 +20,22 @@ import { percent } from '../core/format.js';
 
 /**
  * 创建记分板。
- * @param {{navigate?: Function}} [props]
+ * @param {{navigate?: Function, modelId?: string}} [props]
  * @returns {{el: HTMLElement, destroy: Function, el_h1: HTMLElement}}
  */
 export function createScoreboard(props = {}) {
   const { navigate } = props;
   const scope = api.scope();
 
-  let data = { models: [], matrix: [], totals: null, note: '', generated_at: '' };
+  let data = { models: [], matrix: [], note: '', generated_at: '' };
+  let selectedModel = props.modelId ? String(props.modelId) : '';
   let loading = true;
   let error = null;
   let sort = { key: 'task', dir: 'asc' };
+  let tableView = null;
 
   const h1 = el('h1', { tabindex: '-1' }, S.SB_TITLE);
+  const profilesHost = el('section', { class: 'sb__profile-panel', 'aria-labelledby': 'sb-profile-title' });
   const bodyHost = el('div', { class: 'u-stack' });
 
   const exportBtn = createButton({
@@ -68,33 +62,86 @@ export function createScoreboard(props = {}) {
 
   const root = el(
     'div',
-    { class: 'view' },
-    el('div', { class: 'view__head' },
+    { class: 'view scoreboard' },
+    el(
+      'div',
+      { class: 'view__head' },
       el('div', {}, h1, el('p', { class: 'view__desc' }, S.SB_DESC)),
     ),
+    profilesHost,
     toolbar,
     bodyHost,
     legend,
   );
 
-  /**
-   * 单元格渲染。
-   *
-   * 契约（harness/runs.py `_cell_stats`）：
-   * `{trials, pass1, pass_any, pass_rate, avg_score, ci_low, ci_high, revealed}`。
-   * 颜色不单独承载语义：红绿同时给符号与文字（§12.8）。
-   *
-   * @param {object} row 矩阵行 `{task, title, tier, target_band, cells}`
-   * @param {string} modelId
-   * @returns {HTMLElement}
-   */
+  function aggregate(modelId) {
+    const cells = (data.matrix || [])
+      .map((row) => (row.cells || {})[modelId])
+      .filter((cell) => cell && Number(cell.trials) > 0);
+    const trials = cells.reduce((sum, cell) => sum + Number(cell.trials || 0), 0);
+    const pass1 = cells.reduce((sum, cell) => sum + Number(cell.pass1 || 0), 0);
+    const revealed = cells.reduce((sum, cell) => sum + Number(cell.revealed || 0), 0);
+    return {
+      trials,
+      pass1,
+      revealed,
+      passRate: trials ? pass1 / trials : 0,
+    };
+  }
+
+  function renderProfiles() {
+    clear(profilesHost);
+    if (!data.models.length) return;
+    if (!selectedModel || !data.models.includes(selectedModel)) selectedModel = String(data.models[0]);
+
+    const list = el('nav', { class: 'sb__profiles', 'aria-label': S.SB_PROFILE_LABEL });
+    data.models.forEach((modelId) => {
+      const stats = aggregate(modelId);
+      const link = el(
+        'a',
+        {
+          class: 'sb__profile',
+          href: `#/scoreboard/${encodeURIComponent(String(modelId))}`,
+        },
+        el('span', { class: 'sb__profile-name' }, modelId),
+        el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+      );
+      if (String(modelId) === selectedModel) link.setAttribute('aria-current', 'page');
+      list.appendChild(link);
+    });
+
+    profilesHost.appendChild(el('h2', { id: 'sb-profile-title' }, S.SB_PROFILE_LABEL));
+    profilesHost.appendChild(el('p', { class: 'sb__profile-desc' }, S.SB_PROFILE_DESC));
+    profilesHost.appendChild(list);
+  }
+
+  function renderProfileSummary() {
+    if (!selectedModel) return null;
+    const stats = aggregate(selectedModel);
+    if (!stats.trials) {
+      return el(
+        'div',
+        { class: 'sb__profile-summary', role: 'status' },
+        el('strong', {}, selectedModel),
+        el('span', {}, S.SB_CELL_NO_DATA),
+      );
+    }
+    return el(
+      'div',
+      { class: 'sb__profile-summary', role: 'status' },
+      el('strong', {}, selectedModel),
+      el('span', {}, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+      el('span', {}, t(S.SB_PROFILE_RATE, { rate: percent(stats.passRate) })),
+      stats.revealed ? el('span', {}, t(S.SB_CELL_REVEALED, { n: stats.revealed })) : null,
+    );
+  }
+
   function renderCell(row, modelId) {
     const cell = (row.cells || {})[modelId];
     if (!cell || !cell.trials) {
       return el('div', { class: 'sb__cell' }, el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA));
     }
     const offband = isOffBand(row, cell);
-
     return el(
       'div',
       { class: 'sb__cell' },
@@ -105,16 +152,8 @@ export function createScoreboard(props = {}) {
         ' ',
         cell.pass1 > 0 ? S.SB_CELL_PASS : S.SB_CELL_NO_PASS,
       ),
-      el(
-        'span',
-        { class: 'sb__cell-sub' },
-        `${t(S.SB_CELL_TRIES, { n: cell.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.trials })} · ${cell.avg_score}`,
-      ),
-      el(
-        'span',
-        { class: 'sb__cell-sub' },
-        t(S.SB_CELL_WILSON, { low: percent(cell.ci_low), high: percent(cell.ci_high) }),
-      ),
+      el('span', { class: 'sb__cell-sub' }, `${t(S.SB_CELL_TRIES, { n: cell.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.trials })} · ${cell.avg_score}`),
+      el('span', { class: 'sb__cell-sub' }, t(S.SB_CELL_WILSON, { low: percent(cell.ci_low), high: percent(cell.ci_high) })),
       cell.revealed
         ? el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed }))
         : null,
@@ -131,11 +170,6 @@ export function createScoreboard(props = {}) {
     );
   }
 
-  /**
-   * 取这一行的目标通过率区间（比例或百分数都归一成 0~1）。
-   * @param {object} row
-   * @returns {number[]|null}
-   */
   function bandOf(row) {
     const raw = row.target_band;
     if (!Array.isArray(raw) || raw.length < 2) return null;
@@ -143,121 +177,82 @@ export function createScoreboard(props = {}) {
     return [Number(raw[0]) * scale, Number(raw[1]) * scale];
   }
 
-  /**
-   * 通过率是否落在目标带之外（题太难或太容易，§6.4）。
-   * @param {object} row
-   * @param {object} cell
-   * @returns {boolean}
-   */
   function isOffBand(row, cell) {
     const band = bandOf(row);
     if (!band || !cell.trials) return false;
     return cell.pass_rate < band[0] || cell.pass_rate > band[1];
   }
 
-  /**
-   * 建表。列 = 任务 + 每个模型一列；行 = 矩阵里的每道题。
-   */
   function renderTable() {
-    const models = data.models || [];
+    const modelId = selectedModel;
     const columns = [
       {
         key: 'task',
         label: S.NAV_TASKS,
         sortable: true,
         value: (row) => String(row.task || ''),
-        render: (row) =>
-          el(
-            'div',
-            { class: 'u-row-tight' },
-            el('span', { class: 'task-card__id' }, row.task),
-            tierBadge(row.tier, {}).el,
-            el('span', {}, row.title),
-          ),
+        render: (row) => el(
+          'div',
+          { class: 'u-row-tight' },
+          el('span', { class: 'task-card__id' }, row.task),
+          tierBadge(row.tier, {}).el,
+          el('span', {}, row.title),
+        ),
       },
-    ].concat(
-      models.map((m) => ({
-        key: m,
-        label: m,
+      {
+        key: 'model',
+        label: modelId || S.SB_PROFILE_LABEL,
         sortable: true,
         value: (row) => {
-          const cell = (row.cells || {})[m];
-          if (!cell || !cell.trials) return -1;
-          return cell.pass_rate;
+          const cell = (row.cells || {})[modelId];
+          return cell && cell.trials ? cell.pass_rate : -1;
         },
-        render: (row) => renderCell(row, m),
-      })),
-    );
-
+        render: (row) => renderCell(row, modelId),
+      },
+    ];
     const rows = (data.matrix || []).slice().sort((a, b) => {
-      const col = columns.find((c) => c.key === sort.key);
-      const pick = col && col.value ? col.value : (row) => String(row[sort.key] || '');
-      const av = pick(a);
-      const bv = pick(b);
+      const col = columns.find((item) => item.key === sort.key) || columns[0];
+      const av = col.value(a);
+      const bv = col.value(b);
       const cmp = typeof av === 'number' && typeof bv === 'number'
         ? av - bv
         : String(av).localeCompare(String(bv));
       return sort.dir === 'asc' ? cmp : -cmp;
     });
-
-    return createTable({
-      caption: S.SB_DESC,
+    tableView = createTable({
+      caption: `${S.SB_TITLE} · ${modelId}`,
       columns,
       rows,
       rowKey: (row) => row.task,
       sort,
       onSort: (key, dir) => {
         sort = { key, dir };
-        rerender();
+        rerenderTable();
       },
       empty: { title: S.SB_EMPTY, desc: S.SB_EMPTY_DESC },
       maxRows: 100,
     });
+    return tableView.el;
   }
 
-  /**
-   * 合计行（后端 totals）：整体 pass@1 与揭晓轮次。
-   * @returns {HTMLElement|null}
-   */
-  function renderTotals() {
-    const totals = data.totals;
-    if (!totals || !totals.trials) return null;
-    return el(
-      'dl',
-      { class: 'kv kv--inline' },
-      el('dt', {}, S.SB_TOTAL_LABEL),
-      el(
-        'dd',
-        {},
-        `${t(S.SB_CELL_TRIES, { n: totals.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: totals.trials })}`,
-        ' · ',
-        t(S.SB_CELL_WILSON, { low: percent(totals.ci_low), high: percent(totals.ci_high) }),
-        totals.revealed ? ` · ${t(S.SB_CELL_REVEALED, { n: totals.revealed })}` : '',
-      ),
-    );
-  }
-
-  /** 重建表格（排序变化时）。 */
-  function rerender() {
-    const focusedKey = document.activeElement && document.activeElement.closest('button');
-    const wasSortButton = Boolean(focusedKey && focusedKey.classList.contains('table__sort'));
+  function rerenderTable() {
+    if (tableView) tableView.destroy();
     clear(bodyHost);
-    bodyHost.appendChild(renderTable().el);
-    if (wasSortButton) {
-      const first = bodyHost.querySelector('.table__sort');
-      if (first) first.focus();
-    }
+    const summary = renderProfileSummary();
+    if (summary) bodyHost.appendChild(summary);
+    bodyHost.appendChild(renderTable());
+    if (data.note) bodyHost.appendChild(el('p', { class: 'u-faint' }, data.note));
   }
 
-  /**
-   * 三态渲染。
-   */
   function render() {
+    if (tableView) {
+      tableView.destroy();
+      tableView = null;
+    }
+    clear(profilesHost);
     clear(bodyHost);
     if (loading) {
-      bodyHost.appendChild(
-        createSkeleton({ rows: 5, variant: 'row', label: `${S.STATE_LOADING}：${S.SB_LOADING_DESC}` }).el,
-      );
+      bodyHost.appendChild(createSkeleton({ rows: 5, variant: 'row', label: `${S.STATE_LOADING}：${S.SB_LOADING_DESC}` }).el);
       return;
     }
     if (error) {
@@ -271,31 +266,28 @@ export function createScoreboard(props = {}) {
       );
       return;
     }
-    if (!data.matrix || data.matrix.length === 0) {
+    renderProfiles();
+    if (!data.models.length) {
       bodyHost.appendChild(
         createEmptyState({
-          title: S.SB_EMPTY,
-          desc: S.SB_EMPTY_DESC,
-          actions: [
-            createButton({
-              label: S.NAV_TASKS,
-              variant: 'primary',
-              onClick: () => navigate && navigate('tasks'),
-            }).el,
-          ],
+          title: S.SB_PROFILE_EMPTY,
+          desc: S.SB_PROFILE_EMPTY_DESC,
+          actions: [createButton({ label: S.NAV_MODELS, variant: 'primary', onClick: () => navigate && navigate('models') }).el],
         }).el,
       );
       return;
     }
-    const totals = renderTotals();
-    if (totals) bodyHost.appendChild(totals);
+    const summary = renderProfileSummary();
+    if (summary) bodyHost.appendChild(summary);
+    if (!data.matrix || data.matrix.length === 0) {
+      bodyHost.appendChild(createEmptyState({ title: S.SB_EMPTY, desc: S.SB_EMPTY_DESC }).el);
+      return;
+    }
+    bodyHost.setAttribute('id', 'scoreboard-model-results');
+    bodyHost.appendChild(renderTable());
     if (data.note) bodyHost.appendChild(el('p', { class: 'u-faint' }, data.note));
-    bodyHost.appendChild(renderTable().el);
   }
 
-  /**
-   * 导出 CSV。
-   */
   async function doExport() {
     exportBtn.update({ loading: true, busyLabel: S.ACTION_LOADING });
     try {
@@ -310,9 +302,6 @@ export function createScoreboard(props = {}) {
     }
   }
 
-  /**
-   * 拉取记分板。
-   */
   async function load() {
     loading = true;
     error = null;
@@ -320,12 +309,24 @@ export function createScoreboard(props = {}) {
     try {
       const res = await api.get('/scoreboard', { scope, params: { format: 'json' } });
       data = {
-        models: (res && res.models) || [],
-        matrix: (res && res.matrix) || [],
-        totals: (res && res.totals) || null,
+        models: Array.isArray(res && res.models) ? res.models.map(String) : [],
+        matrix: Array.isArray(res && res.matrix) ? res.matrix : [],
         note: (res && res.note) || '',
         generated_at: (res && res.generated_at) || '',
       };
+      const requestedModel = selectedModel;
+      if (requestedModel && !data.models.includes(requestedModel)) {
+        selectedModel = data.models[0] || '';
+        if (typeof navigate === 'function') {
+          navigate(
+            'scoreboard',
+            selectedModel ? { modelId: selectedModel } : {},
+            { replace: true },
+          );
+          return;
+        }
+      }
+      if (!selectedModel) selectedModel = data.models[0] || '';
       loading = false;
       render();
       announce(S.ANNOUNCE_SB_LOADED);
@@ -342,19 +343,15 @@ export function createScoreboard(props = {}) {
   return {
     el: root,
     el_h1: h1,
-    /** 解绑 + 取消在途请求。 */
     destroy() {
       scope.cancelAll();
+      if (tableView) tableView.destroy();
       exportBtn.destroy();
       refreshBtn.destroy();
     },
   };
 }
 
-/**
- * 日期戳（导出文件名用）。
- * @returns {string}
- */
 function dateStamp() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');

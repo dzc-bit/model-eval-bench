@@ -27,10 +27,9 @@ from typing import Callable, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harness import calibrate, checks, config, errors, packs, report as report_mod  # noqa: E402
+from harness import calibrate, checks, chat as chat_mod, config, errors, packs, report as report_mod  # noqa: E402
 from harness import batch as batch_mod  # noqa: E402
 from harness import runs, sandbox as sandbox_mod, selfcheck, util  # noqa: E402
-from harness.sandbox import list_subst  # noqa: E402
 
 #: 服务启动时间（用于 /api/health 的运行时长）
 STARTED_AT = time.time()
@@ -65,7 +64,7 @@ def _first(node_id: str) -> str:
 # --------------------------------------------------------------------------
 
 def api_health(cfg: dict) -> dict:
-    """自检：python、pytest、node、磁盘、盘符池、受测仓库可达性。"""
+    """自检：python、pytest、node、磁盘、沙箱目录、受测仓库可达性。"""
     with _health_lock:
         now = time.time()
         if _health_cache["payload"] and now - _health_cache["at"] < HEALTH_TTL:
@@ -106,28 +105,18 @@ def _build_health(cfg: dict) -> dict:
     if not repo_ok:
         warnings.append("受测仓库读不到（%s）。请检查 config.json 的 repo_root。" % repo_msg)
 
-    mappings = list_subst()
-    reserved = runs.reserved_drives(cfg)
-    drive_bits = []
-    drives_ok = True
-    for drive in cfg["drive_pool"]:
-        if drive in mappings and drive not in reserved:
-            drive_bits.append("%s 空闲" % drive)
-        elif drive in reserved:
-            drive_bits.append("%s 占用" % drive)
-            drives_ok = False
-        elif drive in mappings:
-            drive_bits.append("%s 被外部占用" % drive)
-            drives_ok = False
-        else:
-            drive_bits.append("%s 空闲" % drive)
-    free_count = sum(1 for d in cfg["drive_pool"] if d not in mappings or d in reserved)
+    sandbox_root = cfg["sandbox_root"]
+    try:
+        util.ensure_dir(sandbox_root)
+        workspace_ok = os.path.isdir(sandbox_root) and os.access(sandbox_root, os.W_OK)
+    except OSError:
+        workspace_ok = False
     checks_list.append({
-        "id": "drives", "label": "盘符池", "ok": free_count > 0,
-        "value": "，".join(drive_bits) + "（空闲 %d/%d）" % (free_count, len(cfg["drive_pool"])),
+        "id": "workspace", "label": "文件夹沙箱", "ok": workspace_ok,
+        "value": util.norm(sandbox_root) if workspace_ok else "沙箱根目录不可写",
     })
-    if free_count == 0:
-        warnings.append("盘符池已用尽，准备新沙箱会失败。请先重建或删除已有沙箱。")
+    if not workspace_ok:
+        warnings.append("沙箱根目录不可写，无法准备内部工作区。")
 
     free = util.disk_free_bytes(cfg["sandbox_root"])
     disk_ok = free < 0 or free > 512 * 1024 * 1024
@@ -153,7 +142,7 @@ def _build_health(cfg: dict) -> dict:
     if not task_list:
         warnings.append("packs\\ 下还没有任务包，任务库会是空的。")
 
-    blocking = [c for c in checks_list if not c["ok"] and c["id"] in {"pytest", "repo", "disk"}]
+    blocking = [c for c in checks_list if not c["ok"] and c["id"] in {"pytest", "repo", "disk", "workspace"}]
     return {
         "ok": not blocking,
         "checked_at": util.iso_now(),
@@ -271,9 +260,9 @@ def api_task_detail(cfg: dict, task_id: str, run_id: str = "") -> dict:
 
 #: 接线说明（设计文档 附录 A），固定文案，每次复制给模型
 WIRING_NOTE = (
-    "你面前有一个独立的代码仓库副本，工作目录就是当前目录（Windows 下显示为 Q:\\，"
-    "它是唯一允许操作的位置，不要访问该盘之外的任何路径）。\n"
-    "请只在这个目录内工作；完成后告诉我你改了哪些文件即可，不要执行 git commit。"
+    "你面前有一个独立的代码仓库副本，工作目录是服务端返回的 sandbox 文件夹路径；"
+    "它是唯一允许操作的位置，不要访问该目录之外的任何路径。\n"
+    "请只在这个目录内工作；当前页面可以直接与模型对话，完成后说明改动，不要执行 git commit。"
 )
 
 
@@ -284,6 +273,14 @@ def api_create_run(cfg: dict, body: dict) -> dict:
     if not task or not model:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "缺少 task 或 model 参数。")
     attempt = _as_int(body.get("attempt"), 1)
+    profile = config.find_model(cfg, model)
+    if not chat_mod.is_supported_model(profile):
+        raise errors.HarnessError(
+            errors.E_CHAT_UNSUPPORTED,
+            "当前工作台只支持 OpenAI-compatible Chat Completions 模型。请在模型档案中选择该接口后重试。",
+            "protocol=%s api_mode=%s" % (
+                profile.get("protocol"), profile.get("api_mode", config.DEFAULT_OPENAI_API_MODE)),
+        )
     run = runs.create_run(cfg, task, model, attempt)
     return {
         "run_id": run["run_id"],
@@ -294,8 +291,31 @@ def api_create_run(cfg: dict, body: dict) -> dict:
         "model": run["model"],
         "status": run.get("status"),
         "baseline_digest": run.get("baseline_digest", ""),
+        "chat": {"messages": [], "tools": chat_mod.TOOLS},
         "wiring_note": WIRING_NOTE,
     }
+
+
+def api_chat_history(cfg: dict, run_id: str) -> dict:
+    """读取当前 run 的服务端对话记录。"""
+    run = runs.get_run(cfg, run_id)
+    model = config.find_model(cfg, str(run.get("model") or ""))
+    return {
+        "run_id": run_id,
+        "messages": chat_mod.messages(run),
+        "model": {"id": model.get("id"), "model": model.get("model"),
+                   "protocol": model.get("protocol"), "api_mode": model.get("api_mode")},
+        "tools": chat_mod.TOOLS,
+    }
+
+
+def api_chat_send(cfg: dict, run_id: str, body: dict) -> dict:
+    """向当前 run 的模型发送一条消息，并驱动受限工具调用闭环。"""
+    run = runs.get_run(cfg, run_id)
+    text = body.get("message")
+    if not isinstance(text, str) or not text.strip():
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
+    return chat_mod.send(cfg, run, text)
 
 
 def api_run_view(cfg: dict, run_id: str) -> dict:
@@ -351,6 +371,8 @@ def build_router() -> Router:
     r.add("GET", r"/api/tasks/(?P<task_id>[^/]+)", lambda ctx: (api_task_detail(ctx["cfg"], ctx["task_id"], str(ctx["query"].get("run_id") or "")), "application/json; charset=utf-8"))
     r.add("GET", r"/api/runs", lambda ctx: (_list_runs(ctx["cfg"], ctx["query"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs", lambda ctx: (api_create_run(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    r.add("GET", r"/api/runs/(?P<run_id>[^/]+)/chat", lambda ctx: (api_chat_history(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/chat", lambda ctx: (api_chat_send(ctx["cfg"], ctx["run_id"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (api_run_view(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/grade", lambda ctx: (runs.start_grade(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/promote", lambda ctx: (runs.promote(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
@@ -367,7 +389,7 @@ def build_router() -> Router:
     r.add("POST", r"/api/calibration", lambda ctx: (calibrate.enqueue(ctx["cfg"], str(ctx["body"].get("task") or ""), str(ctx["body"].get("model") or ""), _as_int(ctx["body"].get("trials"), 5)), "application/json; charset=utf-8"))
     r.add("GET", r"/api/calibration", lambda ctx: (calibrate.queue_status(ctx["cfg"], str(ctx["query"].get("task") or ""), str(ctx["query"].get("model") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration/cancel", lambda ctx: (calibrate.cancel(ctx["cfg"], str(ctx["body"].get("run_id") or "")), "application/json; charset=utf-8"))
-    # 批量跑批（并发）：一次排「多题 × 多模型」，并发数受盘符池约束
+    # 批量会话：一次排「多题 × 多模型」，并发数受配置上限约束
     r.add("GET", r"/api/batches", lambda ctx: (batch_mod.list_batches(ctx["cfg"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/batches", lambda ctx: (_create_batch(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/batches/(?P<batch_id>[^/]+)", lambda ctx: (batch_mod.get(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))

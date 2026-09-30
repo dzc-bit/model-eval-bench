@@ -1,9 +1,9 @@
 """验收：记录与统计（设计文档 §16）。
 
     · 每轮目录存齐 run.json / baseline_manifest.json / diff.patch / report.json / notes.md；
-    · 记分板行=任务、列=模型，单元格带 Wilson 95% 区间；
+    · 记分板保留任务×模型统计，单元格带 Wilson 95% 区间；
     · 揭晓过的轮次单列，不混进主统计；
-    · 校准排队不占盘符，跑一次消耗一个。
+    · 校准排队不铺工作区，跑一次消耗一个。
 """
 
 from __future__ import annotations
@@ -283,7 +283,7 @@ def test_create_run_claims_a_queued_calibration_slot(cfg, log):
     try:
         assert run["calibration"] is True
         assert run["status"] == "ready"
-        assert run["drive"], "认领时要把沙箱铺出来（含盘符映射）"
+        assert run["drive"] == ""
         assert os.path.isdir(run["sandbox"])
     finally:
         sandbox.destroy(conf, run, log=log)

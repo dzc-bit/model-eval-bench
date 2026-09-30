@@ -123,7 +123,7 @@ export function createWorkspace(props = {}) {
     'div',
     { class: 'u-row' },
     createButton({ label: S.WS_JUMP_PROMPT, size: 'sm', variant: 'ghost', onClick: () => focusRegion('prompt') }).el,
-    createButton({ label: '对话记录', size: 'sm', variant: 'ghost', onClick: () => focusRegion('chat') }).el,
+    createButton({ label: S.WS_JUMP_CHAT, size: 'sm', variant: 'ghost', onClick: () => focusRegion('chat') }).el,
     createButton({ label: S.WS_JUMP_SANDBOX, size: 'sm', variant: 'ghost', onClick: () => focusRegion('sandbox') }).el,
     createButton({ label: S.WS_JUMP_GRADE, size: 'sm', variant: 'ghost', onClick: () => focusRegion('grade') }).el,
     createButton({ label: S.WS_JUMP_RUN, size: 'sm', variant: 'ghost', onClick: () => focusRegion('run') }).el,
@@ -179,7 +179,10 @@ export function createWorkspace(props = {}) {
   };
 
   const promptPanel = createPromptPanel(promptHandlers);
-  const chatPanel = createChatPanel({ onCopyPrompt: () => promptPanel.copyPrompt() });
+  const chatPanel = createChatPanel({
+    scope,
+    onUsePrompt: () => chatPanel.sendText(promptPanel.getPrompt()),
+  });
   const sandboxPanel = createSandboxPanel(sandboxHandlers);
   const gradePanel = createGradePanel(gradeHandlers);
   const runBar = createRunBar(runHandlers);
@@ -421,7 +424,7 @@ export function createWorkspace(props = {}) {
       const runId = res.run_id;
       storage.set('last-task', taskId);
       wsStore.set('run_id', runId);
-      logOp(t(S.SANDBOX_PREPARE_DONE, { path: res.sandbox || '', drive: res.drive || S.WS_NO_DRIVE }));
+      logOp(t(S.SANDBOX_PREPARE_DONE, { path: res.sandbox || '' }));
       await loadRun(runId);
       patch({ busy: '', elapsed: 0 });
     } catch (err) {
@@ -479,7 +482,7 @@ export function createWorkspace(props = {}) {
     } else if (prevStatus === 'grading' && run.status === 'error') {
       announce(S.ANNOUNCE_GRADE_FAILED);
     } else if (!prevStatus && run.status === 'ready') {
-      announce(t(S.ANNOUNCE_SANDBOX_READY, { drive: run.drive || '' }));
+      announce(S.ANNOUNCE_SANDBOX_READY);
     }
     if (run.status === 'grading' && prevStatus !== 'grading') {
       announce(S.ANNOUNCE_GRADE_STARTED);
@@ -571,11 +574,11 @@ export function createWorkspace(props = {}) {
     logOp(t(S.SANDBOX_REBUILD_SUBMIT, { task: taskId }));
     try {
       const res = await api.post('/sandbox/rebuild', { run_id: s.run.run_id, task: taskId }, { scope });
-      logOp(t(S.SANDBOX_REBUILD_DONE, { path: res.sandbox || '', drive: res.drive || S.WS_NO_DRIVE }));
+      logOp(t(S.SANDBOX_REBUILD_DONE, { path: res.sandbox || '' }));
       await loadRun(s.run.run_id);
       await loadTask();
       patch({ busy: '', elapsed: 0 });
-      announce(t(S.ANNOUNCE_SANDBOX_READY, { drive: (res && res.drive) || '' }));
+      announce(S.ANNOUNCE_SANDBOX_READY);
       showToast({ message: S.CONFIRM_REBUILD_DONE, kind: 'success', duration: 6000 });
     } catch (err) {
       reportError(err, '重建沙箱');

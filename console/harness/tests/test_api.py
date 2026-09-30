@@ -1,7 +1,7 @@
 """验收：本地服务与 REST 接口（设计文档 §15）。
 
 真起一个 ThreadingHTTPServer，用 urllib 打真实请求：
-    · /api/health 报出 Python / pytest / Node / 受测仓库 / 盘符池 / 磁盘；
+    · /api/health 报出 Python / pytest / Node / 受测仓库 / 文件夹沙箱根 / 磁盘；
     · 题库为空时 /api/tasks 返回空列表而不是报错；
     · 静态文件缺失时返回中文 404 页，服务不崩；
     · 所有错误统一是 {code, message}，错误码稳定可映射。
@@ -92,14 +92,15 @@ def test_health_reports_environment(live, cfg):
     assert "checks" in doc and doc["checks"]
     by_id = {c["id"]: c for c in doc["checks"]}
 
-    for required in ("python", "pytest", "node", "repo", "drives", "disk", "packs"):
+    for required in ("python", "pytest", "node", "repo", "workspace", "disk", "packs"):
         assert required in by_id, "health 少了 %s 这一项" % required
     assert by_id["python"]["value"].startswith(sys.version.split()[0])
     assert by_id["pytest"]["ok"] is True, "本机 pytest 应当可用"
     assert by_id["pytest"]["value"] and by_id["pytest"]["value"][0].isdigit()
     assert by_id["repo"]["ok"] is True
     assert by_id["repo"]["value"] == "可读"
-    assert "空闲" in by_id["drives"]["value"]
+    assert by_id["workspace"]["ok"] is True
+    assert util.norm(cfg["sandbox_root"]) == util.norm(by_id["workspace"]["value"])
     assert "MB" in by_id["disk"]["value"] or "GB" in by_id["disk"]["value"]
     assert "pytest" in doc["checkers"]
     assert isinstance(doc["warnings"], list)
@@ -167,7 +168,8 @@ def test_task_detail_exposes_prompts(live):
     assert doc["allowed_paths"] == ["backend/miniapp/**"]
     assert [p["level"] for p in doc["prompts"]] == [1, 2]
     assert doc["wiring_note"], "接线说明要发给模型"
-    assert "Q:\\" in doc["wiring_note"]
+    assert "sandbox" in doc["wiring_note"]
+    assert "Q:\\" not in doc["wiring_note"]
 
 
 def test_task_detail_can_scope_unlocked_prompts_to_a_run(live, cfg):

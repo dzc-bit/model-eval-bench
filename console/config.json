@@ -7,11 +7,7 @@
   "runs_root": "runs",
   "static_root": "console/static",
   "snapshot_cache": "sandboxes/.snapshots",
-  "drive_pool": [
-    "Q:",
-    "R:",
-    "S:"
-  ],
+  "max_concurrency": 3,
   "timeouts": {
     "prepare_s": 180,
     "grade_default_s": 240,

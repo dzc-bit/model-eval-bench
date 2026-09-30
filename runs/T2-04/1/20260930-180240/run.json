@@ -1,0 +1,19 @@
+{
+  "run_id": "T2-04__1__20260930-180240",
+  "task": "T2-04",
+  "model": "1",
+  "attempt": 1,
+  "attempts_allowed": 2,
+  "status": "preparing",
+  "created_at": "2026-09-30T18:02:40",
+  "updated_at": "2026-09-30T18:02:40",
+  "revealed": false,
+  "rounds": [],
+  "note": "",
+  "calibration": false,
+  "drive": "",
+  "sandbox": "",
+  "baseline_commit": "",
+  "baseline_digest": "",
+  "run_dir": "D:\\new model test\\runs\\T2-04\\1\\20260930-180240"
+}

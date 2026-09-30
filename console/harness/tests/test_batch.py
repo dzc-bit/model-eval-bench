@@ -2,20 +2,20 @@
 
 覆盖三个必须成立的点：
 
-1. **并发上限 = 盘符池大小**。盘符就是沙箱槽位，跑得比盘符多没有意义；
-   显式传更大的值要被夹回池子大小，传非法值要有合理兜底。
+1. **并发上限 = 配置的工作线程上限**。文件夹沙箱不再依赖盘符槽位；
+   显式传更大的值要被夹回配置上限，传非法值要有合理兜底。
 2. **每条独立成败**。一条失败（模型档案不存在、题目不存在）不能带崩整批，
    错误记在该条上，其余照跑。
-3. **跑完自动回收**。跑批动辄十几条而盘符只有三个，不回收的话第 4 条就会
-   `E_DRIVE_UNAVAILABLE`（这条是实测踩出来的：4 条挂 1 条）。
+3. **跑完自动回收**。跑批动辄十几条，不回收工作区会持续占用磁盘与运行记录槽位。
 
-真正的"并发跑起来"依赖 subst 盘符，放在集成层面的手工验收里；
-这里用桩把 runs/sandbox 换掉，保证纯逻辑可测、不碰真实盘符。
+真正的"并发跑起来"依赖工作区准备与评分，放在集成层面的手工验收里；
+这里用桩把 runs/sandbox 换掉，保证纯逻辑可测、不碰真实工作区。
 """
 
 from __future__ import annotations
 
 import time
+import threading
 
 import pytest
 
@@ -26,13 +26,13 @@ from harness import batch, errors
 # 并发上限
 # --------------------------------------------------------------------------
 
-def test_concurrency_defaults_to_drive_pool(cfg):
-    assert batch.max_concurrency(cfg) == len(cfg["drive_pool"])
+def test_concurrency_defaults_to_configured_limit(cfg):
+    assert batch.max_concurrency(cfg) == cfg["max_concurrency"]
 
 
-def test_concurrency_is_capped_by_drive_pool(cfg):
-    """请求 8 条并发，池子只有 3 个盘符 → 夹到 3。"""
-    assert batch.max_concurrency(cfg, 8) == len(cfg["drive_pool"])
+def test_concurrency_is_capped_by_configured_limit(cfg):
+    """请求 8 条并发，配置上限为 3 → 夹到 3。"""
+    assert batch.max_concurrency(cfg, 8) == cfg["max_concurrency"]
 
 
 def test_concurrency_smaller_request_is_honoured(cfg):
@@ -41,17 +41,18 @@ def test_concurrency_smaller_request_is_honoured(cfg):
 
 
 def test_concurrency_invalid_values_fall_back(cfg):
-    """非法值不该抛异常：退回池子大小；0/负数夹到 1。"""
-    assert batch.max_concurrency(cfg, "abc") == len(cfg["drive_pool"])
-    assert batch.max_concurrency(cfg, None) == len(cfg["drive_pool"])
+    """非法值不该抛异常：退回配置上限；0/负数夹到 1。"""
+    assert batch.max_concurrency(cfg, "abc") == cfg["max_concurrency"]
+    assert batch.max_concurrency(cfg, None) == cfg["max_concurrency"]
     assert batch.max_concurrency(cfg, 0) == 1
     assert batch.max_concurrency(cfg, -5) == 1
 
 
-def test_concurrency_single_drive_pool():
-    """盘符池只有一个（或被配置成空）时也不能算出 0 并发。"""
-    assert batch.max_concurrency({"drive_pool": ["Q:"]}) == 1
-    assert batch.max_concurrency({"drive_pool": []}) == 1
+def test_concurrency_missing_or_invalid_config_falls_back_to_one():
+    """缺少或非法的工作线程上限时也不能算出 0 并发。"""
+    assert batch.max_concurrency({}) == 1
+    assert batch.max_concurrency({"max_concurrency": 0}) == 1
+    assert batch.max_concurrency({"max_concurrency": "bad"}) == 1
 
 
 # --------------------------------------------------------------------------
@@ -222,7 +223,7 @@ def _stub_model(cfg, monkeypatch, model_id: str) -> None:
 def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatch):
     """同题多模型同时就绪；完成一个评分后再为队列会话准备盘符。"""
     _stub_model(cfg, monkeypatch, ["model-a", "model-b"])
-    cfg["drive_pool"] = ["Q:", "R:"]
+    cfg["max_concurrency"] = 2
 
     # 覆盖两个真实题的 meta 读取：给一个不会失败的最小 meta
     monkeypatch.setattr(batch.packs, "load_meta", lambda c, t: {
@@ -300,7 +301,7 @@ def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatc
     assert all(i["status"] == "graded" for i in final["items"])
     assert all(i["score"] == 42.0 for i in final["items"])
     assert all(not i["sandbox"] and not i["drive"] for i in final["items"])
-    assert final["concurrency"] <= len(cfg["drive_pool"])
+    assert final["concurrency"] <= cfg["max_concurrency"]
 
 
 def test_batch_survives_single_item_failure(cfg, monkeypatch):
@@ -359,10 +360,12 @@ def test_batch_survives_single_item_failure(cfg, monkeypatch):
 
 
 def test_cancel_marks_batch_cancelling(cfg):
-    """取消把批次标成 cancelling（未开始的条目不再派发）。"""
+    """取消发出事件、标记排队条目，并先进入 cancelling。"""
     doc = {
         "batch_id": "b-cancel", "created_at": "t", "updated_at": "t",
-        "status": "running", "concurrency": 1, "items": [], "problems": [], "cancel": False,
+        "status": "running", "concurrency": 1,
+        "items": [{"index": 0, "task": "T", "model": "M", "status": "pending", "events": []}],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(),
     }
     with batch._LOCK:
         batch._BATCHES["b-cancel"] = doc
@@ -370,6 +373,8 @@ def test_cancel_marks_batch_cancelling(cfg):
         res = batch.cancel(cfg, "b-cancel")
         assert res["status"] == "cancelling"
         assert doc["cancel"] is True
+        assert doc["_cancel_event"].is_set()
+        assert doc["items"][0]["status"] == "cancelled"
     finally:
         with batch._LOCK:
             batch._BATCHES.pop("b-cancel", None)
@@ -377,25 +382,179 @@ def test_cancel_marks_batch_cancelling(cfg):
 
 def test_cancel_ready_session_releases_its_sandbox(cfg, monkeypatch):
     """取消一个尚未评分的会话会结束等待并归还它占用的工作区槽位。"""
-    created = {"run_id": "r-cancel", "task": "TEST-01", "model": "stub",
-               "status": "ready", "sandbox": "sandbox", "drive": "Q:"}
+    run_state = {"run_id": "r-cancel", "task": "TEST-01", "model": "stub",
+                 "status": "ready", "sandbox": "sandbox", "drive": ""}
     destroyed = []
-    monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(created))
-    monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(created))
-    monkeypatch.setattr(batch.runs, "save_run", lambda *a, **k: None)
+    monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(run_state))
+    monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(run_state))
+    monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state.update(run))
     monkeypatch.setattr(batch.sandbox, "destroy", lambda c, run, log=None: destroyed.append(run["run_id"]))
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
     doc = {
         "batch_id": "b-cancel-ready", "created_at": "t", "updated_at": "t",
-        "status": "cancelling", "concurrency": 1,
+        "status": "running", "concurrency": 1,
         "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
                    "status": "pending", "events": []}],
-        "problems": [], "cancel": True, "auto_release": True,
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
     }
-    gate = __import__("threading").Semaphore(0)
-    batch._run_item(cfg, doc, doc["items"][0], gate, lambda message: None)
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    gate = threading.Semaphore(0)
+    worker = threading.Thread(target=batch._run_item,
+                              args=(cfg, doc, doc["items"][0], gate, lambda message: None))
+    worker.start()
+    deadline = time.time() + 2
+    while time.time() < deadline and doc["items"][0]["status"] != "ready":
+        time.sleep(0.01)
+    assert doc["items"][0]["status"] == "ready"
+    assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+    worker.join(2)
+    assert not worker.is_alive()
 
     item = doc["items"][0]
     assert item["status"] == "cancelled"
     assert not item["sandbox"] and not item["drive"]
     assert destroyed == ["r-cancel"]
+    assert run_state["status"] == "cancelled"
     assert gate.acquire(blocking=False)
+    with batch._LOCK:
+        batch._BATCHES.pop(doc["batch_id"], None)
+
+
+def test_cancel_during_preparation_releases_gate(cfg, monkeypatch):
+    """准备线程收到取消事件后退出，不能永久占住并发闸门。"""
+    started = threading.Event()
+    destroyed = []
+
+    def fake_create_run(*args, cancel_event=None, **kwargs):
+        started.set()
+        while not cancel_event.is_set():
+            cancel_event.wait(0.01)
+        raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消")
+
+    monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
+    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: destroyed.append(True))
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+    doc = {
+        "batch_id": "b-cancel-preparing", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "pending", "events": []}],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    gate = threading.Semaphore(0)
+    worker = threading.Thread(target=batch._run_item,
+                              args=(cfg, doc, doc["items"][0], gate, lambda message: None))
+    worker.start()
+    assert started.wait(2)
+    assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+    worker.join(2)
+    try:
+        assert not worker.is_alive()
+        assert doc["items"][0]["status"] == "cancelled"
+        assert not destroyed
+        assert gate.acquire(blocking=False)
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)
+
+
+def test_cancel_while_gate_waiting_does_not_block_batch(cfg, monkeypatch):
+    """闸门被占用时取消，排队条目应立即结束，批次线程不能卡死。"""
+    run_state = {}
+    counter = {"n": 0}
+
+    def fake_create_run(c, task, model, attempt=1, **kwargs):
+        counter["n"] += 1
+        run_id = "r-gate-%d" % counter["n"]
+        run_state[run_id] = {
+            "run_id": run_id, "task": task, "model": model, "status": "ready",
+            "sandbox": "sandbox-%d" % counter["n"], "drive": "",
+        }
+        return dict(run_state[run_id])
+
+    monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: dict(run_state[rid]))
+    monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state[run["run_id"]].update(run))
+    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: None)
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+    doc = {
+        "batch_id": "b-cancel-gate", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [
+            {"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+             "status": "pending", "events": []},
+            {"index": 1, "task": "TEST-01", "model": "stub", "attempt": 1,
+             "status": "pending", "events": []},
+        ],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    scheduler = threading.Thread(target=batch._run_batch,
+                                 args=(cfg, doc["batch_id"], lambda message: None))
+    scheduler.start()
+    deadline = time.time() + 2
+    while time.time() < deadline and doc["items"][0]["status"] != "ready":
+        time.sleep(0.01)
+    assert doc["items"][0]["status"] == "ready"
+    assert doc["items"][1]["status"] == "pending"
+    assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+    scheduler.join(3)
+    try:
+        assert not scheduler.is_alive()
+        assert doc["status"] == "cancelled"
+        assert [item["status"] for item in doc["items"]] == ["cancelled", "cancelled"]
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)
+
+
+def test_cancel_during_grading_keeps_result_but_cancels_batch(cfg, monkeypatch):
+    """取消不强杀已开始的评分；评分结果保留，但批次终态为 cancelled。"""
+    run_state = {
+        "run_id": "r-grading", "task": "TEST-01", "model": "stub", "status": "ready",
+        "sandbox": "sandbox", "drive": "",
+    }
+
+    monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(run_state))
+    monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(run_state))
+    monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state.update(run))
+    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: None)
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+    doc = {
+        "batch_id": "b-cancel-grading", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "pending", "events": []}],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    scheduler = threading.Thread(target=batch._run_batch,
+                                 args=(cfg, doc["batch_id"], lambda message: None))
+    scheduler.start()
+    deadline = time.time() + 2
+    while time.time() < deadline and doc["items"][0]["status"] != "ready":
+        time.sleep(0.01)
+    assert doc["items"][0]["status"] == "ready"
+    run_state["status"] = "grading"
+    deadline = time.time() + 2
+    while time.time() < deadline and doc["items"][0]["status"] != "grading":
+        time.sleep(0.01)
+    assert doc["items"][0]["status"] == "grading"
+    assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+    assert run_state["cancel_requested"] is True
+    run_state.update({"status": "graded", "last_score": 77.0, "last_passed": True})
+    scheduler.join(3)
+    try:
+        assert not scheduler.is_alive()
+        assert doc["status"] == "cancelled"
+        assert doc["items"][0]["status"] == "graded"
+        assert doc["items"][0]["score"] == 77.0
+        assert doc["items"][0]["passed"] is True
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)

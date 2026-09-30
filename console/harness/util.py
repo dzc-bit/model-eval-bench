@@ -14,6 +14,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Iterator, Sequence
@@ -344,10 +345,13 @@ class CmdResult:
     stderr: str = ""
     duration_s: float = 0.0
     timed_out: bool = False
+    cancelled: bool = False
+    output_limited: bool = False
 
     @property
     def ok(self) -> bool:
-        return self.returncode == 0 and not self.timed_out
+        return (self.returncode == 0 and not self.timed_out and not self.cancelled
+                and not self.output_limited)
 
     def tail(self, lines: int = 40) -> str:
         """末尾若干行，用于错误摘要。"""
@@ -358,7 +362,9 @@ class CmdResult:
 
 def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None,
             timeout: float | None = 120, log: Callable[[str], None] | None = None,
-            stdin_text: str | None = None) -> CmdResult:
+            stdin_text: str | None = None,
+            cancel_event: threading.Event | None = None,
+            max_output_bytes: int | None = None) -> CmdResult:
     """跑一条命令并统一管超时。
 
     设计文档 §4.5：本机没有 pytest-timeout/xdist，超时由 harness 的 subprocess 统一管理。
@@ -366,9 +372,17 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
     """
     argv = [str(a) for a in argv]
     started = time.time()
+    if cancel_event is not None and cancel_event.is_set():
+        return CmdResult(argv=list(argv), returncode=-2,
+                         duration_s=0.0, cancelled=True)
     creation = {}
     if sys.platform == "win32":
-        creation["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        creation["creationflags"] = (
+            getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        )
+    elif hasattr(os, "setsid"):
+        creation["start_new_session"] = True
     try:
         proc = subprocess.Popen(
             argv, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin_text is not None else None,
@@ -380,30 +394,137 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
 
     if log:
         log("执行：%s" % " ".join(argv))
-    try:
-        out, err = proc.communicate(
-            input=stdin_text.encode("utf-8") if stdin_text is not None else None,
-            timeout=timeout,
-        )
-        timed_out = False
-    except subprocess.TimeoutExpired:
-        proc.kill()
+    cancelled = False
+    timed_out = False
+    output_limited = False
+    watcher_stop = threading.Event()
+    watcher = None
+
+    def terminate_tree() -> None:
+        """终止命令及其子进程，避免取消后留下 node/pytest 孤儿。"""
         try:
-            out, err = proc.communicate(timeout=15)
-        except Exception:  # noqa: BLE001 - 进程已死，取不到输出就算了
-            out, err = b"", b""
-        timed_out = True
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                    capture_output=True, timeout=10,
+                )
+            elif hasattr(os, "killpg"):
+                import signal
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            else:
+                proc.kill()
+        except (OSError, subprocess.SubprocessError):
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+    def watch_cancel() -> None:
+        nonlocal cancelled
+        if cancel_event is None:
+            return
+        while not watcher_stop.wait(0.1):
+            if not cancel_event.is_set():
+                continue
+            if proc.poll() is None:
+                cancelled = True
+                terminate_tree()
+            return
+
+    limit = None
+    if max_output_bytes is not None:
+        try:
+            limit = max(1, int(max_output_bytes))
+        except (TypeError, ValueError):
+            limit = None
+    output_lock = threading.Lock()
+    output_used = 0
+    output_stop = threading.Event()
+    output_buffers = {"stdout": bytearray(), "stderr": bytearray()}
+
+    def read_output(name: str, stream) -> None:
+        nonlocal output_used, output_limited
+        try:
+            while True:
+                chunk = stream.read(8192)
+                if not chunk:
+                    return
+                with output_lock:
+                    if limit is None:
+                        output_buffers[name].extend(chunk)
+                        continue
+                    remaining = limit - output_used
+                    if remaining > 0:
+                        output_buffers[name].extend(chunk[:remaining])
+                        output_used += min(len(chunk), remaining)
+                    if len(chunk) > max(0, remaining) and not output_limited:
+                        output_limited = True
+                        output_stop.set()
+                if output_stop.is_set():
+                    terminate_tree()
+                    return
+        except (OSError, ValueError):
+            return
+
+    readers = [
+        threading.Thread(target=read_output, args=("stdout", proc.stdout), name="stdout-reader", daemon=True),
+        threading.Thread(target=read_output, args=("stderr", proc.stderr), name="stderr-reader", daemon=True),
+    ]
+    for reader in readers:
+        reader.start()
+    if stdin_text is not None and proc.stdin is not None:
+        try:
+            proc.stdin.write(stdin_text.encode("utf-8"))
+            proc.stdin.close()
+        except OSError:
+            pass
+    if cancel_event is not None:
+        watcher = threading.Thread(target=watch_cancel, name="cancel-watch", daemon=True)
+        watcher.start()
+    deadline = None if timeout is None else started + max(0.0, float(timeout))
+    try:
+        while proc.poll() is None:
+            if cancel_event is not None and cancel_event.is_set():
+                cancelled = True
+                terminate_tree()
+                break
+            if output_stop.is_set():
+                terminate_tree()
+                break
+            if deadline is not None and time.time() >= deadline:
+                timed_out = True
+                terminate_tree()
+                break
+            time.sleep(0.02)
+        try:
+            proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            terminate_tree()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+    finally:
+        watcher_stop.set()
+        if watcher is not None:
+            watcher.join(timeout=1)
+        for reader in readers:
+            reader.join(timeout=2)
     duration = time.time() - started
     result = CmdResult(
         argv=list(argv),
         returncode=proc.returncode if proc.returncode is not None else -1,
-        stdout=decode_output(out),
-        stderr=decode_output(err),
+        stdout=decode_output(bytes(output_buffers["stdout"])),
+        stderr=decode_output(bytes(output_buffers["stderr"])),
         duration_s=duration,
         timed_out=timed_out,
+        cancelled=cancelled,
+        output_limited=output_limited,
     )
     if log:
-        if timed_out:
+        if cancelled:
+            log("命令因取消被终止：%s" % argv[0])
+        elif timed_out:
             log("命令超时（%.0fs 上限）：%s" % (timeout or 0, argv[0]))
         else:
             log("完成（退出码 %d，用时 %.1fs）：%s" % (result.returncode, duration, argv[0]))
@@ -411,9 +532,13 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
 
 
 def git(repo: str, *args: str, timeout: float = 120,
-        log: Callable[[str], None] | None = None) -> CmdResult:
+        log: Callable[[str], None] | None = None,
+        cancel_event: threading.Event | None = None) -> CmdResult:
     """在指定仓库里跑 git。"""
-    return run_cmd(["git", "-C", repo, *args], timeout=timeout, log=log)
+    kwargs = {"timeout": timeout, "log": log}
+    if cancel_event is not None:
+        kwargs["cancel_event"] = cancel_event
+    return run_cmd(["git", "-C", repo, *args], **kwargs)
 
 
 # --------------------------------------------------------------------------

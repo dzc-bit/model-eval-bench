@@ -34,6 +34,7 @@ import { createWorkspace } from './views/workspace.js';
 /** 导航项：name → 文案。顺序即页签顺序。 */
 const NAV_ITEMS = [
   { name: 'tasks', label: S.NAV_TASKS },
+  { name: 'leaderboard', label: S.NAV_LEADERBOARD },
   { name: 'workspace', label: S.NAV_WORKSPACE },
   { name: 'batch', label: S.NAV_BATCH },
   { name: 'scoreboard', label: S.NAV_SCOREBOARD },
@@ -429,6 +430,13 @@ function createView(route) {
   switch (route.name) {
     case 'tasks':
       return createTaskLibrary({ navigate });
+    case 'leaderboard':
+      return createLazyView(
+        S.NAV_LEADERBOARD,
+        () => import('./views/leaderboard.js'),
+        (m) => m.createLeaderboard({ navigate, taskId: route.params.taskId }),
+        S.ANNOUNCE_LEADERBOARD_LOADED,
+      );
     case 'workspace':
       return createWorkspace({
         taskId: route.params.taskId,
@@ -439,7 +447,12 @@ function createView(route) {
         prefs: state.prefs,
       });
     case 'scoreboard':
-      return createLazyView('记分板', () => import('./views/scoreboard.js'), (m) => m.createScoreboard({ navigate }), S.ANNOUNCE_SB_LOADED);
+      return createLazyView(
+        S.NAV_SCOREBOARD,
+        () => import('./views/scoreboard.js'),
+        (m) => m.createScoreboard({ navigate, modelId: route.params.modelId }),
+        S.ANNOUNCE_SB_LOADED,
+      );
     case 'batch':
       return createLazyView(S.NAV_BATCH, () => import('./views/batch.js'), (m) => m.createBatch({ navigate }), null);
     case 'models':

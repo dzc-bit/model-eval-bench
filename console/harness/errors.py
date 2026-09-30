@@ -23,10 +23,13 @@ E_TASK_INVALID = "E_TASK_INVALID"            # meta.json 不符合任务包规�
 # ---- 模型档案 ----
 E_MODEL_NOT_FOUND = "E_MODEL_NOT_FOUND"      # 模型档案不存在
 E_MODEL_INVALID = "E_MODEL_INVALID"          # 模型档案字段不合法
+E_CHAT_UNSUPPORTED = "E_CHAT_UNSUPPORTED"    # 模型协议或接口形态未接入
+E_CHAT_FAILED = "E_CHAT_FAILED"              # 模型代理请求失败
 
 # ---- 运行记录 ----
 E_RUN_NOT_FOUND = "E_RUN_NOT_FOUND"          # 运行记录不存在
 E_RUN_BUSY = "E_RUN_BUSY"                    # 该轮正在校验，拒绝重复触发
+E_RUN_CANCELLED = "E_RUN_CANCELLED"          # 该轮已被批次取消，拒绝启动校验
 E_STORE_FAILED = "E_STORE_FAILED"            # 记录目录写入失败
 
 # ---- 沙箱 ----
@@ -56,8 +59,11 @@ HTTP_STATUS = {
     E_TASK_INVALID: 500,
     E_MODEL_NOT_FOUND: 404,
     E_MODEL_INVALID: 400,
+    E_CHAT_UNSUPPORTED: 400,
+    E_CHAT_FAILED: 502,
     E_RUN_NOT_FOUND: 404,
     E_RUN_BUSY: 409,
+    E_RUN_CANCELLED: 409,
     E_STORE_FAILED: 500,
     E_SANDBOX_MISSING: 409,
     E_SANDBOX_BROKEN: 409,

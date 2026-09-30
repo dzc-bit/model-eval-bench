@@ -1,7 +1,7 @@
 /**
  * models.js — 模型档案视图
  *
- * 职责：模型档案的增 / 改 / 删。档案只用于记账与统计（§15 备注），评测台不代发消息。
+ * 职责：模型档案的增 / 改 / 删。档案绑定工作台内置对话和成绩统计；明文密钥只在服务端环境变量中。
  *
  * 状态：loading / ready / empty / error；表单态：新建 / 编辑 / 校验错误。
  * 键盘：所有字段可 Tab；label 关联；错误 aria-describedby；删除走二次确认（默认焦点在取消）。
@@ -128,6 +128,12 @@ export function createModels(props = {}) {
     type: 'textarea',
     rows: 2,
   });
+  const keyEnvField = createField({
+    label: S.MODELS_FIELD_KEY_ENV,
+    name: 'model-key-env',
+    hint: S.MODELS_FIELD_KEY_ENV_HINT,
+    placeholder: 'OPENAI_API_KEY',
+  });
 
   const saveBtn = createButton({
     label: S.MODELS_SAVE,
@@ -206,6 +212,7 @@ export function createModels(props = {}) {
           ),
           el('fieldset', { class: 'models__fieldset models__fieldset--notes' },
             el('legend', {}, '凭据与备注'),
+            keyEnvField.el,
             noteField.el,
             el('p', { class: 'u-faint' }, S.MODELS_FIELD_KEY_HINT),
           ),
@@ -258,8 +265,9 @@ export function createModels(props = {}) {
       api_mode: apiModeField.getValue(),
       model: modelField.getValue().trim(),
       base_url: urlField.getValue().trim(),
+      key_env: keyEnvField.getValue().trim(),
       note: noteField.getValue(),
-      // 后端只保存脱敏后的 key_masked，明文密钥请手写进 config.json（见下方提示）
+      // 后端只保存脱敏值和环境变量名，明文密钥永不经过浏览器。
       key_masked: editingKeyMasked,
     };
 
@@ -297,6 +305,7 @@ export function createModels(props = {}) {
     modelField.update({ value: '', error: '' });
     urlField.update({ value: '' });
     noteField.update({ value: '' });
+    keyEnvField.update({ value: '' });
     cancelEditBtn.el.hidden = true;
     formHost.hidden = !show;
     updateEndpointPreview();
@@ -319,6 +328,7 @@ export function createModels(props = {}) {
     modelField.update({ value: m.model || '', error: '' });
     urlField.update({ value: m.base_url || '' });
     noteField.update({ value: m.note || '' });
+    keyEnvField.update({ value: m.key_env || '' });
     cancelEditBtn.el.hidden = false;
     formHost.hidden = false;
     updateEndpointPreview();
@@ -481,7 +491,7 @@ export function createModels(props = {}) {
     /** 解绑 + 取消在途请求。 */
     destroy() {
       scope.cancelAll();
-      [idField, protocolField, apiModeField, modelField, urlField, noteField, saveBtn, cancelEditBtn].forEach((c) => c.destroy());
+      [idField, protocolField, apiModeField, modelField, urlField, keyEnvField, noteField, saveBtn, cancelEditBtn].forEach((c) => c.destroy());
     },
   };
 }

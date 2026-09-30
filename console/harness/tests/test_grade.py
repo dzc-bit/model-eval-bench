@@ -243,7 +243,7 @@ def test_gitignore_tampering_aborts_the_round(bench):
 # ------------------------------------------------------------------ 评分树
 
 def test_grade_tree_is_assembled_from_pristine_skeleton(bench):
-    """评分树 = 原始骨架 + allowed_paths 覆盖 + hidden；junction 按需接上。"""
+    """评分树 = 原始骨架 + allowed_paths 覆盖 + hidden；前端依赖使用实体副本。"""
     _cfg, _run, _meta, grade_with = bench
     result = grade_with(MODEL_FULL_FIX)
     grade_dir = result["grade_dir"]
@@ -277,7 +277,7 @@ def test_grade_env_is_hermetic(bench):
 def test_broken_sandbox_aborts_before_scoring(bench):
     """完整性自检不过就直接中止，不要拿一个坏环境去跑分。"""
     cfg, run, meta, _grade_with = bench
-    sandbox.release_drive(run["drive"], expected_target=run["sandbox"])
+    util.remove_tree(run["sandbox"])
     result = grade.run_grade(cfg, run, meta, log=lambda m: None)
     assert result["score"] == 0.0
     assert result["error"] == "sandbox_broken"
@@ -287,14 +287,17 @@ def test_broken_sandbox_aborts_before_scoring(bench):
 
 # ------------------------------------------------------------------ 前端题
 
-def test_frontend_task_uses_junction_and_node_guard(cfg, log):
-    """前端题：沙箱与评分树都用联接复用 node_modules，node 守卫能跑出分组。"""
+def test_frontend_task_uses_entity_node_modules_and_node_guard(cfg, log):
+    """前端题：沙箱与评分树都复制实体 node_modules，node 守卫能跑出分组。"""
     meta = packs.load_meta(cfg, FRONTEND_TASK)
     run = make_run(cfg, FRONTEND_TASK, "前端模型", run_id="TEST-02__前端模型__20260101-000000")
     util.ensure_dir(run["run_dir"])
     sandbox.prepare(cfg, run, meta, log=log)
     try:
-        assert util.is_junction(os.path.join(run["sandbox"], "node_modules"))
+        sandbox_deps = os.path.join(run["sandbox"], "node_modules")
+        assert os.path.isdir(sandbox_deps)
+        assert not util.is_junction(sandbox_deps)
+        assert not os.path.islink(sandbox_deps)
         result = grade.run_grade(cfg, run, meta, log=log)
         groups = {g["id"]: g for g in result["groups"]}
         assert groups["panel_digits_exit"]["passed"] is False   # 注入把 toFixed 改成 0 位
@@ -302,10 +305,11 @@ def test_frontend_task_uses_junction_and_node_guard(cfg, log):
         assert result["score"] == pytest.approx(50.0, abs=0.1)
         assert not result["p2p_broken"]
 
-        link = os.path.join(result["grade_dir"], "node_modules")
-        assert util.is_junction(link), "评分树里也该是联接"
-        assert util.norm(util.junction_target(link)) == util.norm(
-            os.path.join(cfg["repo_root"], "node_modules"))
+        copied = os.path.join(result["grade_dir"], "node_modules")
+        assert os.path.isdir(copied), "评分树里应有实体 node_modules"
+        assert not util.is_junction(copied)
+        assert not os.path.islink(copied)
+        assert os.path.isfile(os.path.join(copied, "tiny-dep", "package.json"))
 
         # 修好它
         util.write_text_atomic(

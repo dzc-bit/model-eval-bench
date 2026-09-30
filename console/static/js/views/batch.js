@@ -3,7 +3,7 @@
  *
  * 职责：
  *   1. 选一组合任务 + 一组模型，做成笛卡尔积，一次排进后台并发执行。
- *   2. 并发数可调，上限是盘符池大小（盘符即沙箱槽位，后端会夹住）。
+ *   2. 并发数可调，上限由本地配置控制。
  *   3. 实时进度：逐条展示 排队/准备沙箱/校验中/已完成/失败，带得分与通过标记。
  *   4. 结果用 result-mark 动画标记每一条的成败（与工作台同一套视觉语言）。
  *   5. 可取消：已开跑的跑完当前一步，未开始的不再派发。
@@ -66,6 +66,8 @@ export function createBatch(props = {}) {
   let concurrency = 3;
   let batch = null;
   let pollTimer = null;
+  let pollInFlight = false;
+  let pollToken = 0;
   const itemViews = new Map();
   let progressView = null;
 
@@ -77,7 +79,7 @@ export function createBatch(props = {}) {
     'div',
     { class: 'view' },
     el('div', { class: 'view__head' },
-      el('div', {}, h1, el('p', { class: 'view__desc' }, '为每个题目和模型准备独立工作区。模型操作在对应工作台完成；本页不调用模型 API，也不展示隐藏思维链。')),
+      el('div', {}, h1, el('p', { class: 'view__desc' }, '为每个题目和模型准备独立工作区。进入对应工作台发送提示词、查看接口返回的推理内容，并提交评分。')),
     ),
     setupHost,
     progressHost,
@@ -97,8 +99,8 @@ export function createBatch(props = {}) {
     options: [
       { value: '1', label: '1（串行，最稳）' },
       { value: '2', label: '2' },
-      { value: '3', label: '3（等于盘符池大小，推荐）' },
-      { value: '4', label: '4（超过盘符数会被夹到上限）' },
+      { value: '3', label: '3（推荐）' },
+      { value: '4', label: '4（超过配置上限会被夹住）' },
     ],
     onChange: (value) => {
       concurrency = Number(value) || 1;
@@ -136,7 +138,7 @@ export function createBatch(props = {}) {
   setupHost.appendChild(
     el('section', { class: 'panel' },
       el('h2', { class: 'panel__title' }, S.BATCH_SETUP_TITLE),
-      el('p', { class: 'u-faint' }, '勾选题与模型后，为每个组合准备独立工作区。就绪后打开对应工作台，在外部模型客户端操作并手动启动评分；评分结束会回收槽位，再继续准备排队项。本页不会调用模型 API。'),
+      el('p', { class: 'u-faint' }, '勾选题与模型后，为每个组合准备独立工作区。就绪后打开对应工作台，在内置对话中让模型操作；完成后启动评分，评分结束会自动回收工作区。'),
       el('div', { class: 'batch__pickers' },
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_TASKS), taskListEl),
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_MODELS), modelListEl),
@@ -220,8 +222,6 @@ export function createBatch(props = {}) {
 
   function createItemView(initialItem) {
     let current = initialItem;
-    let noteEdited = false;
-    let hydratedRunId = '';
     let gradeRequested = false;
     let eventSignature = '';
     const state = ITEM_STATE[initialItem.status] || { text: initialItem.status, kind: 'idle' };
@@ -232,7 +232,7 @@ export function createBatch(props = {}) {
     const path = el('span', { class: 'u-mono u-faint', hidden: true, style: { overflowWrap: 'anywhere' } });
     const openLink = el('a', {
       class: 'btn btn--primary', target: '_blank', rel: 'noopener', hidden: true,
-    }, '打开此模型工作台');
+    }, '打开工作台');
     const gradeBtn = createButton({
       label: '启动评分',
       size: 'sm',
@@ -268,40 +268,6 @@ export function createBatch(props = {}) {
       el('div', { class: 'u-row', style: { justifyContent: 'flex-end', margin: 'var(--space-2) 0' } }, promptCopy.el),
       promptPre,
     );
-    const answerInput = el('textarea', {
-      class: 'batch__answer-input',
-      rows: '5',
-      placeholder: '在对应模型客户端完成任务后，可粘贴答复或记录人工摘要。',
-      'aria-label': `${initialItem.task} × ${initialItem.model} 的答复或人工摘要`,
-      onInput: (event) => {
-        noteEdited = true;
-        current.noteDraft = event.target.value;
-      },
-    });
-    const answerField = el('label', { class: 'batch__answer-field' },
-      el('span', { class: 'batch__pick-title' }, '模型答复 / 人工摘要（手动记录）'),
-      answerInput,
-      el('span', { class: 'u-faint' }, '记录保存在本轮备注中；系统不会读取或推断隐藏思维链。'),
-    );
-    const saveNote = createButton({
-      label: '保存记录',
-      size: 'sm',
-      onClick: async () => {
-        if (!current.run_id) return;
-        saveNote.update({ loading: true, busyLabel: '正在保存' });
-        try {
-          await api.post(`/runs/${encodeURIComponent(current.run_id)}/note`, { note: answerInput.value }, { scope });
-          current.noteDraft = answerInput.value;
-          noteEdited = false;
-          showToast({ message: '记录已保存', kind: 'success' });
-        } catch (err) {
-          const code = err instanceof ApiError ? err.code : 'INTERNAL';
-          showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
-        } finally {
-          saveNote.update({ loading: false, disabled: !current.run_id });
-        }
-      },
-    });
     const events = el('ol', { class: 'batch__events' });
     const eventDetails = el('details', {}, el('summary', {}, '公开进度记录'), events);
     const errorNode = el('span', { class: 'batch__item-error', hidden: true });
@@ -317,18 +283,7 @@ export function createBatch(props = {}) {
     const card = el('li', {
       class: `batch__item batch__item--${initialItem.status}`,
       style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '0' },
-    }, head, actions, promptDetails, answerField, el('div', { class: 'u-row' }, saveNote.el), eventDetails);
-
-    function hydrateNote(item) {
-      if (!item.run_id || hydratedRunId === item.run_id) return;
-      hydratedRunId = item.run_id;
-      api.get(`/runs/${encodeURIComponent(item.run_id)}`, { scope }).then((run) => {
-        if (!noteEdited && hydratedRunId === item.run_id) {
-          answerInput.value = String(run.note || '');
-          current.noteDraft = answerInput.value;
-        }
-      }).catch(() => {});
-    }
+    }, head, actions, promptDetails, eventDetails);
 
     return {
       el: card,
@@ -338,7 +293,7 @@ export function createBatch(props = {}) {
         const done = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
         const markKind = item.status === 'error' ? 'fail'
           : item.status === 'graded' ? (item.passed ? 'pass' : 'fail')
-            : item.status === 'pending' ? 'idle' : 'busy';
+            : item.status === 'pending' || item.status === 'cancelled' ? 'idle' : 'busy';
         mark.update({ kind: markKind, animate: done, label: '' });
         statusDot.update({ kind: stateNow.kind, text: stateNow.text });
         card.className = `batch__item batch__item--${item.status}`;
@@ -354,14 +309,8 @@ export function createBatch(props = {}) {
           if (item.status !== 'ready') gradeRequested = gradeRequested || item.status === 'grading'
             || item.status === 'graded' || item.status === 'error';
           gradeBtn.update({ disabled: item.status !== 'ready' || gradeRequested });
-          saveNote.update({ disabled: false });
-          hydrateNote(item);
         } else {
-          saveNote.update({ disabled: true });
           gradeBtn.update({ disabled: true });
-        }
-        if (!noteEdited && item.noteDraft !== undefined && answerInput.value !== item.noteDraft) {
-          answerInput.value = item.noteDraft;
         }
         promptPre.textContent = item.prompt || '这道题没有配置当前轮提示词。';
         promptCopy.update({ getText: () => String(current.prompt || '') });
@@ -380,7 +329,6 @@ export function createBatch(props = {}) {
         statusDot.destroy();
         gradeBtn.destroy();
         promptCopy.destroy();
-        saveNote.destroy();
       },
     };
   }
@@ -468,7 +416,8 @@ export function createBatch(props = {}) {
     progressView.batchState.update({
       kind: batch.status === 'finished' ? 'ok' : batch.status === 'cancelled' ? 'warn' : 'busy',
       text: batch.status === 'finished' ? S.BATCH_STATUS_DONE
-        : batch.status === 'cancelled' ? S.BATCH_STATUS_CANCELLED : S.BATCH_STATUS_RUNNING,
+        : batch.status === 'cancelled' ? S.BATCH_STATUS_CANCELLED
+          : batch.status === 'cancelling' ? S.BATCH_STATUS_CANCELLING : S.BATCH_STATUS_RUNNING,
     });
     progressView.bar.setAttribute('aria-valuenow', String(done));
     progressView.bar.setAttribute('aria-valuemax', String(total));
@@ -480,7 +429,13 @@ export function createBatch(props = {}) {
 
     // 结束态不再轮询，并恢复"开始"按钮
     const active = batch.status === 'running' || batch.status === 'cancelling';
-    cancelBtn.update({ disabled: !active, reason: active ? '' : S.BATCH_NOT_RUNNING });
+    const cancelling = batch.status === 'cancelling';
+    cancelBtn.update({
+      disabled: !active,
+      loading: cancelling,
+      busyLabel: '正在停止批次',
+      reason: active ? '' : S.BATCH_NOT_RUNNING,
+    });
     startBtn.update({ disabled: active, reason: active ? S.BATCH_ALREADY_RUNNING : '' });
   }
 
@@ -555,10 +510,15 @@ export function createBatch(props = {}) {
   /**
    * 取一次批次进度。
    */
-  async function poll() {
+  async function poll(token = pollToken) {
     if (!batch || !batch.batch_id) return;
+    if (token !== pollToken || pollInFlight) return;
+    const requestedBatchId = batch.batch_id;
+    pollInFlight = true;
     try {
-      const res = await api.get(`/batches/${encodeURIComponent(batch.batch_id)}`, { scope });
+      const res = await api.get(`/batches/${encodeURIComponent(requestedBatchId)}`, { scope });
+      // 取消、切批或销毁视图后，旧响应不能覆盖当前状态。
+      if (token !== pollToken || !batch || batch.batch_id !== requestedBatchId) return;
       batch = res;
       renderProgress();
       if (batch.status === 'finished' || batch.status === 'cancelled') {
@@ -567,19 +527,30 @@ export function createBatch(props = {}) {
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === 'ABORTED') return;
+    } finally {
+      pollInFlight = false;
     }
   }
 
   /** 起轮询。 */
   function startPolling() {
     stopPolling();
-    pollTimer = window.setInterval(poll, POLL_MS);
+    const token = pollToken;
+    const tick = async () => {
+      if (token !== pollToken) return;
+      await poll(token);
+      if (token !== pollToken || !batch
+          || (batch.status !== 'running' && batch.status !== 'cancelling')) return;
+      pollTimer = window.setTimeout(tick, POLL_MS);
+    };
+    pollTimer = window.setTimeout(tick, 0);
   }
 
   /** 停轮询。 */
   function stopPolling() {
-    if (pollTimer) {
-      window.clearInterval(pollTimer);
+    pollToken += 1;
+    if (pollTimer !== null) {
+      window.clearTimeout(pollTimer);
       pollTimer = null;
     }
   }
@@ -587,13 +558,26 @@ export function createBatch(props = {}) {
   /** 请求取消。 */
   async function cancelBatch() {
     if (!batch || !batch.batch_id) return;
+    const batchId = batch.batch_id;
+    // 先把 UI 推到 cancelling，并使在途 GET 失效；服务端响应回来前也不能再次提交。
+    stopPolling();
+    batch = { ...batch, status: 'cancelling' };
+    renderProgress();
     try {
-      await api.post(`/batches/${encodeURIComponent(batch.batch_id)}/cancel`, {}, { scope });
+      await api.post(`/batches/${encodeURIComponent(batchId)}/cancel`, {}, { scope });
       showToast({ message: S.BATCH_CANCELLED, kind: 'warn' });
-      poll();
+      if (batch && batch.batch_id === batchId) {
+        startPolling();
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         showToast({ message: errorTitle(err.code), detail: errorBody(err.code), kind: 'error' });
+      }
+      // 取消请求失败时恢复对同一批次的观察，避免 UI 永久停在 cancelling。
+      if (batch && batch.batch_id === batchId) {
+        batch = { ...batch, status: 'running' };
+        renderProgress();
+        startPolling();
       }
     }
   }

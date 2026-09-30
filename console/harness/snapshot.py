@@ -437,7 +437,8 @@ def assert_no_leak(root: str, literals: list, log: Log = _noop) -> None:
 # --------------------------------------------------------------------------
 
 def build(cfg: dict, meta: dict, dest: str, log: Log = _noop,
-          injector: "Callable[[str, Log], int] | None" = None) -> dict:
+          injector: "Callable[[str, Log], int] | None" = None,
+          cancel_event: threading.Event | None = None) -> dict:
     """生成一份基线骨架到 dest（会被覆盖）。
 
     顺序：白名单拷贝 → 脱敏 → 裁剪 → 注入 → 泄漏兜底。
@@ -447,16 +448,19 @@ def build(cfg: dict, meta: dict, dest: str, log: Log = _noop,
     沙箱与评分树共用同一份"已注入"的骨架——否则评分树里会是未注入的干净代码，
     题目注入的缺陷会凭空消失。
     """
+    _raise_if_cancelled(cancel_event)
     log("开始生成基线骨架：%s" % util.rel_posix(dest, cfg["sandbox_root"]))
     util.remove_tree(dest)
     util.ensure_dir(dest)
 
     stats = copy_whitelist(cfg, dest, log)
+    _raise_if_cancelled(cancel_event)
     redacted = apply_redactions(dest, meta, log)
     pruned = apply_prune(dest, meta, log)
     injected = 0
     if injector is not None:
         injected = injector(dest, log)
+    _raise_if_cancelled(cancel_event)
     assert_no_leak(dest, cfg["snapshot"].get("forbidden_literals", []), log)
 
     manifest = util.tree_manifest(dest)
@@ -476,11 +480,16 @@ def build(cfg: dict, meta: dict, dest: str, log: Log = _noop,
     return info
 
 
-def _cache_stamp(cfg: dict, meta: dict) -> str:
+def _cache_stamp(cfg: dict, meta: dict,
+                 cancel_event: threading.Event | None = None) -> str:
     """骨架缓存版本号：受测仓库 HEAD + 白名单配置摘要 + 题包内容摘要。"""
     import hashlib
     import json as _json
-    head = util.git(cfg["repo_root"], "rev-parse", "HEAD", timeout=60).stdout.strip()
+    _raise_if_cancelled(cancel_event)
+    kwargs = {"timeout": 60}
+    if cancel_event is not None:
+        kwargs["cancel_event"] = cancel_event
+    head = util.git(cfg["repo_root"], "rev-parse", **kwargs).stdout.strip()
     blob = _json.dumps(cfg["snapshot"], ensure_ascii=False, sort_keys=True)
     pack_blob = _json.dumps(
         {k: meta.get(k) for k in ("id", "allowed_paths", "redactions", "visible", "repo")},
@@ -489,6 +498,7 @@ def _cache_stamp(cfg: dict, meta: dict) -> str:
     # 注入补丁不在 meta 里，单独把补丁目录的内容折进版本号
     patch_digest = ""
     for path in packs.list_patches(meta):
+        _raise_if_cancelled(cancel_event)
         try:
             patch_digest += util.sha256_file(path)[:8]
         except OSError:
@@ -502,8 +512,17 @@ def _cache_stamp(cfg: dict, meta: dict) -> str:
 _BUILD_LOCK = threading.RLock()
 
 
+def _raise_if_cancelled(cancel_event: threading.Event | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise errors.HarnessError(
+            errors.E_RUN_CANCELLED,
+            "批次已取消，正在停止骨架准备。",
+        )
+
+
 def ensure_snapshot(cfg: dict, meta: dict, log: Log = _noop,
-                    injector: "Callable[[str, Log], int] | None" = None) -> str:
+                    injector: "Callable[[str, Log], int] | None" = None,
+                    cancel_event: threading.Event | None = None) -> str:
     """取一份可用的基线骨架（命中缓存就直接复用，否则重建）。
 
     缓存按「任务 + 白名单版本 + 注入补丁」分目录，沙箱准备、评分树拼装、
@@ -511,9 +530,10 @@ def ensure_snapshot(cfg: dict, meta: dict, log: Log = _noop,
     """
     cache_dir = os.path.join(cfg["snapshot_cache"], util.sanitize_id(meta["id"]))
     marker = os.path.join(cache_dir, "_snapshot.json")
-    stamp = _cache_stamp(cfg, meta)
+    stamp = _cache_stamp(cfg, meta, cancel_event)
     cached = util.read_json(marker, default=None)
     with _BUILD_LOCK:
+        _raise_if_cancelled(cancel_event)
         if (
             isinstance(cached, dict)
             and cached.get("stamp") == stamp
@@ -525,7 +545,10 @@ def ensure_snapshot(cfg: dict, meta: dict, log: Log = _noop,
             return cache_dir
 
         log("重建骨架缓存（受测仓库、白名单或注入补丁有变动）")
-        info = build(cfg, meta, cache_dir, log, injector=injector)
+        kwargs = {"injector": injector}
+        if cancel_event is not None:
+            kwargs["cancel_event"] = cancel_event
+        info = build(cfg, meta, cache_dir, log, **kwargs)
         util.write_text_atomic(os.path.join(cache_dir, ".keep"), "")
         util.write_json_atomic(marker, {
             "stamp": stamp, "task": meta.get("id"),

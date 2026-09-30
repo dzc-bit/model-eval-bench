@@ -8,6 +8,11 @@ runs/blind/gates/*/
 runs/blind/calib/*/trial-*/workspace/
 # harness 自检的临时工作区（conftest 固定放在评测台根内，跑完即弃）
 .pytest-tmp/
+.pytest-tmp-*/
+# 浏览器验收的可重建日志、截图和快照
+.playwright-cli/
+output/playwright/
+.harness-acceptance/
 
 # ---- Python ----
 __pycache__/

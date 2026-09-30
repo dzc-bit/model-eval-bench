@@ -29,7 +29,7 @@ console/harness/tests/
 | 文件 | 验收点 |
 | --- | --- |
 | `test_snapshot.py` | 白名单快照、`docs/`/`.reference/`/`运行产物`/`node_modules` 不进沙箱、脱敏、裁剪、泄漏兜底 |
-| `test_sandbox.py` | 准备/清空/重建、注入补丁顺序、subst 映射、`.gitignore` 保护行、node_modules 联接全程完好 |
+| `test_sandbox.py` | 文件夹沙箱准备/清空/重建、注入补丁顺序、路径边界、`.gitignore` 保护行、node_modules 联接全程完好 |
 | `test_grade.py` | 全链路分组部分分（16.7 / 33.3 / 100）、p2p 回归判 0、越界与作弊记录、评分树隔离 |
 | `test_api.py` | `/api/health`、`/api/tasks`（空题包返回空列表）、缺失静态文件的中文 404 |
 | `test_scoreboard.py` | 记��与统计：Wilson 区间、CSV、revealed 单独成块 |

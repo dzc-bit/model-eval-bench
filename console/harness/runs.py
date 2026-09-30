@@ -17,12 +17,13 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
-from . import config, errors, grade, packs, report as report_mod, sandbox, util
+from . import chat, config, errors, grade, packs, report as report_mod, sandbox, util
 
 Log = Callable[[str], None]
 
@@ -141,15 +142,9 @@ def get_run(cfg: dict, run_id: str) -> dict:
 
 
 def reserved_drives(cfg: dict, exclude: str = "") -> dict:
-    """当前被占用的盘符 → run_id，用于盘符池分配。"""
-    out = {}
-    for run in list_runs(cfg):
-        if run.get("run_id") == exclude:
-            continue
-        drive = run.get("drive")
-        if drive and run.get("sandbox") and os.path.isdir(run["sandbox"]):
-            out[drive] = run["run_id"]
-    return out
+    """兼容旧调用方；文件夹沙箱不需要全局盘符预留。"""
+    del cfg, exclude
+    return {}
 
 
 # --------------------------------------------------------------------------
@@ -158,14 +153,14 @@ def reserved_drives(cfg: dict, exclude: str = "") -> dict:
 
 def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
                claim_queued: bool = True, wait_s: float = 0.0,
-               log: Log = None) -> dict:
+               log: Log = None,
+               cancel_event: threading.Event | None = None) -> dict:
     """准备一轮新运行：读题包 → 建记录 → 准备沙箱。
 
     若有同一题同模型的排队中校准沙箱（§6.4 盲测排队），直接认领一个，
-    这样校准排了 N 个沙箱后，跑一次就消耗一个，不会白占盘符。
+    这样校准排了 N 个名额后，真正使用时才创建文件夹沙箱。
 
-    :param wait_s: 盘符暂时用尽时的等待上限（秒）。跑批会传一个非零值，
-        避免"上一条刚回收、下一条还没拿到"的毫秒级窗口被误判为池子用尽。
+    :param wait_s: 保留旧调用签名；文件夹沙箱不等待盘符。
     """
     meta = packs.load_meta(cfg, task)
     config.find_model(cfg, model)          # 模型档案不存在就直接报错
@@ -179,6 +174,8 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
         )
 
     logger = log or (lambda m: None)
+    if cancel_event is not None and cancel_event.is_set():
+        raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消，未创建新的运行记录。")
     run_id = _new_run_id(cfg, task, model)
     with _STORE_LOCK:
         run = {
@@ -203,21 +200,45 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
         util.ensure_dir(run["run_dir"])
         save_run(cfg, run)
 
+    if cancel_event is not None and cancel_event.is_set():
+        run["status"] = "cancelled"
+        run["last_error"] = {
+            "code": errors.E_RUN_CANCELLED,
+            "message": "批次已取消，未开始准备沙箱。",
+        }
+        save_run(cfg, run)
+        raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消，未开始准备沙箱。")
     claimed = _claim_queued(cfg, task, model, logger) if claim_queued else None
     if claimed:
         logger("认领了一个排队中的校准沙箱：%s" % claimed["run_id"])
         target_dir = run["run_dir"]
-        util.remove_tree(target_dir)
-        os.replace(claimed["run_dir"], target_dir)
-        run = util.read_json(os.path.join(target_dir, "run.json"), default=run) or run
-        run["calibration"] = True
-        run["status"] = "ready"
-        run["updated_at"] = util.iso_now()
-        save_run(cfg, run)
-        return run
+        claimed_dir = claimed.get("run_dir") or dir_of_run_id(cfg, claimed["run_id"])
+        # The queued run has already been prepared in its own directory. Keep that
+        # directory so its sandbox and local dependency baseline stay paired with
+        # the run record; the newly-created directory is only an empty placeholder.
+        if util.norm(target_dir) != util.norm(claimed_dir):
+            util.remove_tree(target_dir)
+        claimed["calibration"] = True
+        claimed["status"] = "ready"
+        claimed["updated_at"] = util.iso_now()
+        save_run(cfg, claimed)
+        return claimed
 
-    sandbox.prepare(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run_id),
-                    wait_s=wait_s, log=logger)
+    prepare_kwargs = {
+        "reserved": reserved_drives(cfg, exclude=run_id),
+        "wait_s": wait_s,
+        "log": logger,
+    }
+    if cancel_event is not None:
+        prepare_kwargs["cancel_event"] = cancel_event
+    try:
+        sandbox.prepare(cfg, run, meta, **prepare_kwargs)
+    except errors.HarnessError as exc:
+        if exc.code == errors.E_RUN_CANCELLED:
+            run["status"] = "cancelled"
+            run["last_error"] = {"code": exc.code, "message": exc.message}
+            save_run(cfg, run)
+        raise
     save_run(cfg, run)
     return run
 
@@ -225,8 +246,7 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
 def _claim_queued(cfg: dict, task: str, model: str, log: Log) -> Optional[dict]:
     """认领一个排队的校准沙箱（同题同模型、状态 queued）并当场把沙箱铺好。
 
-    排队时不占盘符：盘符池只有 Q/R/S 三个，排 5 个沙箱就爆了。
-    真正用到时才 materialize，那时快照缓存已经热了，铺沙箱是亚秒级的。
+    排队时只建记录，真正用到时才创建目录；耗时取决于快照和依赖体积。
     """
     for run in list_runs(cfg):
         if (run.get("status") == "queued" and run.get("task") == task
@@ -251,37 +271,72 @@ def _claim_queued(cfg: dict, task: str, model: str, log: Log) -> Optional[dict]:
 def reset_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
     """清空改动：秒级回基线（只重置沙箱，不动记录与成绩）。"""
     logger = log or (lambda m: None)
-    run = get_run(cfg, run_id)
-    meta = packs.load_meta(cfg, run["task"])
-    if not run.get("sandbox") or not os.path.isdir(run["sandbox"]):
-        raise errors.HarnessError(
-            errors.E_SANDBOX_MISSING,
-            "沙箱已经不在了，无法清空改动。请点「重建沙箱」。",
-            str(run.get("sandbox")),
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "模型正在处理这次对话，暂时不能清空沙箱。请等当前消息完成后重试。",
+                run_id,
+            )
+        run = get_run(cfg, run_id)
+        if run.get("status") == "grading":
+            raise errors.HarnessError(errors.E_RUN_BUSY, "校验正在进行，暂时不能清空沙箱。", run_id)
+        if run.get("cancel_requested") or run.get("status") == "cancelled":
+            raise errors.HarnessError(errors.E_RUN_CANCELLED, "这一轮已被取消，不能清空沙箱。", run_id)
+        if not run.get("sandbox") or not os.path.isdir(run["sandbox"]):
+            raise errors.HarnessError(
+                errors.E_SANDBOX_MISSING,
+                "沙箱已经不在了，无法清空改动。请点「重建沙箱」。",
+                str(run.get("sandbox")),
+            )
+        meta = packs.load_meta(cfg, run["task"])
+        dependencies_source = (
+            sandbox.node_modules_baseline(run) if sandbox.needs_frontend(meta) else ""
         )
-    result = sandbox.reset_changes(run["sandbox"], logger)
-    run["status"] = "ready"
-    run["updated_at"] = util.iso_now()
-    save_run(cfg, run)
-    result["run_id"] = run["run_id"]
-    result["sandbox"] = run["sandbox"]
-    result["drive"] = run.get("drive", "")
-    return result
+        if sandbox.needs_frontend(meta) and not dependencies_source:
+            raise errors.HarnessError(
+                errors.E_SANDBOX_BROKEN,
+                "node_modules 本地基线不存在，无法安全清空依赖改动。请重建沙箱。",
+                run_id,
+            )
+        result = sandbox.reset_changes(run["sandbox"], logger, dependencies_source)
+        run["status"] = "ready"
+        run["updated_at"] = util.iso_now()
+        save_run(cfg, run)
+        result["run_id"] = run["run_id"]
+        result["sandbox"] = run["sandbox"]
+        result["drive"] = run.get("drive", "")
+        return result
 
 
 def rebuild_sandbox(cfg: dict, task: str, run_id: str = "", log: Log = None) -> dict:
-    """重建沙箱：释放盘符 → 整树删除 → 重做全流程。"""
+    """重建沙箱：回收目录 → 重做全流程。"""
     logger = log or (lambda m: None)
-    run = get_run(cfg, run_id) if run_id else _latest_run_of_task(cfg, task)
-    if run.get("task") != task:
-        raise errors.HarnessError(errors.E_BAD_REQUEST, "这个运行记录不属于该任务。", run.get("run_id"))
-    meta = packs.load_meta(cfg, task)
-    logger("开始重建沙箱：%s" % run["run_id"])
-    sandbox.rebuild(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run["run_id"]), log=logger)
-    run["status"] = "ready"
-    run["rounds"] = []
-    save_run(cfg, run)
-    return {"run_id": run["run_id"], "sandbox": run["sandbox"], "drive": run.get("drive", "")}
+    target_id = run_id or ""
+    # 无 run_id 时先找记录，再用真实 ID 获取同一把会话锁。
+    if not target_id:
+        target_id = _latest_run_of_task(cfg, task)["run_id"]
+    with chat.exclusive(target_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "模型正在处理这次对话，暂时不能重建沙箱。请等当前消息完成后重试。",
+                target_id,
+            )
+        run = get_run(cfg, target_id)
+        if run.get("task") != task:
+            raise errors.HarnessError(errors.E_BAD_REQUEST, "这个运行记录不属于该任务。", run.get("run_id"))
+        if run.get("status") == "grading":
+            raise errors.HarnessError(errors.E_RUN_BUSY, "校验正在进行，暂时不能重建沙箱。", target_id)
+        if run.get("cancel_requested") or run.get("status") == "cancelled":
+            raise errors.HarnessError(errors.E_RUN_CANCELLED, "这一轮已被取消，不能重建沙箱。", target_id)
+        meta = packs.load_meta(cfg, task)
+        logger("开始重建沙箱：%s" % run["run_id"])
+        sandbox.rebuild(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run["run_id"]), log=logger)
+        run["status"] = "ready"
+        run["rounds"] = []
+        save_run(cfg, run)
+        return {"run_id": run["run_id"], "sandbox": run["sandbox"], "drive": run.get("drive", "")}
 
 
 def _latest_run_of_task(cfg: dict, task: str) -> dict:
@@ -363,31 +418,44 @@ def is_grading(run_id: str) -> bool:
 
 def start_grade(cfg: dict, run_id: str) -> dict:
     """异步启动校验：立刻返回，实际跑在后台线程里（前端轮询 GET /api/runs/{id}）。"""
-    run = get_run(cfg, run_id)
-    with _GRADING_LOCK:
-        if _GRADING.get(run_id):
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
             raise errors.HarnessError(
                 errors.E_RUN_BUSY,
-                "这一轮正在校验中，请等当前校验结束。重复点击不会重复跑。",
+                "模型正在处理这次对话，请等当前消息完成后再启动校验。",
                 run_id,
             )
-        _GRADING[run_id] = True
-    try:
-        meta = packs.load_meta(cfg, run["task"])
-    except errors.HarnessError as exc:
+        run = get_run(cfg, run_id)
+        if run.get("cancel_requested") or run.get("status") == "cancelled":
+            raise errors.HarnessError(
+                errors.E_RUN_CANCELLED,
+                "这一轮已被批次取消，不能再启动校验。",
+                run_id,
+            )
         with _GRADING_LOCK:
-            _GRADING.pop(run_id, None)
-        raise exc
-    if not run.get("sandbox") or not os.path.isdir(run["sandbox"]):
-        with _GRADING_LOCK:
-            _GRADING.pop(run_id, None)
-        raise errors.HarnessError(
-            errors.E_SANDBOX_MISSING,
-            "沙箱还没准备好，无法校验。请先点「准备沙箱」。",
-            run_id,
-        )
-    run["status"] = "grading"
-    save_run(cfg, run)
+            if _GRADING.get(run_id) or run.get("status") == "grading":
+                raise errors.HarnessError(
+                    errors.E_RUN_BUSY,
+                    "这一轮正在校验中，请等当前校验结束。重复点击不会重复跑。",
+                    run_id,
+                )
+            _GRADING[run_id] = True
+        try:
+            meta = packs.load_meta(cfg, run["task"])
+        except errors.HarnessError as exc:
+            with _GRADING_LOCK:
+                _GRADING.pop(run_id, None)
+            raise exc
+        if not run.get("sandbox") or not os.path.isdir(run["sandbox"]):
+            with _GRADING_LOCK:
+                _GRADING.pop(run_id, None)
+            raise errors.HarnessError(
+                errors.E_SANDBOX_MISSING,
+                "沙箱还没准备好，无法校验。请先点「准备沙箱」。",
+                run_id,
+            )
+        run["status"] = "grading"
+        save_run(cfg, run)
 
     thread = threading.Thread(
         target=_grade_worker, args=(cfg, run_id), name="grade-%s" % run_id, daemon=True)
@@ -397,6 +465,8 @@ def start_grade(cfg: dict, run_id: str) -> dict:
 
 def _grade_worker(cfg: dict, run_id: str) -> None:
     """后台线程体：跑校验 → 落盘报告 → 更新状态。"""
+    run_lock = chat.lock_for(run_id)
+    run_lock.acquire()
     logger = RunLogger(_run_dir_of(cfg, run_id))
     run = None
     try:
@@ -447,6 +517,7 @@ def _grade_worker(cfg: dict, run_id: str) -> None:
     finally:
         with _GRADING_LOCK:
             _GRADING.pop(run_id, None)
+        run_lock.release()
 
 
 def _run_dir_of(cfg: dict, run_id: str) -> str:
@@ -780,7 +851,7 @@ def list_models(cfg: dict) -> List[dict]:
 
 
 def upsert_model(cfg: dict, payload: dict) -> dict:
-    """新增或更新模型档案；只保存脱敏后的 Key。"""
+    """新增或更新模型档案；只保存脱敏值和服务端环境变量名。"""
     model_id = util.sanitize_id(payload.get("id"))
     if not model_id:
         raise errors.HarnessError(errors.E_MODEL_INVALID, "模型档案需要一个 id（英文标识即可）。")
@@ -792,6 +863,13 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
             str(payload.get("protocol")),
         )
     api_mode = _normalize_api_mode(protocol, payload.get("api_mode"), strict=True)
+    key_env = str(payload.get("key_env") or "").strip()
+    if key_env and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key_env):
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID,
+            "key_env 必须是合法的服务端环境变量名。",
+            key_env,
+        )
     models = list_models(cfg)
     entry = {
         "id": model_id,
@@ -800,6 +878,7 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
         "base_url": str(payload.get("base_url") or ""),
         "model": str(payload.get("model") or ""),
         "key_masked": str(payload.get("key_masked") or ""),
+        "key_env": key_env,
         "note": str(payload.get("note") or "")[:500],
     }
     for index, item in enumerate(models):

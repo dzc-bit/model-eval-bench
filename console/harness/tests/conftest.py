@@ -5,8 +5,8 @@
    （见 pytest_configure），绝不写到系统盘；
 2. 受测仓库 D:\\New project 6 全程只读，测试只拿 fixtures/mini_repo 这份自造迷你仓库；
 3. 夹具里的题包是自造的，不依赖 packs\\ 下由出题 agent 生产的真实题包；
-4. 盘符池只有 Q/R/S 三个，每个用例结束必须把自己占的盘符还回去
-   （见 reclaim_drives），否则后面的用例会误报"盘符池已用尽"。
+4. 每个用例的工作区都落在 pytest 临时根目录内；用例结束只清理实体目录，
+   不创建或回收任何盘符映射。
 """
 
 from __future__ import annotations
@@ -72,47 +72,16 @@ def pytest_configure(config):
     config.option.basetemp = PYTEST_TMP
 
 
-# --------------------------------------------------------------------------
-# 资源回收
-# --------------------------------------------------------------------------
-
-def _drop_junctions(root: str) -> None:
-    """把树里的目录联接摘掉（只删链接本身，不碰目标内容）。
-
-    沙箱里的 node_modules 是指向真实仓库的联接，交给 shutil.rmtree 的话
-    万一跟随过去就是灾难。宁可多写这几行。
-    """
-    if not os.path.isdir(root):
-        return
-    for dirpath, dirnames, _filenames in os.walk(root):
-        for name in list(dirnames):
-            child = os.path.join(dirpath, name)
-            if util.is_junction(child):
-                util.remove_junction(child)
-                dirnames.remove(name)
-
-
 @pytest.fixture(scope="session", autouse=True)
-def sweep_stale_drives():
-    """开跑前先回收上一轮崩溃残留的盘符映射。"""
-    for drive, target in sandbox.list_subst().items():
-        if util.path_within(PYTEST_TMP, target):
-            sandbox.release_drive(drive, expected_target=target)
+def sweep_stale_workspaces():
+    """开跑前后不触碰宿主机盘符，只让测试工作区保持在临时根内。"""
     yield
-    for drive, target in sandbox.list_subst().items():
-        if util.path_within(PYTEST_TMP, target):
-            sandbox.release_drive(drive, expected_target=target)
 
 
 @pytest.fixture(autouse=True)
-def reclaim_drives(tmp_path):
-    """每个用例结束后：归还它占用的盘符，并摘掉临时树里的联接。"""
+def reclaim_workspaces():
+    """每个用例的实体工作区由 pytest 临时目录统一回收。"""
     yield
-    root = util.norm(str(tmp_path))
-    for drive, target in sandbox.list_subst().items():
-        if util.path_within(root, target):
-            sandbox.release_drive(drive, expected_target=target)
-    _drop_junctions(root)
 
 
 # --------------------------------------------------------------------------
@@ -139,7 +108,7 @@ def mini_repo(workdir):
     """把 fixtures/mini_repo 完整复制一份到临时目录（测试全程只动副本）。
 
     这里刻意不走 util.copy_tree：它按设计要跳过 node_modules，
-    而夹具里的 node_modules/tiny-dep 正是联接复用要验的对象。
+    而夹具里的 node_modules/tiny-dep 作为依赖复制源需要保留。
     """
     dest = os.path.join(workdir, "repo")
     shutil.copytree(MINI_REPO, dest,
@@ -174,7 +143,7 @@ def cfg(base_cfg, workdir, mini_repo, packs_root):
     conf["timeouts"]["prepare_s"] = 120
     conf["timeouts"]["grade_default_s"] = 180
     conf["timeouts"]["grade_max_s"] = 900
-    conf["drive_pool"] = ["Q:", "R:", "S:"]
+    conf["max_concurrency"] = 3
     harness_config.ensure_workspace_dirs(conf)
     return conf
 
