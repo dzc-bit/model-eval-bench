@@ -2,13 +2,22 @@
   "run_id": "T2-05__hunyuan4preview__20261001-005922",
   "task": "T2-05",
   "model": "hunyuan4preview",
-  "attempt": 1,
+  "attempt": 2,
   "attempts_allowed": 2,
   "status": "ready",
   "created_at": "2026-10-01T00:59:22",
-  "updated_at": "2026-10-01T00:59:32",
+  "updated_at": "2026-10-01T01:41:40",
   "revealed": false,
-  "rounds": [],
+  "rounds": [
+    {
+      "attempt": 1,
+      "score": 33.3,
+      "passed": false,
+      "invalidated": false,
+      "graded_at": "2026-10-01T01:40:59",
+      "report": "round-1.json"
+    }
+  ],
   "note": "",
   "calibration": false,
   "drive": "",
@@ -19,5 +28,7 @@
   "gitignore_digest": "985642d9a814e09acd3eb0e8dbb4f935543c0efb602cc415a2987aab947289c5",
   "injected": 2,
   "node_modules_target": "",
-  "node_modules_baseline": ""
+  "node_modules_baseline": "",
+  "last_score": 33.3,
+  "last_passed": false
 }

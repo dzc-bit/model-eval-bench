@@ -305,6 +305,7 @@ export const S = {
   GRADE_EMPTY_DESC: '在内置对话中让模型完成当前任务后，点「运行校验」查看分组结果。',
   GRADE_PROMOTE: '进入第 {n} 轮',
   GRADE_PROMOTE_LAST: '这是最后一次机会了。跑完还不能全绿，就只能查看参考解或者换个模型重来。',
+  GRADE_PROMOTE_EXHAUSTED: '本题的尝试机会已经用完，不能再进入下一轮；可以查看参考解或换个模型重来。',
   GRADE_REVEAL: '查看参考解',
   GRADE_REVEAL_TITLE: '查看参考解？',
   GRADE_REVEAL_BODY: '这条提示词会直接给出本题的标准改法，等于提前公布答案。',

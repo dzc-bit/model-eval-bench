@@ -1,0 +1,329 @@
+{
+  "run_id": "T2-05__hunyuan4preview__20261001-005922",
+  "task": "T2-05",
+  "model": "hunyuan4preview",
+  "attempt": 1,
+  "graded_at": "2026-10-01T01:40:59",
+  "duration_s": 26.2,
+  "score": 33.3,
+  "raw_score": 33.3,
+  "total_weight": 6.0,
+  "passed_weight": 2.0,
+  "passed": false,
+  "p2p_broken": false,
+  "regressions": [],
+  "groups": [
+    {
+      "id": "admission_exit",
+      "title": "admission_exit",
+      "weight": 1.0,
+      "passed": false,
+      "cases": [
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_serial_identical_submissions_reuse_in_flight_job",
+          "outcome": "passed",
+          "duration": 0.024,
+          "message": "",
+          "detail": ""
+        },
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
+          "outcome": "failed",
+          "duration": 2.027,
+          "message": "AssertionError: 慢写入未被触发\nassert False\n +  where False = wait(timeout=2.0)\n +    where wait = <threading.Event at 0x1bb35340b90: unset>.wait",
+          "detail": "tmp_path = WindowsPath('D:/new model test/sandboxes/_grade/T2-05__hunyuan4preview__20261001-005922/.grade-cache/pytest-basetemp/test_concurrent_submissions_ad0')\n\n    def test_concurrent_submissions_admit_single_worker(tmp_path):\n        \"\"\"并发重复提交：两线程同时提交相同签名任务，必须原子判定只起一个。\"\"\"\n        manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)\n        sig = \"full_market_bootstrap|2015-01-01|2015-01-05|000001\"\n    \n        entered_put = Event()\n        orig_put = manager._put_locked\n    \n        def slow_put(status):\n            entered_put.set()\n            time.sleep(0.3)\n            return orig_put(status)\n    \n        manager._put_locked = slow_put\n    \n        thread_result = {}\n    \n        def worker():\n            first = _make_status(\"job-concurrent-1\", \"running\")\n            admitted, is_new = manager._admit(first, sig)\n            thread_result[\"job\"] = admitted\n            thread_result[\"is_new\"] = is_new\n    \n        t = threading.Thread(target=worker, daemon=True)\n        t.start()\n    \n>       assert entered_put.wait(timeout=2.0), \"慢写入未被触发\"\nE       AssertionError: 慢写入未被触发\nE       assert False\nE        +  where False = wait(timeout=2.0)\nE        +    where wait = <threading.Event at 0x1bb35340b90: unset>.wait\n\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:112: AssertionError"
+        }
+      ],
+      "total": 2,
+      "passed_count": 1
+    },
+    {
+      "id": "heartbeat_exit",
+      "title": "heartbeat_exit",
+      "weight": 1.0,
+      "passed": false,
+      "cases": [
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_progress_writeback_prolongs_job_lifecycle",
+          "outcome": "failed",
+          "duration": 0.158,
+          "message": "AssertionError: assert 'failed' == 'running'\n  \n  - running\n  + failed",
+          "detail": "tmp_path = WindowsPath('D:/new model test/sandboxes/_grade/T2-05__hunyuan4preview__20261001-005922/.grade-cache/pytest-basetemp/test_progress_writeback_prolon0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001BB3406BBB0>\n\n    def test_progress_writeback_prolongs_job_lifecycle(tmp_path, monkeypatch):\n        \"\"\"进度写回续命：进度推进应刷新心跳，防止被判为失活。\"\"\"\n        import astock_backtester.data.sync as sync_module\n        monkeypatch.setattr(sync_module, \"RUNNING_JOB_STALE_SECONDS\", 0.1)\n    \n        manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)\n        sig_a = \"full_market_bootstrap|2015-01-01|2015-01-05|000001\"\n        job_a, _ = manager._admit(_make_status(\"job-a\", \"running\"), sig_a)\n    \n        time.sleep(0.07)\n        manager._put_locked(job_a.model_copy(deep=True))\n        time.sleep(0.07)\n    \n        # 距准入已过 0.14s (> 0.1s)，但距 _put_locked 仅过 0.07s (< 0.1s)\n        sig_b = \"full_market_bootstrap|2015-01-01|2015-01-05|000002\"\n        manager._admit(_make_status(\"job-b\", \"running\"), sig_b)\n    \n        current_a = manager._jobs.get(\"job-a\")\n        assert current_a is not None\n>       assert current_a.status == \"running\"\nE       AssertionError: assert 'failed' == 'running'\nE         \nE         - running\nE         + failed\n\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:149: AssertionError"
+        },
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_recent_read_protects_job_from_stale_reap",
+          "outcome": "passed",
+          "duration": 0.172,
+          "message": "",
+          "detail": ""
+        },
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
+          "outcome": "passed",
+          "duration": 0.177,
+          "message": "",
+          "detail": ""
+        }
+      ],
+      "total": 3,
+      "passed_count": 2
+    },
+    {
+      "id": "reclaim_exit",
+      "title": "reclaim_exit",
+      "weight": 1.0,
+      "passed": true,
+      "cases": [
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
+          "outcome": "passed",
+          "duration": 0.032,
+          "message": "",
+          "detail": ""
+        },
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
+          "outcome": "passed",
+          "duration": 0.177,
+          "message": "",
+          "detail": ""
+        }
+      ],
+      "total": 2,
+      "passed_count": 2
+    },
+    {
+      "id": "consumer_exit",
+      "title": "consumer_exit",
+      "weight": 1.0,
+      "passed": true,
+      "cases": [
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
+          "outcome": "passed",
+          "duration": 0.607,
+          "message": "",
+          "detail": ""
+        },
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
+          "outcome": "passed",
+          "duration": 0.536,
+          "message": "",
+          "detail": ""
+        }
+      ],
+      "total": 2,
+      "passed_count": 2
+    },
+    {
+      "id": "coherence",
+      "title": "coherence",
+      "weight": 2.0,
+      "passed": false,
+      "cases": [
+        {
+          "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
+          "outcome": "failed",
+          "duration": 2.044,
+          "message": "assert False\n +  where False = wait(timeout=2.0)\n +    where wait = <threading.Event at 0x1bb3522f4d0: unset>.wait",
+          "detail": "tmp_path = WindowsPath('D:/new model test/sandboxes/_grade/T2-05__hunyuan4preview__20261001-005922/.grade-cache/pytest-basetemp/test_full_lifecycle_coherence_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001BB3512AF50>\n\n    def test_full_lifecycle_coherence_across_concurrency_and_cleanup(tmp_path, monkeypatch):\n        \"\"\"全周期链：串行复用 → 并发竞态只起一个 → 完成后清理干净 → 同签名再进起全新任务。\"\"\"\n        import astock_backtester.data.sync as sync_module\n        manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)\n        sig = \"full_market_bootstrap|2015-01-01|2015-01-05|000001\"\n    \n        # 1. 串行复用\n        first = _make_status(\"chain-1\", \"running\")\n        admitted1, is_new1 = manager._admit(first, sig)\n        assert is_new1 is True\n        assert admitted1.admission == \"started\"\n    \n        second = _make_status(\"chain-2\", \"running\")\n        admitted2, is_new2 = manager._admit(second, sig)\n        assert is_new2 is False\n        assert admitted2.admission == \"reused\"\n        assert len(manager._jobs) == 1\n    \n        # 2. 并发竞态\n        entered_put = Event()\n        orig_put = manager._put_locked\n    \n        def slow_put(status):\n            entered_put.set()\n            time.sleep(0.3)\n            return orig_put(status)\n    \n        manager._put_locked = slow_put\n        sig2 = \"full_market_bootstrap|2015-01-01|2015-01-05|000002\"\n    \n        worker_result = {}\n        def worker():\n            job_w = _make_status(\"chain-conc-1\", \"running\")\n            admitted_w, is_new_w = manager._admit(job_w, sig2)\n            worker_result[\"job\"] = admitted_w\n            worker_result[\"is_new\"] = is_new_w\n    \n        t = threading.Thread(target=worker, daemon=True)\n        t.start()\n>       assert entered_put.wait(timeout=2.0)\nE       assert False\nE        +  where False = wait(timeout=2.0)\nE        +    where wait = <threading.Event at 0x1bb3522f4d0: unset>.wait\n\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:343: AssertionError"
+        }
+      ],
+      "total": 1,
+      "passed_count": 0
+    }
+  ],
+  "violations": [],
+  "noise": [],
+  "similarity": {
+    "checked": 2,
+    "threshold": 0.6,
+    "flagged": false,
+    "max_ratio": 0.176,
+    "matches": [
+      {
+        "reference": "fix.patch",
+        "overlap": 0.123,
+        "ratio": 0.176,
+        "score": 0.176,
+        "flagged": false
+      },
+      {
+        "reference": "partial.patch",
+        "overlap": 0.062,
+        "ratio": 0.108,
+        "score": 0.108,
+        "flagged": false
+      }
+    ]
+  },
+  "diff": {
+    "files": [
+      "backend/astock_backtester/data/sync.py",
+      "backend/astock_backtester/service.py"
+    ],
+    "added_lines": 213,
+    "removed_lines": 116,
+    "changed_lines": 329,
+    "line_cap": 4000,
+    "over_cap": false
+  },
+  "baseline_problems": [],
+  "checks": [
+    {
+      "kind": "pytest",
+      "command": [
+        "C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+        "-m",
+        "pytest",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_serial_identical_submissions_reuse_in_flight_job",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_progress_writeback_prolongs_job_lifecycle",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_recent_read_protects_job_from_stale_reap",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
+        "tests/test_data_service_http.py::test_service_cancels_sync_job_by_id",
+        "tests/test_data_service_http.py::test_service_returns_sync_job_progress_by_id",
+        "tests/test_data_service_http.py::test_service_starts_full_market_sync_job",
+        "tests/test_data_service_http.py::test_service_uses_all_local_warehouse_symbols_for_recent_full_market_sync",
+        "tests/test_data_service_http.py::test_service_uses_local_warehouse_symbols_for_full_market_sync_before_provider_list",
+        "tests/test_data_service_http.py::test_service_uses_provider_symbols_for_full_market_sync_when_not_supplied",
+        "tests/test_data_service_http.py::test_sync_symbols_records_internal_attribute_error_before_provider_fallback",
+        "tests/test_sync_jobs.py::test_async_full_market_job_flushes_successful_rows_after_a_batch_failure",
+        "tests/test_sync_jobs.py::test_async_full_market_job_reuses_completeness_snapshot_for_gap_counts",
+        "tests/test_sync_jobs.py::test_capital_flow_job_batches_symbols_and_accumulates_row_stats",
+        "tests/test_sync_jobs.py::test_capital_flow_job_can_be_cancelled_between_batches",
+        "tests/test_sync_jobs.py::test_capital_flow_job_counts_no_failure_zero_import_as_completed",
+        "tests/test_sync_jobs.py::test_capital_flow_job_reports_completed_with_errors_when_rows_import_with_failures",
+        "tests/test_sync_jobs.py::test_capital_flow_job_treats_shortfall_diagnostics_as_retryable_failure",
+        "tests/test_sync_jobs.py::test_daily_completeness_snapshot_exposes_missing_dates_for_window_narrowing",
+        "tests/test_sync_jobs.py::test_daily_completeness_snapshot_is_lightweight_and_counter_is_vectorized",
+        "tests/test_sync_jobs.py::test_fill_counter_without_snapshot_counts_new_ohlc_rows",
+        "tests/test_sync_jobs.py::test_full_market_counts_exception_as_failure_and_empty_frame_as_skip",
+        "tests/test_sync_jobs.py::test_full_market_fetch_window_falls_back_to_full_range_without_missing_dates",
+        "tests/test_sync_jobs.py::test_full_market_fetch_window_is_narrowed_to_the_missing_dates",
+        "tests/test_sync_jobs.py::test_full_market_flush_raises_after_bounded_lock_retries_and_keeps_frames",
+        "tests/test_sync_jobs.py::test_full_market_flush_retries_file_lock_timeout_without_losing_frames",
+        "tests/test_sync_jobs.py::test_full_market_job_can_run_asynchronously_and_report_progress",
+        "tests/test_sync_jobs.py::test_full_market_job_fetches_symbols_with_missing_market_cap",
+        "tests/test_sync_jobs.py::test_full_market_job_holds_frames_until_write_threshold_is_reached",
+        "tests/test_sync_jobs.py::test_full_market_job_persists_success_and_failure",
+        "tests/test_sync_jobs.py::test_full_market_job_records_recent_failures_with_symbol_and_reason",
+        "tests/test_sync_jobs.py::test_full_market_job_reports_daily_and_market_cap_fills_separately",
+        "tests/test_sync_jobs.py::test_full_market_job_separates_imported_rows_from_filled_missing_rows",
+        "tests/test_sync_jobs.py::test_full_market_job_skips_empty_provider_frames_without_errors",
+        "tests/test_sync_jobs.py::test_full_market_job_skips_symbols_already_complete_in_local_warehouse",
+        "tests/test_sync_jobs.py::test_incomplete_symbols_keeps_thin_day_gap_actionable",
+        "tests/test_sync_jobs.py::test_incomplete_symbols_returns_gap_based_pool",
+        "tests/test_sync_jobs.py::test_incomplete_symbols_treats_market_normal_day_gap_as_suspension",
+        "tests/test_sync_jobs.py::test_narrow_fetch_window_clamps_to_the_task_window",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--junitxml=D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\report-0.xml",
+        "--basetemp=D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\.grade-cache\\pytest-basetemp"
+      ],
+      "returncode": 1,
+      "duration_s": 25.6,
+      "timed_out": false,
+      "summary": "pytest：42/45 通过，退出码 1，用时 25.6s",
+      "notes": [],
+      "log_tail": "rrent-1\", \"running\")\r\n            admitted, is_new = manager._admit(first, sig)\r\n            thread_result[\"job\"] = admitted\r\n            thread_result[\"is_new\"] = is_new\r\n    \r\n        t = threading.Thread(target=worker, daemon=True)\r\n        t.start()\r\n    \r\n>       assert entered_put.wait(timeout=2.0), \"慢写入未被触发\"\r\nE       AssertionError: 慢写入未被触发\r\nE       assert False\r\nE        +  where False = wait(timeout=2.0)\r\nE        +    where wait = <threading.Event at 0x1bb35340b90: unset>.wait\r\n\r\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:112: AssertionError\r\n_______________ test_progress_writeback_prolongs_job_lifecycle ________________\r\n\r\ntmp_path = WindowsPath('D:/new model test/sandboxes/_grade/T2-05__hunyuan4preview__20261001-005922/.grade-cache/pytest-basetemp/test_progress_writeback_prolon0')\r\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001BB3406BBB0>\r\n\r\n    def test_progress_writeback_prolongs_job_lifecycle(tmp_path, monkeypatch):\r\n        \"\"\"进度写回续命：进度推进应刷新心跳，防止被判为失活。\"\"\"\r\n        import astock_backtester.data.sync as sync_module\r\n        monkeypatch.setattr(sync_module, \"RUNNING_JOB_STALE_SECONDS\", 0.1)\r\n    \r\n        manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)\r\n        sig_a = \"full_market_bootstrap|2015-01-01|2015-01-05|000001\"\r\n        job_a, _ = manager._admit(_make_status(\"job-a\", \"running\"), sig_a)\r\n    \r\n        time.sleep(0.07)\r\n        manager._put_locked(job_a.model_copy(deep=True))\r\n        time.sleep(0.07)\r\n    \r\n        # 距准入已过 0.14s (> 0.1s)，但距 _put_locked 仅过 0.07s (< 0.1s)\r\n        sig_b = \"full_market_bootstrap|2015-01-01|2015-01-05|000002\"\r\n        manager._admit(_make_status(\"job-b\", \"running\"), sig_b)\r\n    \r\n        current_a = manager._jobs.get(\"job-a\")\r\n        assert current_a is not None\r\n>       assert current_a.status == \"running\"\r\nE       AssertionError: assert 'failed' == 'running'\r\nE         \r\nE         - running\r\nE         + failed\r\n\r\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:149: AssertionError\r\n________ test_full_lifecycle_coherence_across_concurrency_and_cleanup _________\r\n\r\ntmp_path = WindowsPath('D:/new model test/sandboxes/_grade/T2-05__hunyuan4preview__20261001-005922/.grade-cache/pytest-basetemp/test_full_lifecycle_coherence_0')\r\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001BB3512AF50>\r\n\r\n    def test_full_lifecycle_coherence_across_concurrency_and_cleanup(tmp_path, monkeypatch):\r\n        \"\"\"全周期链：串行复用 → 并发竞态只起一个 → 完成后清理干净 → 同签名再进起全新任务。\"\"\"\r\n        import astock_backtester.data.sync as sync_module\r\n        manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)\r\n        sig = \"full_market_bootstrap|2015-01-01|2015-01-05|000001\"\r\n    \r\n        # 1. 串行复用\r\n        first = _make_status(\"chain-1\", \"running\")\r\n        admitted1, is_new1 = manager._admit(first, sig)\r\n        assert is_new1 is True\r\n        assert admitted1.admission == \"started\"\r\n    \r\n        second = _make_status(\"chain-2\", \"running\")\r\n        admitted2, is_new2 = manager._admit(second, sig)\r\n        assert is_new2 is False\r\n        assert admitted2.admission == \"reused\"\r\n        assert len(manager._jobs) == 1\r\n    \r\n        # 2. 并发竞态\r\n        entered_put = Event()\r\n        orig_put = manager._put_locked\r\n    \r\n        def slow_put(status):\r\n            entered_put.set()\r\n            time.sleep(0.3)\r\n            return orig_put(status)\r\n    \r\n        manager._put_locked = slow_put\r\n        sig2 = \"full_market_bootstrap|2015-01-01|2015-01-05|000002\"\r\n    \r\n        worker_result = {}\r\n        def worker():\r\n            job_w = _make_status(\"chain-conc-1\", \"running\")\r\n            admitted_w, is_new_w = manager._admit(job_w, sig2)\r\n            worker_result[\"job\"] = admitted_w\r\n            worker_result[\"is_new\"] = is_new_w\r\n    \r\n        t = threading.Thread(target=worker, daemon=True)\r\n        t.start()\r\n>       assert entered_put.wait(timeout=2.0)\r\nE       assert False\r\nE        +  where False = wait(timeout=2.0)\r\nE        +    where wait = <threading.Event at 0x1bb3522f4d0: unset>.wait\r\n\r\nhidden\\tests_hidden\\test_sync_admission_lifecycle.py:343: AssertionError\r\n============================== warnings summary ===============================\r\nhidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker\r\n  C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pytest\\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-1 (worker)\r\n  \r\n  Traceback (most recent call last):\r\n    File \"C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\threading.py\", line 1041, in _bootstrap_inner\r\n      self.run()\r\n      ~~~~~~~~^^\r\n    File \"C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\threading.py\", line 992, in run\r\n      self._target(*self._args, **self._kwargs)\r\n      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n    File \"D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\hidden\\tests_hidden\\test_sync_admission_lifecycle.py\", line 105, in worker\r\n      admitted, is_new = manager._admit(first, sig)\r\n                         ~~~~~~~~~~~~~~^^^^^^^^^^^^\r\n    File \"D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\backend\\astock_backtester\\data\\sync.py\", line 417, in _admit\r\n      self._put_locked(stored, now=now, progress=True)\r\n      ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  TypeError: test_concurrent_submissions_admit_single_worker.<locals>.slow_put() got an unexpected keyword argument 'now'\r\n  \r\n  Enable tracemalloc to get traceback where the object was allocated.\r\n  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.\r\n    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))\r\n\r\nhidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup\r\n  C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\_pytest\\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-8 (worker)\r\n  \r\n  Traceback (most recent call last):\r\n    File \"C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\threading.py\", line 1041, in _bootstrap_inner\r\n      self.run()\r\n      ~~~~~~~~^^\r\n    File \"C:\\Users\\大帝之资\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\threading.py\", line 992, in run\r\n      self._target(*self._args, **self._kwargs)\r\n      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n    File \"D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\hidden\\tests_hidden\\test_sync_admission_lifecycle.py\", line 337, in worker\r\n      admitted_w, is_new_w = manager._admit(job_w, sig2)\r\n                             ~~~~~~~~~~~~~~^^^^^^^^^^^^^\r\n    File \"D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922\\backend\\astock_backtester\\data\\sync.py\", line 417, in _admit\r\n      self._put_locked(stored, now=now, progress=True)\r\n      ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  TypeError: test_full_lifecycle_coherence_across_concurrency_and_cleanup.<locals>.slow_put() got an unexpected keyword argument 'now'\r\n  \r\n  Enable tracemalloc to get traceback where the object was allocated.\r\n  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.\r\n    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n=========================== short test summary info ===========================\r\nFAILED hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker\r\nFAILED hidden/tests_hidden/test_sync_admission_lifecycle.py::test_progress_writeback_prolongs_job_lifecycle\r\nFAILED hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup\r\n3 failed, 42 passed, 2 warnings in 23.13s\r\n\n"
+    }
+  ],
+  "grade_dir": "D:\\new model test\\sandboxes\\_grade\\T2-05__hunyuan4preview__20261001-005922",
+  "error": "",
+  "invalidated": false,
+  "invalid_reason": "",
+  "task_title": "同一批数据反复起 worker；偶发 409 后再也起不来",
+  "tier": "medium",
+  "attempts_allowed": 2,
+  "allowed_paths": [
+    "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/service.py"
+  ],
+  "comparison": {
+    "has_previous": false,
+    "turned_green": [],
+    "stayed_red": [],
+    "regressed": []
+  },
+  "next_hint": {
+    "action": "promote",
+    "label": "进入第 2 轮",
+    "reason": "还有 1 次尝试机会。下一级提示词会多给一层信息（仍不含文件名）。",
+    "can_promote": true
+  },
+  "summary": {
+    "groups": [
+      {
+        "id": "admission_exit",
+        "title": "admission_exit",
+        "weight": 1.0,
+        "passed": false,
+        "total": 2,
+        "passed_count": 1,
+        "failed_tests": [
+          "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker"
+        ],
+        "first_failure": "AssertionError: 慢写入未被触发\nassert False\n +  where False = wait(timeout=2.0)\n +    where wait = <threading.Event at 0x1bb35340b90: unset>.wait"
+      },
+      {
+        "id": "heartbeat_exit",
+        "title": "heartbeat_exit",
+        "weight": 1.0,
+        "passed": false,
+        "total": 3,
+        "passed_count": 2,
+        "failed_tests": [
+          "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_progress_writeback_prolongs_job_lifecycle"
+        ],
+        "first_failure": "AssertionError: assert 'failed' == 'running'\n  \n  - running\n  + failed"
+      },
+      {
+        "id": "reclaim_exit",
+        "title": "reclaim_exit",
+        "weight": 1.0,
+        "passed": true,
+        "total": 2,
+        "passed_count": 2,
+        "failed_tests": [],
+        "first_failure": ""
+      },
+      {
+        "id": "consumer_exit",
+        "title": "consumer_exit",
+        "weight": 1.0,
+        "passed": true,
+        "total": 2,
+        "passed_count": 2,
+        "failed_tests": [],
+        "first_failure": ""
+      },
+      {
+        "id": "coherence",
+        "title": "coherence",
+        "weight": 2.0,
+        "passed": false,
+        "total": 1,
+        "passed_count": 0,
+        "failed_tests": [
+          "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup"
+        ],
+        "first_failure": "assert False\n +  where False = wait(timeout=2.0)\n +    where wait = <threading.Event at 0x1bb3522f4d0: unset>.wait"
+      }
+    ],
+    "green": 2,
+    "red": 3
+  },
+  "model_note": "",
+  "baseline_digest": "73f29e981efe7aaf87a76c6df5f89269b14a561e1f7bf3484c711d879b342727",
+  "drive": "",
+  "sandbox": "D:\\new model test\\sandboxes\\T2-05__hunyuan4preview__20261001-005922",
+  "generated_at": "2026-10-01T01:40:59"
+}

@@ -24,6 +24,7 @@ if CONSOLE_DIR not in sys.path:
     sys.path.insert(0, CONSOLE_DIR)
 
 import server  # noqa: E402
+from conftest import BACKEND_TASK, make_run  # noqa: E402
 from harness import chat, errors, keyring, runs, util  # noqa: E402
 
 
@@ -430,3 +431,21 @@ def test_legacy_model_gets_chat_completions_default(cfg, monkeypatch, tmp_path):
         assert as_json(body)["models"][0]["api_mode"] == "chat_completions"
     finally:
         _stop(httpd, thread)
+
+
+def test_promote_reopens_run_and_refuses_when_exhausted(cfg):
+    """promote 后轮次切回 ready（同一沙箱继续对话）；机会用完时拒绝并说明。"""
+    run = make_run(cfg, BACKEND_TASK, "轮次模型", attempt=1)
+    run["status"] = "graded"
+    runs.save_run(cfg, run)
+
+    first = runs.promote(cfg, run["run_id"])
+    assert first["attempt"] == 2
+    assert first["can_promote"] is False  # TEST-01 是 medium，2 次机会已到顶
+    reloaded = runs.get_run(cfg, run["run_id"])
+    assert reloaded["status"] == "ready"
+    assert reloaded["attempt"] == 2
+
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.promote(cfg, run["run_id"])
+    assert excinfo.value.code == errors.E_BAD_REQUEST

@@ -625,6 +625,11 @@ export function createWorkspace(props = {}) {
     const s = store.getState();
     if (!s.run) return;
     if (s.busy) return;
+    // 机会用完就别弹确认框了，直接说明；不然用户会以为还没进过下一轮
+    if (Number(s.run.attempt) >= Number(s.run.attempts_allowed)) {
+      showToast({ message: S.GRADE_PROMOTE_EXHAUSTED, kind: 'warn', duration: 6000 });
+      return;
+    }
     const nextLevel = Number(s.run.attempt) + 1;
     if (prefs.confirmDestructive === false) {
       await promoteNow(nextLevel);

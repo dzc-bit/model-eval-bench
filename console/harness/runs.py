@@ -371,6 +371,9 @@ def promote(cfg: dict, run_id: str) -> dict:
         )
     run["attempt"] = current + 1
     run["attempts_allowed"] = meta["attempts"]
+    # 同一个沙箱继续改（模型已写的代码保留），对话要能接着进行：
+    # 评分后的轮次是冻结态，不切回 ready 的话输入框会一直禁用
+    run["status"] = "ready"
     save_run(cfg, run)
     return {"run_id": run_id, "attempt": run["attempt"], "can_promote": run["attempt"] < meta["attempts"]}
 
