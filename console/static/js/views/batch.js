@@ -48,6 +48,20 @@ const ITEM_STATE = {
 };
 
 /**
+ * 这条批次记录是否来自已删除的模型档案。
+ *
+ * 清单还没拉成功时返回 false：那种情况下 models 为空并不代表档案都被删了。
+ * @param {Array<{id: string}>} models
+ * @param {boolean} loaded
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isModelGone(models, loaded, id) {
+  if (!loaded || !id) return false;
+  return !models.some((model) => String(model.id) === String(id));
+}
+
+/**
  * 创建批量跑批视图。
  *
  * @param {{navigate?: Function}} [props]
@@ -58,6 +72,7 @@ export function createBatch(props = {}) {
 
   let tasks = [];
   let models = [];
+  let modelsLoaded = false;
   let loading = true;
   let error = null;
 
@@ -271,8 +286,12 @@ export function createBatch(props = {}) {
     const events = el('ol', { class: 'batch__events' });
     const eventDetails = el('details', {}, el('summary', {}, '公开进度记录'), events);
     const errorNode = el('span', { class: 'batch__item-error', hidden: true });
+    const modelGoneBadge = el('span', {
+      class: 'badge badge--muted', hidden: true, title: S.BATCH_ITEM_MODEL_GONE_HINT,
+    }, S.BATCH_ITEM_MODEL_GONE);
     const main = el('div', { class: 'batch__item-main' },
       el('span', { class: 'batch__item-name' }, `${initialItem.task} × ${initialItem.model}`),
+      modelGoneBadge,
       initialItem.title ? el('span', { class: 'u-faint' }, initialItem.title) : null,
       errorNode,
     );
@@ -323,6 +342,8 @@ export function createBatch(props = {}) {
         }
         errorNode.hidden = !item.error;
         setText(errorNode, item.error || '');
+        const gone = isModelGone(models, modelsLoaded, item.model);
+        modelGoneBadge.hidden = !gone;
       },
       destroy() {
         mark.destroy();
@@ -455,6 +476,7 @@ export function createBatch(props = {}) {
       tasks = (taskRes && taskRes.tasks) || [];
       models = (modelRes && modelRes.models) || [];
       loading = false;
+      modelsLoaded = true;
       // 默认全选题、选第一个模型，减少点击
       if (!selectedTasks.size) tasks.forEach((t) => selectedTasks.add(t.id));
       if (!selectedModels.size && models.length) selectedModels.add(models[0].id);

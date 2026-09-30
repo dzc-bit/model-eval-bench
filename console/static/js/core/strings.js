@@ -202,7 +202,10 @@ export const S = {
   CHAT_REMOTE_BUSY_DETAIL: '服务端的这一轮对话还没结束（不限工具轮数，可能要几分钟）；结束后再启动校验。关闭页面不会中断它。',
   CHAT_TOOL_CALL_EMPTY: '模型请求使用受限工具。',
   CHAT_REASONING: '模型思考 / 推理摘要（接口返回）',
-  CHAT_REASONING_MISSING: '本条消息的接口未返回可展示的推理内容。',
+  CHAT_TOOL_ROUND_HINT: '这一轮只列出调用了哪些工具；每次调用的参数与返回原文保存在该轮运行目录的 chat.jsonl。',
+  CHAT_TOOL_ROUND_FAILED: '次返回报错',
+  CHAT_TOOL_ROUND_PENDING: '个调用还没返回',
+  CHAT_FINAL_SUMMARY: '本轮最终总结',
 
   // ==================== 提示词区 ====================
   PROMPT_TITLE: '提示词',
@@ -385,6 +388,9 @@ export const S = {
   BATCH_CONCURRENCY: '同时跑几条',
   BATCH_CONCURRENCY_HINT: '上限由 config.json 的 max_concurrency 决定，填大了会被后端夹到上限。',
   BATCH_DRIVE_NOTE: '每条会话使用 sandbox_root 下的独立文件夹。',
+  BATCH_ITEM_MODEL_GONE: '档案已删除',
+  BATCH_ITEM_MODEL_GONE_HINT:
+    '这个模型档案已经被删掉了，下面这条是它当时跑出来的历史记录，成绩仍可在记分板按档案查看。',
   BATCH_START: '开始跑批',
   BATCH_STARTING: '正在排队…',
   BATCH_STARTED: '跑批已开始',
