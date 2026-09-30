@@ -213,13 +213,33 @@ CLI：`python console/harness/selfcheck.py`，退出码 0=通过 / 1=不通过�
 
 ## 五、外部 harness 调研与本项目取舍（2026-10-01）
 
-给任务 2/3 当地基：这里只记「源码里读到的机制 + 我们决定怎么用」，不是教程。
-调研范围是 DeepSeek 官方文档/仓库 + 社区 SWE 工具闭环 harness（deepseek-ai 官方
-没有独立的 agent harness 仓库，`DeepSeek-R1` README 只给推理模板与采样参数，
-不含历史装配规则，所以机制层结论主要取自 SWE-agent 系与官方 API 文档）。
+给任务 2/3 当地基：这里只记「源码/文档里读到的机制 + 我们决定怎么用」，不是教程。
+第一手来源是官方的 **`deepseek-ai/deepseek-harness`**（TypeScript 插件化 agent harness，
+"Everything is a Plugin"，仓库自带 `.agents/notes/` 架构决策记录，逐条写「问题 / 决策 /
+曾考虑的替代方案 / 后果」——正是我们要写的那种笔记的样板）。社区侧对照取 SWE-agent 系，
+DeepSeek 官方 API 文档定死思维链的回传规则。
 
 ### 1. 来源（逐条可点开核对）
 
+- 官方 harness：https://github.com/deepseek-ai/deepseek-harness
+  - 轮次封闭不变式（每个会话事件都必须落在 `turn/start…turn/end` 之内，否则崩溃恢复
+    会把合法事件当成残留丢掉）：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/architecture/2026-06-15-turn-enclosure-invariant.zh.md
+  - 调用后压缩压力与上下文溢出恢复（压缩只在**已落盘**的边界做，绝不拆开 assistant 的
+    工具调用批次与其结果；压缩无法证明有进展时保留服务商原始错误）：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-10-after-call-compaction-pressure-and-overflow-recovery.zh.md
+  - 路由模型上下文与压缩策略（上下文容量属于**模型适配器**：逐模型 `contextWindow` +
+    适配器级 `defaultContextWindow`；容量报错会让压缩触发过晚（可避免的溢出）或过早
+    （丢掉有用上下文））：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-07-20-routed-model-context-and-compaction-policy.zh.md
+  - 结构化错误分类（`code` 与 `message` 分离；结构化字段进会话日志供代码与回放使用，
+    `deriveMessages` **不**把它暴露给模型，模型仍只看文本块）：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/bug-fix/2026-06-11-structured-error-taxonomy.zh.md
+  - 工具 schema 属于提示词装配（`PromptAssembly {sections, tools}` 单一拦截点，工具过滤
+    与提示词改写走同一条 waterfall）：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/architecture/2026-06-11-tool-schemas-in-prompt-assembly.zh.md
+  - 压缩检查点用英语工程文体，且**必须原样保留字面量**（路径、命令、错误、标识符、签名）：
+    https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/archived/bug-fix/2026-07-31-english-compaction-checkpoints.zh.md
 - SWE-agent 历史压缩：https://github.com/SWE-agent/SWE-agent/blob/main/sweagent/agent/history_processors.py
   （`LastNObservations`、`ClosedWindowHistoryProcessor`、`TagToolCallObservations`、`RemoveRegex`）
 - mini-swe-agent 循环与预算：https://github.com/SWE-agent/mini-swe-agent/blob/main/src/minisweagent/agents/default.py
@@ -240,6 +260,9 @@ CLI：`python console/harness/selfcheck.py`，退出码 0=通过 / 1=不通过�
 | 同一文件多次展示时，只保留**最后一次**的窗口，旧的降级为 `Outdated window with N lines omitted...` | `history_processors.py:ClosedWindowHistoryProcessor` | **采纳**：`read_file` 同一路径被反复读时，历史里只留最新一次的原文，旧的换成「已被后续读取覆盖（N 行省略）」 |
 | 错误以「模型能照做的一句话」返回，不带堆栈 | SWE-agent / mini-swe-agent 的 observation 文案风格 | **已是本项目风格**（`{"error": "只允许运行 git、python/pytest…"}`），继续保持单键 JSON + 中文可操作文案，不加 traceback |
 | 预算触发就停（`cost_limit`/`step_limit`） | mini-swe-agent `default.py` | **不采纳**：工具轮数不设上限是评测口径的一部分（模型自己收束），预算只用于**压缩**，不用于**掐断** |
+| 错误分成「稳定 code + 面向人的 message」；结构化字段只进会话日志供代码与回放用，**不塞进模型历史**，模型仍只看文本 | deepseek-harness `structured-error-taxonomy` | **采纳（已是本项目形状）**：`errors.py` 就是 code/文案分离 + 前端按 code 查文案；据此工具轮展开体只给「几次报错」，报错原文不进界面也不重塞给模型 |
+| 工具 schema 与 system prompt 当成同一次「装配」的产物（`PromptAssembly {sections, tools}`），工具过滤只是这次装配的一次重写 | deepseek-harness `tool-schemas-in-prompt-assembly` | **不采纳插件式 waterfall，采纳其结论**：本项目在 `_system_prompt()` + `TOOLS` 一处成对产出「模型被告知的能力」，不打算为可选插件机制再开一层抽象 |
+| 文件能力走 capability seam、按会话绑定 cwd | deepseek-harness `filesystem-capability-seam` / `fs-per-session-cwd` | **采纳精神**：一次 run 的沙箱根就是能力边界（`_safe_path` +  realpath 复检 + 命令 cwd 限制），并把 git 的 `push/pull/fetch/ls-remote/archive` 也拦住——它们违反「不访问网络」这条对所有人一样的口径 |
 
 安全红线（路径限制在沙箱内、命令白名单、超时、输出上限）在这份取舍里只加不减：
 摘要化只发生在「重发给模型的历史」这一份视图里，`chat.jsonl` 与沙箱落盘不变。
@@ -256,6 +279,11 @@ CLI：`python console/harness/selfcheck.py`，退出码 0=通过 / 1=不通过�
   → **采纳（保持现状）**：工作台内置对话每一发请求都带 `tools`，所以历史里的
   `reasoning_content`/`reasoning` **继续原样带回**，不做丢弃也不做折叠。
   窗口裁剪时它也参与体积计算，但**不单独因为思维链长而把整轮裁掉**——这是任务 2 的约束。
+- 官方 harness 的「轮次封闭不变式」：每个会话事件都必须落在某个 `turn/start…turn/end`
+  之内，否则崩溃恢复会把合法事件当成残留丢掉。
+  → **采纳**：本项目以「完整轮次」为唯一裁剪/压缩单位（`_group_rounds`），并要求
+  `_history_for_api` 把配不上响应的 `tool_calls` 摘掉、把找不到调用者的 tool 消息丢掉——
+  等价于「轮次闭合才允许出门」。
 - R1 README 只要求每轮输出以 `<think>` 开头、温度 0.5–0.7，不给历史管理规则。
   → **不采纳**：harness 不替模型伪造思维链（服务商不返回就留空），与 AGENTS.md 的验收口径一致。
 
@@ -283,6 +311,23 @@ CLI：`python console/harness/selfcheck.py`，退出码 0=通过 / 1=不通过�
 - 落地时补的一处：历史轮 `assistant.tool_calls` 里的 `write_file.content` 参数同样降级成
   「路径 + 字节数」。实测 T2-05 那条 165 条消息的对话，原始上下文 764k 字符里最大的一块
   就是模型自己写过的文件正文——它们早已落盘，重发没有信息量，只有窗口成本。
+
+- 官方 harness 只在**已落盘的边界**上做压缩（`agent/pre-step` 之后），并且明确「不能拆开
+  assistant 的工具调用批次与其结果」；提供方也可能在给出 usage 之前就因窗口超限拒绝请求，
+  此时要有一条窄的恢复路径，压缩证明不了有进展就保留原始错误。
+  → **采纳**：`_model_history` 只在轮次边界动作，`_history_for_api` 兜底保证成对；
+  压缩后仍超窗就不再自作主张，直接把服务商错误落进对话记录给用户看。
+- 官方压缩检查点由**模型生成**（并要求逐字保留路径、命令、错误、标识符、签名），
+  且要求回放的 system/工具/历史字节级一致以复用前缀缓存。
+  → **改造后采纳**：「保留字面量」照做（`write_file` 的路径与字节数、`run_command` 的
+  退出码与输出末尾都不参与省略）；「用模型生成摘要」**不采纳**——评测台要给所有模型同一套
+  确定性规则，多花一次模型调用也徒增方差与成本；字节稳定这条也不采纳：我们每轮重写历史，
+  服务商侧前缀缓存必然失效（SWE-agent 同一处也点了这个代价），与「续轮不失忆」相比可接受。
+- 官方把上下文容量归到**模型适配器**（逐模型 `contextWindow` + 适配器级默认值），
+  因为容量报错会让压缩触发过晚（本可避免的溢出）或过早（丢掉有用上下文）。
+  → **暂不采纳为档案级覆盖**：本项目一次对话只绑一个档案，全局 `chat` 节已够用；
+  换成小窗口模型时的正确动作是把 `max_context_chars` 调小，这一条写进 README §5 的提醒里。
+  若以后同一批次里并跑多个不同容量的模型，再把它上移成模型档案字段（`MODEL_FIELDS` 加一项）。
 
 > 与本项目架构冲突的一处：SWE-agent 系用 `message_type`/`tags` 给消息打标签来决定
 > 保留什么，我们没有这层元数据（`chat.jsonl` 是 OpenAI 原始消息形态）。
