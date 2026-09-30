@@ -44,7 +44,7 @@
 │  ├─ server.py                ← HTTP 服务 + JSON API + 静态托管
 │  ├─ config.json              ← 唯一配置（受测仓库/路径/超时/快照白名单/模型档案）
 │  ├─ harness/                 ← 通用校验引擎：sandbox / snapshot / grade / runs / report / packs / batch / selfcheck
-│  │  └─ tests/                ← 引擎自身的用例与自造题包 fixture（129 条）
+│  │  └─ tests/                ← 引擎自身的用例与自造题包 fixture（数量见最新验收记录）
 │  └─ static/                  ← 前端（原生 ES 模块，无构建、无第三方依赖）
 │     ├─ js/views/             ← 八个视图：任务库 / 排行榜 / 工作台 / 批量跑批 / 记分板 / 模型档案 / 设置 / 帮助
 │     └─ js/components/        ← 16 个组件（含 result-mark 成功失败 SVG 动画）
@@ -298,7 +298,7 @@ python tidy_workspace.py --root "D:\new model test"
 ## 13. 自检与验证
 
 ```powershell
-# 引擎自带用例（沙箱/快照/评分/记录/自检/题包读侧/注入应用器/裁剪完整性/并发跑批，129 条）
+# 引擎自带用例（沙箱/快照/评分/记录/自检/题包读侧/注入应用器/裁剪完整性/并发跑批；数量见最新验收记录）
 python -m pytest console\harness\tests -q
 
 # 静态自检（设计文档 §10.7）：前端禁用写法 + 危险删除命令
