@@ -380,6 +380,7 @@ def build_router() -> Router:
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (runs.reveal(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/note", lambda ctx: (runs.set_note(ctx["cfg"], ctx["run_id"], str(ctx["body"].get("note") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/diff", lambda ctx: ({"diff": runs.load_diff(ctx["cfg"], runs.get_run(ctx["cfg"], ctx["run_id"]))}, "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (runs.delete_run(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/sandbox/reset", lambda ctx: (_reset(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/sandbox/rebuild", lambda ctx: (_rebuild(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/scoreboard", lambda ctx: api_scoreboard(ctx["cfg"], ctx["query"]))

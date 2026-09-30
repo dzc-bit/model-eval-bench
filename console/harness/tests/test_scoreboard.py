@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import math
 import os
+import threading
 
 import pytest
 
 from conftest import BACKEND_TASK, make_run, write_in_sandbox
-from harness import calibrate, errors, runs, sandbox, util
+from harness import calibrate, chat, errors, runs, sandbox, util
 
 
 def read(path):
@@ -263,6 +264,52 @@ def test_scoreboard_skips_runs_without_task_or_model(cfg):
     assert "" not in board["models"]
     assert "None" not in board["tasks"]
     assert board["matrix"][0]["cells"]["正常模型"]["trials"] == 1
+
+
+def test_delete_run_archives_record_and_clears_sandbox(cfg):
+    """删除 = 记录目录移入隔离区（可恢复）+ 沙箱副本清理 + 统计立刻消失。"""
+    run = store_run(cfg, "TEST-01__待删模型__20260101-000006", BACKEND_TASK, "待删模型", True, 100.0)
+    sandbox_dir = os.path.join(cfg["sandbox_root"], run["run_id"])
+    util.ensure_dir(sandbox_dir)
+    util.write_text_atomic(os.path.join(sandbox_dir, "marker.txt"), "x")
+    run["sandbox"] = sandbox_dir
+    runs.save_run(cfg, run)
+    run_dir_path = run["run_dir"]
+
+    out = runs.delete_run(cfg, run["run_id"])
+    assert out["deleted"] is True
+    assert os.path.isdir(out["archived_to"]), "记录目录应整体移入隔离区而不是真删"
+    assert not os.path.isdir(run_dir_path)
+    assert not os.path.isdir(sandbox_dir)
+    assert run["run_id"] not in {r["run_id"] for r in runs.list_runs(cfg)}
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.delete_run(cfg, run["run_id"])
+    assert excinfo.value.code == errors.E_RUN_NOT_FOUND
+
+
+def test_delete_run_refuses_while_chat_lock_held(cfg):
+    """对话进行中（运行锁被其它线程持有）不能删除记录。"""
+    run = store_run(cfg, "TEST-01__占删模型__20260101-000007", BACKEND_TASK, "占删模型", False, 0.0)
+    acquired = threading.Event()
+    release = threading.Event()
+
+    def hold():
+        with chat.lock_for(run["run_id"]):
+            acquired.set()
+            release.wait(timeout=5)
+
+    holder = threading.Thread(target=hold, daemon=True)
+    holder.start()
+    assert acquired.wait(timeout=5), "持锁线程没就绪"
+    try:
+        with pytest.raises(errors.HarnessError) as excinfo:
+            runs.delete_run(cfg, run["run_id"])
+        assert excinfo.value.code == errors.E_RUN_BUSY
+    finally:
+        release.set()
+        holder.join(timeout=5)
+    out = runs.delete_run(cfg, run["run_id"])
+    assert out["deleted"] is True
 
 
 # ---------------------------------------------------------------- 校准

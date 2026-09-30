@@ -15,6 +15,7 @@ import { createButton } from '../components/button.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { showToast } from '../components/toast.js';
+import { confirmDialog } from '../components/confirm-dialog.js';
 import { tierBadge } from '../components/badge.js';
 import { percent } from '../core/format.js';
 
@@ -150,7 +151,7 @@ export function createScoreboard(props = {}) {
       return el('div', { class: 'sb__cell' }, el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA));
     }
     const offband = isOffBand(row, cell);
-    return el(
+    const node = el(
       'div',
       { class: 'sb__cell' },
       el(
@@ -176,6 +177,54 @@ export function createScoreboard(props = {}) {
           )
         : null,
     );
+    const runIds = (cell.run_ids || []).filter(Boolean);
+    if (runIds.length) {
+      node.appendChild(
+        createButton({
+          label: S.SB_RUN_DELETE || '删除记录',
+          variant: 'ghost',
+          size: 'sm',
+          ariaLabel: `${S.SB_RUN_DELETE || '删除记录'}：${row.task} × ${modelId}`,
+          onClick: () => deleteCellRuns(row, cell),
+        }).el,
+      );
+    }
+    return node;
+  }
+
+  /**
+   * 删除一格背后的运行记录（逐条调用 DELETE，服务端会把记录目录移入隔离区）。
+   * @param {object} row 记分板行
+   * @param {object} cell 单元格统计数据
+   */
+  async function deleteCellRuns(row, cell) {
+    const runIds = (cell.run_ids || []).filter(Boolean);
+    if (!runIds.length) return;
+    const ok = await confirmDialog({
+      title: runIds.length > 1
+        ? t(S.SB_RUN_DELETE_MANY || '删除这 {n} 条运行记录？', { n: runIds.length })
+        : (S.SB_RUN_DELETE_ONE || '删除这条运行记录？'),
+      messages: [
+        `将删除：${runIds.join('、')}`,
+        S.SB_RUN_DELETE_ARCHIVE || '记录目录会移入 runs/_quarantine/manual-deletes/（可在文件管理器手工恢复），对话记录与评分报告随目录一起归档。',
+        S.SB_RUN_DELETE_SANDBOX || '关联的沙箱副本会一并清理；统计里会立刻消失。',
+      ],
+      confirmLabel: S.ACTION_DELETE || '删除',
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      for (const runId of runIds) {
+        await api.del(`/runs/${encodeURIComponent(runId)}`);
+      }
+      showToast({ message: t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }), kind: 'success', duration: 4000 });
+      announce(t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }));
+      await load();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error', duration: 7000 });
+    }
   }
 
   function bandOf(row) {

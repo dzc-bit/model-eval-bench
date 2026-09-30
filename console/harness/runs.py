@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 import os
 import re
+import shutil
 import threading
 import time
 from datetime import datetime, timezone
@@ -686,6 +687,49 @@ def scoreboard(cfg: dict) -> dict:
     }
 
 
+def delete_run(cfg: dict, run_id: str) -> dict:
+    """删除一条运行记录。
+
+    遵循工作区的删除纪律：记录目录**整目录移入** runs/_quarantine/manual-deletes/
+    （list_runs 不扫隔离区，统计里立刻消失；要恢复手工移回原位即可），
+    关联沙箱副本用 util.remove_tree 清掉（可重建的派生数据，模型改动已存档在
+    记录目录的 diff.patch 里）。对话或校验进行中拒绝删除。
+    """
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "这一轮正在对话，等当前消息处理完再删除。",
+                run_id,
+            )
+        run = get_run(cfg, run_id)
+    if _GRADING.get(run_id) or run.get("status") == "grading":
+        raise errors.HarnessError(
+            errors.E_RUN_BUSY,
+            "这一轮正在校验中，等校验结束后再删除。",
+            run_id,
+        )
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+    if not os.path.isdir(run_dir_path):
+        raise errors.HarnessError(
+            errors.E_RUN_NOT_FOUND,
+            "运行记录目录不存在，可能已被删除。",
+            run_id,
+        )
+    quarantine_root = os.path.join(cfg["runs_root"], "_quarantine", "manual-deletes")
+    util.ensure_dir(quarantine_root)
+    target = os.path.join(quarantine_root, str(run_id))
+    suffix = 2
+    while os.path.exists(target):
+        target = os.path.join(quarantine_root, "%s-%d" % (run_id, suffix))
+        suffix += 1
+    shutil.move(run_dir_path, target)
+    sandbox_path = str(run.get("sandbox") or "")
+    if sandbox_path and os.path.isdir(sandbox_path):
+        util.remove_tree(sandbox_path)
+    return {"run_id": run_id, "deleted": True, "archived_to": target}
+
+
 def _cell_stats(pair: List[dict]) -> dict:
     """一个 (任务 × 模型) 单元格的统计。"""
     scored = [r for r in pair if not r.get("revealed")]
@@ -720,6 +764,8 @@ def _cell_stats(pair: List[dict]) -> dict:
         "ci_low": round(low, 3),
         "ci_high": round(high, 3),
         "revealed": len(revealed),
+        # 供记分板「删除记录」入口列出这一格背后的运行
+        "run_ids": [str(r.get("run_id") or "") for r in pair if r.get("run_id")],
     }
 
 
