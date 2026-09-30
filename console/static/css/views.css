@@ -625,7 +625,7 @@
   font-size: var(--font-size-xs);
 }
 
-/* 工具轮：默认折叠成一行摘要，展开后看每次调用的参数与返回原文 */
+/* 工具轮：默认折叠成一行摘要，展开后只列这一轮调了哪些工具、各几次 */
 .chat__toolround {
   align-self: stretch;
   max-width: none;
@@ -644,43 +644,68 @@
   overflow-wrap: anywhere;
 }
 
-.chat__toolcall {
+.chat__toolround-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
   padding: var(--space-2) var(--space-3);
   border-top: var(--border-width) solid var(--color-border);
+  list-style: none;
 }
 
-.chat__toolcall-head {
+.chat__toolrow {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
 }
 
-.chat__toolcall-args {
+.chat__toolrow-count {
   color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
 }
 
-.chat__toolout {
-  max-height: 18rem;
-  overflow: auto;
-  margin: var(--space-2) 0 0;
-  padding: var(--space-2);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+.chat__toolrow-failed {
+  color: var(--color-danger);
+}
+
+.chat__toolrow-pending {
+  margin: 0 var(--space-3) var(--space-2);
   color: var(--color-text-muted);
-  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.chat__toolround-hint {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+  color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
-.chat__toolout--pending {
-  color: var(--color-text-muted);
-  font-style: italic;
+/* 本轮最终总结：正文优先展示，思维链排在正文之后，不被工具块淹没 */
+.chat__message--final {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.chat__message--final .chat__message-meta {
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+}
+
+.chat__message--final .chat__message-content {
+  line-height: 1.75;
+}
+
+/* 置顶那条：滚动时也留在列表顶部，收尾结论不被历史淹没 */
+.chat__message--pinned {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .chat__composer {

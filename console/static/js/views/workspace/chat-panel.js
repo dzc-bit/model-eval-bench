@@ -2,7 +2,8 @@
  * chat-panel.js — 工作台内置模型对话。
  *
  * 对话由服务端代理当前运行绑定的模型档案。工具调用按轮折叠成一行摘要，
- * 展开后才看到每次调用的参数与返回原文（超长截断，全文在 chat.jsonl）；
+ * 展开后只列出这一轮调了哪些工具、各几次（参数与返回原文留在 chat.jsonl）；
+ * 服务商返回公开思维链就展示，没有则直接突出正文。
  * 前端不保存或接触 API 密钥。
  */
 
@@ -22,10 +23,6 @@ const ROLE_LABELS = {
 
 /** 展开的工具轮（按消息 id 记住，轮询重渲染时不塌回去）。 */
 const expandedRounds = new Set();
-
-/** 工具返回在折叠体里最多原样展示的字符数；超长截断，完整数据在 chat.jsonl。 */
-const TOOL_OUTPUT_PREVIEW_CAP = 4000;
-const TOOL_ARGS_PREVIEW_CAP = 300;
 
 /**
  * 创建内置对话面板。
@@ -137,15 +134,6 @@ export function createChatPanel(handlers = {}) {
       });
   }
 
-  function formatToolArguments(value) {
-    if (!value) return '';
-    try {
-      return JSON.stringify(JSON.parse(value));
-    } catch {
-      return value;
-    }
-  }
-
   function formatError(err) {
     const code = err instanceof ApiError ? err.code : 'INTERNAL';
     const title = errorTitle(code);
@@ -176,6 +164,16 @@ export function createChatPanel(handlers = {}) {
     messages = merged;
   }
 
+  /** 最后一条「有正文、不带工具调用、不是错误」的助手消息就是本轮总结。 */
+  function finalSummaryIndex(list) {
+    for (let index = list.length - 1; index >= 0; index -= 1) {
+      const item = list[index];
+      if (item.role !== 'assistant' || item.status || item.toolCalls.length) continue;
+      if (String(item.content || '').trim()) return index;
+    }
+    return -1;
+  }
+
   function renderMessages() {
     clear(messageList);
     if (!messages.length) {
@@ -185,8 +183,17 @@ export function createChatPanel(handlers = {}) {
     }
     emptyMessage.hidden = true;
     messageList.hidden = false;
+    const summaryIndex = finalSummaryIndex(messages);
+    if (summaryIndex >= 0) {
+      // 置顶展示收尾总结：列表刚渲染时可能还在 hidden，靠滚动定位不可靠，
+      // 而「对话结束了什么」不能藏在 43 个折叠块下面。
+      const pinned = textMessageNode(messages[summaryIndex], true);
+      pinned.classList.add('chat__message--pinned');
+      messageList.appendChild(pinned);
+    }
     let roundNumber = 0;
     for (let index = 0; index < messages.length; index += 1) {
+      if (index === summaryIndex) continue;
       const message = messages[index];
       if (message.role === 'tool') {
         // 理论上工具返回都跟在自己的调用轮里；落单时兜底折叠显示
@@ -202,28 +209,39 @@ export function createChatPanel(handlers = {}) {
           cursor += 1;
         }
         index = cursor - 1;
+        const thinking = reasoningNode(message);
+        if (thinking) messageList.appendChild(thinking);
         messageList.appendChild(toolRoundNode(message, grouped, roundNumber));
         continue;
       }
-      messageList.appendChild(textMessageNode(message));
+      messageList.appendChild(textMessageNode(message, index === summaryIndex));
     }
-    messageList.scrollTop = messageList.scrollHeight;
+    // 时间线滚到底（辅助定位最新回合）；总结本身已置顶，不依赖这一步。
+    window.requestAnimationFrame(() => {
+      messageList.scrollTop = messageList.scrollHeight;
+    });
+  }
+
+  /** 服务商返回的思维链：独立成块、默认展开、可折叠（带工具调用的那一轮也要看得见）。 */
+  function reasoningNode(message) {
+    if (!message.reasoning) return null;
+    return el('details', { class: 'chat__reasoning', open: true },
+      el('summary', {}, S.CHAT_REASONING || '模型推理摘要（由服务商提供）'),
+      el('div', { class: 'chat__message-content chat__reasoning-content' }, message.reasoning));
   }
 
   /** 普通文本消息（用户提问、模型正文、错误提示）。 */
-  function textMessageNode(message) {
+  function textMessageNode(message, isFinal) {
     const role = ROLE_LABELS[message.role] || message.role;
     const kind = `chat__message--${message.role}`;
-    const reasoning = message.reasoning
-      ? el('details', { class: 'chat__reasoning', open: true },
-        el('summary', {}, S.CHAT_REASONING || '模型推理摘要（由服务商提供）'),
-        el('div', { class: 'chat__message-content chat__reasoning-content' }, message.reasoning))
-      : (message.role === 'assistant' && !message.status
-        ? el('p', { class: 'chat__message-status' }, S.CHAT_REASONING_MISSING) : null);
-    return el('article', { class: `chat__message ${kind}` },
-      el('div', { class: 'chat__message-meta' }, message.name ? `${role} · ${message.name}` : role),
-      reasoning,
+    // 服务商没返回思维链时不写空态提示，正文本身就是全部内容。
+    const reasoning = reasoningNode(message);
+    return el('article', { class: `chat__message ${kind}${isFinal ? ' chat__message--final' : ''}` },
+      el('div', { class: 'chat__message-meta' },
+        isFinal ? S.CHAT_FINAL_SUMMARY : (message.name ? `${role} · ${message.name}` : role)),
+      isFinal ? null : reasoning,
       el('div', { class: 'chat__message-content' }, message.content || '—'),
+      isFinal ? reasoning : null,
       message.status ? el('div', { class: 'chat__message-status' }, message.status) : null,
     );
   }
@@ -235,13 +253,42 @@ export function createChatPanel(handlers = {}) {
     return [...counts.entries()].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name)).join('、');
   }
 
-  function truncate(text, cap) {
-    const value = String(text || '');
-    return value.length > cap ? `${value.slice(0, cap)}…` : value;
+  /** 工具返回把失败放进 {"error": ...}，界面只报「几次没成功」，不铺开原文。 */
+  function toolResultFailed(message) {
+    if (!message) return false;
+    try {
+      const value = JSON.parse(String(message.content || ''));
+      return Boolean(value && typeof value === 'object' && value.error);
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * 一个工具轮：默认折叠成一行摘要，展开后看每次调用的参数与返回。
+   * 本轮工具名 → 调用次数与失败次数，按首次出现顺序。
+   * 落单的工具返回（没有对应调用轮）也计入，名字取记录里的 name。
+   */
+  function toolTally(calls, toolMessages) {
+    const rows = [];
+    const indexByName = new Map();
+    const bump = (name, failed) => {
+      let row = indexByName.get(name);
+      if (!row) {
+        row = { name, count: 0, failed: 0 };
+        indexByName.set(name, row);
+        rows.push(row);
+      }
+      row.count += 1;
+      if (failed) row.failed += 1;
+    };
+    calls.forEach((call, position) => bump(call.name || '未知工具', toolResultFailed(toolMessages[position])));
+    toolMessages.slice(calls.length).forEach((extra) => bump(extra.name || '工具', toolResultFailed(extra)));
+    return rows;
+  }
+
+  /**
+   * 一个工具轮：默认折叠成一行摘要，展开后只列这一轮调了哪些工具、各几次。
+   * 参数与返回原文不进界面（完整数据在该轮运行目录的 chat.jsonl）。
    * @param {object|null} assistant 带工具调用的助手消息；null 表示落单的工具返回
    * @param {Array<object>} toolMessages 本轮的工具返回消息
    * @param {number} roundNumber 展示用轮次
@@ -249,29 +296,18 @@ export function createChatPanel(handlers = {}) {
   function toolRoundNode(assistant, toolMessages, roundNumber) {
     const calls = assistant ? assistant.toolCalls : [];
     const roundId = assistant ? assistant.id : `orphan-${toolMessages[0] ? toolMessages[0].id : roundNumber}`;
-    const bodyChildren = [];
-    calls.forEach((call, position) => {
-      const result = toolMessages[position];
-      bodyChildren.push(
-        el('div', { class: 'chat__toolcall' },
-          el('div', { class: 'chat__toolcall-head' },
-            el('strong', {}, call.name),
-            el('span', { class: 'chat__toolcall-args' }, truncate(formatToolArguments(call.arguments), TOOL_ARGS_PREVIEW_CAP)),
-          ),
-          result
-            ? el('pre', { class: 'chat__toolout' }, truncate(String(result.content || ''), TOOL_OUTPUT_PREVIEW_CAP))
-            : el('div', { class: 'chat__toolout chat__toolout--pending' }, '等待工具返回…'),
-        ),
-      );
-    });
-    if (!calls.length || toolMessages.length > calls.length) {
-      toolMessages.slice(calls.length).forEach((extra) => {
-        bodyChildren.push(el('div', { class: 'chat__toolcall' },
-          el('div', { class: 'chat__toolcall-head' }, el('strong', {}, extra.name || '工具')),
-          el('pre', { class: 'chat__toolout' }, truncate(String(extra.content || ''), TOOL_OUTPUT_PREVIEW_CAP)),
-        ));
-      });
-    }
+    const rows = toolTally(calls, toolMessages);
+    const pending = Math.max(0, calls.length - toolMessages.length);
+    const body = [
+      el('ul', { class: 'chat__toolround-list' },
+        rows.map((row) => el('li', { class: 'chat__toolrow' },
+          el('span', { class: 'chat__toolrow-name' }, row.name),
+          el('span', { class: 'chat__toolrow-count' }, `×${row.count}`),
+          row.failed ? el('span', { class: 'chat__toolrow-failed' }, `${row.failed} ${S.CHAT_TOOL_ROUND_FAILED}`) : null,
+        ))),
+      pending ? el('p', { class: 'chat__toolrow-pending' }, `${pending} ${S.CHAT_TOOL_ROUND_PENDING}`) : null,
+      el('p', { class: 'chat__toolround-hint' }, S.CHAT_TOOL_ROUND_HINT),
+    ];
     const summary = assistant
       ? `${S.CHAT_TOOL_ROUND || '工具轮'} ${roundNumber} · ${S.CHAT_TOOL_CALL || '工具调用'} ×${calls.length}：${toolSummaryLine(calls)}`
       : `${toolMessages[0] ? toolMessages[0].name || '工具' : '工具'} 返回`;
@@ -284,7 +320,7 @@ export function createChatPanel(handlers = {}) {
       },
     },
       el('summary', { class: 'chat__toolround-summary' }, summary),
-      bodyChildren,
+      body,
     );
   }
 
