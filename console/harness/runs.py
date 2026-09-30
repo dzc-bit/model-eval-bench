@@ -107,12 +107,25 @@ def save_run(cfg: dict, run: dict) -> None:
 
 
 def list_runs(cfg: dict) -> List[dict]:
-    """扫描全部运行记录（按时间倒序）。缺目录/坏文件都不影响其它记录。"""
+    """扫描全部运行记录（按时间倒序）。缺目录/坏文件都不影响其它记录。
+
+    只下钻规范布局 runs/<task>/<model>/<时间戳>/：根层的 blind（出题侧工具与盲测）
+    和任何层的 _ 开头目录（_quarantine 整理隔离区等）一律不下钻——曾经 os.walk
+    一锅端，把隔离区里的测试夹具运行当成真实成绩，记分板因此冒出大量幽灵档案。
+    """
     out: List[dict] = []
     root = cfg["runs_root"]
     if not os.path.isdir(root):
         return out
     for dirpath, dirnames, filenames in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        depth = 0 if rel == "." else len(rel.split(os.sep))
+        if depth == 0:
+            dirnames[:] = [d for d in dirnames if not d.startswith("_") and d != "blind"]
+        else:
+            dirnames[:] = [d for d in dirnames if not d.startswith("_")]
+        if depth >= 3:
+            dirnames[:] = []  # 时间戳层之下不再有运行记录
         if "run.json" not in filenames:
             continue
         run = util.read_json(os.path.join(dirpath, "run.json"), default=None)
@@ -625,10 +638,14 @@ def scoreboard(cfg: dict) -> dict:
     models: List[str] = []
     tasks: List[str] = []
     for run in runs:
-        if run.get("model") not in models:
-            models.append(str(run.get("model")))
-        if run.get("task") not in tasks:
-            tasks.append(str(run.get("task")))
+        model = str(run.get("model") or "")
+        task = str(run.get("task") or "")
+        if not model or not task:
+            continue  # 缺 task/model 的坏记录不建幽灵行列
+        if model not in models:
+            models.append(model)
+        if task not in tasks:
+            tasks.append(task)
 
     for task in packs.list_tasks(cfg):
         if task["id"] not in tasks:

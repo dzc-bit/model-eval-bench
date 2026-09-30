@@ -139,6 +139,14 @@ export function createScoreboard(props = {}) {
   function renderCell(row, modelId) {
     const cell = (row.cells || {})[modelId];
     if (!cell || !cell.trials) {
+      // 只揭晓过、还没计入主统计的运行：明确标注，而不是让人误以为没测过
+      if (cell && cell.revealed) {
+        return el(
+          'div',
+          { class: 'sb__cell' },
+          el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed })),
+        );
+      }
       return el('div', { class: 'sb__cell' }, el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA));
     }
     const offband = isOffBand(row, cell);

@@ -231,6 +231,40 @@ def test_scoreboard_with_no_runs_is_empty_not_error(cfg):
     assert isinstance(board["matrix"], list)
 
 
+def test_list_runs_ignores_quarantined_and_blind_trees(cfg):
+    """规范布局之外的运行记录（整理隔离区/出题侧）不进统计，防幽灵档案。"""
+    canonical = store_run(cfg, "TEST-01__正常模型__20260101-000003", BACKEND_TASK, "正常模型", True, 100.0)
+    listed = {r["run_id"] for r in runs.list_runs(cfg)}
+    assert canonical["run_id"] in listed
+
+    # 隔离区里的夹具运行（tidy 整理的历史产物）不是真实成绩
+    stray = os.path.join(cfg["runs_root"], "_quarantine", "cleanup", "runs", "TEST-01", "幽灵", "20260101-000000")
+    os.makedirs(stray)
+    util.write_json_atomic(os.path.join(stray, "run.json"), {
+        "run_id": "TEST-01__幽灵__20260101-000000", "task": "TEST-01", "model": "幽灵",
+        "status": "graded", "rounds": make_rounds(True, 100.0),
+    })
+    listed = {r["run_id"] for r in runs.list_runs(cfg)}
+    assert "TEST-01__幽灵__20260101-000000" not in listed
+    assert canonical["run_id"] in listed
+
+
+def test_scoreboard_skips_runs_without_task_or_model(cfg):
+    """缺 task/model 的坏记录不建幽灵行列（曾出现重复的 None 列）。"""
+    kept = store_run(cfg, "TEST-01__正常模型__20260101-000004", BACKEND_TASK, "正常模型", True, 100.0)
+    broken = dict(kept)
+    broken["run_id"] = "TEST-01__坏记录__20260101-000005"
+    broken["model"] = None
+    broken["task"] = None
+    runs.save_run(cfg, broken)
+
+    board = runs.scoreboard(cfg)
+    assert "None" not in board["models"]
+    assert "" not in board["models"]
+    assert "None" not in board["tasks"]
+    assert board["matrix"][0]["cells"]["正常模型"]["trials"] == 1
+
+
 # ---------------------------------------------------------------- 校准
 
 def test_calibration_queue_does_not_hold_drives(cfg, monkeypatch):
