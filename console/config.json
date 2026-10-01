@@ -1,7 +1,7 @@
 {
   "port": 8899,
   "host": "127.0.0.1",
-  "repo_root": "sandboxes/_demo-target",
+  "repo_root": "D:\\New project 6",
   "sandbox_root": "sandboxes",
   "packs_root": "packs",
   "runs_root": "runs",
@@ -119,9 +119,5 @@
       "key_env": "",
       "note": ""
     }
-  ],
-  "repos": {
-    "core": "D:/my own project/模型测试/ai-invest-workbench",
-    "demo": "sandboxes/_demo-target"
-  }
+  ]
 }
