@@ -11,6 +11,13 @@
   box-sizing: border-box;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 html {
   /* 200% 缩放不破版（§12.14）：根字号跟随用户设置，不写死 px 视口 */
   font-size: 100%;
@@ -28,7 +35,6 @@ body {
   line-height: var(--line-height-normal);
   color: var(--color-text);
   background: var(--color-bg);
-  background-image: var(--color-bg-grad);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
@@ -56,6 +62,15 @@ h4 {
   color: var(--color-text);
 }
 
+/* 标题用衬线（思源宋体），正文保持无衬线。
+   规范里 Anthropic Serif 全程字重 500、字距 normal——衬线 700 是报纸味。 */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: normal;
+}
+
 h1 {
   font-size: var(--font-size-2xl);
   letter-spacing: -0.01em;
@@ -77,12 +92,13 @@ ol {
 }
 
 a {
-  color: var(--color-primary);
+  /* 主色改成深炭后，链接不能再继承它——会和正文分不出来。赤陶做链接色。 */
+  color: var(--color-accent-text);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 a:hover {
-  color: var(--color-primary-hover);
+  color: var(--color-accent);
 }
 
 code,
@@ -91,6 +107,8 @@ samp,
 pre {
   font-family: var(--font-mono);
   font-size: 0.9375em;
+  /* 规范 Code：-0.32px 负字距，等宽字形在小字号下会显散 */
+  letter-spacing: var(--letter-spacing-code);
 }
 
 img,
@@ -164,6 +182,7 @@ hr {
   min-height: 100vh;
 }
 
+/* 侧栏布局：header 是左列（workbuddy 式 176px 侧栏），主内容在右 */
 .app-main {
   flex: 1 1 auto;
   width: 100%;
@@ -173,6 +192,31 @@ hr {
 }
 .app-main:focus {
   outline: none;
+}
+
+@media (min-width: 901px) {
+  .app-shell {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .app-header {
+    height: 100vh;
+  }
+  #status-host {
+    width: 100%;
+  }
+  .app-main {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+  }
+  .app-main > #app-root,
+  .app-footer {
+    max-width: var(--content-max);
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
 }
 
 /* ---------- 工具类 ---------- */
@@ -270,8 +314,8 @@ hr {
 /* ---------- 高对比度偏好：加粗边框与焦点环 ---------- */
 @media (prefers-contrast: more) {
   :root {
-    --color-border: #5a6472;
-    --color-text-muted: #333c48;
+    --color-border: var(--color-text-muted);
+    --color-text-muted: var(--color-text);
   }
   .card,
   .panel {

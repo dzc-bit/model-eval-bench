@@ -131,7 +131,7 @@ def test_health_reports_environment(live, cfg):
     assert by_id["pytest"]["ok"] is True, "本机 pytest 应当可用"
     assert by_id["pytest"]["value"] and by_id["pytest"]["value"][0].isdigit()
     assert by_id["repo"]["ok"] is True
-    assert by_id["repo"]["value"] == "可读"
+    assert by_id["repo"]["value"].startswith("可读")
     assert by_id["workspace"]["ok"] is True
     assert util.norm(cfg["sandbox_root"]) == util.norm(by_id["workspace"]["value"])
     assert "MB" in by_id["disk"]["value"] or "GB" in by_id["disk"]["value"]

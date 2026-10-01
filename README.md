@@ -115,6 +115,11 @@ http://127.0.0.1:8899
 异常项直接显示在页面上。API 入口：`GET /api/tasks`、`GET /api/task/<ID>`、`GET /api/runs`、
 `POST /api/batches`（批量跑批）等。
 
+多仓库是可选的：题包 `meta.json` 写了 `repo.id` 时，可以在 `config.json` 里加
+`"repos": {"<id>": "<该仓库在本机的路径>"}` 让它单独指仓库，没配的题包回退用 `repo_root`。
+这个键填的永远是**你自己机器上的路径**，属本机配置，不要提交进仓库（健康检查会逐个报红，
+`repos.<id> 目录不存在`）。
+
 **前端地址：`http://127.0.0.1:8899`**（`host`/`port` 可在 `console/config.json` 改；
 前端是零构建的原生 ES 模块，改完刷新即生效，不需要打包步骤）。
 

@@ -283,7 +283,10 @@ def _stub_model(cfg, monkeypatch, model_id: str) -> None:
     accepted = set(model_id if isinstance(model_id, (list, tuple, set)) else [model_id])
     monkeypatch.setattr(
         batch.config, "find_model",
-        lambda c, mid: {"id": mid, "protocol": "openai", "base_url": "", "model": mid}
+        lambda c, mid: {"id": mid, "protocol": "openai",
+                        # 空 base_url 现在会被 chat._base_url 直接拒绝（以前静默兜底到
+                        # api.openai.com），所以桩必须给一个合法地址
+                        "base_url": "http://model.invalid/v1", "model": mid}
         if mid in accepted else (_ for _ in ()).throw(
             errors.HarnessError(errors.E_MODEL_NOT_FOUND, "找不到模型档案 %s。" % mid)),
     )

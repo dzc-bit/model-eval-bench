@@ -1,0 +1,117 @@
+/* ============================================================
+   models.css — 模型档案视图（views/models.js 专用，2026-10 改版）
+
+   规则（specs/ui-revamp-2026-10-01.md 全局基调）：
+     · 色 / 字 / 距 / 圆角 / 阴影一律取 tokens.css 变量，不发明颜色；
+     · 选择器一律挂在视图根 .models 下；
+     · 可点目标 ≥28px（btn--sm = 36px，直接复用）；
+     · 动效 ≤150ms（只用 --motion-fast）。
+   ========================================================================== */
+
+.models {
+  line-height: var(--line-height-normal);
+}
+
+/* ---------- 档案卡列表 ---------- */
+.models .models__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.models .model-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+/* hover 只抬边框亮度，不加阴影扩散 */
+.models .model-card:hover,
+.models .model-card:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+/* 行1：模型名（主字）· 服务商徽标 · 密钥 chip · 动作组 */
+.models .model-card__row1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.models .model-card__name {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.models .model-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* 行2：base_url，mono 一行截断，title 悬停看全文 */
+.models .model-card__row2 {
+  min-width: 0;
+}
+.models .model-card__url {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-code);
+  color: var(--color-text-muted);
+}
+
+/* 测试结果行（✓ 全过 / ✗ 具体原因 / 测试中） */
+.models .model-card__test {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+}
+.models .model-card__test--ok {
+  color: var(--color-success);
+}
+.models .model-card__test--fail {
+  color: var(--color-danger);
+}
+.models .model-card__test--running {
+  color: var(--color-text-faint);
+}
+
+/* ---------- 弹窗表单（openModal 的 body） ---------- */
+.models .models-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.models .models-form > .field__error {
+  margin: 0;
+}
+.models .models-form__advanced .details-card__body {
+  gap: var(--space-3);
+}
+/* details-card 自带 hover；这里补键盘焦点环（用全站焦点 token） */
+.models .models-form__advanced > summary:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-xs);
+}

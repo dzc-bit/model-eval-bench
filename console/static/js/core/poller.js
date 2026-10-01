@@ -256,7 +256,16 @@ export function createPoller(options) {
      * 开始轮询。
      */
     start() {
-      if (destroyed || running) return;
+      if (destroyed) return;
+      if (running) {
+        // 已在轮询中（空闲停表后 enabled 重新为真）：重置退避并立即补一次，
+        // 否则 start 被 running 守卫吞掉，第二次「运行校验」永远不会轮询。
+        consecutiveFailures = 0;
+        lastError = null;
+        nextAllowedAt = 0;
+        tick();
+        return;
+      }
       running = true;
       consecutiveFailures = 0;
       lastError = null;

@@ -279,13 +279,17 @@ export function patchList(container, items, keyFn, create, update) {
     } else {
       rec.index = index;
     }
-    if (typeof update === 'function') {
+    // create() 交回 {el, update} 时，刷新走它自己的 update——第 5 个参数只是给
+    // 「create 只回裸节点」的调用方兜底的，不能反过来把 api.update 挡在门外。
+    if (rec.api && typeof rec.api.update === 'function') {
       try {
-        if (rec.api && typeof rec.api.update === 'function') {
-          rec.api.update(item, index, rec.el);
-        } else {
-          update(rec.el, item, index);
-        }
+        rec.api.update(item, index, rec.el);
+      } catch (err) {
+        warnUpdateError(err, key);
+      }
+    } else if (typeof update === 'function') {
+      try {
+        update(rec.el, item, index);
       } catch (err) {
         warnUpdateError(err, key);
       }

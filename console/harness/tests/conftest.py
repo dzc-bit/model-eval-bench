@@ -131,6 +131,9 @@ def cfg(base_cfg, workdir, mini_repo, packs_root):
     """一份指向临时迷你仓库的配置；白名单补上要参与脱敏测试的两份文档。"""
     conf = dict(base_cfg)
     conf["repo_root"] = mini_repo
+    # repos.* 是本机路径，config.json 里一写就会跟着进测试：健康检查会因为
+    # 「别人机器上没有这个目录」而红，测试结论就不再可信。
+    conf["repos"] = {}
     conf["packs_root"] = packs_root
     conf["sandbox_root"] = os.path.join(workdir, "sandboxes")
     conf["runs_root"] = os.path.join(workdir, "runs")

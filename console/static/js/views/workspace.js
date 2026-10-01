@@ -1,30 +1,32 @@
 /**
- * workspace.js — 工作台视图（§9 / §13）
+ * workspace.js — 工作台视图（2026-10-01 信息架构改版）
+ *
+ * 目标结构（specs/ui-revamp-2026-10-01.md §一）：
+ *   [题头条]  任务编号+标题 · 档位徽标 · 第 n 轮/共 m 次 · 沙箱状态一句话
+ *             右侧 [查看改动]——路径/哈希/运行编号一律不进题头。
+ *   [步骤条]  ① 对话改代码 → ② 运行校验 → ③ 结果与下一轮；当前步高亮、完成打勾，
+ *             点击滚动到对应卡片（取代旧「跳转到」分段控件）。
+ *   [两栏]    主栏 = 内置对话卡（模型档案下拉在卡头）；侧栏 = 任务与提示词 / 沙箱 /
+ *             校验 / 本轮备注 四张折叠卡。
  *
  * 职责：
- *   1. 题头：任务 ID、档位、尝试指示灯 ①②③、沙箱盘符、基线指纹。
- *   2. 四个区域（prompt / sandbox / grade / run）按 §10.5 区域渲染：轮询只 patch 变化的 region。
- *   3. 编排全部后端动作：准备 / 清空 / 重建 / 校验 / 下一轮 / 揭晓 / 导出 / 备注 / 看 diff。
- *   4. 快捷键 C / G / R / 1 / 2 / 3（/? 与 Esc 属于全局，在 main.js）。
- *   5. 状态持久化：上次查看轮次、每任务的 run_id 与滚动位置（§13.5）。
- *   6. 轮询：只在服务端说「进行中」时轮询；页面隐藏自动暂停（core/poller）。
+ *   1. 编排全部后端动作：准备 / 清空 / 重建 / 校验 / 下一轮 / 揭晓 / 导出 / 备注 / 看改动。
+ *   2. 轮询只 patch 变化的 region；页面隐藏自动暂停（core/poller）。
+ *   3. 快捷键 C / G / R / 1 / 2 / 3（? 与 Esc 属于全局，在 main.js）。
+ *   4. 状态持久化：上次查看轮次、每任务的 run_id 与滚动位置（§13.5）。
+ *   5. 校验完成的结果提醒：toast + 展开校验卡；焦点在输入框里时不抢焦点。
  *
  * 生命周期（§10.4）：createWorkspace(props) → { el, destroy, focusRegion, ... }
- *   - destroy：解绑事件、停表、清心跳、取消在途请求
- *
- * 依赖：core/*、components/*、views/workspace/*
- * 导出：createWorkspace(props)
  *
  * ── 契约要点（对照 console/server.py 与 harness/runs.py）────────────────
  *   POST /api/runs                     同步，阻塞到沙箱铺好为止 → 用 api.longPost
- *   GET  /api/runs/{id}                run_view：sandbox/drive/baseline_digest 都是**字符串**
+ *   GET  /api/runs/{id}                run_view：sandbox/drive/baseline_digest 都是字符串
  *   POST /api/runs/{id}/grade          异步，立刻返回 {status:'grading'} → 靠轮询看结果
  *   POST /api/runs/{id}/promote        {run_id, attempt, can_promote}
  *   POST /api/runs/{id}/reveal         {run_id, patch, notice}
- *   POST /api/runs/{id}/note           请求体 {note}（单数，路径也单数）
+ *   POST /api/runs/{id}/note           请求体 {note}（单数）
  *   POST /api/runs/{id}/diff           {diff: 补丁正文}
- *   POST /api/sandbox/reset            同步，返回 {seconds, cleaned, ...}
- *   POST /api/sandbox/rebuild          同步，返回 {run_id, sandbox, drive}
+ *   POST /api/sandbox/reset|rebuild    同步
  *   run.status ∈ preparing|ready|grading|graded|error|queued
  * ──────────────────────────────────────────────────────────────────────
  */
@@ -35,12 +37,19 @@ import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { createPoller } from '../core/poller.js';
 import { createStore } from '../core/store.js';
 import { storage } from '../core/storage.js';
-import { announce, isEditableTarget, scrollBelowStickyHeader } from '../core/a11y.js';
+import {
+  announce,
+  isEditableTarget,
+  pageScrollTop,
+  revealIfCoveredByStickyTop,
+  scrollBelowStickyHeader,
+  setPageScroll,
+} from '../core/a11y.js';
 import { tierBadge } from '../components/badge.js';
-import { createStatusDot } from '../components/status-dot.js';
 import { confirmDialog } from '../components/confirm-dialog.js';
 import { showToast } from '../components/toast.js';
 import { createButton } from '../components/button.js';
+import { createDetailsCard } from '../components/details-card.js';
 import { createPromptPanel } from './workspace/prompt-panel.js';
 import { createChatPanel } from './workspace/chat-panel.js';
 import { createSandboxPanel } from './workspace/sandbox-panel.js';
@@ -52,9 +61,6 @@ import { createRunBar } from './workspace/run-bar.js';
  * 清空 / 重建是同步请求，忙在本地 busy 上，不进这个集合。
  */
 const BUSY_STATUS = new Set(['preparing', 'grading', 'queued']);
-
-/** 沙箱可用（模型可以动手 / 可以校验）的状态。 */
-const SANDBOX_OK = new Set(['ready', 'graded']);
 
 /** 服务端 status → 中文状态词。 */
 const STATUS_TEXT = {
@@ -69,6 +75,18 @@ const STATUS_TEXT = {
 /** 心跳间隔（毫秒）：驱动长操作的「已用时间」。 */
 const TICK_MS = 1000;
 
+/** 改版新增文案（strings.js 本轮冻结，新增一律走本地常量）。 */
+const T = {
+  ROUND_N_OF_M: '第 {n} 轮 / 共 {m} 次',
+  ATTEMPTS_ONLY: '共 {m} 次机会',
+  STEPS_LABEL: '评测步骤',
+  STEP_CHAT: '对话改代码',
+  STEP_GRADE: '运行校验',
+  STEP_NEXT: '结果与下一轮',
+  SHOW_DIFF: '查看改动',
+  GRADE_DONE_TOAST: '校验完成：通过 {pass}/{total}',
+};
+
 /**
  * 创建工作台。
  *
@@ -78,12 +96,24 @@ const TICK_MS = 1000;
  *   runId?: string,
  *   navigate?: (name: string, params: object, opts?: object) => void,
  *   models?: Array,
+ *   modelsError?: string,
+ *   subscribeModels?: (handler: (models: Array, modelsError: string) => void) => (() => void),
+ *   reloadModels?: () => Promise<void>,
  *   prefs?: object
  * }} props
  * @returns {{el: HTMLElement, destroy: Function, focusRegion: Function, restoreScroll: Function, el_h1: HTMLElement, actions: object}}
  */
 export function createWorkspace(props = {}) {
-  const { taskId, runId: routeRunId = '', navigate = () => {}, models = [], prefs = {} } = props;
+  const {
+    taskId,
+    runId: routeRunId = '',
+    navigate = () => {},
+    models = [],
+    modelsError = '',
+    subscribeModels = null,
+    reloadModels = null,
+    prefs = {},
+  } = props;
   const scope = api.scope();
   /** 工作台自己的状态树（区域级订阅，避免整页重绘）。 */
   const store = createStore({
@@ -91,6 +121,8 @@ export function createWorkspace(props = {}) {
     task: null,
     run: null,
     models,
+    /** 模型档案读取失败的错误码（空串 = 没失败）；下拉为空时要说得出原因。 */
+    modelsError,
     modelId: storage.get('last-model', ''),
     round: 1,
     /** 本机长操作：prepare / reset / rebuild / grade / notes */
@@ -109,87 +141,167 @@ export function createWorkspace(props = {}) {
   const offHandlers = [];
   /** 心跳句柄：有长操作时才存在 */
   let tickTimer = null;
+  /** 已经写进地址栏的区域：跳转回来时不再重复改 hash，避免「路由 → 跳转 → 路由」打转。 */
+  let lastUrlRegion = '';
 
-  // ==================== 题头 ====================
+  // 模型档案是异步到达的：首屏可能晚于本视图、模型页改完会再推一次、启动那次请求
+  // 可能整个失败。只吃创建时的快照会让下拉永久停在「尚未选择档案」且没有原因，
+  // 所以像 main.js 订阅 lastTask 那样订阅档案（退订交给 destroy，§10.4）。
+  if (typeof subscribeModels === 'function') {
+    offHandlers.push(
+      subscribeModels((list, code) => {
+        patch({ models: Array.isArray(list) ? list : [], modelsError: code || '' });
+      }),
+    );
+  }
+
+  // ==================== 题头条 ====================
   const h1 = el('h1', { tabindex: '-1' });
-  const idBadge = el('span', { class: 'task-card__id' }, taskId);
   const tierHost = el('span');
-  const attemptsHost = el('span', { class: 'ws-attempts' });
-  const headFacts = el('div', { class: 'ws-head__facts' });
-  const driveFact = el('span', { class: 'ws-fact__value' }, S.WS_NO_DRIVE);
-  const hashFact = el('span', { class: 'ws-fact__value' }, '—');
-  const connDot = createStatusDot({ kind: 'busy', text: S.STATE_LOADING });
-  const jumpRow = el(
-    'div',
-    { class: 'u-row' },
-    createButton({ label: S.WS_JUMP_PROMPT, size: 'sm', variant: 'ghost', onClick: () => focusRegion('prompt') }).el,
-    createButton({ label: S.WS_JUMP_CHAT, size: 'sm', variant: 'ghost', onClick: () => focusRegion('chat') }).el,
-    createButton({ label: S.WS_JUMP_SANDBOX, size: 'sm', variant: 'ghost', onClick: () => focusRegion('sandbox') }).el,
-    createButton({ label: S.WS_JUMP_GRADE, size: 'sm', variant: 'ghost', onClick: () => focusRegion('grade') }).el,
-    createButton({ label: S.WS_JUMP_RUN, size: 'sm', variant: 'ghost', onClick: () => focusRegion('run') }).el,
-  );
+  const roundText = el('span', { class: 'ws-round' });
+
+  // 改动正文查看器：题头按钮的弹出区（路径/哈希按规格收进沙箱详情，改动正文挂题头）
+  const diffText = el('pre', { class: 'code-block__pre ws-diff__pre', tabindex: '0', role: 'region' });
+  diffText.setAttribute('aria-label', S.RUN_DIFF_BODY);
+  const diffCard = createDetailsCard({ title: S.RUN_DIFF_TITLE, content: diffText, open: false });
+  const diffWrap = el('div', { class: 'ws-diff', hidden: true }, diffCard.el);
+  const diffBtn = createButton({
+    label: T.SHOW_DIFF,
+    variant: 'ghost',
+    size: 'sm',
+    disabled: true,
+    onClick: () => toggleDiff(),
+  });
 
   const head = el(
     'header',
     { class: 'ws-head' },
-    el('div', { class: 'ws-head__main' },
+    el(
+      'div',
+      { class: 'ws-head__main' },
       h1,
-      el('div', { class: 'ws-head__meta' }, idBadge, tierHost, attemptsHost, connDot.el),
+      // 沙箱状态点归沙箱卡（那里才有对应动作）；题头只留档位与轮次，
+      // 同一个状态在两个地方各说一遍只会让人先找「哪个才是真的」。
+      el('div', { class: 'ws-head__meta' }, tierHost, roundText),
     ),
-    headFacts,
-    jumpRow,
-  );
-  headFacts.appendChild(
-    el('div', { class: 'ws-fact' }, el('span', { class: 'ws-fact__label' }, S.WS_DRIVE_LABEL), driveFact),
-  );
-  headFacts.appendChild(
-    el('div', { class: 'ws-fact' }, el('span', { class: 'ws-fact__label' }, S.WS_BASELINE_LABEL), hashFact),
+    el('div', { class: 'ws-head__actions' }, diffBtn.el),
   );
 
-  // ==================== 四个区域 ====================
-  /** @type {{onPrepare: Function, onReset: Function, onRebuild: Function, onOpenDir: Function, onCopyPath: Function}} */
+  // ==================== 步骤条（取代旧「跳转到」分段控件） ====================
+  const STEP_GLYPHS = ['①', '②', '③'];
+  const stepDefs = [
+    { key: 1, label: T.STEP_CHAT, target: 'chat' },
+    { key: 2, label: T.STEP_GRADE, target: 'grade' },
+    { key: 3, label: T.STEP_NEXT, target: 'grade' },
+  ];
+  const stepBtns = stepDefs.map((def) => {
+    const glyph = el('span', { class: 'ws-step__glyph', 'aria-hidden': 'true' }, STEP_GLYPHS[def.key - 1]);
+    const btn = el(
+      'button',
+      { type: 'button', class: 'ws-step', onClick: () => focusRegion(def.target) },
+      glyph,
+      el('span', {}, def.label),
+    );
+    return { key: def.key, glyph, btn };
+  });
+  const stepsNav = el('nav', { class: 'ws-steps', 'aria-label': T.STEPS_LABEL }, stepBtns.map((s) => s.btn));
+
+  /**
+   * 轮询驱动的每一步推进都反映到这里：②在跑、③出了结果。
+   * @param {object} next store 快照
+   */
+  function renderSteps(next) {
+    const run = next.run;
+    const running = next.busy === 'grade' || Boolean(run && run.status === 'grading');
+    const hasReport = Boolean(run && run.report);
+    const currentStep = !run ? 1 : running ? 2 : hasReport ? 3 : 1;
+    const done = !run ? [] : running ? [1] : hasReport ? [1, 2] : [];
+    stepBtns.forEach((step) => {
+      const state = done.includes(step.key) ? 'done' : step.key === currentStep ? 'current' : 'todo';
+      step.btn.dataset.state = state;
+      setText(step.glyph, state === 'done' ? '✓' : STEP_GLYPHS[step.key - 1]);
+      if (state === 'current') step.btn.setAttribute('aria-current', 'step');
+      else step.btn.removeAttribute('aria-current');
+    });
+  }
+
+  // ==================== 动作绑定 ====================
+  /**
+   * 只读回读：任务详情 + 当前运行记录。
+   * 「重试」按钮只做这件事——绝不能顺手触发准备 / 校验这类写操作，
+   * 否则一次读取失败后的重试会悄悄开出新的一轮。
+   * @returns {Promise<void>}
+   */
+  function reloadState() {
+    return load();
+  }
+
+  /** @type {{onPrepare: Function, onReset: Function, onRebuild: Function, onOpenDir: Function, onReload: Function}} */
   const sandboxHandlers = {
     onPrepare: () => doPrepare(),
     onReset: () => doReset(),
     onRebuild: () => doRebuild(),
     onOpenDir: () => doOpenDir(),
-    onCopyPath: () => doCopyPath(),
+    onReload: () => reloadState(),
   };
-  /** @type {{onRoundChange: Function, onGoSandbox: Function}} */
+  /** @type {{onRoundChange: Function, onGoSandbox: Function, onSendToChat: Function, onReload: Function}} */
   const promptHandlers = {
     onRoundChange: (n) => doRoundChange(n),
     onGoSandbox: () => focusRegion('sandbox'),
+    onSendToChat: () => chatPanel.sendText(promptPanel.getPrompt()),
+    onReload: () => reloadState(),
   };
-  /** @type {{onGrade: Function, onPromote: Function, onReveal: Function, onExport: Function, onGoPrompt: Function}} */
+  /** @type {{onGrade: Function, onPromote: Function, onReveal: Function, onExport: Function, onGoChat: Function, onReload: Function}} */
   const gradeHandlers = {
     onGrade: () => doGrade(),
     onPromote: () => doPromote(),
     onReveal: () => doReveal(),
     onReopen: () => doReopen(),
     onExport: () => doExport(),
-    onGoPrompt: () => focusRegion('prompt'),
+    onGoChat: () => focusRegion('chat'),
+    onReload: () => reloadState(),
   };
-  /** @type {{onModelChange: Function, onNotesSave: Function, onShowDiff: Function}} */
-  const runHandlers = {
+  /** @type {{onNotesSave: Function}} */
+  const notesHandlers = {
+    onNotesSave: (note) => saveNote(note),
+  };
+  /** @type {{scope: object, onUsePrompt: Function, onModelChange: Function, onReloadModels: Function, onGoSandbox: Function}} */
+  const chatHandlers = {
+    scope,
+    onUsePrompt: () => chatPanel.sendText(promptPanel.getPrompt()),
     onModelChange: (id) => {
       store.setState({ modelId: id });
       storage.set('last-model', id);
     },
-    onNotesSave: (note) => saveNote(note),
-    onShowDiff: () => doShowDiff(),
+    // 档案读取失败后由对话卡头给一个重读按钮：只 GET /api/models，不写任何东西
+    onReloadModels: () => (typeof reloadModels === 'function' ? reloadModels() : reloadState()),
+    onGoSandbox: () => focusRegion('sandbox'),
   };
 
   const promptPanel = createPromptPanel(promptHandlers);
-  const chatPanel = createChatPanel({
-    scope,
-    onUsePrompt: () => chatPanel.sendText(promptPanel.getPrompt()),
-  });
+  const chatPanel = createChatPanel(chatHandlers);
   const sandboxPanel = createSandboxPanel(sandboxHandlers);
   const gradePanel = createGradePanel(gradeHandlers);
-  const runBar = createRunBar(runHandlers);
+  const notesCard = createRunBar(notesHandlers);
 
-  const regions = el('div', { class: 'ws-regions' }, promptPanel.el, sandboxPanel.el, chatPanel.el, gradePanel.el, runBar.el);
-  const root = el('div', { class: 'view ws' }, head, regions);
+  // 两栏：主栏 = 内置对话（视觉主角）；侧栏 = 提示词 / 沙箱 / 校验 / 本轮备注
+  const layout = el(
+    'div',
+    { class: 'ws-layout' },
+    el('div', { class: 'ws-main' }, chatPanel.el),
+    el(
+      'div',
+      { class: 'ws-side' },
+      promptPanel.el,
+      sandboxPanel.el,
+      gradePanel.el,
+      notesCard.el,
+    ),
+  );
+  const root = el('div', { class: 'view ws' }, head, diffWrap, stepsNav, layout);
+
+  /** 收起状态的折叠卡 ↔ focusRegion：跳过去之前先展开，别把人滚到一张关着的卡上。 */
+  const REGION_CARDS = { prompt: promptPanel, sandbox: sandboxPanel, grade: gradePanel, run: notesCard };
 
   // ==================== 心跳（长操作的已用时间，§13.2） ====================
   /**
@@ -227,6 +339,28 @@ export function createWorkspace(props = {}) {
     patch({ opLog: lines.slice(-200) });
   }
 
+  // ==================== 题头渲染 ====================
+  /**
+   * 渲染题头（含步骤条）。轮询带来的每次状态变化都会走到这里。
+   * @param {object} next
+   */
+  function renderHead(next) {
+    const task = next.task;
+    const run = next.run;
+    setText(h1, task ? `${task.id} · ${task.title}` : taskId);
+    tierHost.textContent = '';
+    tierHost.appendChild(tierBadge(task ? task.tier : '', { attempts: task ? task.attempts : 0 }).el);
+
+    // 第 n 轮 / 共 m 次：数字走 tabular-nums（样式在 workspace.css 的 .ws-round）。
+    // 还没准备沙箱时没有「轮」可言，只报这题总共几次机会。
+    const max = run ? run.attempts_allowed : task ? task.attempts : 1;
+    setText(roundText, run ? t(T.ROUND_N_OF_M, { n: run.attempt, m: max }) : t(T.ATTEMPTS_ONLY, { m: max }));
+
+    diffBtn.update({ disabled: !run });
+
+    renderSteps(next);
+  }
+
   // ==================== 轮询 ====================
   /**
    * 拉一次运行状态。
@@ -252,13 +386,13 @@ export function createWorkspace(props = {}) {
       return Boolean(s.run) && BUSY_STATUS.has(s.run.status);
     },
     onError: (err, times) => {
+      // 题头不再有状态点，轮询失败改为 toast 报错（连接状态另有全局连接条负责）
       if (err instanceof ApiError && err.code === 'OFFLINE') {
-        connDot.update({ kind: 'error', text: S.STATE_OFFLINE });
         if (times === 1) {
           showToast({ message: errorTitle('OFFLINE'), detail: errorBody('OFFLINE'), kind: 'error', duration: 8000 });
         }
       } else if (err instanceof ApiError && err.code !== 'ABORTED') {
-        connDot.update({ kind: 'warn', text: errorTitle(err.code) });
+        showToast({ message: errorTitle(err.code), detail: errorBody(err.code), kind: 'error', duration: 8000 });
       }
     },
   });
@@ -274,28 +408,13 @@ export function createWorkspace(props = {}) {
       const errorChanged = next.error !== prev.error;
       const revealedChanged = next.revealed !== prev.revealed;
       const newResultChanged = next.newResult !== prev.newResult;
-      const modelChanged = next.modelId !== prev.modelId || next.models !== prev.models;
+      const modelChanged = next.modelId !== prev.modelId
+        || next.models !== prev.models
+        || next.modelsError !== prev.modelsError;
       // 心跳只推进进度数字：不重建任何输入控件（§11.2 #14）
       const tickOnly = next.elapsed !== prev.elapsed
         && !runChanged && !busyChanged && !loadingChanged && !errorChanged
         && !revealedChanged && !newResultChanged && !modelChanged;
-
-      if (loadingChanged || errorChanged) {
-        promptPanel.update({ loading: next.loading, error: next.error, run: next.run, task: next.task, round: next.round });
-        chatPanel.update({ run: next.run });
-        sandboxPanel.update({
-          loading: next.loading, error: next.error, run: next.run, busy: next.busy,
-          opLog: next.opLog, elapsed: next.elapsed,
-        });
-        gradePanel.update({
-          loading: next.loading, error: next.error, run: next.run, busy: next.busy,
-          elapsed: next.elapsed, newResult: next.newResult, revealed: next.revealed,
-        });
-        runBar.update({
-          loading: next.loading, run: next.run, models: next.models, modelId: next.modelId, busy: next.busy,
-        });
-        return;
-      }
 
       if (tickOnly) {
         sandboxPanel.update({ elapsed: next.elapsed, busy: next.busy });
@@ -303,78 +422,37 @@ export function createWorkspace(props = {}) {
         return;
       }
 
-      if (runChanged || busyChanged) {
-        if (runChanged) chatPanel.update({ run: next.run });
-        sandboxPanel.update({
-          run: next.run,
-          busy: next.busy,
-          opLog: next.opLog,
-          elapsed: next.elapsed,
-        });
-        gradePanel.update({
-          run: next.run,
-          busy: next.busy,
-          elapsed: next.elapsed,
-          newResult: next.newResult,
-          revealed: next.revealed,
-        });
-        runBar.update({ run: next.run, busy: next.busy });
-      }
-      if (runChanged || next.task !== prev.task || next.round !== prev.round) {
-        promptPanel.update({ run: next.run, task: next.task, round: next.round });
-      }
-      if (modelChanged) {
-        runBar.update({ models: next.models, modelId: next.modelId });
-      }
-      if (revealedChanged) {
-        gradePanel.update({ revealed: next.revealed });
-      }
-      if (newResultChanged && next.newResult) {
-        gradePanel.update({ newResult: true });
-      }
+      // 非心跳变化全量下发：各面板自己 diff，root/输入控件不会被重建
+      promptPanel.update({ loading: next.loading, error: next.error, run: next.run, task: next.task, round: next.round });
+      chatPanel.update({
+        run: next.run,
+        models: next.models,
+        modelId: next.modelId,
+        modelsError: next.modelsError,
+        loading: next.loading,
+      });
+      sandboxPanel.update({
+        loading: next.loading,
+        error: next.error,
+        run: next.run,
+        busy: next.busy,
+        opLog: next.opLog,
+        elapsed: next.elapsed,
+      });
+      // newResult 只在翻转成 true 时下发：false 会把校验卡上「新结果」标记提前冲掉
+      const gradeState = {
+        loading: next.loading,
+        error: next.error,
+        run: next.run,
+        busy: next.busy,
+        elapsed: next.elapsed,
+        revealed: next.revealed,
+      };
+      if (next.newResult) gradeState.newResult = true;
+      gradePanel.update(gradeState);
+      notesCard.update({ run: next.run, busy: next.busy, loading: next.loading });
     }),
   );
-
-  /**
-   * 渲染题头。
-   * @param {object} next
-   */
-  function renderHead(next) {
-    const task = next.task;
-    setText(h1, task ? `${task.id} · ${task.title}` : taskId);
-    setText(idBadge, taskId);
-    tierHost.textContent = '';
-    tierHost.appendChild(tierBadge(task ? task.tier : '', { attempts: task ? task.attempts : 0 }).el);
-
-    // 尝试指示灯 ①②③：点形 + 数字 + 文字标题，不靠颜色单独承载语义
-    attemptsHost.textContent = '';
-    attemptsHost.setAttribute('aria-label', S.WS_ATTEMPTS_LABEL);
-    const max = next.run ? next.run.attempts_allowed : task ? task.attempts : 1;
-    const cur = next.run ? next.run.attempt : 0;
-    const unlocked = unlockedLevels(next);
-    for (let i = 1; i <= max; i += 1) {
-      const stateName = i === cur ? 'current' : i < cur ? 'used' : unlocked.includes(i) ? 'unlocked' : 'locked';
-      attemptsHost.appendChild(
-        el('span', { class: 'ws-attempt', dataset: { state: stateName }, 'aria-hidden': 'true' }, String(i)),
-      );
-    }
-    const attemptText = next.run
-      ? t(S.WS_ATTEMPT_CURRENT, { n: next.run.attempt })
-      : `${S.WS_ATTEMPTS_LABEL} ${cur}/${max}`;
-    attemptsHost.setAttribute('title', attemptText);
-
-    // run.sandbox / run.drive / run.baseline_digest 在契约里都是字符串（不是对象）
-    setText(driveFact, (next.run && next.run.drive) || S.WS_NO_DRIVE);
-    setText(hashFact, (next.run && next.run.baseline_digest) || '—');
-
-    const run = next.run;
-    // 没有 run 不等于"正在加载"：把空状态说成加载中，会让人以为
-    // 刚才那次「准备沙箱」还卡着，于是一直等下去。
-    if (!run) connDot.update({ kind: next.loading ? 'busy' : 'idle', text: next.loading ? S.STATE_LOADING : S.SANDBOX_NO_RUN });
-    else if (BUSY_STATUS.has(run.status)) connDot.update({ kind: 'busy', text: (STATUS_TEXT[run.status] || STATUS_TEXT.preparing)() });
-    else if (run.status === 'error') connDot.update({ kind: 'error', text: S.RUN_STATUS_ERROR });
-    else connDot.update({ kind: 'ok', text: (STATUS_TEXT[run.status] || STATUS_TEXT.ready)() });
-  }
 
   /**
    * 已解锁的提示词级。
@@ -415,7 +493,7 @@ export function createWorkspace(props = {}) {
     const s = store.getState();
     if (!s.modelId) {
       showToast({ message: S.RUN_MODEL_REQUIRED, kind: 'warn', duration: 5000 });
-      focusRegion('run');
+      focusRegion('chat'); // 档案选择器现在住在对话卡头
       return;
     }
     if (s.busy) return;
@@ -454,12 +532,14 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 把一次拉取结果写进 store（只做差异更新，§10.5），并处理阶段推进播报。
+   * 把一次拉取结果写进 store（只做差异更新，§10.5），并处理阶段推进播报与结果提醒。
    * @param {object} run
    */
   function applyRun(run) {
     const prev = store.getState();
     const prevStatus = prev.run ? prev.run.status : '';
+    // 换 run 或进下一轮：上一轮的改动正文当场作废（在途响应由 diffToken 比对丢掉）
+    if (diffTokenOf(prev.run) !== diffTokenOf(run)) invalidateDiff();
     const serverBusy = BUSY_STATUS.has(run.status);
     const next = { run, newResult: false };
 
@@ -481,7 +561,13 @@ export function createWorkspace(props = {}) {
           summary: t(S.GRADE_GROUP_SUMMARY, { pass: sum.green || 0, total: (sum.groups || []).length }),
         }),
       );
-      next.newResult = true; // 结果区出现「新结果」标记，不跳页不抢焦点
+      next.newResult = true;
+      showToast({
+        message: t(T.GRADE_DONE_TOAST, { pass: sum.green || 0, total: (sum.groups || []).length }),
+        kind: 'success',
+        duration: 8000,
+      });
+      guideToResult();
     } else if (prevStatus === 'grading' && run.status === 'error') {
       announce(S.ANNOUNCE_GRADE_FAILED);
     } else if (!prevStatus && run.status === 'ready') {
@@ -493,6 +579,16 @@ export function createWorkspace(props = {}) {
 
     patch(next);
     wsStore.set('run_id', run.run_id);
+  }
+
+  /**
+   * 校验完成的结果提醒：展开校验卡并滚过去（规格 §一「结果必须在这张卡里跳出来」）。
+   * 焦点在输入框里时不抢焦点——toast 已经报了分数，不打断正在打字的人。
+   */
+  function guideToResult() {
+    gradePanel.setOpen(true);
+    if (isEditableTarget(document.activeElement)) return;
+    focusRegion('grade');
   }
 
   /**
@@ -600,6 +696,9 @@ export function createWorkspace(props = {}) {
       return;
     }
     if (s.busy) return;
+    // 乐观状态要可回滚：POST 失败后 run.status 停在 'grading' 会让按钮永久禁用、
+    // 心跳永久累加，且轮询只在成功路径启动，UI 就永远卡死。
+    const runBefore = s.run;
     if (s.run.chat_busy) {
       showToast({ message: S.CHAT_REMOTE_BUSY, detail: S.CHAT_REMOTE_BUSY_DETAIL, kind: 'warn', duration: 8000 });
       focusRegion('chat');
@@ -612,6 +711,7 @@ export function createWorkspace(props = {}) {
       poller.start();
       ensureTicker();
     } catch (err) {
+      patch({ busy: '', run: runBefore });
       reportError(err, '运行校验');
       // 失败必须把本地乐观状态打回服务端真相，否则计时器和日志区会永远停在「正在校验」
       patch({ busy: '', elapsed: 0 });
@@ -765,25 +865,73 @@ export function createWorkspace(props = {}) {
     }
   }
 
+  /** 报告里 diff 统计的一句话（挂改动查看器的角标）。 */
+  function diffStats(run) {
+    const d = run && run.report && run.report.diff;
+    if (!d) return '';
+    return `${t(S.RUN_DIFF_FILES, { n: d.files || 0 })} · ${t(S.RUN_DIFF_ADD, { n: d.added_lines || 0 })} · ${t(S.RUN_DIFF_DEL, { n: d.removed_lines || 0 })}`;
+  }
+
   /**
-   * 查看本轮改动正文（POST /api/runs/{id}/diff）。
+   * 改动正文归属的「运行 × 轮次」。diff.patch 是评分产物，进下一轮后服务端给的是
+   * 新一轮的改动，旧正文留在面板上就会被读成「模型这一轮什么也没改 / 又改了同样的东西」。
+   */
+  let diffToken = '';
+
+  /** @param {object|null} run @returns {string} */
+  function diffTokenOf(run) {
+    return run ? `${run.run_id}#${run.attempt}` : '';
+  }
+
+  /** 换轮或换 run 时作废已显示的改动正文与在途请求。 */
+  function invalidateDiff() {
+    diffToken = '';
+    setText(diffText, '');
+    diffCard.update({ hint: '' });
+    diffCard.setOpen(false);
+    diffWrap.hidden = true;
+    diffBtn.getButton().setAttribute('aria-expanded', 'false');
+  }
+
+  /**
+   * 题头 [查看改动]：开合改动正文。展开时按需拉取一次（不轮询）。
+   */
+  function toggleDiff() {
+    const open = !diffCard.isOpen();
+    diffCard.setOpen(open);
+    diffWrap.hidden = !open;
+    diffBtn.getButton().setAttribute('aria-expanded', String(open));
+    if (open) doShowDiff();
+  }
+
+  /**
+   * 拉取本轮改动正文（POST /api/runs/{id}/diff）。
    * @returns {Promise<void>}
    */
   async function doShowDiff() {
     const s = store.getState();
     if (!s.run) return;
-    runBar.showDiff({ loading: true, text: '', error: '' });
+    const token = diffTokenOf(s.run);
+    diffToken = token;
+    setText(diffText, S.RUN_DIFF_LOADING);
+    diffCard.update({ hint: S.STATE_LOADING });
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/diff`, {}, { scope });
+      // 换轮 / 换 run 之后这份正文不再属于当前视图，迟到的响应必须丢掉
+      if (diffToken !== token) return;
+      // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
       if (typeof res.diff !== 'string') {
-        // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
-        runBar.showDiff({ loading: false, text: '', error: S.RUN_DIFF_BAD_PAYLOAD });
+        setText(diffText, S.RUN_DIFF_BAD_PAYLOAD);
+        diffCard.update({ hint: '' });
         return;
       }
-      runBar.showDiff({ loading: false, text: res.diff, error: '' });
+      setText(diffText, res.diff || S.RUN_DIFF_EMPTY);
+      diffCard.update({ hint: diffStats(s.run) });
     } catch (err) {
+      if (diffToken !== token) return;
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
-      runBar.showDiff({ loading: false, text: '', error: errorBody(code) });
+      setText(diffText, errorBody(code));
+      diffCard.update({ hint: errorTitle(code) });
     }
   }
 
@@ -802,17 +950,7 @@ export function createWorkspace(props = {}) {
       kind: 'warn',
       duration: 10000,
     });
-    void doCopyPath();
-  }
-
-  /**
-   * 复制沙箱路径（三级降级由 run-bar 的复制按钮负责，这里只做兜底播报）。
-   */
-  async function doCopyPath() {
-    const s = store.getState();
-    const path = s.run ? s.run.sandbox : '';
-    if (!path) return;
-    await runBar.copyPath(path);
+    void sandboxPanel.copyPath(path);
   }
 
   /**
@@ -857,16 +995,24 @@ export function createWorkspace(props = {}) {
 
   /**
    * 焦点跳到某个区域并把区域记进 hash（§13.5 刷新回到同一区域）。
-   * @param {'prompt'|'sandbox'|'grade'|'run'} region
+   *
+   * 地址栏只是「记录在哪一区」的书签：main.js 对同一任务 + 同一视图的身份变化
+   * 做就地跳转，不再销毁重建视图。这里的 navigate 由 lastUrlRegion 兜一层，
+   * 避免「写 hash → 路由回调 focusRegion → 又写 hash」的原地打转。
+   * @param {'prompt'|'chat'|'sandbox'|'grade'|'run'} region
    */
   function focusRegion(region) {
     const node = root.querySelector(`#ws-region-${region}`);
     if (!node) return;
+    const card = REGION_CARDS[region];
+    if (card && typeof card.setOpen === 'function') card.setOpen(true);
     const target = node.querySelector('h2') || node;
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
     scrollBelowStickyHeader(node);
     wsStore.set('region', region);
+    if (region === lastUrlRegion) return;
+    lastUrlRegion = region;
     const activeRunId = store.getState().run && store.getState().run.run_id;
     const params = { taskId, region };
     if (region === 'chat' && (activeRunId || routeRunId)) params.runId = activeRunId || routeRunId;
@@ -909,16 +1055,19 @@ export function createWorkspace(props = {}) {
   offHandlers.push(on(document, 'keydown', onKeydown));
 
   // ==================== 滚动位置持久化（§13.5） ====================
+  // 外壳现在是「主内容区自己滚动」（.app-main 带 overflow），而 scroll 事件
+  // 不冒泡。用捕获阶段挂在 document 上才能同时收到窗口滚动和容器滚动，
+  // 否则刷新后「回到上次位置」会静默失效。
   offHandlers.push(
     on(
-      window,
+      document,
       'scroll',
       () => {
         window.requestAnimationFrame(() => {
-          wsStore.set('scroll', window.scrollY);
+          wsStore.set('scroll', pageScrollTop(root));
         });
       },
-      { passive: true },
+      { capture: true, passive: true },
     ),
   );
 
@@ -987,12 +1136,11 @@ export function createWorkspace(props = {}) {
       const y = Number(wsStore.get('scroll', 0)) || 0;
       if (y <= 0) return false;
       window.requestAnimationFrame(() => {
-        window.scrollTo(0, y);
-        const headerBottom = document.querySelector('.app-header')?.getBoundingClientRect().bottom || 0;
-        const headingBounds = h1.getBoundingClientRect();
-        if (headingBounds.bottom > 0 && headingBounds.top < headerBottom + 8) {
-          scrollBelowStickyHeader(h1);
-        }
+        setPageScroll(y, root);
+        // 只有「标题被顶部粘性条压住」时才挪一下。桌面宽度 .app-header 是左侧粘性
+        // 侧栏（height:100vh），拿它的 bottom 当遮挡高度会永远判定成被遮住，
+        // 于是刚恢复好的滚动位置又被拽回标题处。
+        revealIfCoveredByStickyTop(h1);
       });
       return true;
     },
@@ -1014,8 +1162,8 @@ export function createWorkspace(props = {}) {
       chatPanel.destroy();
       sandboxPanel.destroy();
       gradePanel.destroy();
-      runBar.destroy();
-      connDot.destroy();
+      notesCard.destroy();
+      diffBtn.destroy();
     },
   };
 }

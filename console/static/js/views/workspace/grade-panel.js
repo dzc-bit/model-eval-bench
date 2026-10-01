@@ -1,31 +1,29 @@
 /**
- * grade-panel.js — 工作台「校验」区（§9 重点交互 ③）
+ * grade-panel.js — 工作台「校验」折叠卡（2026-10-01 改版）
  *
  * 职责：
- *   1. 「运行校验」→ 实时进度（已用时间）→ 可折叠实时日志（结束后自动收起）。
- *   2. 分组结果卡：绿组简述，红组可展开失败摘要。
- *   3. 还有轮次时直接给「进入第 N 轮」；轮次用尽才出现「查看参考解」（带二次确认）。
- *   4. 展示部分分、回归、越界改动、相似度、diff 统计、上一轮转绿对比、下一步建议。
- *   5. 校验完成不跳页、不抢焦点：结果区出现「新结果」标记并 polite 播报（§13.2）。
+ *   1. [运行校验]（本卡唯一强调按钮，G 键保留）→ 实时进度（已用时间）→ 可折叠实时日志。
+ *   2. 校验完成跳出结果横幅：通过=绿 tint / 未过=红 tint，总分 + 分组概要在第一眼位置；
+ *      横幅内直接给 [进入下一轮]，机会用尽则给一句说明。
+ *   3. 分组明细按行渲染（绿组一句话，红组可展开失败摘要），其后依次是回归 / 越界 / 噪声 /
+ *      相似度 / diff / 与上一轮对比 / 评分执行详情 / 参考解，全部沿用原有渲染器。
+ *   4. 校验完成不跳页：结果区出现「新结果」标记并 polite 播报（§13.2）。
  *
- * 状态：empty（未跑过）/ running / done / error。
- * 键盘：进度与日志不占 Tab；红组用原生 details 展开；结果区 tabindex="-1" 供播报后跳转。
+ * 状态：empty（没跑过）/ running / done / error。
+ * 键盘：日志与明细折叠用原生 details；结果区 tabindex="-1" 供播报后跳转。
  * ARIA：progressbar + 中文时间文本；组状态「图标 + 文字 + 颜色」三重编码；失败明细 role="list"。
  *
- * 契约要点（本区消费的 run.report 结构对照 harness/grade.py + harness/report.py）：
- *   score / raw_score / passed / p2p_broken / invalidated / invalid_reason / error
- *   groups[]  {id, title, weight, passed, cases[{node_id, outcome, duration, message, detail}], total, passed_count}
- *   regressions[] {node_id, outcome, message}；violations[] {path, change, reason}；noise[] 路径
- *   similarity  {checked, flagged, max_ratio, matches[]}；diff {files, added_lines, removed_lines, changed_lines, line_cap, over_cap}
- *   comparison  {has_previous, previous_attempt, previous_score, turned_green, stayed_red, regressed}
- *   next_hint   {action, label, reason, can_promote}；summary {groups[], green, red}
- *   baseline_problems[]、checks[] {kind, command, returncode, duration_s, timed_out, summary, log_tail}
+ * 契约要点（消费的 run.report 结构对照 harness/grade.py + harness/report.py）：
+ *   score / passed / invalidated / invalid_reason / p2p_broken / error
+ *   groups[]{id, title, weight, passed, cases[], total, passed_count}
+ *   regressions[] / violations[] / noise[] / similarity{} / diff{} / comparison{} /
+ *   next_hint{} / summary{groups[], green, red} / checks[]
  *
  * 依赖：core/*、components/*
- * 导出：createGradePanel(handlers) → { el, update, destroy, doGrade }
+ * 导出：createGradePanel(handlers) → { el, update, destroy, setOpen, focusResult, doGrade }
  */
 
-import { el, setText, patchList, clear } from '../../core/dom.js';
+import { el, setText, patchList } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
 import { createButton } from '../../components/button.js';
 import { createProgress } from '../../components/progress.js';
@@ -40,12 +38,12 @@ import { percent } from '../../core/format.js';
 const SANDBOX_OK = new Set(['ready', 'graded']);
 
 /**
- * 创建校验区。
+ * 创建校验卡。
  * @param {{
  *   onGrade: Function, onPromote: Function, onReveal: Function,
- *   onExport: Function, onGoPrompt: Function
+ *   onExport: Function, onGoChat: Function, onReload: Function
  * }} handlers
- * @returns {{el: HTMLElement, update: Function, destroy: Function, doGrade: Function}}
+ * @returns {{el: HTMLElement, update: Function, destroy: Function, setOpen: Function, focusResult: Function, doGrade: Function}}
  */
 export function createGradePanel(handlers) {
   let current = {
@@ -60,16 +58,27 @@ export function createGradePanel(handlers) {
   /** 上一次是否在跑：只在状态翻转时自动开合日志卡。 */
   let lastRunning = null;
 
-  const title = el('h2', { class: 'panel__title', id: 'ws-grade-title' }, S.GRADE_TITLE);
-  const headExtra = el('div', { class: 'u-row' });
-  const body = el('div', { class: 'panel__body' });
-  const root = el(
-    'section',
-    { class: 'panel ws-region ws-region--full', id: 'ws-region-grade', 'aria-labelledby': 'ws-grade-title' },
-    el('div', { class: 'panel__head' }, title, el('span', { class: 'u-spacer' }), headExtra),
-    el('p', { class: 'u-faint' }, S.GRADE_DESC),
-    body,
+  // ---- 卡片骨架：默认展开（结果是工作台的主出口） ----
+  const title = el('h2', { class: 'ws-card__title', id: 'ws-grade-title' }, S.GRADE_TITLE);
+  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' }, S.GRADE_EMPTY);
+  const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
+  const summary = el(
+    'summary',
+    { class: 'ws-card__summary' },
+    title,
+    el('span', { class: 'u-spacer' }),
+    cardAside,
+    chevron,
   );
+  const bodyHost = el('div', { class: 'ws-card__body' });
+  const root = el(
+    'details',
+    { class: 'ws-card ws-region', id: 'ws-region-grade', open: true },
+    summary,
+    bodyHost,
+  );
+
+  const gradeDesc = el('p', { class: 'u-faint ws-grade-desc' }, S.GRADE_DESC);
 
   // ---- 动作 ----
   const gradeBtn = createButton({
@@ -87,7 +96,7 @@ export function createGradePanel(handlers) {
   });
   const revealBtn = createButton({
     label: S.GRADE_REVEAL,
-    variant: 'danger',
+    variant: 'ghost',
     onClick: () => handlers.onReveal(),
   });
   const reopenBtn = createButton({
@@ -98,20 +107,19 @@ export function createGradePanel(handlers) {
   const exportBtn = createButton({
     label: S.GRADE_EXPORT,
     variant: 'ghost',
+    size: 'sm',
+    disabled: true,
+    reason: S.GRADE_EMPTY,
     onClick: () => handlers.onExport(),
   });
-  const actionRow = el('div', { class: 'grade__actions' });
+  const actionRow = el('div', { class: 'u-row ws-grade__actions' }, gradeBtn.el, el('span', { class: 'u-spacer' }), revealBtn.el, exportBtn.el);
 
   // ---- 进度与日志 ----
   const progress = createProgress({ label: S.PROGRESS_IDLE, state: 'idle' });
-  const logBox = el('pre', { class: 'grade__log', tabindex: '0', role: 'region' });
+  const logBox = el('pre', { class: 'ws-log', tabindex: '0', role: 'region' });
   logBox.setAttribute('aria-label', S.GRADE_LOG_TITLE);
   const logCount = el('span', { class: 'u-faint' });
-  const logCard = createDetailsCard({
-    title: S.GRADE_LOG_TITLE,
-    content: logBox,
-    open: false,
-  });
+  const logCard = createDetailsCard({ title: S.GRADE_LOG_TITLE, content: logBox, open: false });
 
   // ---- 结果 ----
   const resultHost = el('div', { class: 'u-stack', tabindex: '-1' });
@@ -121,13 +129,16 @@ export function createGradePanel(handlers) {
   const newFlag = el('span', { class: 'grade__new-flag' }, `● ${S.GRADE_NEW_RESULT}`);
 
   const emptyState = createEmptyState({
+    icon: 'chart',
     title: S.GRADE_EMPTY,
     desc: S.GRADE_EMPTY_DESC,
-    actions: [createButton({ label: S.WS_JUMP_SANDBOX, variant: 'primary', onClick: () => handlers.onGoPrompt() }).el],
+    // 原先标签写「沙箱」而动作跳提示词区，标签和动作对不上；改版后主流程在对话卡，
+    // 空态直接引导去内置对话，且用 ghost 不与 [运行校验] 抢强调位。
+    actions: [createButton({ label: S.GRADE_EMPTY_ACTION, variant: 'ghost', onClick: () => handlers.onGoChat() }).el],
   });
 
   /**
-   * 组状态 → 语义（图标 + 文字 + 颜色三重编码，§12.8）。
+   * 组状态 → 语义（图标 + 文字 + 颜色三重编码）。
    * @param {boolean} passed
    * @returns {{cls: string, glyph: string, text: string, kind: string}}
    */
@@ -137,66 +148,7 @@ export function createGradePanel(handlers) {
       : { cls: 'group-card group-card--fail', glyph: '✕', text: S.GRADE_GROUP_FAIL, kind: 'error' };
   }
 
-  /**
-   * 渲染一个组卡片。
-   * @param {object} group 报告里的一个 group
-   * @returns {HTMLElement}
-   */
-  function buildGroupCard(group) {
-    const sem = groupSemantics(group.passed);
-    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
-    const list = el('div', { class: 'group-card__body' });
-    const head = el(
-      'div',
-      { class: 'group-card__head' },
-      el('span', { 'aria-hidden': 'true', style: { fontWeight: '700' } }, sem.glyph),
-      el('span', { class: 'group-card__name' }, group.title || group.id),
-      createStatusDot({ kind: sem.kind, text: sem.text }).el,
-      el('span', { class: 'group-card__weight' }, t(S.GRADE_GROUP_WEIGHT, { n: group.weight || 0 })),
-      el('span', { class: 'u-faint' }, `${group.passed_count || 0} / ${group.total || 0}`),
-      failed.length
-        ? createBadge({ label: t(S.GRADE_GROUP_FAILURES, { n: failed.length }), variant: 'danger', glyph: '✕' }).el
-        : null,
-    );
-
-    if (failed.length === 0) {
-      list.appendChild(el('p', { class: 'u-faint' }, S.GRADE_GROUP_PASS_SUMMARY));
-    } else {
-      // 红组可展开失败摘要（§9 验收标准）
-      const failList = el('ul', { class: 'fail-list' });
-      failed.forEach((c) => {
-        const detail = c.detail
-          ? createDetailsCard({ title: S.GRADE_CASE_DETAIL, content: c.detail, open: false, flush: true }).el
-          : null;
-        failList.appendChild(
-          el(
-            'li',
-            { class: 'fail-item' },
-            el(
-              'div',
-              { class: 'fail-item__name u-mono' },
-              t(S.GRADE_CASE_NODE, { id: c.node_id || '' }),
-              c.duration === undefined
-                ? null
-                : el('span', { class: 'u-faint' }, `　${t(S.GRADE_CASE_TIME, { time: c.duration })}`),
-            ),
-            el('div', { class: 'fail-item__msg' }, c.message || ''),
-            detail,
-          ),
-        );
-      });
-      list.appendChild(
-        createDetailsCard({
-          title: `${S.ACTION_EXPAND}（${t(S.GRADE_GROUP_FAILURES, { n: failed.length })}）`,
-          content: failList,
-          open: false,
-        }).el,
-      );
-    }
-    return el('li', { class: sem.cls }, head, list);
-  }
-
-  /** 决定这张卡片要不要重画：结论、计数或失败清单变了才算变。 */
+  /** 决定这一行要不要重画：结论、计数或失败清单变了才算变。 */
   function groupSignature(group) {
     const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
     return [
@@ -209,27 +161,90 @@ export function createGradePanel(handlers) {
   }
 
   /**
-   * 组卡片：节点上记一份内容签名。
-   * patchList 按组 id 复用节点，重跑校验后同一组会从红转绿；只在建卡那一刻画一次
-   * 就会让旧结论永远挂在页面上（分数已更新、卡片还写着失败）。
+   * 渲染一个分组（按行，不套框——分组是列表行不是容器卡）。
+   * @param {object} group 报告里的一个 group
+   * @returns {{el: HTMLElement, update: Function}}
    */
-  const groupSignatures = new WeakMap();
-
   function renderGroup(group) {
-    const node = buildGroupCard(group);
-    groupSignatures.set(node, groupSignature(group));
-    return node;
-  }
+    const node = el('li', { class: 'group-card' });
 
-  /** 原地震换成新结论：签名没变就不动，保住用户展开的失败清单。 */
-  function refreshGroup(node, group) {
-    const signature = groupSignature(group);
-    if (groupSignatures.get(node) === signature) return;
-    groupSignatures.set(node, signature);
-    const rebuilt = buildGroupCard(group);
-    node.className = rebuilt.className;
-    clear(node);
-    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
+    function build(g) {
+      // 组 id 不变时 patchList 会复用本节点，靠 build 重建内容；
+      // 重建前后按 summary 文本恢复 details 的展开状态。
+      const wasOpen = new Map();
+      node.querySelectorAll('details').forEach((d) => {
+        if (d.open) wasOpen.set((d.querySelector('summary') || {}).textContent || '', true);
+      });
+      const sem = groupSemantics(g.passed);
+      const failed = (g.cases || []).filter((c) => c.outcome !== 'passed');
+      const list = el('div', { class: 'group-card__body' });
+      const head = el(
+        'div',
+        { class: 'group-card__head' },
+        el('span', { class: 'group-card__glyph', 'aria-hidden': 'true' }, sem.glyph),
+        el('span', { class: 'group-card__name' }, g.title || g.id),
+        createStatusDot({ kind: sem.kind, text: sem.text }).el,
+        el('span', { class: 'group-card__weight' }, t(S.GRADE_GROUP_WEIGHT, { n: g.weight || 0 })),
+        el('span', { class: 'u-faint' }, `${g.passed_count || 0} / ${g.total || 0}`),
+        failed.length
+          ? createBadge({ label: t(S.GRADE_GROUP_FAILURES, { n: failed.length }), variant: 'danger', glyph: '✕' }).el
+          : null,
+      );
+
+      if (failed.length === 0) {
+        list.appendChild(el('p', { class: 'u-faint' }, S.GRADE_GROUP_PASS_SUMMARY));
+      } else {
+        // 红组可展开失败摘要（§9 验收标准）
+        const failList = el('ul', { class: 'fail-list' });
+        failed.forEach((c) => {
+          const detail = c.detail
+            ? createDetailsCard({ title: S.GRADE_CASE_DETAIL, content: c.detail, open: false, flush: true }).el
+            : null;
+          failList.appendChild(
+            el(
+              'li',
+              { class: 'fail-item' },
+              el(
+                'div',
+                { class: 'fail-item__name u-mono' },
+                t(S.GRADE_CASE_NODE, { id: c.node_id || '' }),
+                c.duration === undefined
+                  ? null
+                  : el('span', { class: 'u-faint' }, `　${t(S.GRADE_CASE_TIME, { time: c.duration })}`),
+              ),
+              el('div', { class: 'fail-item__msg' }, c.message || ''),
+              detail,
+            ),
+          );
+        });
+        list.appendChild(
+          createDetailsCard({
+            title: `${S.ACTION_EXPAND}（${t(S.GRADE_GROUP_FAILURES, { n: failed.length })}）`,
+            content: failList,
+            open: false,
+          }).el,
+        );
+      }
+      node.className = sem.cls;
+      node.replaceChildren(head, list);
+      node.querySelectorAll('details').forEach((d) => {
+        if (wasOpen.get((d.querySelector('summary') || {}).textContent || '')) d.open = true;
+      });
+    }
+
+    let signature = groupSignature(group);
+    build(group);
+    return {
+      el: node,
+      // 每次轮询都会调到这里：结论没变就不重建，否则用户刚展开的失败清单会被
+      // 轮询吞掉、焦点也会跟着丢。
+      update: (g) => {
+        const next = groupSignature(g);
+        if (next === signature) return;
+        signature = next;
+        build(g);
+      },
+    };
   }
 
   /**
@@ -296,7 +311,7 @@ export function createGradePanel(handlers) {
   /**
    * 渲染「评分执行详情」折叠块。
    * @param {object} report
-   * @returns {HTMLElement}
+   * @returns {HTMLElement|null}
    */
   function renderChecks(report) {
     const checks = report.checks || [];
@@ -379,16 +394,19 @@ export function createGradePanel(handlers) {
   }
 
   /**
-   * 渲染结果区（部分分 + 组 + 回归 + 越界 + 相似度 + diff + 对比 + 下一步）。
+   * 渲染结果区：横幅（总分 + 概要 + 进入下一轮）→ 分组明细 → 其余诊断折叠块。
    * @param {object} report
+   * @param {{canPromote: boolean, next: number, exhausted: boolean}} promote
+   * @param {boolean} running
+   * @param {string} busy
    */
-  function renderResult(report) {
+  function renderResult(report, promote, running, busy) {
     resultHost.textContent = '';
     const groups = report.groups || [];
     const sum = report.summary || {};
     const green = typeof sum.green === 'number' ? sum.green : groups.filter((g) => g.passed).length;
 
-    const scoreNode = el('span', { class: 'grade__score' }, percent((report.score || 0) / 100));
+    // 一句话结论（部分分 / 作废 / 全过）
     const summaryText = report.invalidated
       ? t(S.GRADE_INVALID_REASON, { reason: report.invalid_reason || '' })
       : report.p2p_broken
@@ -398,41 +416,52 @@ export function createGradePanel(handlers) {
           : t(S.GRADE_DONE_PARTIAL, { n: report.score || 0, m: groups.length - green });
 
     // 结果标记：对勾 / 叉 / 半环，带描边动画（形状 + 文字，颜色不是唯一信号）
-    const markKind = kindForReport(report);
-    const markLabel = report.invalidated || report.p2p_broken
-      ? S.GRADE_DONE_VOID
-      : report.passed
-        ? S.GRADE_DONE_PASS
-        : t(S.GRADE_DONE_PARTIAL, { n: report.score || 0, m: groups.length - green });
     const mark = createResultMark({
-      kind: markKind,
-      label: markLabel,
-      size: 52,
+      kind: kindForReport(report),
+      label: summaryText,
+      size: 48,
       animate: true,
       title: `${S.GRADE_SCORE_LABEL}：${percent((report.score || 0) / 100)}`,
     });
 
-    resultHost.appendChild(
+    // 结果横幅：通过=绿 tint，未过/作废=红 tint（第一眼必须是它，§一.③）
+    const banner = el(
+      'div',
+      { class: 'ws-grade-banner', dataset: { tone: report.passed ? 'pass' : 'fail' } },
+      mark.el,
       el(
         'div',
-        { class: 'grade__result-head' },
-        mark.el,
-        el('div', { class: 'u-stack', style: { gap: '2px' } },
-          el('span', { class: 'u-faint' }, S.GRADE_SCORE_LABEL),
-          scoreNode,
-        ),
-        el('div', { class: 'u-stack', style: { gap: '2px' } },
-          el('span', { class: 'u-faint' }, S.GRADE_RESULT_TITLE),
-          el('span', {}, t(S.GRADE_GROUP_SUMMARY, { pass: green, total: groups.length })),
-        ),
-        el('span', { class: 'u-spacer' }),
-        current.newResult ? newFlag : null,
+        { class: 'u-stack ws-grade-banner__score-wrap' },
+        el('span', { class: 'u-faint' }, S.GRADE_SCORE_LABEL),
+        el('span', { class: 'ws-grade-banner__score' }, percent((report.score || 0) / 100)),
       ),
+      el(
+        'div',
+        { class: 'u-stack ws-grade-banner__summary' },
+        el('span', { class: 'u-faint' }, S.GRADE_RESULT_TITLE),
+        el('span', {}, t(S.GRADE_GROUP_SUMMARY, { pass: green, total: groups.length })),
+      ),
+      el('span', { class: 'u-spacer' }),
+      current.newResult ? newFlag : null,
     );
-    resultHost.appendChild(el('p', { class: 'u-muted' }, summaryText));
+    resultHost.appendChild(banner);
+    resultHost.appendChild(el('p', { class: 'u-muted ws-grade-banner__note' }, summaryText));
 
-    // 分组卡片（key 化复用：同一组重渲染不丢展开状态）
-    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), refreshGroup);
+    // 「进入下一轮」只信当前轮实时状态（逐轮校验过 + 还有剩余机会），不信旧报告里的 next_hint
+    if (promote.canPromote) {
+      promoteBtn.update({
+        label: t(S.GRADE_PROMOTE, { n: promote.next }),
+        disabled: running || Boolean(busy),
+      });
+      resultHost.appendChild(el('div', { class: 'u-row' }, promoteBtn.el));
+    } else if (promote.exhausted) {
+      resultHost.appendChild(el('p', { class: 'u-faint ws-grade-exhausted' }, S.GRADE_PROMOTE_EXHAUSTED));
+    }
+
+    // 分组明细按组 id 复用节点。renderGroup 交回的是 {el, update}，patchList 会优先走
+    // api.update，重跑校验后从红转绿的组当场改结论——不再传第 5 个参数，否则读起来
+    // 像是「只建不刷」的旧形状。
+    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group));
     resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
 
     // 回归
@@ -516,7 +545,7 @@ export function createGradePanel(handlers) {
       );
     }
 
-    // 下一步建议（§9：还有轮次就直接给「进入下一轮」）
+    // 下一步建议（服务端 hint 作补充说明；主按钮已在横幅里）
     const hint = report.next_hint || {};
     if (hint.label) {
       resultHost.appendChild(
@@ -535,7 +564,7 @@ export function createGradePanel(handlers) {
   }
 
   /**
-   * 渲染校验日志：进行中默认展开、结束后自动收起（§13.2）。
+   * 渲染校验日志：进行中默认展开、结束后自动收起（§13.2）；中途手动开合不被覆盖。
    * @param {boolean} running
    * @param {string[]} lines
    */
@@ -544,11 +573,8 @@ export function createGradePanel(handlers) {
     setText(logCount, lines.length ? t(S.LOG_LINES_COUNT, { n: lines.length }) : '');
     const changed = lastRunning !== running;
     lastRunning = running;
-    logCard.update({
-      open: changed ? running : undefined,
-      content: logBox,
-      hint: logCount.textContent,
-    });
+    logCard.update({ content: logBox, hint: logCount.textContent });
+    if (changed) logCard.setOpen(running);
     if (running) logBox.scrollTop = logBox.scrollHeight;
   }
 
@@ -558,20 +584,23 @@ export function createGradePanel(handlers) {
    */
   function update(state) {
     current = { ...current, ...state };
-    body.textContent = '';
-    headExtra.textContent = '';
+    bodyHost.textContent = '';
 
     if (current.loading) {
-      body.appendChild(createStatusDot({ kind: 'busy', text: S.STATE_LOADING }).el);
+      setText(cardAside, '');
+      bodyHost.appendChild(createStatusDot({ kind: 'busy', text: S.STATE_LOADING }).el);
       return;
     }
     if (current.error) {
-      body.appendChild(
+      root.open = true; // 错误不能藏在收起的卡里
+      setText(cardAside, S.ERR_LOAD);
+      bodyHost.appendChild(
         createEmptyState({
           title: S.ERR_LOAD,
           desc: S.ERR_LOAD_BODY,
           alert: true,
-          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onGrade() }).el],
+          // 重试 = 只读回读。挂 onGrade 会变成「读取失败 → 点重试」直接提交一次校验。
+          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
         }).el,
       );
       return;
@@ -585,6 +614,17 @@ export function createGradePanel(handlers) {
     const running = busy === 'grade' || (hasRun && run.status === 'grading');
     const sandboxOk = hasRun && SANDBOX_OK.has(run.status);
     const hasReport = Boolean(report);
+
+    // 卡头摘要行：跑完显示分数，进行中显示状态；空态留空——空态说明就在卡里，
+    // 卡头再重复一遍只会让折叠标题变吵。
+    setText(
+      cardAside,
+      running
+        ? S.GRADE_RUNNING
+        : hasReport
+          ? percent((report.score || 0) / 100)
+          : '',
+    );
 
     // 动作区
     // 运行校验的可用性：必须沙箱就绪、服务端没有还在跑的对话线程，
@@ -623,7 +663,6 @@ export function createGradePanel(handlers) {
     } else {
       exportBtn.update({ disabled: true, reason: S.GRADE_EMPTY });
     }
-    body.appendChild(actionRow);
 
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
@@ -635,19 +674,22 @@ export function createGradePanel(handlers) {
         : running
           ? S.GRADE_RUNNING
           : chatBusy
-            ? (S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…')
+            ? S.CHAT_REMOTE_BUSY
             : !modelActed
               ? S.GRADE_NEED_MODEL_FIRST
               : !sandboxOk
                 ? S.SANDBOX_PREPARING
                 : '',
     });
-    revealBtn.update({ disabled: running || Boolean(busy) });
-    promoteBtn.update({ disabled: running || Boolean(busy) });
+    revealBtn.update({ disabled: running || Boolean(busy) || !hasReport || Boolean(run && run.revealed) || Boolean(current.revealed) });
+    exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
+
+    bodyHost.appendChild(gradeDesc);
+    bodyHost.appendChild(actionRow);
 
     if (!hasRun) {
       emptyState.update({});
-      body.appendChild(emptyState.el);
+      bodyHost.appendChild(emptyState.el);
       return;
     }
 
@@ -660,32 +702,27 @@ export function createGradePanel(handlers) {
         elapsed: Math.floor((current.elapsed || 0) / 1000),
         total: null,
       });
-      body.appendChild(progress.el);
-    } else if (hasReport) {
-      progress.update({
-        state: report.invalidated ? 'error' : 'ok',
-        determinate: true,
-        value: Math.max(0, Math.min(100, report.score || 0)),
-        label: report.invalidated ? S.GRADE_DONE_VOID : S.GRADE_DONE,
-        elapsed: report.duration_s,
-        total: report.duration_s,
-      });
-      body.appendChild(progress.el);
+      bodyHost.appendChild(progress.el);
     } else {
       progress.update({ state: 'idle', label: S.PROGRESS_IDLE });
     }
 
-    // 日志：契约里 run.log 是校验日志（status ∈ grading/graded/error 时才有）
-    renderLog(running, (run && run.log) || []);
-    body.appendChild(logCard.el);
-
     if (hasReport) {
-      renderResult(report);
-      body.appendChild(resultHost);
+      renderResult(
+        report,
+        { canPromote, next: currentAttempt + 1, exhausted: !canPromote && currentAttempt >= attemptsAllowed },
+        running,
+        busy,
+      );
+      bodyHost.appendChild(resultHost);
     } else if (!running) {
       emptyState.update({});
-      body.appendChild(emptyState.el);
+      bodyHost.appendChild(emptyState.el);
     }
+
+    // 日志：契约里 run.log 是校验日志（status ∈ grading/graded/error 时才有）
+    renderLog(running, (run && run.log) || []);
+    bodyHost.appendChild(logCard.el);
   }
 
   update({});
@@ -693,6 +730,14 @@ export function createGradePanel(handlers) {
   return {
     el: root,
     update,
+    /** 展开/收起卡片（校验完成的结果提醒会先把卡展开）。 */
+    setOpen(open) {
+      root.open = Boolean(open);
+    },
+    /** 结果区拿到焦点（结果提醒用；区域本身 tabindex="-1"，不进 Tab 序）。 */
+    focusResult() {
+      resultHost.focus({ preventScroll: true });
+    },
     /** 供快捷键 G 触发。 */
     doGrade: () => handlers.onGrade(),
     /** 解绑（§10.4）。 */

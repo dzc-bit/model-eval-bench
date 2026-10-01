@@ -19,8 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(r"D:\new model test")
-REPO = Path(r"D:\New project 6")
+ROOT = Path(__file__).resolve().parents[3]
 HARNESS = ROOT / "console"
 TOOLS = ROOT / "packs" / "core" / "tools"
 GATES = ROOT / "runs" / "blind" / "gates"

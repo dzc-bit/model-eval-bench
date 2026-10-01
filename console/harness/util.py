@@ -546,9 +546,13 @@ def git(repo: str, *args: str, timeout: float = 120,
 # --------------------------------------------------------------------------
 
 def write_text_atomic(path: str, content: str) -> None:
-    """原子写文本：先写临时文件再替换，避免半截文件被前端读到。"""
+    """原子写文本：先写临时文件再替换，避免半截文件被前端读到。
+
+    临时名带线程 id：同一进程内两个线程并发写同一路径（如 batch 取消线程与
+    准备线程同时写 run.json）时，共享临时名会互相截断再各自 replace。
+    """
     ensure_dir(os.path.dirname(path))
-    tmp = "%s.tmp-%d" % (path, os.getpid())
+    tmp = "%s.tmp-%d-%d" % (path, os.getpid(), threading.get_ident())
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(content)
     os.replace(tmp, path)

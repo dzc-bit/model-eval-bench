@@ -37,6 +37,9 @@ TIER_ATTEMPTS = {
 #: 档位别名
 TIER_ALIASES = {
     "t1": "easy", "t2": "medium", "t3": "hard", "t4": "king",
+    # 真实题包 index.json 用的英文档位名；缺了它 normalize_tier("primary")
+    # 会原样返回，attempts 默认取到 easy 之外的档、UI 显示原始串
+    "primary": "easy", "intermediate": "medium", "advanced": "hard", "expert": "king",
     "初级": "easy", "初级 t1": "easy",
     "中级": "medium", "中级 t2": "medium",
     "高级": "hard", "高级 t3": "hard",
@@ -221,22 +224,31 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
             "任务 %s 的隐藏测试目录不存在，无法评分。" % meta["id"],
             hidden_dir,
         )
-    # 评分树里 hidden 那一层要保持题包的原样布局：题包写 hidden/tests_hidden/xx.py，
-    # 评分树里就是 hidden/tests_hidden/xx.py，groups.json 里可以直接写全路径。
-    overlay_rel, overlay_src = _overlay_layer(meta, hidden_rel, hidden_dir)
-    # groups.json 里的用例 ID 通常是**相对 overlay 层**写的（如 `tests_hidden/x.py::t`），
-    # 但 pytest 的 cwd 是评分树根，路径必须补上 overlay 前缀（`hidden/tests_hidden/...`）
-    # 才找得到。这里统一归一成"相对评分树根"的形态，两种写法都能跑。
-    if str(spec.get("kind") or "").lower() == "vitest":
-        # Vitest runs with frontend/ as its configured root. Hidden FE tests are
-        # relocated under frontend/src/tests_hidden_fe, so their CLI paths are
-        # relative to that root rather than the on-disk hidden overlay.
+    kind = str(spec.get("kind") or "").lower()
+    if kind == "vitest":
+        # vitest 以 frontend/ 为 root（vitest.config.ts 在 frontend/ 下），隐藏测试
+        # 必须落在 root 之内才会被收集。旧实现把 hidden-fe **整层**搬进 frontend/src，
+        # 测试位置其实是对的（copy_tree 复制源目录内容 → frontend/src/tests_hidden_fe/），
+        # 代价是题包配置 groups_fe.json 也一起进了被测源码树，而且 overlay_rel 仍是
+        # "hidden-fe"，与真实落点不一致，让 build_grade_tree 的按层去形同虚设。
+        # 现在只搬隐藏测试那一层，目的地写全路径：与 groups.json 里
+        # `src/tests_hidden_fe/...` 的用例 ID 一致，也满足隐藏测试里 `../<模块>`
+        # 的相对导入（与 src 下被测模块互为兄弟目录）。
+        overlay_src = hidden_dir
+        hidden_name = hidden_dir.replace("\\", "/").rstrip("/").rpartition("/")[2]
+        overlay_rel = "/".join(("frontend", "src", hidden_name))
         prefix = "src"
     else:
+        # 评分树里 hidden 那一层要保持题包的原样布局：题包写 hidden/tests_hidden/xx.py，
+        # 评分树里就是 hidden/tests_hidden/xx.py，groups.json 里可以直接写全路径。
+        overlay_rel, overlay_src = _overlay_layer(meta, hidden_rel, hidden_dir)
+        # groups.json 里的用例 ID 通常是**相对 overlay 层**写的（如 `tests_hidden/x.py::t`），
+        # 但 pytest 的 cwd 是评分树根，路径必须补上 overlay 前缀（`hidden/tests_hidden/...`）
+        # 才找得到。这里统一归一成"相对评分树根"的形态，两种写法都能跑。
         prefix = "" if overlay_rel in ("", ".") else overlay_rel.replace("\\", "/").strip("/")
-    # 搬运目的地必须和上面的 CLI 前缀一致：vitest 看不见评分树根下的 hidden-fe/，
-    # 只有落进 frontend/src/ 才会被 `src/tests_hidden_fe/…` 这条过滤命中。
-    overlay_dest = "frontend/src" if prefix == "src" else overlay_rel
+    # 搬运目的地与上面算出的 overlay_rel 一致：vitest 分支已经把它指到
+    # frontend/src/<目录名>（vitest 的 root 之内），其余走题包原样布局。
+    overlay_dest = overlay_rel
     for group in groups:
         group["tests"] = [_qualify_node_id(t, prefix) for t in group["tests"]]
     p2p_tests = [_qualify_node_id(t, "") for t in p2p_tests]

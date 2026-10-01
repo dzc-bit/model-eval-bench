@@ -1,0 +1,738 @@
+/* ==========================================================================
+   workspace.css — 工作台视图样式（2026-10-01 改版后的唯一来源）
+   职责：题头条 / 步骤条 / 两栏布局 / 五张工作台卡（内置对话、任务与提示词、
+        沙箱、校验、本轮备注）及其内部件（结果横幅、分组行、对话消息、日志）。
+   依赖：tokens.css、base.css、components.css（.btn / .badge / .status-dot /
+        .details-card / .field / .empty-state / .callout / .progress / .tabs）。
+   纪律：
+     - 选择器一律挂在 .ws 下（index.html 在 views.css 之后挂本文件）。
+     - 颜色 / 字号 / 间距 / 圆角 / 阴影只用 tokens 变量，不写字面色值。
+     - 不声明过渡动画（规格只允许 opacity / max-height 150ms；反馈靠即时变色）。
+     - 可点目标 ≥36px（控件行高令牌），正文行高 ≥1.6 由 base.css 继承。
+   ========================================================================== */
+
+/* ============================ 题头条 ============================ */
+.ws .ws-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.ws .ws-head__main {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws .ws-head__main h1 {
+  overflow-wrap: anywhere;
+}
+
+.ws .ws-head__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ws .ws-round {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws .ws-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+/* ============================ 步骤条 ============================ */
+.ws .ws-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ws .ws-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: var(--space-1) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.ws .ws-step:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.ws .ws-step[data-state="current"] {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.ws .ws-step__glyph {
+  font-family: var(--font-mono);
+}
+
+.ws .ws-step[data-state="done"] .ws-step__glyph {
+  color: var(--color-success);
+}
+
+/* ============================ 改动正文（题头弹出） ============================ */
+.ws .ws-diff {
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.ws .ws-diff .code-block__pre,
+.ws .ws-diff__pre {
+  max-height: var(--log-height);
+}
+
+/* ============================ 两栏布局 ============================ */
+.ws .ws-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.ws .ws-main,
+.ws .ws-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 1079px) {
+  .ws .ws-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ============================ 折叠卡（details 卡片） ============================
+   卡头即 <summary>：标题 + 一行摘要 + 折叠箭头，整条都可点。
+   内容区之间靠分隔线分组，不再套第二层容器（§0 禁止卡套卡）。 */
+.ws .ws-card {
+  min-width: 0;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.ws .ws-card > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height-lg);
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+}
+
+.ws .ws-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ws .ws-card > summary:hover {
+  background: var(--color-surface-2);
+}
+
+.ws .ws-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: var(--control-height-lg);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.ws .ws-card__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.ws .ws-card__aside {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.ws .ws-card__chevron {
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+}
+
+.ws .ws-card[open] > summary .ws-card__chevron {
+  transform: rotate(90deg);
+}
+
+.ws .ws-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+/* ============================ 事实格（沙箱详情等） ============================ */
+.ws .ws-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
+.ws .ws-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ws .ws-fact__label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+}
+
+.ws .ws-fact__value {
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ============================ 日志与代码块内嵌 ============================ */
+.ws .ws-log {
+  margin: 0;
+  max-height: var(--log-height);
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--color-surface-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ws .ws-log:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* ============================ 完整性清单（沙箱/校验共用） ============================ */
+.ws .integrity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.ws .integrity-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+/* ============================ 任务与提示词卡 ============================ */
+.ws .ws-brief {
+  line-height: var(--line-height-normal);
+}
+
+.ws .ws-brief--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.ws .ws-prompt-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.ws .ws-prompt-row__title {
+  font-weight: var(--font-weight-medium);
+  min-width: 0;
+}
+
+/* ============================ 校验卡 ============================ */
+.ws .ws-grade-desc {
+  margin: 0;
+}
+
+/* 结果横幅：通过 = 绿 tint；未过 / 作废 = 红 tint。第一眼必须是它（§一.③）。 */
+.ws .ws-grade-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-success-border);
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft);
+}
+
+.ws .ws-grade-banner[data-tone="fail"] {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-soft);
+}
+
+.ws .ws-grade-banner__score {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-tight);
+}
+
+.ws .ws-grade-banner__summary {
+  min-width: 0;
+}
+
+.ws .ws-grade-banner__note {
+  margin: 0;
+}
+
+.ws .ws-grade-exhausted {
+  margin: 0;
+}
+
+/* 分组明细：列表行，不做容器卡（§0 禁止卡套卡） */
+.ws .grade__groups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws .group-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.ws .grade__groups > .group-card:first-child {
+  border-top: 0;
+  padding-top: var(--space-1);
+}
+
+.ws .group-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ws .group-card__glyph {
+  font-weight: var(--font-weight-medium);
+}
+
+.ws .group-card--pass .group-card__glyph {
+  color: var(--color-success);
+}
+
+.ws .group-card--fail .group-card__glyph {
+  color: var(--color-danger);
+}
+
+.ws .group-card__name {
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.ws .group-card__weight {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws .group-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  min-width: 0;
+}
+
+.ws .fail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws .fail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.ws .fail-item__msg {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.ws .grade__new-flag {
+  color: var(--color-accent-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-label);
+}
+
+/* ============================ 本轮备注卡 ============================ */
+.ws .ws-notes__body .field textarea {
+  min-height: 96px;
+}
+
+/* ============================ 内置对话卡 ============================ */
+.ws .chat__head .chat__title-wrap {
+  min-width: 0;
+}
+
+.ws .chat__run {
+  margin: 0;
+}
+
+/* 档案选择器住进卡头：收窄提示，控件保持原生 field 样式 */
+.ws .chat__model {
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.ws .chat__model .field__hint {
+  display: none; /* 提示文案太长，卡头放不下；原因说明走 .chat__model-note */
+}
+
+.ws .chat__model-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-warn);
+}
+
+.ws .chat__model-retry {
+  flex-basis: 100%;
+}
+
+.ws .chat__body {
+  padding-bottom: 0; /* 留给粘性输入区（自身带底边距） */
+}
+
+/* 消息流：内部滚动，卡不无限拉长 */
+.ws .chat__messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: min(62vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-1);
+}
+
+/* 列向 flex + 滚动容器：子项默认允许收缩，一条长对话会把每行压成十几像素的
+   空壳气泡（内容看不见，只剩圆角背景）；min-width 默认 auto，长路径/长命令
+   又会把行撑破容器。这里两样都关掉，高度交给容器滚动、宽度交给折行。 */
+.ws .chat__messages > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.ws .chat__messages:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.ws .chat__empty {
+  margin: 0;
+  padding: var(--space-7) 0 var(--space-4);
+  text-align: center;
+}
+
+.ws .chat__empty-action {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--space-6);
+}
+
+.ws .chat__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.ws .chat__message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: min(72ch, 100%);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
+.ws .chat__message--user {
+  background: var(--color-primary-soft);
+}
+
+.ws .chat__message--tool {
+  background: transparent;
+  border: var(--border-width) dashed var(--color-border-strong);
+}
+
+/* 置顶那条：滚动时也留在列表顶部，收尾结论不被历史淹没。
+   必须限高并整幅占满：一条长总结若高过对话区，sticky 永不释放，
+   会把整段历史盖住、只从两侧露出半截气泡，看起来像一列空壳。 */
+.ws .chat__message--pinned {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-self: stretch;
+  max-width: none;
+  min-width: 0;
+  max-height: min(40vh, 16rem);
+  overflow-y: auto;
+  border: var(--border-width) solid var(--color-accent-border);
+  /* 必须是不透明底：这条是 position:sticky，用 13% 透明的 --color-accent-soft 时，
+     滚过去的工具轮会直接从它底下透上来，看上去像总结和工具调用叠在一起。 */
+  background: var(--color-accent-tint-solid);
+}
+
+.ws .chat__message-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  letter-spacing: var(--letter-spacing-label);
+}
+
+.ws .chat__message-content {
+  line-height: var(--line-height-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ws .chat__message-status {
+  color: var(--color-warn);
+  font-size: var(--font-size-sm);
+}
+
+/* 思维链摘要：中性左线分区（与 .callout 同一语法，不用彩色竖条） */
+.ws .chat__reasoning {
+  border-left: calc(var(--border-width-thick) * 2) solid var(--color-border-strong);
+  padding-left: var(--space-3);
+}
+
+.ws .chat__reasoning > summary {
+  cursor: pointer;
+  min-height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ws .chat__reasoning-content {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* 工具轮：默认折叠成一行摘要 */
+.ws .chat__toolround {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.ws .chat__toolround-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.ws .chat__toolround-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ws .chat__toolround-summary:hover {
+  color: var(--color-text);
+}
+
+.ws .chat__toolround-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.ws .chat__toolrow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.ws .chat__toolrow-name {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.ws .chat__toolrow-count {
+  color: var(--color-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws .chat__toolrow-failed {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+
+.ws .chat__toolrow-pending {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--color-warn);
+  font-size: var(--font-size-sm);
+}
+
+.ws .chat__toolround-hint {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+
+/* 粘性输入区：对话卡比视口长时，输入区始终贴在视口底 */
+.ws .chat__composer {
+  position: sticky;
+  bottom: calc(-1 * var(--space-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  background: var(--color-surface);
+  border-top: var(--border-width) solid var(--color-border);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.ws .chat__composer-input {
+  width: 100%;
+  min-height: 88px;
+  padding: 10px 14px;
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  line-height: var(--line-height-normal);
+  resize: vertical;
+}
+
+.ws .chat__composer-input:focus {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--color-focus-ring);
+}
+
+.ws .chat__composer-input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.ws .chat__composer-input:disabled {
+  opacity: 0.55;
+}
+
+.ws .chat__composer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ws .chat__composer-hint {
+  min-width: 0;
+}
+
+/* ---- 类名补齐：键名逐字节取自视图 JS，保证选择器与 DOM 一致 ---- */
+
+.ws .fail-item__name {
+  font-weight: var(--font-weight-medium);
+}
+
+.ws .ws-brief-wrap {
+  min-width: 0;
+}
+
+.ws .ws-card__summary {
+  min-width: 0;
+}
+
+.ws .ws-grade-banner__score-wrap {
+  min-width: 0;
+}
+
+.ws .ws-grade__actions {
+  flex-wrap: wrap;
+}
+
+.ws .ws-prompt-body {
+  min-width: 0;
+}
+
+.ws .ws-region {
+  min-width: 0;
+}
+
+.ws .ws-region--chat {
+  min-width: 0;
+}
+
+.ws .ws-region--run {
+  min-width: 0;
+}
+
+.ws .ws-sandbox__actions {
+  flex-wrap: wrap;
+}

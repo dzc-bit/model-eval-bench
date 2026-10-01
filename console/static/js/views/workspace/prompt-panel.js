@@ -1,19 +1,20 @@
 /**
- * prompt-panel.js — 工作台「提示词」区（§9 重点交互 ①）
+ * prompt-panel.js — 工作台「任务与提示词」折叠卡（2026-10-01 改版）
  *
  * 职责：
- *   1. 轮次切换（tabs）：已解锁可回看，未解锁的页签 aria-disabled 并说明原因。
- *   2. 展示「接线说明」与「当前轮提示词」两块文本。
- *   3. 三条复制路径：复制全部 / 复制接线说明 / 复制第 N 级提示词，
- *      三级降级（clipboard → execCommand → 手动选择），结果播报（§11.2 #8）。
- *   4. 复制内容与当前轮次严格对应：切轮次后旧的「已复制」态会被清掉。
+ *   1. 题目一段话简介：默认 3 行截断 + [展开]。
+ *   2. 轮次切换（页签）：已解锁可回看，未解锁 aria-disabled 并说明原因。
+ *   3. 当前轮提示词默认收起成一行摘要 + [发送到对话] [展开查看]；
+ *      正文永不直接铺整段全文（展开后也有独立折叠态）。
+ *   4. 「用外部模型跑？」折叠块：一句话说明 + 复制「说明与提示词」（三级降级）。
  *
- * 状态：loading / empty（未准备沙箱）/ ready / error。
- * 键盘：页签方向键 + roving tabindex；复制按钮 Enter / Space；焦点不因轮询丢失。
- * ARIA：tablist 语义 + aria-selected + aria-controls；每块文本 role="region" + aria-label。
+ * 纪律：
+ *   - 正文展开/收起与简介展开状态不被轮询覆盖，只在换轮时把正文收回默认（收起）。
+ *   - 复制内容与当前轮次严格对应：切轮次后旧的「已复制」态作废。
+ *   - 内置对话只发提示词正文（工作区约束由服务端注入）；「复制」才是导出全量的路径。
  *
  * 依赖：core/*、components/*
- * 导出：createPromptPanel(handlers) → { el, update, destroy }
+ * 导出：createPromptPanel(handlers) → { el, update, destroy, setOpen, copyPrompt, getPrompt }
  */
 
 import { el, setText, clear } from '../../core/dom.js';
@@ -24,17 +25,67 @@ import { createCopyButton } from '../../components/copy-button.js';
 import { createEmptyState } from '../../components/empty-state.js';
 import { createSkeleton } from '../../components/skeleton.js';
 import { createButton } from '../../components/button.js';
+import { createDetailsCard } from '../../components/details-card.js';
+
+/** 本轮改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
+const T = {
+  CARD_TITLE: '任务与提示词',
+  SEND_TO_CHAT: '发送到对话',
+  EXPAND_BODY: '展开查看',
+  COLLAPSE_BODY: '收起正文',
+  CHARS: '· {n} 字',
+  EXTERNAL_HINT: '复制提示词，到模型官网的对话里粘贴使用；回来后把改动同步进沙箱即可。',
+  NO_PROMPT: '这一轮还没有可用的提示词。',
+  NO_SANDBOX_ASIDE: '还没有沙箱',
+  // ponytail: 是否需要「展开」用字数估算（90 字 ≈ 3 行 × 30 字），没做 DOM 测量；
+  // 要更准可在 rAF 后比较 scrollHeight 与 clientHeight。
+  BRIEF_CLAMP_CHARS: 90,
+};
 
 /**
- * 创建提示词区。
- * @param {{onRoundChange: (n: number) => void, onGoSandbox: () => void}} handlers
- * @returns {{el: HTMLElement, update: Function, destroy: Function}}
+ * 创建「任务与提示词」卡。
+ * @param {{
+ *   onRoundChange: (n: number) => void,
+ *   onGoSandbox: () => void,
+ *   onSendToChat: () => void,
+ *   onReload: () => void
+ * }} handlers
+ * @returns {{el: HTMLElement, update: Function, destroy: Function, setOpen: Function, copyPrompt: Function, getPrompt: Function}}
  */
 export function createPromptPanel(handlers) {
   let current = { loading: true, run: null, task: null, round: 1, error: null };
-  /** 上一次渲染的轮次，用于判断"已复制"态是否需要作废。 */
+  /** 上一次渲染的轮次：换轮时提示词正文收回收起态，旧的「已复制」态作废。 */
   let lastRound = 1;
+  /** 提示词正文是否展开（用户的选择，轮询不覆盖）。 */
+  let bodyOpen = false;
+  /** 题目简介是否展开。 */
+  let briefOpen = false;
 
+  // ---- 题目简介 ----
+  const briefText = el('p', { class: 'ws-brief' });
+  const briefBtn = createButton({
+    label: S.ACTION_EXPAND,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      briefOpen = !briefOpen;
+      renderBrief();
+    },
+  });
+  // createButton 根节点自带 inline-flex，直接 hidden 藏不掉，套一层容器再切
+  const briefActions = el('div', { class: 'u-row' }, briefBtn.el);
+  const briefWrap = el('div', { class: 'u-stack ws-brief-wrap' }, briefText, briefActions);
+
+  function renderBrief() {
+    const summary = (current.task && current.task.summary) || '';
+    briefWrap.hidden = !summary;
+    setText(briefText, summary);
+    briefText.classList.toggle('ws-brief--clamp', !briefOpen);
+    briefBtn.update({ label: briefOpen ? S.ACTION_COLLAPSE : S.ACTION_EXPAND });
+    briefActions.hidden = !summary || summary.length <= T.BRIEF_CLAMP_CHARS;
+  }
+
+  // ---- 轮次页签 ----
   const tabs = createTabs({
     label: S.PROMPT_ROUND_TAB,
     tabs: [],
@@ -44,58 +95,33 @@ export function createPromptPanel(handlers) {
     },
   });
 
-  const copyAllBtn = createCopyButton({
-    label: S.PROMPT_COPY_ALL,
-    variant: 'primary',
-    getText: () => composeAll(),
-    successMessage: () => t(S.COPY_OK_ALL, { n: current.round, len: composeAll().length }),
-  });
-
-  const copyAllRow = el(
-    'div',
-    { class: 'prompt__block-head' },
-    el('span', { class: 'prompt__block-title' }, S.PROMPT_DESC),
-    el('span', { class: 'u-spacer' }),
-    copyAllBtn.el,
-  );
-  const roundHint = el('p', { class: 'u-faint' });
-
-  // ---- 接线说明块 ----
-  const wiringCode = createCodeBlock({
-    title: S.PROMPT_WIRING_TITLE,
-    showCopy: false,
-    text: '',
-    ariaLabel: S.PROMPT_WIRING_TITLE,
-  });
-  const copyWiringBtn = createCopyButton({
-    label: S.PROMPT_COPY_WIRING,
+  // ---- 当前轮提示词：一行摘要 + 动作；正文默认收起 ----
+  const promptTitle = el('span', { class: 'ws-prompt-row__title' });
+  const sendBtn = createButton({
+    label: T.SEND_TO_CHAT,
     size: 'sm',
-    getText: () => wiringText(),
-    successMessage: () => S.COPY_OK_WIRING,
-    // 剪贴板被浏览器拒绝时，第三级降级要能真的选中源文本
-    sourceEl: () => wiringCode.getPre(),
+    disabled: true,
+    onClick: () => handlers.onSendToChat(),
   });
-  const wiringBlock = el(
+  const bodyToggle = createButton({
+    label: T.EXPAND_BODY,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      bodyOpen = !bodyOpen;
+      renderPromptBody();
+    },
+  });
+  const promptRow = el(
     'div',
-    { class: 'prompt__block' },
-    el(
-      'div',
-      { class: 'prompt__block-head' },
-      el('span', { class: 'prompt__block-title' }, S.PROMPT_WIRING_TITLE),
-      el('span', { class: 'u-faint' }, S.PROMPT_WIRING_DESC),
-      el('span', { class: 'u-spacer' }),
-      copyWiringBtn.el,
-    ),
-    wiringCode.el,
+    { class: 'ws-prompt-row' },
+    promptTitle,
+    el('span', { class: 'u-spacer' }),
+    sendBtn.el,
+    bodyToggle.el,
   );
 
-  // ---- 当前轮提示词块 ----
-  const bodyCode = createCodeBlock({
-    title: '',
-    showCopy: false,
-    text: '',
-    ariaLabel: S.PROMPT_ROUND_1,
-  });
+  const bodyCode = createCodeBlock({ title: '', showCopy: false, text: '', ariaLabel: S.PROMPT_ROUND_1 });
   const copyBodyBtn = createCopyButton({
     label: S.PROMPT_COPY_BODY,
     size: 'sm',
@@ -103,49 +129,78 @@ export function createPromptPanel(handlers) {
     successMessage: () => t(S.COPY_OK_BODY, { n: current.round }),
     sourceEl: () => bodyCode.getPre(),
   });
-  const bodyTitle = el('span', { class: 'prompt__block-title' });
-  const bodyBlock = el(
+  const promptBody = el(
     'div',
-    { class: 'prompt__block' },
-    el('div', { class: 'prompt__block-head' }, bodyTitle, el('span', { class: 'u-spacer' }), copyBodyBtn.el),
+    { class: 'u-stack ws-prompt-body', id: 'ws-prompt-body', hidden: true },
     bodyCode.el,
+    el('div', { class: 'u-row' }, copyBodyBtn.el),
   );
 
-  const grid = el('div', { class: 'prompt__grid' }, copyAllRow, roundHint, tabs.el, wiringBlock, bodyBlock);
+  function renderPromptBody() {
+    promptBody.hidden = !bodyOpen;
+    bodyToggle.update({ label: bodyOpen ? T.COLLAPSE_BODY : T.EXPAND_BODY });
+    bodyToggle.getButton().setAttribute('aria-expanded', String(bodyOpen));
+    bodyToggle.getButton().setAttribute('aria-controls', 'ws-prompt-body');
+  }
 
-  const bodyArea = el('div', { class: 'u-stack' });
-  const root = el(
-    'section',
-    { class: 'panel ws-region', id: 'ws-region-prompt', 'aria-labelledby': 'ws-prompt-title' },
-    el(
+  // ---- 用外部模型跑？ ----
+  const wiringCode = createCodeBlock({
+    title: S.PROMPT_WIRING_TITLE,
+    showCopy: false,
+    text: '',
+    ariaLabel: S.PROMPT_WIRING_TITLE,
+  });
+  // 不给 sourceEl：导出内容是「说明 + 提示词」拼接文本，页面上没有对应节点，
+  // 第三级剪贴板降级会自建 textarea 装全量文本（见 copy-button.js）。
+  const externalCopyBtn = createCopyButton({
+    label: S.PROMPT_COPY_WIRING,
+    size: 'sm',
+    getText: () => composeAll(),
+    successMessage: () => t(S.COPY_OK_ALL, { n: current.round, len: composeAll().length }),
+  });
+  const wiringCard = createDetailsCard({
+    title: S.PROMPT_WIRING_TITLE,
+    open: false,
+    content: el(
       'div',
-      { class: 'panel__head' },
-      el('h2', { class: 'panel__title', id: 'ws-prompt-title' }, S.PROMPT_TITLE),
+      { class: 'u-stack' },
+      el('p', { class: 'u-muted' }, T.EXTERNAL_HINT),
+      wiringCode.el,
+      el('div', { class: 'u-row' }, externalCopyBtn.el),
     ),
-    bodyArea,
+  });
+
+  // ---- 卡片骨架：details/summary，卡头即折叠开关 ----
+  const title = el('h2', { class: 'ws-card__title' }, T.CARD_TITLE);
+  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' });
+  const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
+  const cardBody = el('div', { class: 'ws-card__body' });
+  const root = el(
+    'details',
+    { class: 'ws-card ws-region', id: 'ws-region-prompt' },
+    el('summary', { class: 'ws-card__summary' }, title, cardAside, el('span', { class: 'u-spacer' }), chevron),
+    cardBody,
   );
 
   const emptyState = createEmptyState({
     title: S.PROMPT_EMPTY,
     desc: S.PROMPT_EMPTY_DESC,
     // 这颗按钮只负责跳到沙箱区，不准备任何东西：标签必须和沙箱区那颗
-    // 真「准备沙箱」区分开，否则点了以后界面毫无反应。
-    actions: [createButton({ label: S.PROMPT_GO_SANDBOX, variant: 'primary', onClick: () => handlers.onGoSandbox() }).el],
+    // 真「准备沙箱」区分开，否则点了以后界面毫无反应。样式保持幽灵态——
+    // 全页的实心强调留给沙箱卡里真正的「准备沙箱」。
+    actions: [createButton({ label: S.PROMPT_GO_SANDBOX, variant: 'ghost', onClick: () => handlers.onGoSandbox() }).el],
   });
   const skeleton = createSkeleton({ rows: 2, variant: 'card', label: S.STATE_LOADING });
   const errorState = createEmptyState({
     title: S.ERR_LOAD,
     desc: S.ERR_LOAD_BODY,
     alert: true,
-    actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onRoundChange(current.round) }).el],
+    // 重试只做只读回读，绝不顺手触发准备/校验这类写操作
+    actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
   });
 
   /**
-   * 接线说明文本。
-   *
-   * 契约（server.py `api_task_detail`）：任务详情带 `wiring_note` 固定文案，
-   * 每次都相同（设计文档 附录 A），与轮次无关。
-   *
+   * 「用外部模型跑」的说明文本（契约：任务详情带 wiring_note 固定文案，与轮次无关）。
    * @returns {string}
    */
   function wiringText() {
@@ -153,11 +208,7 @@ export function createPromptPanel(handlers) {
   }
 
   /**
-   * 当前轮提示词文本（严格对应 current.round）。
-   *
-   * 契约：`prompts` 是 `[{level, text}]` 数组，后端只返回已解锁的级；
-   * 越界取值一律返回空串，绝不把别的轮次内容当成当前轮（§9 重点交互 ①）。
-   *
+   * 当前轮提示词正文（严格对应 current.round；越界一律空串）。
    * @returns {string}
    */
   function bodyText() {
@@ -167,7 +218,7 @@ export function createPromptPanel(handlers) {
   }
 
   /**
-   * 合并复制：接线说明 + 分隔 + 当前轮提示词。
+   * 合并导出文本：说明 + 分隔 + 当前轮提示词。
    * @returns {string}
    */
   function composeAll() {
@@ -179,7 +230,7 @@ export function createPromptPanel(handlers) {
   }
 
   /**
-   * 轮次页签定义：后端只回传已解锁的级，所以「出现即已解锁」。
+   * 轮次页签定义：后端只回传已解锁的级，「出现即已解锁」。
    * @returns {Array}
    */
   function tabDefs() {
@@ -203,65 +254,74 @@ export function createPromptPanel(handlers) {
   }
 
   /**
-   * 轮次对应的提示词小标题（第 1 级症状 / 第 2 级不一致清单 / 第 3 级不变量与否决项）。
+   * 轮次对应的小标题（第 1 级症状 / 第 2 级不一致清单 / 第 3 级不变量与否决项）。
    * @param {number} n
    * @returns {string}
    */
   function levelTitle(n) {
-    if (n === 1) return t(S.PROMPT_BODY_TITLE, { n });
     if (n === 2) return t(S.PROMPT_BODY_TITLE_2, { n });
     if (n === 3) return t(S.PROMPT_BODY_TITLE_3, { n });
     return t(S.PROMPT_BODY_TITLE, { n });
   }
 
   /**
-   * 差异更新：只改文本与页签，不重建根节点。
+   * 差异更新：只改文本与显隐，不重建根节点（轮询不丢输入与折叠态）。
    * @param {object} state
    */
   function update(state) {
     current = { ...current, ...state };
-    clear(bodyArea);
 
+    // 换轮：正文收回收起态（复制按钮的「已复制」态随 label 重置作废）
+    if (current.round !== lastRound) {
+      bodyOpen = false;
+      lastRound = current.round;
+      copyBodyBtn.update({ label: t(S.PROMPT_COPY_BODY, { n: current.round }) });
+      externalCopyBtn.update({ getText: composeAll });
+    }
+
+    // 卡头摘要行：收起时也能读到当前轮与字数
+    if (current.error) setText(cardAside, S.ERR_LOAD);
+    else if (current.loading) setText(cardAside, S.STATE_LOADING);
+    else if (!current.run || !current.task) setText(cardAside, T.NO_SANDBOX_ASIDE);
+    else {
+      const text = bodyText();
+      setText(cardAside, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_PROMPT);
+    }
+
+    clear(cardBody);
     if (current.error) {
+      // 错误不能藏在收起的卡里
+      root.open = true;
       errorState.update({});
-      bodyArea.appendChild(errorState.el);
+      cardBody.appendChild(errorState.el);
       return;
     }
     if (current.loading) {
-      bodyArea.appendChild(skeleton.el);
+      cardBody.appendChild(skeleton.el);
       return;
     }
     if (!current.run || !current.task) {
       emptyState.update({});
-      bodyArea.appendChild(emptyState.el);
+      cardBody.appendChild(emptyState.el);
       return;
     }
 
-    // 轮次切换后旧的"已复制"提示作废：保证复制内容与当前轮严格对应
-    if (current.round !== lastRound) {
-      copyAllBtn.update({ label: S.PROMPT_COPY_ALL });
-      copyBodyBtn.update({ label: t(S.PROMPT_COPY_BODY, { n: current.round }) });
-      lastRound = current.round;
-    }
-
-    bodyArea.appendChild(grid);
-    setText(roundHint, t(S.PROMPT_ROUND_HINT, { n: current.round }));
-
+    renderBrief();
+    cardBody.appendChild(briefWrap);
     tabs.update({ tabs: tabDefs(), selected: String(current.round), label: S.PROMPT_ROUND_TAB });
+    cardBody.appendChild(tabs.el);
 
+    const text = bodyText();
+    setText(promptTitle, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_PROMPT);
+    sendBtn.update({ disabled: !text });
+    renderPromptBody();
+    cardBody.appendChild(promptRow);
+    cardBody.appendChild(promptBody);
+
+    bodyCode.update({ text, title: levelTitle(current.round), ariaLabel: levelTitle(current.round) });
+    copyBodyBtn.update({ getText: bodyText, label: t(S.PROMPT_COPY_BODY, { n: current.round }) });
     wiringCode.update({ text: wiringText(), title: S.PROMPT_WIRING_TITLE });
-    copyWiringBtn.update({ getText: wiringText, label: S.PROMPT_COPY_WIRING });
-
-    setText(bodyTitle, levelTitle(current.round));
-    bodyCode.update({ text: bodyText(), title: levelTitle(current.round), ariaLabel: levelTitle(current.round) });
-    copyBodyBtn.update({
-      getText: bodyText,
-      label: t(S.PROMPT_COPY_BODY, { n: current.round }),
-    });
-    copyAllBtn.update({
-      getText: composeAll,
-      label: S.PROMPT_COPY_ALL,
-    });
+    cardBody.appendChild(wiringCard.el);
   }
 
   update({});
@@ -269,18 +329,27 @@ export function createPromptPanel(handlers) {
   return {
     el: root,
     update,
-    /** 供快捷键 C 触发复制全部。 */
-    copyPrompt: () => copyAllBtn.copy(),
-    /** 把当前轮的完整提示词交给工作台内置对话输入框。 */
-    getPrompt: () => composeAll(),
+    /** 展开/收起卡片（焦点跳转前先展开，别把人滚到一张关着的卡上）。 */
+    setOpen(open) {
+      root.open = Boolean(open);
+    },
+    /** 快捷键 C：导出「说明 + 当前轮提示词」。 */
+    copyPrompt: () => externalCopyBtn.copy(),
+    /** 给内置对话的发送内容：只有当前轮提示词正文（约束由服务端注入）。 */
+    getPrompt: () => bodyText(),
     /** 解绑（§10.4）。 */
     destroy() {
       tabs.destroy();
-      copyAllBtn.destroy();
-      copyWiringBtn.destroy();
       copyBodyBtn.destroy();
+      externalCopyBtn.destroy();
       wiringCode.destroy();
       bodyCode.destroy();
+      briefBtn.destroy();
+      sendBtn.destroy();
+      bodyToggle.destroy();
+      emptyState.destroy();
+      errorState.destroy();
+      skeleton.destroy();
     },
   };
 }

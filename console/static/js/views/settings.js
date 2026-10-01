@@ -24,6 +24,7 @@ import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { createDetailsCard } from '../components/details-card.js';
 import { createButton } from '../components/button.js';
+import { createField } from '../components/field.js';
 import { createStatusDot } from '../components/status-dot.js';
 import { confirmDialog } from '../components/confirm-dialog.js';
 import { showToast } from '../components/toast.js';
@@ -50,6 +51,32 @@ export function createSettings(props = {}) {
   const healthHost = el('div', { class: 'panel__body' });
 
   // ---- 偏好区 ----
+  // 主题：跟随系统 / 浅色 / 深色。写入 localStorage('theme') 并即时切 data-theme。
+  const savedTheme = (() => { try { return localStorage.getItem('theme') || ''; } catch { return ''; } })();
+  const themeField = createField({
+    label: S.SETTINGS_PREF_THEME,
+    name: 'settings-theme',
+    type: 'select',
+    hint: S.SETTINGS_PREF_THEME_HINT,
+    options: [
+      { value: '', label: S.SETTINGS_THEME_SYSTEM },
+      { value: 'light', label: S.SETTINGS_THEME_LIGHT },
+      { value: 'dark', label: S.SETTINGS_THEME_DARK },
+    ],
+    onChange: (value) => {
+      try {
+        if (value) localStorage.setItem('theme', value);
+        else localStorage.removeItem('theme');
+      } catch { /* 存储不可用：仅本次生效 */ }
+      // 「跟随系统」= 没有显式偏好：解析成具体主题，而不是删掉属性指望 CSS 媒体查询
+      const resolved = value
+        || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+      document.documentElement.dataset.theme = resolved;
+      announce(value ? S.SETTINGS_PREF_THEME + '：' + value : S.SETTINGS_THEME_SYSTEM);
+    },
+  });
+  themeField.setValue(savedTheme);
+
   const logToggle = makeToggle(S.SETTINGS_PREF_LOG, S.SETTINGS_PREF_LOG_HINT, 'autoExpandLog');
   const confirmToggle = makeToggle(S.SETTINGS_PREF_CONFIRM, S.SETTINGS_PREF_CONFIRM_HINT, 'confirmDestructive');
   const statsToggle = makeToggle(S.SETTINGS_PREF_STATS, S.SETTINGS_PREF_STATS_HINT, 'contributeStats');
@@ -57,7 +84,7 @@ export function createSettings(props = {}) {
     'section',
     { class: 'panel' },
     el('h2', { class: 'panel__title' }, S.SETTINGS_PREF_TITLE),
-    el('div', { class: 'panel__body' }, logToggle.el, confirmToggle.el, statsToggle.el),
+    el('div', { class: 'panel__body' }, themeField.el, logToggle.el, confirmToggle.el, statsToggle.el),
   );
 
   // ---- 本机数据区 ----
