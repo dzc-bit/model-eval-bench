@@ -117,7 +117,7 @@ def _defaults(overrides: dict) -> dict:
 def _provider_id_from_url(base_url: str, fallback: str) -> str:
     """从端点推一个供应商 id（迁移老配置时用）。
 
-    取主机名的**主域部分**（api.a6api.com → a6api），IP 与 localhost 推不出
+    取主机名的**主域部分**（api.example.com → example），IP 与 localhost 推不出
     有意义的名字，直接用兜底值（老档案 id）——127-0-0-1 这种 id 没法读。
     """
     try:
@@ -129,7 +129,7 @@ def _provider_id_from_url(base_url: str, fallback: str) -> str:
     # 纯数字（IP）或本机地址：没有可读名字，用兜底
     if not parts or all(p.isdigit() for p in parts) or host in ("localhost", ""):
         return fallback
-    # 取倒数第二段（api.a6api.com → a6api；a6api.com → a6api）
+    # 取倒数第二段（api.example.com → example；example.com → example）
     candidate = parts[-2] if len(parts) >= 2 else parts[0]
     cleaned = re.sub(r"[^A-Za-z0-9]+", "-", candidate).strip("-").lower()
     return cleaned or fallback
