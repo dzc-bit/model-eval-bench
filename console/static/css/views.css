@@ -696,29 +696,26 @@
 }
 
 /* ============================ 帮助 ============================ */
+/* 目录 + 单栏阅读流。主列刻意**不做**多栏网格：章节高度差大，auto-fill 会把
+   第 4 节排到右上、第 3 节留在左下，眼睛要 Z 字跳；术语表这种等宽短条目
+   才在自己的小节里用多栏。 */
 .help__layout {
   display: grid;
-  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+  gap: var(--space-7);
   align-items: start;
-}
-
-@media (max-width: 860px) {
-  .help__layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .help__toc {
-    position: static;
-  }
 }
 
 .help__toc {
   position: sticky;
   top: calc(var(--space-9) + var(--space-2));
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-lg);
+}
+
+.help__toc-title {
+  margin-bottom: var(--space-3);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 
 .help__toc-list {
@@ -726,47 +723,74 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  /* 目录是导航，不是内容卡：一条竖线划出范围就够了，不套边框底色 */
+  border-left: var(--border-width) solid var(--color-border);
 }
 
 .help__toc-link {
   display: block;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  margin-left: calc(-1 * var(--border-width));
+  border-left: 2px solid transparent;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
   text-decoration: none;
+  transition: var(--transition-base);
 }
 .help__toc-link:hover {
-  background: var(--color-surface-2);
   color: var(--color-text);
+  border-left-color: var(--color-border-strong);
+}
+/* 当前正在读的章节：左侧竖线变强调色 + 文字加深，滚动时跟着走 */
+.help__toc-link[aria-current="true"] {
+  border-left-color: var(--color-accent);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-medium);
+}
+.help__toc-link:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* 主列：单栏阅读流，章节之间用留白分段 */
+.help__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+  max-width: 76ch;
 }
 
 .help__section {
   scroll-margin-top: calc(var(--space-9) + var(--space-4));
-  margin-bottom: 0;
   min-width: 0;
 }
-/* 帮助主列双栏：短章节并排，不再一条道走到黑 */
-.help__layout > div:last-child {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: var(--space-5);
-  align-items: start;
-}
 
+/* 章节标题：字号明显大于正文，配一条 hairline 收住 */
 .help__section h2 {
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--space-2);
-  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
   border-bottom: var(--border-width) solid var(--color-border);
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+.help__section h2:focus {
+  outline: none;
+}
+.help__section h2:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .help__prose {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   color: var(--color-text);
-  max-width: var(--prose-max);
+  line-height: var(--line-height-relaxed);
 }
 
 .help__prose ol,
@@ -774,17 +798,38 @@
   padding-left: var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
+}
+.help__prose li {
+  line-height: var(--line-height-relaxed);
+}
+/* 有序列表的序号用强调色，扫读时能一眼数到第几步 */
+.help__prose ol > li::marker {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
 }
 
-.help__kbd-table td:first-child {
+/* ---------- 快捷键表：给足宽度，第三列不再折成三行 ---------- */
+.help__kbd-table {
+  width: 100%;
+  table-layout: auto;
+}
+.help__kbd-table th[scope="row"] {
   width: 1%;
   white-space: nowrap;
+  padding-right: var(--space-4);
+}
+.help__kbd-table td:nth-child(2) {
+  white-space: nowrap;
+}
+.help__kbd-table td:last-child {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 kbd.key {
   display: inline-block;
-  min-width: 1.6em;
+  min-width: 1.8em;
   padding: 0 var(--space-2);
   border: var(--border-width) solid var(--color-border-strong);
   border-bottom-width: 2px;
@@ -796,22 +841,58 @@ kbd.key {
   text-align: center;
 }
 
+/* ---------- 术语表：等宽短条目，这里用多栏才成立 ---------- */
 .term-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3);
   list-style: none;
+  padding: 0;
 }
 
 .term-list__item {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
 .term-list__term {
+  display: block;
+  margin-bottom: var(--space-1);
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+.term-list__item > div {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+/* ---------- 窄屏：目录横排到顶部，正文单栏到底 ---------- */
+@media (max-width: 900px) {
+  .help__layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+  .help__toc {
+    position: static;
+  }
+  .help__toc-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    border-left: none;
+  }
+  .help__toc-link {
+    margin-left: 0;
+    border-left: none;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+  .help__toc-link:hover {
+    border-left-color: transparent;
+    background: var(--color-surface-2);
+  }
 }
 
 /* ============================ 批量跑批（并发） ============================ */

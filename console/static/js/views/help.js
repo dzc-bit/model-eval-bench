@@ -70,19 +70,57 @@ export function createHelp(props = {}) {
 
   // ---- 目录 ----
   const tocList = el('ul', { class: 'help__toc-list' });
+  const tocLinks = new Map();
   TOC.forEach((item) => {
-    tocList.appendChild(
-      el('li', {},
-        el('a', { class: 'help__toc-link', href: `#${item.id}` }, item.label),
-      ),
-    );
+    const link = el('a', { class: 'help__toc-link', href: `#${item.id}` }, item.label);
+    tocLinks.set(item.id, link);
+    tocList.appendChild(el('li', {}, link));
   });
   const toc = el(
     'nav',
     { class: 'help__toc', 'aria-label': S.HELP_TOC_TITLE },
-    el('h2', { class: 'section-title' }, S.HELP_TOC_TITLE),
+    el('h2', { class: 'help__toc-title' }, S.HELP_TOC_TITLE),
     tocList,
   );
+
+  /**
+   * 滚动时高亮当前章节：长文里没有位置感，读到一半想回目录找别的节
+   * 得先猜自己在哪。用 IntersectionObserver 只认「已越过顶部、还没被下一节顶掉」
+   * 的那一节，比监听 scroll 事件省算力。
+   */
+  function trackActiveSection() {
+    if (typeof IntersectionObserver !== 'function') return null;
+    const intersecting = new Set();
+    const paint = () => {
+      // 取「相交且文档顺序最靠前」的那一节。不能只看集合里的第一个——
+      // 长章节即使滚到很后面，只要还压在观察区里就仍在集合内，
+      // 高亮会一直卡在第一节不动。
+      const active = TOC.find((item) => intersecting.has(item.id));
+      tocLinks.forEach((link, id) => {
+        if (active && id === active.id) link.setAttribute('aria-current', 'true');
+        else link.removeAttribute('aria-current');
+      });
+    };
+    // root 用默认的视口：本页外壳是文档滚动（.app-main 是 overflow:visible 的
+    // 普通块），指定 root 反而会让回调一次都不触发。
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = entry.target.dataset.section;
+          if (entry.isIntersecting) intersecting.add(id);
+          else intersecting.delete(id);
+        });
+        paint();
+      },
+      // 顶部留出 sticky 头的高度，底部收到视口 55%——让「正在读」落在上半屏
+      { rootMargin: '-20% 0px -55% 0px', threshold: 0 },
+    );
+    TOC.forEach((item) => {
+      const node = root.querySelector(`[data-section="${item.id}"]`);
+      if (node) observer.observe(node);
+    });
+    return observer;
+  }
 
   // 目录点击后把焦点放到目标标题（§12.1 同款做法）
   tocList.addEventListener('click', (ev) => {
@@ -105,7 +143,14 @@ export function createHelp(props = {}) {
    */
   function section(id, title, children) {
     const h2 = el('h2', { id, tabindex: '-1' }, title);
-    return el('section', { class: 'help__section' }, h2, el('div', { class: 'help__prose' }, ...children));
+    // id 留在 h2 上（页内锚点要精确落到标题），section 另挂 data 供滚动高亮观察：
+    // 观察 46px 高的标题节点时，它很容易整个落在收窄后的观察区之外，一次都不触发。
+    return el(
+      'section',
+      { class: 'help__section', dataset: { section: id } },
+      h2,
+      el('div', { class: 'help__prose' }, ...children),
+    );
   }
 
   // ---- 流程 ----
@@ -203,7 +248,7 @@ export function createHelp(props = {}) {
 
   const body = el(
     'div',
-    {},
+    { class: 'help__body' },
     flowSection,
     sandboxSection,
     gradeSection,
@@ -224,11 +269,20 @@ export function createHelp(props = {}) {
 
   if (typeof onShortcut === 'function') offHandlers.push(on(document, 'keydown', onShortcut));
 
+  // 观察器要等 root 真正进文档才谈得上「进入视口」——创建时它还是个游离节点，
+  // 直接 observe 会一次回调都不触发。延到下一帧，那时 main.js 已把它挂好。
+  let sectionObserver = null;
+  const rafId = typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame(() => { sectionObserver = trackActiveSection(); })
+    : null;
+
   return {
     el: root,
     el_h1: h1,
     /** 解绑。 */
     destroy() {
+      if (rafId !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId);
+      if (sectionObserver) sectionObserver.disconnect();
       offHandlers.forEach((off) => off());
       offHandlers.length = 0;
     },
