@@ -449,7 +449,17 @@ def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
         if node_id in seen_regressions:
             return
         info = resolver(node_id)
-        if info is not None and not info.passed:
+        if info is None:
+            # 白名单里的既有用例解析不到 = 它压根没被验证过，不能记成「没有回归」。
+            # 旧实现把它静默丢掉，题包写错一条 ID 就永久少守一个回归面。
+            seen_regressions.add(node_id)
+            regression.append({
+                "node_id": node_id,
+                "outcome": "missing",
+                "message": "回归白名单里的这条用例没有被收集到，无法确认既有用例未被破坏",
+            })
+            return
+        if not info.passed:
             seen_regressions.add(node_id)
             regression.append({
                 "node_id": node_id,
@@ -657,6 +667,14 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
         if outcome.timed_out:
             run_error = "checker %s 超过 %d 秒被中止" % (kind, timeout_s)
             log(run_error)
+
+        if node_ids and not getattr(outcome, "executed", True):
+            # 声明了用例却一条都没跑起来：这不是模型考砸了，是评测台自己坏了。
+            # 记 0 分等于把故障写成一个成绩，pass@k 与排行榜都会照单全收。
+            run_error = "checker %s 没有执行任何用例（声明 %d 条）：%s" % (
+                kind, len(node_ids), outcome.notes[-1] if outcome.notes else "详见日志")
+            log(run_error)
+            break
 
         check_reports.append({
             "kind": outcome.kind,

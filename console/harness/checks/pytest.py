@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
 from .. import util
-from . import CaseResult, CheckContext, CheckResult, register
+from . import CaseResult, CheckContext, CheckResult, mark_unexecuted, register
 
 
 def build_command(ctx: CheckContext, report_xml: str) -> list:
@@ -62,22 +62,18 @@ def run_pytest(ctx: CheckContext) -> CheckResult:
         # 超时也要尽量保住已产出的报告
     if not os.path.isfile(report_xml):
         result.notes.append("没有产出 JUnit 报告，可能是收集阶段就失败了")
-        _mark_all(result, ctx.node_ids, "error", "用例未收集到（详见日志）")
+        mark_unexecuted(result, ctx.node_ids, "用例没有被收集到（详见日志）")
         return result
 
     try:
         result.cases.update(parse_junit(report_xml))
     except ET.ParseError as exc:
         result.notes.append("JUnit 报告解析失败：%s" % exc)
-        _mark_all(result, ctx.node_ids, "error", "报告解析失败")
+        mark_unexecuted(result, ctx.node_ids, "JUnit 报告解析失败，用例未运行")
     if not result.cases:
-        _mark_all(result, ctx.node_ids, "error", "报告里没有任何用例记录")
+        result.notes.append("JUnit 报告里没有任何用例记录")
+        mark_unexecuted(result, ctx.node_ids, "报告里没有任何用例记录")
     return result
-
-
-def _mark_all(result: CheckResult, node_ids: list, outcome: str, message: str) -> None:
-    for node_id in node_ids:
-        result.cases.setdefault(node_id, CaseResult(node_id=node_id, outcome=outcome, message=message))
 
 
 # --------------------------------------------------------------------------
