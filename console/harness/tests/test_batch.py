@@ -26,6 +26,38 @@ from harness import batch, errors
 # 并发上限
 # --------------------------------------------------------------------------
 
+def test_auto_send_posts_the_level_one_prompt(cfg, monkeypatch):
+    """跑批勾了自动发送：沙箱就绪后把第 1 级提示词交给模型，校验仍归人。"""
+    from conftest import BACKEND_TASK
+    sent = []
+    monkeypatch.setattr(batch.chat, "start_send",
+                        lambda c, run, text: sent.append(text) or {"accepted": True})
+    monkeypatch.setattr(batch, "_save_batch", lambda c, b: None)
+    item = {"task": BACKEND_TASK, "model": "m", "events": []}
+
+    batch._auto_send_first_prompt(cfg, {"task": BACKEND_TASK, "run_id": "R1"}, {"updated_at": ""}, item)
+
+    assert len(sent) == 1 and sent[0].strip()
+    assert any("自动发送" in e["message"] for e in item["events"])
+
+
+def test_auto_send_failure_keeps_the_workspace_usable(cfg, monkeypatch):
+    """自动发送失败不毁掉这一轮：只记事件，用户仍可在工作台手动发送。"""
+    from conftest import BACKEND_TASK
+
+    def boom(_c, _run, _text):
+        raise errors.HarnessError(errors.E_CHAT_FAILED, "接口不通")
+
+    monkeypatch.setattr(batch.chat, "start_send", boom)
+    monkeypatch.setattr(batch, "_save_batch", lambda c, b: None)
+    item = {"task": BACKEND_TASK, "model": "m", "events": []}
+
+    batch._auto_send_first_prompt(cfg, {"task": BACKEND_TASK, "run_id": "R1"}, {"updated_at": ""}, item)
+
+    assert [e["kind"] for e in item["events"]] == ["error"]
+    assert "手动发送" in item["events"][0]["message"]
+
+
 def test_concurrency_defaults_to_configured_limit(cfg):
     assert batch.max_concurrency(cfg) == cfg["max_concurrency"]
 

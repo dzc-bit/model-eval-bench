@@ -94,6 +94,7 @@ export function createBatch(props = {}) {
   let selectedTasks = new Set();
   let selectedModels = new Set();
   let concurrency = 3;
+  let autoSend = false;
   let batch = null;
   let pollTimer = null;
   let pollInFlight = false;
@@ -138,6 +139,20 @@ export function createBatch(props = {}) {
   });
   concurrencyField.setValue('3');
 
+  // 无人值守开关：默认关，跑批照旧只准备沙箱、由人发送与校验
+  const autoSendBox = el('input', {
+    type: 'checkbox',
+    id: 'batch-auto-send',
+    onChange: (event) => { autoSend = event.target.checked; },
+  });
+  const autoSendRow = el(
+    'label',
+    { class: 'batch__pick-row', for: 'batch-auto-send' },
+    autoSendBox,
+    el('span', { class: 'batch__pick-label' }, S.BATCH_AUTO_SEND),
+    el('span', { class: 'u-faint' }, S.BATCH_AUTO_SEND_HINT),
+  );
+
   const startBtn = createButton({
     label: S.BATCH_START,
     variant: 'primary',
@@ -159,6 +174,7 @@ export function createBatch(props = {}) {
     'div',
     { class: 'batch__controls' },
     concurrencyField.el,
+    autoSendRow,
     el('span', { class: 'u-spacer' }),
     refreshBtn.el,
     cancelBtn.el,
@@ -538,7 +554,7 @@ export function createBatch(props = {}) {
     }
     startBtn.update({ loading: true });
     try {
-      const res = await api.post('/batches', { items, concurrency }, { scope });
+      const res = await api.post('/batches', { items, concurrency, auto_send: autoSend }, { scope });
       batch = res;
       announce(`${S.BATCH_STARTED}：${batch.total} 条`);
       showToast({ message: S.BATCH_STARTED, detail: `${batch.total} 条，并发 ${batch.concurrency}`, kind: 'success' });

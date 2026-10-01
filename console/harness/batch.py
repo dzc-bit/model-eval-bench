@@ -104,12 +104,14 @@ def _public_batch(batch: dict) -> dict:
 
 
 def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
-          auto_release: bool = True, log=None) -> dict:
+          auto_release: bool = True, auto_send: bool = False, log=None) -> dict:
     """建一个并行会话批次并在后台准备独立沙箱。
 
     :param items: `[{"task": "T1-01", "model": "gpt-x", "attempt": 1}, ...]`
     :param concurrency: 想同时跑几个；默认 = config.max_concurrency
     :param auto_release: 每条完成评分后是否回收它的沙箱工作区。
+    :param auto_send: 沙箱就绪后是否自动把第 1 级提示词发给模型（无人值守作答）。
+        默认关闭：跑批历来只负责准备，发送与校验由人驱动。开启后校验仍然手动。
 
         就绪会话一直占用一个槽位。用户在该 run 的工作台操作并启动评分后，批次
         记录成绩并回收工作区，再派发下一条，避免清掉仍在使用的工作区。
@@ -192,6 +194,7 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
         "cancel": False,
         "_cancel_event": threading.Event(),
         "auto_release": bool(auto_release),
+        "auto_send": bool(auto_send),
     }
     with _LOCK:
         _BATCHES[batch_id] = batch
@@ -373,6 +376,29 @@ def _run_batch(cfg: dict, batch_id: str, log) -> None:
         batch_id, summary["done"], summary["total"], summary["passed"]))
 
 
+def _auto_send_first_prompt(cfg: dict, run: dict, batch: dict, item: dict) -> None:
+    """把第 1 级提示词发给模型（跑批勾了「自动发送」时）。
+
+    发送失败不毁掉这一轮：工作区已经就绪，用户还能在工作台手动发，
+    所以只记一条事件说明原因，不把条目判成 error。
+    """
+    try:
+        meta = packs.load_meta(cfg, str(run.get("task") or ""))
+        level1 = [p for p in packs.load_prompts(meta) if int(p.get("level") or 0) == 1]
+        if not level1 or not str(level1[0].get("text") or "").strip():
+            raise errors.HarnessError(errors.E_TASK_INVALID, "这道题没有第 1 级提示词。")
+        chat.start_send(cfg, run, level1[0]["text"])
+        message = "已自动发送第 1 级提示词，模型开始作答"
+        kind = "ready"
+    except errors.HarnessError as exc:
+        message = "自动发送失败：%s 请在工作台手动发送。" % exc.message
+        kind = "error"
+    with _LOCK:
+        _add_event(item, message, kind)
+        batch["updated_at"] = _now()
+    _save_batch(cfg, batch)
+
+
 def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emit,
               cancel_event: threading.Event | None = None) -> None:
     """准备一个独立会话；取消时协作终止准备并回收槽位。"""
@@ -432,6 +458,11 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
             _clear_item_workspace(cfg, batch, item)
             released = True
             return
+
+        # 无人值守作答：跑批建好沙箱后直接把第 1 级提示词交给模型。
+        # 只发不收——校验仍然由人启动（§3 的口径）。
+        if batch.get("auto_send"):
+            _auto_send_first_prompt(cfg, run, batch, item)
 
         # 批量会话不代替用户触发评分；保持工作区到评分结束。
         final = None

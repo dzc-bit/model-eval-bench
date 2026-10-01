@@ -726,6 +726,18 @@ def _exit_active(run_id: str) -> None:
             _ACTIVE_SENDS.pop(run_id, None)
 
 
+def has_model_reply(run: dict) -> bool:
+    """这一轮模型是否已经回复过（哪怕只回了一条）。
+
+    校验的前置条件：沙箱刚建好、模型还没动手时校验，只会按「未改动」计分，
+    白白烧掉一次尝试机会。后端也拦一道，防止绕过前端按钮。
+    """
+    for item in _read_records(run):
+        if item.get("role") == "assistant" and item.get("status") != "error":
+            return True
+    return False
+
+
 def send_active(run_id: str) -> bool:
     """该运行是否还有已收下或正在执行的发送；run_view / 对话记录用它告知前端。"""
     key = str(run_id or "")

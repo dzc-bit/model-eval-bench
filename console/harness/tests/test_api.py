@@ -85,6 +85,20 @@ def as_json(text):
 
 # ------------------------------------------------------------------ health
 
+def test_grade_refuses_before_the_model_has_replied(live, cfg):
+    """新沙箱上点校验只会按「未改动」判 0，白烧一次机会——接口先拦下。"""
+    run = make_run(cfg, model="校验门槛")
+    runs.save_run(cfg, run)
+    assert chat.has_model_reply(run) is False
+
+    status, body, _ = live("/api/runs/%s/grade" % run["run_id"], method="POST", body={})
+    assert status == 400
+    assert "还没有回复过" in as_json(body)["message"]
+
+    chat._append_message(run, {"role": "assistant", "content": "我改完了。"})
+    assert chat.has_model_reply(run) is True
+
+
 def test_chat_history_survives_a_deleted_model_profile(live, cfg):
     """档案被删也要能回看历史；只有继续发送才需要档案。"""
     run = make_run(cfg, model="已删档案")

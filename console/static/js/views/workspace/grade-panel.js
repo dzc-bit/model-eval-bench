@@ -90,6 +90,11 @@ export function createGradePanel(handlers) {
     variant: 'danger',
     onClick: () => handlers.onReveal(),
   });
+  const reopenBtn = createButton({
+    label: S.GRADE_REOPEN,
+    variant: 'ghost',
+    onClick: () => handlers.onReopen(),
+  });
   const exportBtn = createButton({
     label: S.GRADE_EXPORT,
     variant: 'ghost',
@@ -582,6 +587,10 @@ export function createGradePanel(handlers) {
     const hasReport = Boolean(report);
 
     // 动作区
+    // 运行校验的可用性：必须沙箱就绪、服务端没有还在跑的对话线程，
+    // 而且模型真的动过手——刚建好沙箱就点校验，只会按「未改动」判 0，白烧一次机会。
+    const chatBusy = Boolean(run && run.chat_busy);
+    const modelActed = !run || run.model_acted !== false;
     actionRow.textContent = '';
     actionRow.appendChild(gradeBtn.el);
     // 「进入下一轮」按当前轮次的实时状态判断，不信旧报告里的 next_hint：
@@ -602,6 +611,12 @@ export function createGradePanel(handlers) {
       revealBtn.update({ label: S.GRADE_REVEAL, disabled: running });
       actionRow.appendChild(revealBtn.el);
     }
+    // 误校验的补救口：本轮分数作废、退回可对话状态，模型改完再重新校验。
+    // 已揭晓参考解的轮次不给这个口（后端同样拒绝）。
+    if (hasReport && run && run.status === 'graded' && !run.revealed) {
+      reopenBtn.update({ disabled: running || Boolean(busy) || chatBusy });
+      actionRow.appendChild(reopenBtn.el);
+    }
     if (hasReport) {
       exportBtn.update({ disabled: false });
       actionRow.appendChild(exportBtn.el);
@@ -610,22 +625,22 @@ export function createGradePanel(handlers) {
     }
     body.appendChild(actionRow);
 
-    // 运行校验的可用性：必须沙箱就绪，且服务端没有还在跑的对话线程
-    const chatBusy = Boolean(run && run.chat_busy);
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
       loading: running,
       busyLabel: S.GRADE_RUNNING,
-      disabled: !sandboxOk || running || Boolean(busy) || chatBusy,
+      disabled: !sandboxOk || running || Boolean(busy) || chatBusy || !modelActed,
       reason: !hasRun
         ? S.ERR_NO_SANDBOX
         : running
           ? S.GRADE_RUNNING
           : chatBusy
             ? (S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…')
-            : !sandboxOk
-              ? S.SANDBOX_PREPARING
-              : '',
+            : !modelActed
+              ? S.GRADE_NEED_MODEL_FIRST
+              : !sandboxOk
+                ? S.SANDBOX_PREPARING
+                : '',
     });
     revealBtn.update({ disabled: running || Boolean(busy) });
     promoteBtn.update({ disabled: running || Boolean(busy) });
@@ -682,7 +697,7 @@ export function createGradePanel(handlers) {
     doGrade: () => handlers.onGrade(),
     /** 解绑（§10.4）。 */
     destroy() {
-      [gradeBtn, promoteBtn, revealBtn, exportBtn].forEach((b) => b.destroy());
+      [gradeBtn, promoteBtn, revealBtn, reopenBtn, exportBtn].forEach((b) => b.destroy());
       progress.destroy();
       logCard.destroy();
       emptyState.destroy();
