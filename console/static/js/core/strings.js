@@ -379,6 +379,8 @@ export const S = {
   RUN_DIFF_PENDING: '改动统计在跑过一次校验后显示。',
   RUN_DIFF_SHOW: '查看改动内容',
   RUN_DIFF_LOADING: '正在取本轮改动…',
+  RUN_DIFF_NOT_LOADED: '还没有取过正文。点「查看改动内容」从服务端取这一轮的 diff。',
+  RUN_DIFF_BAD_PAYLOAD: '服务端没有返回可读的改动正文，本轮 diff 取不到；请重试，或看上方统计与校验日志。',
   RUN_DIFF_EMPTY: '这一轮模型没有改动任何文件。',
   RUN_CALIBRATION: '这一轮用的是校准沙箱。',
   RUN_STATUS_LABEL: '运行状态',

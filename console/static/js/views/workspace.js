@@ -746,8 +746,12 @@ export function createWorkspace(props = {}) {
     runBar.showDiff({ loading: true, text: '', error: '' });
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/diff`, {}, { scope });
-      const text = typeof res.diff === 'string' ? res.diff : '';
-      runBar.showDiff({ loading: false, text, error: '' });
+      if (typeof res.diff !== 'string') {
+        // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
+        runBar.showDiff({ loading: false, text: '', error: S.RUN_DIFF_BAD_PAYLOAD });
+        return;
+      }
+      runBar.showDiff({ loading: false, text: res.diff, error: '' });
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
       runBar.showDiff({ loading: false, text: '', error: errorBody(code) });

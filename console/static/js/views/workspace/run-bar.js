@@ -44,7 +44,8 @@ export function createRunBar(handlers) {
   /** 草稿属于哪一轮（run_id）。 */
   let draftRunId = null;
   /** 改动正文的当前状态：{loading, text, error} */
-  let diffView = { loading: false, text: '', error: '' };
+  /** 改动正文：loaded 区分「取过了确实没有」与「还没取/取失败」，别把后者说成没改动。 */
+  let diffView = { loading: false, text: '', error: '', loaded: false };
 
   const modelField = createField({
     label: S.RUN_MODEL_LABEL,
@@ -204,6 +205,8 @@ export function createRunBar(handlers) {
       setText(diffText, S.RUN_DIFF_LOADING);
     } else if (diffView.error) {
       setText(diffText, diffView.error);
+    } else if (!diffView.loaded) {
+      setText(diffText, S.RUN_DIFF_NOT_LOADED);
     } else {
       setText(diffText, diffView.text || S.RUN_DIFF_EMPTY);
     }
@@ -234,7 +237,7 @@ export function createRunBar(handlers) {
       noteDraft = serverNote;
       noteField.setValue(serverNote);
       // 换了一轮就作废上一轮拉到的 diff 正文
-      diffView = { loading: false, text: '', error: '' };
+      diffView = { loading: false, text: '', error: '', loaded: false };
       renderDiffBody();
     }
 
@@ -309,6 +312,8 @@ export function createRunBar(handlers) {
         loading: Boolean(view && view.loading),
         text: (view && view.text) || '',
         error: (view && view.error) || '',
+        // 既不在取、也没报错，才算真的取到过一次（正文可以为空）。
+        loaded: Boolean(view) && !view.loading && !view.error,
       };
       diffCard.setOpen(true);
       renderDiffBody();
