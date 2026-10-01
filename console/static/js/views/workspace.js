@@ -110,6 +110,11 @@ const T = {
   NEXT_BACK_TASKS: '换一题',
   NEXT_NEED_MODEL: '先在对话卡头选一个现存档案。',
   NEXT_NO_SANDBOX: '这一轮的工作区已经回收了。',
+  NEXT_DISCARD: '废弃本轮（真删）',
+  DISCARD_TITLE: '废弃并彻底删除这一轮？',
+  DISCARD_BODY: '运行记录、对话（含纪元归档）、评分报告与 diff、沙箱与评分树全部删除，'
+    + '不留隔离副本，不可恢复。这道题下次用同一档案打开会回到初始界面。',
+  DISCARDED: '这一轮已彻底删除',
   NEXT_BUSY: '有操作正在进行，稍等。',
 };
 
@@ -141,6 +146,11 @@ export function createWorkspace(props = {}) {
     prefs = {},
   } = props;
   const scope = api.scope();
+  /**
+   * 地址栏里那一段 run_id 的可写副本：`routeRunId` 来自 const 解构，改它会直接
+   * 抛 TypeError（废弃成功后要把它摘掉，否则刷新生出来是个指向空记录的书签）。
+   */
+  let urlRunId = String(routeRunId || '');
   /** 工作台自己的状态树（区域级订阅，避免整页重绘）。 */
   const store = createStore({
     loading: true,
@@ -282,10 +292,13 @@ export function createWorkspace(props = {}) {
       disabled: !run.sandbox,
       reason: run.sandbox ? '' : T.NEXT_NO_SANDBOX,
     };
+    // 废弃 = 真删整条记录：成绩、对话、沙箱一起走，下次同档案打开回到初始界面。
+    const discard = { label: T.NEXT_DISCARD, kind: 'danger', onClick: () => doDiscard() };
     if (run.status === 'error' || run.status === 'cancelled') {
       return [
         { label: T.NEXT_REBUILD, kind: 'primary', onClick: () => doRebuild() },
         finish,
+        discard,
       ];
     }
     if (preparing) return [{ label: T.NEXT_PREPARING, kind: 'primary', disabled: true, reason: T.NEXT_BUSY }];
@@ -327,6 +340,7 @@ export function createWorkspace(props = {}) {
       });
       out.push({ label: T.NEXT_VOID, kind: 'ghost', onClick: () => doReopen() });
       out.push(finish);
+      out.push(discard);
       return out;
     }
     if (!acted) {
@@ -340,6 +354,7 @@ export function createWorkspace(props = {}) {
         },
         { label: T.NEXT_GRADE, kind: 'ghost', disabled: true, reason: S.GRADE_NEED_MODEL_FIRST },
         finish,
+        discard,
       ];
     }
     return [
@@ -352,6 +367,7 @@ export function createWorkspace(props = {}) {
       },
       { label: T.NEXT_ASK, kind: 'ghost', onClick: () => focusRegion('chat') },
       finish,
+      discard,
     ];
   }
 
@@ -1053,6 +1069,44 @@ export function createWorkspace(props = {}) {
   }
 
   /**
+   * 废弃这一轮：真删记录、对话与沙箱，不可恢复。
+   *
+   * 与「作废本轮成绩」的分工是：作废保留证据只是不算分（复盘要看得到），
+   * 废弃是"这次尝试连同它的过程一起丢掉"，所以磁盘上不该留下任何东西。
+   */
+  async function doDiscard() {
+    const s = store.getState();
+    if (!s.run || s.busy) return;
+    const runId = s.run.run_id;
+    const ok = await confirmDialog({
+      title: T.DISCARD_TITLE,
+      messages: [T.DISCARD_BODY, `将删除：${runId}`],
+      confirmLabel: T.NEXT_DISCARD,
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+      danger: true,
+    });
+    if (!ok) return;
+    patch({ busy: 'discard', elapsed: 0 });
+    // 地址栏里那个 run_id 马上就要指向一条不存在的记录，删成之后把它摘掉。
+    const hadRunInUrl = Boolean(urlRunId);
+    // 只有网络调用进 try：删除已经落盘了，收尾步骤出岔子也不该报成「删除失败」，
+    // 那会把一次成功的真删说成没删。
+    try {
+      await api.del(`/runs/${encodeURIComponent(runId)}`, { scope });
+    } catch (err) {
+      reportError(err, '废弃本轮');
+      return;
+    }
+    wsStore.remove(runKey(s.modelId));
+    poller.stop();
+    patch({ run: null, revealed: null, busy: '', elapsed: 0, modelMismatch: false });
+    urlRunId = '';
+    if (hadRunInUrl && navigate) navigate('workspace', { taskId, region: 'chat' }, { replace: true });
+    announce(T.DISCARDED);
+    showToast({ message: T.DISCARDED, detail: runId, kind: 'success', duration: 6000 });
+  }
+
+  /**
    * 用现存档案为这道题重开一轮（对话卡在「档案已删除」时给出的出口）。
    *
    * 不改写旧记录的 model 归属：run_id 与 runs/<任务>/<档案>/ 目录名里都带着档案名，
@@ -1296,7 +1350,7 @@ export function createWorkspace(props = {}) {
     lastUrlRegion = region;
     const activeRunId = store.getState().run && store.getState().run.run_id;
     const params = { taskId, region };
-    if (region === 'chat' && (activeRunId || routeRunId)) params.runId = activeRunId || routeRunId;
+    if (region === 'chat' && (activeRunId || urlRunId)) params.runId = activeRunId || urlRunId;
     if (navigate) navigate('workspace', params, { replace: true });
   }
 
@@ -1370,7 +1424,7 @@ export function createWorkspace(props = {}) {
    */
   async function load() {
     patch({ loading: true, error: null });
-    const lastRunId = routeRunId || recallModelRun(store.getState().modelId);
+    const lastRunId = urlRunId || recallModelRun(store.getState().modelId);
     try {
       const task = await loadTask(lastRunId);
       const taskRound = task.run && Number(task.run.attempt);

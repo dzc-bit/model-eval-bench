@@ -197,7 +197,9 @@ export function createLeaderboard(props = {}) {
             el('th', { scope: 'row', class: 'leaderboard__rank' }, String(entry.rank)),
             el('td', {}, entry.model || '—'),
             el('td', {}, t(S.LEADERBOARD_ROUNDS_VALUE, { n: entry.rounds })),
-            el('td', {}, renderDuration(entry.duration_s)),
+            el('td', { title: entry.wall_seconds
+              ? `墙钟用时 ${renderDuration(entry.wall_seconds)}（含挂机与思考），排名按模型工作时间`
+              : S.LEADERBOARD_DURATION_HINT }, renderDuration(entry.duration_s)),
             el('td', { class: 'table__num leaderboard__score' }, t(S.LEADERBOARD_SCORE_VALUE, { n: entry.score })),
           ),
         ),
