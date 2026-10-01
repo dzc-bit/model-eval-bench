@@ -354,7 +354,10 @@ export function createWorkspace(props = {}) {
     const attempt = Number(run.attempt) || 1;
     const allowed = Number(run.attempts_allowed) || attempt;
     const revealed = Boolean(run.revealed) || Boolean(s.revealed);
-    const sandboxOk = SANDBOX_OK.has(run.status);
+    // 沙箱可用 = 状态就绪且目录真实存在：已回收的 run 状态仍停在 ready/graded，
+    // 但 sandbox 字段已清空，只看状态会把「回收后」的出口错放出来
+    const sandboxOk = SANDBOX_OK.has(run.status) && Boolean(run.sandbox);
+    const sandboxReason = run.sandbox ? T.P_NEED_SANDBOX : T.M_NO_SANDBOX;
     const localBusy = Boolean(s.busy);
 
     if (run.status === 'error' || run.status === 'cancelled') {
@@ -393,8 +396,8 @@ export function createWorkspace(props = {}) {
       return {
         label: T.P_SEND_PROMPT,
         onClick: () => chatStream.sendText(taskNode.getPrompt()),
-        disabled: !s.modelId || !sandboxOk || Boolean(busyReason),
-        reason: busyReason || (!s.modelId ? T.P_NEED_MODEL : !sandboxOk ? T.P_NEED_SANDBOX : ''),
+          disabled: !s.modelId || !sandboxOk || Boolean(busyReason),
+          reason: busyReason || (!s.modelId ? T.P_NEED_MODEL : !sandboxOk ? sandboxReason : ''),
       };
     }
     return {
@@ -448,9 +451,11 @@ export function createWorkspace(props = {}) {
     const acted = run ? run.model_acted !== false : false;
     const hasReport = Boolean(run && run.report);
     const revealed = Boolean(run && run.revealed) || Boolean(s.revealed);
-    const sandboxOk = Boolean(run && SANDBOX_OK.has(run.status));
+    const sandboxOk = Boolean(run && SANDBOX_OK.has(run.status) && run.sandbox);
     const foreign = Boolean(s.modelMismatch);
     const foreignReason = foreign ? t(T.P_FOREIGN, { model: (run && run.model) || '（空）' }) : '';
+    // 同 primaryAction：已回收的 run 状态还是 ready/graded，必须看 sandbox 字段
+    const sandboxGoneReason = run && !run.sandbox ? T.M_NO_SANDBOX : T.P_NEED_SANDBOX;
     const busyReason = chatBusy
       ? T.P_REMOTE_BUSY
       : grading
@@ -477,7 +482,7 @@ export function createWorkspace(props = {}) {
         key: 'reset',
         label: T.M_RESET,
         disabled: !run || !sandboxOk || Boolean(busyReason) || foreign,
-        reason: foreignReason || (!run ? T.M_NO_RUN : !sandboxOk ? T.P_NEED_SANDBOX : busyReason),
+        reason: foreignReason || (!run ? T.M_NO_RUN : !sandboxOk ? sandboxGoneReason : busyReason),
         onClick: () => doReset(),
       },
       {
@@ -491,7 +496,7 @@ export function createWorkspace(props = {}) {
         key: 'regrade',
         label: T.M_REGRADE,
         disabled: !run || foreign || !sandboxOk || !acted || Boolean(busyReason),
-        reason: foreignReason || (!run ? T.M_NO_RUN : busyReason || (!acted ? T.P_NEED_ACT : !sandboxOk ? T.P_NEED_SANDBOX : '')),
+        reason: foreignReason || (!run ? T.M_NO_RUN : busyReason || (!acted ? T.P_NEED_ACT : !sandboxOk ? sandboxGoneReason : '')),
         onClick: () => doGrade(),
       },
       {
