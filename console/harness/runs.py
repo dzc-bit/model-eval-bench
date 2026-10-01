@@ -18,12 +18,13 @@ from __future__ import annotations
 import math
 import os
 import re
+import shutil
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
-from . import chat, config, errors, grade, packs, report as report_mod, sandbox, util
+from . import chat, config, errors, grade, keyring, packs, report as report_mod, sandbox, util
 
 Log = Callable[[str], None]
 
@@ -107,12 +108,25 @@ def save_run(cfg: dict, run: dict) -> None:
 
 
 def list_runs(cfg: dict) -> List[dict]:
-    """扫描全部运行记录（按时间倒序）。缺目录/坏文件都不影响其它记录。"""
+    """扫描全部运行记录（按时间倒序）。缺目录/坏文件都不影响其它记录。
+
+    只下钻规范布局 runs/<task>/<model>/<时间戳>/：根层的 blind（出题侧工具与盲测）
+    和任何层的 _ 开头目录（_quarantine 整理隔离区等）一律不下钻——曾经 os.walk
+    一锅端，把隔离区里的测试夹具运行当成真实成绩，记分板因此冒出大量幽灵档案。
+    """
     out: List[dict] = []
     root = cfg["runs_root"]
     if not os.path.isdir(root):
         return out
     for dirpath, dirnames, filenames in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        depth = 0 if rel == "." else len(rel.split(os.sep))
+        if depth == 0:
+            dirnames[:] = [d for d in dirnames if not d.startswith("_") and d != "blind"]
+        else:
+            dirnames[:] = [d for d in dirnames if not d.startswith("_")]
+        if depth >= 3:
+            dirnames[:] = []  # 时间戳层之下不再有运行记录
         if "run.json" not in filenames:
             continue
         run = util.read_json(os.path.join(dirpath, "run.json"), default=None)
@@ -390,6 +404,9 @@ def _promote_locked(cfg: dict, run_id: str) -> dict:
         )
     run["attempt"] = current + 1
     run["attempts_allowed"] = meta["attempts"]
+    # 同一个沙箱继续改（模型已写的代码保留），对话要能接着进行：
+    # 评分后的轮次是冻结态，不切回 ready 的话输入框会一直禁用
+    run["status"] = "ready"
     save_run(cfg, run)
     return {"run_id": run_id, "attempt": run["attempt"], "can_promote": run["attempt"] < meta["attempts"]}
 
@@ -573,11 +590,21 @@ def load_report(cfg: dict, run: dict) -> Optional[dict]:
 
 
 def load_diff(cfg: dict, run: dict) -> str:
+    """改动正文：优先评分产物 diff.patch；还没跑过校验时回退到沙箱实时改动。
+
+    实时回退用与评分同一套全树比对语义（collect_changes + build_diff_text），
+    所以模型 write_file 之后、评分之前，工作台也能看到真实改动。
+    """
     run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run["run_id"])
     try:
         with open(os.path.join(run_dir_path, "diff.patch"), "rb") as fh:
             return util.decode_output(fh.read())
     except OSError:
+        pass
+    try:
+        changes = grade.collect_changes(cfg, run)
+        return grade.build_diff_text(cfg, run, changes, limit=50)["text"]
+    except (errors.HarnessError, OSError, ValueError, KeyError):
         return ""
 
 
@@ -601,6 +628,7 @@ def run_view(cfg: dict, run: dict, log_tail: int = 200) -> dict:
         "note": run.get("note", ""),
         "rounds": run.get("rounds") or [],
         "grading": is_grading(run["run_id"]),
+        "chat_busy": chat.send_active(run["run_id"]),
         "last_error": run.get("last_error"),
         "report": doc,
         "log": [],
@@ -642,10 +670,14 @@ def scoreboard(cfg: dict) -> dict:
     models: List[str] = []
     tasks: List[str] = []
     for run in runs:
-        if run.get("model") not in models:
-            models.append(str(run.get("model")))
-        if run.get("task") not in tasks:
-            tasks.append(str(run.get("task")))
+        model = str(run.get("model") or "")
+        task = str(run.get("task") or "")
+        if not model or not task:
+            continue  # 缺 task/model 的坏记录不建幽灵行列
+        if model not in models:
+            models.append(model)
+        if task not in tasks:
+            tasks.append(task)
 
     for task in packs.list_tasks(cfg):
         if task["id"] not in tasks:
@@ -684,6 +716,57 @@ def scoreboard(cfg: dict) -> dict:
         "note": "单元格 = 通过轮数/总轮数（pass@1），括号内是平均得分与 Wilson 95% 区间；"
                 "「已揭晓」区不计入通过率。",
     }
+
+
+def _archive_run_record(cfg: dict, run: dict) -> str:
+    """把一条运行记录整目录移入隔离区并清理沙箱副本，返回归档路径。
+
+    模型改动已存档在记录目录的 diff.patch 里，沙箱是可重建的派生数据。
+    """
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run["run_id"])
+    if not os.path.isdir(run_dir_path):
+        raise errors.HarnessError(
+            errors.E_RUN_NOT_FOUND,
+            "运行记录目录不存在，可能已被删除。",
+            str(run.get("run_id") or ""),
+        )
+    quarantine_root = os.path.join(cfg["runs_root"], "_quarantine", "manual-deletes")
+    util.ensure_dir(quarantine_root)
+    target = os.path.join(quarantine_root, str(run.get("run_id") or "run"))
+    suffix = 2
+    while os.path.exists(target):
+        target = os.path.join(quarantine_root, "%s-%d" % (run.get("run_id"), suffix))
+        suffix += 1
+    shutil.move(run_dir_path, target)
+    sandbox_path = str(run.get("sandbox") or "")
+    if sandbox_path and os.path.isdir(sandbox_path):
+        util.remove_tree(sandbox_path)
+    return target
+
+
+def delete_run(cfg: dict, run_id: str) -> dict:
+    """删除一条运行记录。
+
+    遵循工作区的删除纪律：记录目录**整目录移入** runs/_quarantine/manual-deletes/
+    （list_runs 不扫隔离区，统计里立刻消失；要恢复手工移回原位即可），
+    关联沙箱副本用 util.remove_tree 清掉。对话或校验进行中拒绝删除。
+    """
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "这一轮正在对话，等当前消息处理完再删除。",
+                run_id,
+            )
+        run = get_run(cfg, run_id)
+    if _GRADING.get(run_id) or run.get("status") == "grading":
+        raise errors.HarnessError(
+            errors.E_RUN_BUSY,
+            "这一轮正在校验中，等校验结束后再删除。",
+            run_id,
+        )
+    archived_to = _archive_run_record(cfg, run)
+    return {"run_id": run_id, "deleted": True, "archived_to": archived_to}
 
 
 def _cell_stats(pair: List[dict]) -> dict:
@@ -732,6 +815,8 @@ def _cell_stats(pair: List[dict]) -> dict:
         "ci_low": round(low, 3),
         "ci_high": round(high, 3),
         "revealed": len(revealed),
+        # 供记分板「删除记录」入口列出这一格背后的运行
+        "run_ids": [str(r.get("run_id") or "") for r in pair if r.get("run_id")],
     }
 
 
@@ -932,7 +1017,7 @@ def _model_records(cfg: dict) -> List[dict]:
 
 
 def upsert_model(cfg: dict, payload: dict) -> dict:
-    """新增或更新模型档案；只保存脱敏值和服务端环境变量名。"""
+    """新增或更新模型档案；明文密钥只进本机密钥文件，config.json 只存脱敏值。"""
     model_id = util.sanitize_id(payload.get("id"))
     if not model_id:
         raise errors.HarnessError(errors.E_MODEL_INVALID, "模型档案需要一个 id（英文标识即可）。")
@@ -951,8 +1036,14 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
             "key_env 必须是合法的服务端环境变量名。",
             key_env,
         )
+    api_key = str(payload.get("api_key") or "").strip()
+    previous_id = util.sanitize_id(payload.get("previous_id"))
     # 写回的必须是原始档案，不能把只读诊断字段一起落盘
     models = _model_records(cfg)
+    if previous_id and previous_id != model_id:
+        # 改编号：旧档案连同它的密钥一起搬走，而不是留下重复档案
+        models = [m for m in models if str(m.get("id")) != previous_id]
+        keyring.rename_key(previous_id, model_id)
     entry = {
         "id": model_id,
         "protocol": protocol,
@@ -963,6 +1054,8 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
         "key_env": key_env,
         "note": str(payload.get("note") or "")[:500],
     }
+    if api_key:
+        entry["key_masked"] = keyring.set_key(model_id, api_key)
     for index, item in enumerate(models):
         if str(item.get("id")) == model_id:
             models[index] = entry
@@ -973,11 +1066,44 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
     return entry
 
 
-def delete_model(cfg: dict, model_id: str) -> dict:
+def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
+    """删除模型档案（连同已存密钥）；with_runs=True 时把名下运行记录一并移入隔离区。
+
+    记分板的档案芯片随「档案本身 + 名下记录」一起消失；正被对话/校验占用的
+    运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    """
     models = _model_records(cfg)
     remaining = [m for m in models if str(m.get("id")) != str(model_id)]
     if len(remaining) == len(models):
         raise errors.HarnessError(
             errors.E_MODEL_NOT_FOUND, "找不到模型档案 %s，删除失败。" % model_id, str(model_id))
     config.update_models(remaining)
-    return {"id": model_id, "deleted": True, "remaining": len(remaining)}
+    keyring.remove_key(model_id)
+    removed_runs: List[str] = []
+    skipped_busy: List[str] = []
+    if with_runs:
+        for run in list_runs(cfg):
+            if str(run.get("model") or "") != str(model_id):
+                continue
+            rid = str(run.get("run_id") or "")
+            if not rid or chat.send_active(rid):
+                if rid:
+                    skipped_busy.append(rid)
+                continue
+            with chat.exclusive(rid, blocking=False) as acquired:
+                if not acquired:
+                    skipped_busy.append(rid)
+                    continue
+                try:
+                    removed_runs.append(_archive_run_record(cfg, run))
+                except errors.HarnessError as exc:
+                    if exc.code == errors.E_RUN_NOT_FOUND:
+                        continue  # 记录目录已不在，视为已处理
+                    raise
+    return {
+        "id": model_id,
+        "deleted": True,
+        "remaining": len(remaining),
+        "removed_runs": removed_runs,
+        "skipped_busy": skipped_busy,
+    }

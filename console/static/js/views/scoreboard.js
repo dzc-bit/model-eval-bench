@@ -15,6 +15,7 @@ import { createButton } from '../components/button.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { showToast } from '../components/toast.js';
+import { confirmDialog } from '../components/confirm-dialog.js';
 import { tierBadge } from '../components/badge.js';
 import { percent } from '../core/format.js';
 
@@ -97,6 +98,7 @@ export function createScoreboard(props = {}) {
     const list = el('nav', { class: 'sb__profiles', 'aria-label': S.SB_PROFILE_LABEL });
     data.models.forEach((modelId) => {
       const stats = aggregate(modelId);
+      const item = el('div', { class: 'sb__profile-item' });
       const link = el(
         'a',
         {
@@ -107,7 +109,17 @@ export function createScoreboard(props = {}) {
         el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
       );
       if (String(modelId) === selectedModel) link.setAttribute('aria-current', 'page');
-      list.appendChild(link);
+      item.appendChild(link);
+      const delBtn = createButton({
+        label: '×',
+        variant: 'ghost',
+        size: 'sm',
+        ariaLabel: `${S.SB_PROFILE_DELETE || '删除模型档案'}：${modelId}`,
+        onClick: () => deleteProfile(modelId),
+      });
+      delBtn.el.classList.add('sb__profile-del');
+      item.appendChild(delBtn.el);
+      list.appendChild(item);
     });
 
     profilesHost.appendChild(el('h2', { id: 'sb-profile-title' }, S.SB_PROFILE_LABEL));
@@ -139,10 +151,18 @@ export function createScoreboard(props = {}) {
   function renderCell(row, modelId) {
     const cell = (row.cells || {})[modelId];
     if (!cell || !cell.trials) {
+      // 只揭晓过、还没计入主统计的运行：明确标注，而不是让人误以为没测过
+      if (cell && cell.revealed) {
+        return el(
+          'div',
+          { class: 'sb__cell' },
+          el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed })),
+        );
+      }
       return el('div', { class: 'sb__cell' }, el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA));
     }
     const offband = isOffBand(row, cell);
-    return el(
+    const node = el(
       'div',
       { class: 'sb__cell' },
       el(
@@ -168,6 +188,98 @@ export function createScoreboard(props = {}) {
           )
         : null,
     );
+    const runIds = (cell.run_ids || []).filter(Boolean);
+    if (runIds.length) {
+      node.appendChild(
+        createButton({
+          label: S.SB_RUN_DELETE || '删除记录',
+          variant: 'ghost',
+          size: 'sm',
+          ariaLabel: `${S.SB_RUN_DELETE || '删除记录'}：${row.task} × ${modelId}`,
+          onClick: () => deleteCellRuns(row, cell),
+        }).el,
+      );
+    }
+    return node;
+  }
+
+  /**
+   * 删除模型档案：档案本身与已存密钥同步删除，名下运行记录一并移入隔离区，
+   * 记分板的档案芯片随之消失。
+   * @param {string} modelId 档案编号
+   */
+  async function deleteProfile(modelId) {
+    const runIds = (data.matrix || [])
+      .map((row) => (row.cells || {})[modelId])
+      .flatMap((cell) => (cell && cell.run_ids) || [])
+      .filter(Boolean);
+    const ok = await confirmDialog({
+      title: t(S.SB_PROFILE_DELETE_TITLE || '删除模型档案「{id}」？', { id: modelId }),
+      messages: [
+        runIds.length
+          ? t(S.SB_PROFILE_DELETE_RUNS || '它名下的 {n} 条运行记录会一并移入隔离区（runs/_quarantine/manual-deletes/，可手工恢复），记分板不再显示这一列。', { n: runIds.length })
+          : (S.SB_PROFILE_DELETE_NO_RUNS || '它名下没有运行记录。'),
+        S.SB_PROFILE_DELETE_WARN || '档案本身与已保存的密钥会同步删除；之后需要到「模型档案」页重新新建。',
+      ],
+      confirmLabel: S.ACTION_DELETE || '删除',
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await api.del('/models', { params: { id: modelId, with_runs: '1' } });
+      const removed = (res && res.removed_runs || []).length;
+      const skipped = (res && res.skipped_busy || []).length;
+      showToast({
+        message: t(S.SB_PROFILE_DELETED || '档案「{id}」已删除', { id: modelId }),
+        detail: removed ? t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: removed }) : '',
+        kind: 'success',
+        duration: 5000,
+      });
+      if (skipped) {
+        showToast({ message: t(S.SB_PROFILE_BUSY_SKIP || '{n} 条记录正被对话/校验占用，这次没有删除', { n: skipped }), kind: 'warn', duration: 6000 });
+      }
+      if (String(selectedModel) === String(modelId)) selectedModel = '';
+      await load();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error', duration: 7000 });
+    }
+  }
+
+  /**
+   * 删除一格背后的运行记录（逐条调用 DELETE，服务端会把记录目录移入隔离区）。
+   * @param {object} row 记分板行
+   * @param {object} cell 单元格统计数据
+   */
+  async function deleteCellRuns(row, cell) {
+    const runIds = (cell.run_ids || []).filter(Boolean);
+    if (!runIds.length) return;
+    const ok = await confirmDialog({
+      title: runIds.length > 1
+        ? t(S.SB_RUN_DELETE_MANY || '删除这 {n} 条运行记录？', { n: runIds.length })
+        : (S.SB_RUN_DELETE_ONE || '删除这条运行记录？'),
+      messages: [
+        `将删除：${runIds.join('、')}`,
+        S.SB_RUN_DELETE_ARCHIVE || '记录目录会移入 runs/_quarantine/manual-deletes/（可在文件管理器手工恢复），对话记录与评分报告随目录一起归档。',
+        S.SB_RUN_DELETE_SANDBOX || '关联的沙箱副本会一并清理；统计里会立刻消失。',
+      ],
+      confirmLabel: S.ACTION_DELETE || '删除',
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      for (const runId of runIds) {
+        await api.del(`/runs/${encodeURIComponent(runId)}`);
+      }
+      showToast({ message: t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }), kind: 'success', duration: 4000 });
+      announce(t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }));
+      await load();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error', duration: 7000 });
+    }
   }
 
   function bandOf(row) {

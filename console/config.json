@@ -19,6 +19,12 @@
     "similarity_threshold": 0.6,
     "log_tail_lines": 400
   },
+  "chat": {
+    "max_history": 100,
+    "max_context_chars": 160000,
+    "tool_summary_chars": 800,
+    "keep_first_prompt": true
+  },
   "snapshot": {
     "include": [
       "backend",
@@ -84,12 +90,13 @@
   },
   "models": [
     {
-      "id": "1",
+      "id": "hunyuan4preview",
       "protocol": "openai",
       "api_mode": "chat_completions",
-      "base_url": "",
-      "model": "1",
-      "key_masked": "",
+      "base_url": "http://127.0.0.1:20128/v1",
+      "model": "cbcn/hy4-preview",
+      "key_masked": "sk-1****8551",
+      "key_env": "",
       "note": ""
     },
     {

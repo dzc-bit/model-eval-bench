@@ -48,6 +48,35 @@ const ITEM_STATE = {
 };
 
 /**
+ * 已废弃机制的历史错误文案。盘符池（Q:/R:/S: + subst）已从 harness 移除，
+ * 旧批次快照里的这类报错只读不改，展示层据此补一句说明，避免用户以为还在用盘符。
+ */
+const RETIRED_MECHANISM_RE = /盘符|都已占用|subst|E_DRIVE_UNAVAILABLE/i;
+
+/**
+ * 这条批次记录是否来自已删除的模型档案。
+ *
+ * 清单还没拉成功时返回 false：那种情况下 models 为空并不代表档案都被删了。
+ * @param {Array<{id: string}>} models
+ * @param {boolean} loaded
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isModelGone(models, loaded, id) {
+  if (!loaded || !id) return false;
+  return !models.some((model) => String(model.id) === String(id));
+}
+
+/**
+ * 给历史报错补上「机制已废弃」的注记；非此类文案返回空串。
+ * @param {string} text
+ * @returns {string}
+ */
+function retiredMechanismNote(text) {
+  return RETIRED_MECHANISM_RE.test(String(text || '')) ? S.BATCH_LEGACY_MECHANISM_NOTE : '';
+}
+
+/**
  * 创建批量跑批视图。
  *
  * @param {{navigate?: Function}} [props]
@@ -58,6 +87,7 @@ export function createBatch(props = {}) {
 
   let tasks = [];
   let models = [];
+  let modelsLoaded = false;
   let loading = true;
   let error = null;
 
@@ -273,10 +303,16 @@ export function createBatch(props = {}) {
     const events = el('ol', { class: 'batch__events' });
     const eventDetails = el('details', {}, el('summary', {}, '公开进度记录'), events);
     const errorNode = el('span', { class: 'batch__item-error', hidden: true });
+    const legacyNote = el('span', { class: 'u-faint', hidden: true });
+    const modelGoneBadge = el('span', {
+      class: 'badge badge--muted', hidden: true, title: S.BATCH_ITEM_MODEL_GONE_HINT,
+    }, S.BATCH_ITEM_MODEL_GONE);
     const main = el('div', { class: 'batch__item-main' },
       el('span', { class: 'batch__item-name' }, `${initialItem.task} × ${initialItem.model}`),
+      modelGoneBadge,
       initialItem.title ? el('span', { class: 'u-faint' }, initialItem.title) : null,
       errorNode,
+      legacyNote,
     );
     const head = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
       mark.el, main, el('span', { class: 'u-spacer' }), score, statusDot.el);
@@ -325,10 +361,20 @@ export function createBatch(props = {}) {
         if (nextSignature !== eventSignature) {
           eventSignature = nextSignature;
           clear(events);
-          nextEvents.forEach((entry) => events.appendChild(el('li', {}, `${entry.at || ''} ${entry.message || ''}`.trim())));
+          nextEvents.forEach((entry) => {
+            const note = retiredMechanismNote(entry.message);
+            events.appendChild(el('li', {},
+              `${entry.at || ''} ${entry.message || ''}`.trim(),
+              note ? el('span', { class: 'u-faint' }, note) : null));
+          });
         }
         errorNode.hidden = !item.error;
         setText(errorNode, item.error || '');
+        const note = retiredMechanismNote(item.error);
+        legacyNote.hidden = !note;
+        setText(legacyNote, note);
+        const gone = isModelGone(models, modelsLoaded, item.model);
+        modelGoneBadge.hidden = !gone;
       },
       destroy() {
         mark.destroy();
@@ -453,6 +499,7 @@ export function createBatch(props = {}) {
       tasks = (taskRes && taskRes.tasks) || [];
       models = (modelRes && modelRes.models) || [];
       loading = false;
+      modelsLoaded = true;
       // 默认全选题、选第一个模型，减少点击
       if (!selectedTasks.size) tasks.forEach((t) => selectedTasks.add(t.id));
       if (!selectedModels.size && models.length) selectedModels.add(models[0].id);

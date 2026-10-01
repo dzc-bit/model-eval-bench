@@ -570,9 +570,18 @@ export function createGradePanel(handlers) {
     // 动作区
     actionRow.textContent = '';
     actionRow.appendChild(gradeBtn.el);
-    const hint = (report && report.next_hint) || {};
-    if (hasReport && hint.can_promote) {
-      promoteBtn.update({ label: hint.label || t(S.GRADE_PROMOTE, { n: Number(run.attempt) + 1 }), disabled: running });
+    // 「进入下一轮」按当前轮次的实时状态判断，不信旧报告里的 next_hint：
+    // 必须当前轮已经评分（逐轮校验）且还有剩余机会，按钮才会出现——
+    // 否则进入第 2 轮后，旧报告会把按钮重新标成「进入第 3 轮」
+    const currentAttempt = Number(run && run.attempt) || 1;
+    const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
+    const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
+    const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
+    if (canPromote) {
+      promoteBtn.update({
+        label: t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
+        disabled: running || Boolean(busy),
+      });
       actionRow.appendChild(promoteBtn.el);
     }
     if (hasReport && !run.revealed && !current.revealed) {
@@ -587,19 +596,22 @@ export function createGradePanel(handlers) {
     }
     body.appendChild(actionRow);
 
-    // 运行校验的可用性：必须沙箱就绪
+    // 运行校验的可用性：必须沙箱就绪，且服务端没有还在跑的对话线程
+    const chatBusy = Boolean(run && run.chat_busy);
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
       loading: running,
       busyLabel: S.GRADE_RUNNING,
-      disabled: !sandboxOk || running || Boolean(busy),
+      disabled: !sandboxOk || running || Boolean(busy) || chatBusy,
       reason: !hasRun
         ? S.ERR_NO_SANDBOX
         : running
           ? S.GRADE_RUNNING
-          : !sandboxOk
-            ? S.SANDBOX_PREPARING
-            : '',
+          : chatBusy
+            ? (S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…')
+            : !sandboxOk
+              ? S.SANDBOX_PREPARING
+              : '',
     });
     revealBtn.update({ disabled: running || Boolean(busy) });
     promoteBtn.update({ disabled: running || Boolean(busy) });

@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import math
 import os
+import threading
 
 import pytest
 
 from conftest import BACKEND_TASK, make_run, write_in_sandbox
-from harness import calibrate, errors, runs, sandbox, util
+from harness import calibrate, chat, errors, runs, sandbox, util
 
 
 def read(path):
@@ -229,6 +230,115 @@ def test_scoreboard_with_no_runs_is_empty_not_error(cfg):
     assert board["totals"]["trials"] == 0
     assert board["totals"]["ci_low"] == 0.0 and board["totals"]["ci_high"] == 1.0
     assert isinstance(board["matrix"], list)
+
+
+def test_list_runs_ignores_quarantined_and_blind_trees(cfg):
+    """规范布局之外的运行记录（整理隔离区/出题侧）不进统计，防幽灵档案。"""
+    canonical = store_run(cfg, "TEST-01__正常模型__20260101-000003", BACKEND_TASK, "正常模型", True, 100.0)
+    listed = {r["run_id"] for r in runs.list_runs(cfg)}
+    assert canonical["run_id"] in listed
+
+    # 隔离区里的夹具运行（tidy 整理的历史产物）不是真实成绩
+    stray = os.path.join(cfg["runs_root"], "_quarantine", "cleanup", "runs", "TEST-01", "幽灵", "20260101-000000")
+    os.makedirs(stray)
+    util.write_json_atomic(os.path.join(stray, "run.json"), {
+        "run_id": "TEST-01__幽灵__20260101-000000", "task": "TEST-01", "model": "幽灵",
+        "status": "graded", "rounds": make_rounds(True, 100.0),
+    })
+    listed = {r["run_id"] for r in runs.list_runs(cfg)}
+    assert "TEST-01__幽灵__20260101-000000" not in listed
+    assert canonical["run_id"] in listed
+
+
+def test_scoreboard_skips_runs_without_task_or_model(cfg):
+    """缺 task/model 的坏记录不建幽灵行列（曾出现重复的 None 列）。"""
+    kept = store_run(cfg, "TEST-01__正常模型__20260101-000004", BACKEND_TASK, "正常模型", True, 100.0)
+    broken = dict(kept)
+    broken["run_id"] = "TEST-01__坏记录__20260101-000005"
+    broken["model"] = None
+    broken["task"] = None
+    runs.save_run(cfg, broken)
+
+    board = runs.scoreboard(cfg)
+    assert "None" not in board["models"]
+    assert "" not in board["models"]
+    assert "None" not in board["tasks"]
+    assert board["matrix"][0]["cells"]["正常模型"]["trials"] == 1
+
+
+def test_delete_run_archives_record_and_clears_sandbox(cfg):
+    """删除 = 记录目录移入隔离区（可恢复）+ 沙箱副本清理 + 统计立刻消失。"""
+    run = store_run(cfg, "TEST-01__待删模型__20260101-000006", BACKEND_TASK, "待删模型", True, 100.0)
+    sandbox_dir = os.path.join(cfg["sandbox_root"], run["run_id"])
+    util.ensure_dir(sandbox_dir)
+    util.write_text_atomic(os.path.join(sandbox_dir, "marker.txt"), "x")
+    run["sandbox"] = sandbox_dir
+    runs.save_run(cfg, run)
+    run_dir_path = run["run_dir"]
+
+    out = runs.delete_run(cfg, run["run_id"])
+    assert out["deleted"] is True
+    assert os.path.isdir(out["archived_to"]), "记录目录应整体移入隔离区而不是真删"
+    assert not os.path.isdir(run_dir_path)
+    assert not os.path.isdir(sandbox_dir)
+    assert run["run_id"] not in {r["run_id"] for r in runs.list_runs(cfg)}
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.delete_run(cfg, run["run_id"])
+    assert excinfo.value.code == errors.E_RUN_NOT_FOUND
+
+
+def test_delete_run_refuses_while_chat_lock_held(cfg):
+    """对话进行中（运行锁被其它线程持有）不能删除记录。"""
+    run = store_run(cfg, "TEST-01__占删模型__20260101-000007", BACKEND_TASK, "占删模型", False, 0.0)
+    acquired = threading.Event()
+    release = threading.Event()
+
+    def hold():
+        with chat.lock_for(run["run_id"]):
+            acquired.set()
+            release.wait(timeout=5)
+
+    holder = threading.Thread(target=hold, daemon=True)
+    holder.start()
+    assert acquired.wait(timeout=5), "持锁线程没就绪"
+    try:
+        with pytest.raises(errors.HarnessError) as excinfo:
+            runs.delete_run(cfg, run["run_id"])
+        assert excinfo.value.code == errors.E_RUN_BUSY
+    finally:
+        release.set()
+        holder.join(timeout=5)
+    out = runs.delete_run(cfg, run["run_id"])
+    assert out["deleted"] is True
+
+
+def test_delete_model_with_runs_archives_records(cfg, monkeypatch, tmp_path):
+    """删除档案可连带把名下运行记录移入隔离区；不带 with_runs 时记录保留。"""
+    store_run(cfg, "TEST-01__全删模型__20260101-000008", BACKEND_TASK, "全删模型", True, 100.0)
+    store_run(cfg, "TEST-01__全删模型__20260101-000009", BACKEND_TASK, "全删模型", False, 20.0)
+    shadow = tmp_path / "config.json"
+    shadow.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(runs.config, "CONFIG_PATH", str(shadow))
+    cfg["models"] = [{"id": "全删模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
+
+    out = runs.delete_model(cfg, "全删模型", with_runs=True)
+    assert out["deleted"] is True
+    assert sorted(os.path.basename(p) for p in out["removed_runs"]) == [
+        "TEST-01__全删模型__20260101-000008", "TEST-01__全删模型__20260101-000009",
+    ]
+    assert out["remaining"] == 0
+    assert all(os.path.isdir(p) for p in out["removed_runs"]), "记录应可恢复地躺在隔离区"
+    assert all(r.get("model") != "全删模型" for r in runs.list_runs(cfg))
+    import json as _json
+    assert _json.loads(shadow.read_text(encoding="utf-8"))["models"] == []
+
+    # 不带 with_runs：只删档案，记录保留
+    store_run(cfg, "TEST-01__留档模型__20260101-000010", BACKEND_TASK, "留档模型", True, 80.0)
+    cfg["models"] = [{"id": "留档模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
+    out2 = runs.delete_model(cfg, "留档模型")
+    assert out2["deleted"] is True
+    assert out2["removed_runs"] == []
+    assert any(r.get("model") == "留档模型" for r in runs.list_runs(cfg))
 
 
 # ---------------------------------------------------------------- 校准

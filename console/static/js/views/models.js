@@ -37,6 +37,8 @@ const OPENAI_ENDPOINT_PATHS = {
 
 /** 档案编号合法性：小写字母、数字、连字符。 */
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+// 与服务端 upsert_model 的 key_env 校验同规则：环境变量名，不是密钥本身
+const KEY_ENV_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * 创建模型档案视图。
@@ -87,11 +89,14 @@ export function createModels(props = {}) {
   );
 
   // ---- 表单 ----
+  /** 用户是否手动改过档案编号；没动过就跟着模型名自动建议。 */
+  let idTouched = false;
   const idField = createField({
     label: S.MODELS_FIELD_ID,
     name: 'model-id',
     required: true,
     hint: S.MODELS_FIELD_ID_HINT,
+    onInput: () => { idTouched = true; },
   });
   const protocolField = createField({
     label: S.MODELS_FIELD_PROTOCOL,
@@ -114,6 +119,10 @@ export function createModels(props = {}) {
     label: S.MODELS_FIELD_MODEL,
     name: 'model-name',
     required: true,
+    onInput: (value) => {
+      // 新建且编号没手动改过时跟着模型名建议，用户必填的只剩模型名、URL 和密钥
+      if (!editingId && !idTouched) idField.update({ value: suggestId(value), error: '' });
+    },
   });
   const urlField = createField({
     label: 'API 根地址',
@@ -121,6 +130,14 @@ export function createModels(props = {}) {
     type: 'url',
     placeholder: 'https://',
     onInput: () => updateEndpointPreview(),
+  });
+  const apiKeyField = createField({
+    label: S.MODELS_FIELD_KEY,
+    name: 'model-key',
+    type: 'password',
+    placeholder: S.MODELS_FIELD_KEY_PLACEHOLDER,
+    hint: S.MODELS_FIELD_KEY_HINT,
+    autocomplete: 'new-password',
   });
   const noteField = createField({
     label: S.MODELS_FIELD_NOTE,
@@ -178,6 +195,13 @@ export function createModels(props = {}) {
     setText(endpointPreview, `POST ${baseUrl}${path}`);
   }
 
+  /** 由模型名建议档案编号：小写字母数字连字符，数字开头补 m- 前缀。 */
+  function suggestId(modelName) {
+    const slug = String(modelName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!slug) return '';
+    return /^[0-9]/.test(slug) ? `m-${slug}` : slug;
+  }
+
   /** 将编辑区滚到粘性导航下方，避免窄屏时标题与首个字段被遮挡。 */
   function revealEditor() {
     const header = document.querySelector('.app-header');
@@ -202,19 +226,19 @@ export function createModels(props = {}) {
             el('div', { class: 'models__form-row' }, idField.el, modelField.el),
           ),
           el('fieldset', { class: 'models__fieldset' },
-            el('legend', {}, '接口定位'),
-            el('div', { class: 'models__form-row' }, protocolField.el, urlField.el),
-            apiModeField.el,
+            el('legend', {}, '连接'),
+            el('div', { class: 'models__form-row' }, urlField.el, apiKeyField.el),
             el('div', { class: 'models__endpoint-preview' },
               el('span', { class: 'models__endpoint-label' }, '实际请求地址'),
               endpointPreview,
             ),
           ),
-          el('fieldset', { class: 'models__fieldset models__fieldset--notes' },
-            el('legend', {}, '凭据与备注'),
+          el('details', { class: 'models__advanced' },
+            el('summary', { class: 'models__advanced-summary' }, S.MODELS_FORM_ADVANCED),
+            el('div', { class: 'models__form-row' }, protocolField.el, apiModeField.el),
             keyEnvField.el,
             noteField.el,
-            el('p', { class: 'u-faint' }, S.MODELS_FIELD_KEY_HINT),
+            el('p', { class: 'u-faint' }, S.MODELS_KEY_PRIVACY),
           ),
         ),
         el('div', { class: 'models__form-actions' }, saveBtn.el, cancelEditBtn.el),
@@ -247,6 +271,13 @@ export function createModels(props = {}) {
     } else {
       modelField.update({ error: '' });
     }
+    const keyEnv = keyEnvField.getValue().trim();
+    if (keyEnv && !KEY_ENV_PATTERN.test(keyEnv)) {
+      keyEnvField.update({ error: S.MODELS_FIELD_KEY_ENV_INVALID });
+      ok = false;
+    } else {
+      keyEnvField.update({ error: '' });
+    }
     return ok;
   }
 
@@ -267,9 +298,11 @@ export function createModels(props = {}) {
       base_url: urlField.getValue().trim(),
       key_env: keyEnvField.getValue().trim(),
       note: noteField.getValue(),
-      // 后端只保存脱敏值和环境变量名，明文密钥永不经过浏览器。
+      // 粘贴了新密钥才传 api_key；留空则后端保留已存密钥。config.json 只存脱敏值
       key_masked: editingKeyMasked,
+      api_key: apiKeyField.getValue().trim(),
     };
+    if (editingId && editingId !== payload.id) payload.previous_id = editingId;
 
     saveBtn.update({ loading: true, busyLabel: S.ACTION_SAVED });
     try {
@@ -285,8 +318,14 @@ export function createModels(props = {}) {
       await load();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'SAVE_FAILED';
-      setText(formError, errorBody(code));
-      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+      const cannedTitle = errorTitle(code);
+      // 服务端对表单类错误会返回一句具体中文（如「key_env 必须是合法的服务端环境变量名。」），
+      // 比按码查到的通用标题更能指出错在哪个字段，优先展示
+      const backendMessage = err instanceof ApiError ? String(err.message || '').trim() : '';
+      const title = backendMessage || cannedTitle;
+      const detail = errorBody(code);
+      setText(formError, detail);
+      showToast({ message: title, detail, kind: 'error' });
     } finally {
       saveBtn.update({ loading: false });
     }
@@ -298,6 +337,7 @@ export function createModels(props = {}) {
   function startCreate({ show = false } = {}) {
     editingId = null;
     editingKeyMasked = '';
+    idTouched = false;
     setText(formTitle, S.MODELS_FORM_NEW);
     idField.update({ value: '', error: '' });
     protocolField.update({ value: 'openai' });
@@ -306,6 +346,7 @@ export function createModels(props = {}) {
     urlField.update({ value: '' });
     noteField.update({ value: '' });
     keyEnvField.update({ value: '' });
+    apiKeyField.update({ value: '', error: '' });
     cancelEditBtn.el.hidden = true;
     formHost.hidden = !show;
     updateEndpointPreview();
@@ -322,6 +363,7 @@ export function createModels(props = {}) {
     editingId = id;
     editingKeyMasked = m.key_masked || '';
     setText(formTitle, `${S.MODELS_FORM_EDIT}：${m.id}`);
+    idTouched = true; // 编辑既有档案：编号已定，不跟着模型名自动改
     idField.update({ value: m.id, error: '' });
     protocolField.update({ value: m.protocol || 'openai' });
     syncApiModeControl(m.protocol || 'openai', m.api_mode || 'chat_completions');
@@ -329,6 +371,7 @@ export function createModels(props = {}) {
     urlField.update({ value: m.base_url || '' });
     noteField.update({ value: m.note || '' });
     keyEnvField.update({ value: m.key_env || '' });
+    apiKeyField.update({ value: '', error: '' }); // 留空 = 保留已保存的密钥
     cancelEditBtn.el.hidden = false;
     formHost.hidden = false;
     updateEndpointPreview();

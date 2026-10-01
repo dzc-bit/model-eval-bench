@@ -24,7 +24,8 @@ if CONSOLE_DIR not in sys.path:
     sys.path.insert(0, CONSOLE_DIR)
 
 import server  # noqa: E402
-from harness import errors, runs, util  # noqa: E402
+from conftest import BACKEND_TASK, make_run  # noqa: E402
+from harness import chat, errors, keyring, runs, util  # noqa: E402
 
 
 @pytest.fixture
@@ -329,19 +330,31 @@ def test_model_crud_roundtrip(cfg, monkeypatch, tmp_path):
                                body={"id": "gpt-x", "protocol": "openai",
                                      "base_url": "http://127.0.0.1:1/v1", "model": "gpt-x",
                                      "key_masked": "sk-****1234",
+                                     "api_key": "sk-test-secret-1234567890",
                                      "api_mode": "responses"})
         assert status == 200
         assert as_json(body)["id"] == "gpt-x"
         assert as_json(body)["api_mode"] == "responses"
+        # 粘贴密钥 → 返回脱敏值；明文只进密钥文件，config.json 不落明文
+        assert as_json(body)["key_masked"] == "sk-t****7890"
+        saved = util.read_json(str(shadow))
+        assert saved["models"][0]["key_masked"] == "sk-t****7890"
+        assert "sk-test-secret-1234567890" not in json.dumps(saved, ensure_ascii=False)
+        keys_file = tmp_path / "keys.local.json"
+        assert "sk-test-secret-1234567890" in keys_file.read_text(encoding="utf-8")
+        assert keyring.path() == str(keys_file)
 
         _status, body, _ = live("/api/models")
         assert [m["id"] for m in as_json(body)["models"]] == ["gpt-x"]
         assert as_json(body)["models"][0]["api_mode"] == "responses"
+        assert "sk-test-secret-1234567890" not in json.dumps(as_json(body), ensure_ascii=False)
 
         status, _body, _ = live("/api/models?id=gpt-x", method="DELETE")
         assert status == 200
         _status, body, _ = live("/api/models")
         assert as_json(body)["models"] == []
+        # 删除档案时密钥一并清掉
+        assert "gpt-x" not in keyring.load()
 
         # 真实配置一个字节都没动
         with open(real_config, "rb") as fh:
@@ -356,6 +369,32 @@ def test_invalid_model_protocol_is_rejected(live):
                            body={"id": "x", "protocol": "不存在的协议"})
     assert status == 400
     assert as_json(body)["code"] == errors.E_MODEL_INVALID
+
+
+def test_model_key_resolution_prefers_pasted_key(monkeypatch, tmp_path):
+    """密钥解析顺序：页面粘贴 > key_env > MODEL_<ID>_API_KEY > OPENAI_API_KEY。"""
+    shadow = tmp_path / "config.json"
+    shadow.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(server.config, "CONFIG_PATH", str(shadow))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("MODEL_M1_API_KEY", raising=False)
+    model = {"id": "m1", "protocol": "openai", "key_env": ""}
+
+    with pytest.raises(errors.HarnessError):
+        chat._model_key(model)  # 完全没有密钥时报可操作的错误
+
+    keyring.set_key("m1", "sk-pasted-1234567890")
+    assert chat._model_key(model) == "sk-pasted-1234567890"
+
+    monkeypatch.setenv("MODEL_M1_API_KEY", "sk-env-1")
+    assert chat._model_key(model) == "sk-pasted-1234567890"  # 粘贴密钥优先
+
+    keyring.remove_key("m1")
+    assert chat._model_key(model) == "sk-env-1"  # 回落到档案专属变量
+
+    monkeypatch.delenv("MODEL_M1_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-1")
+    assert chat._model_key(model) == "sk-openai-1"  # 最后是通用变量
 
 
 def test_invalid_openai_api_mode_is_rejected(live):
@@ -392,3 +431,21 @@ def test_legacy_model_gets_chat_completions_default(cfg, monkeypatch, tmp_path):
         assert as_json(body)["models"][0]["api_mode"] == "chat_completions"
     finally:
         _stop(httpd, thread)
+
+
+def test_promote_reopens_run_and_refuses_when_exhausted(cfg):
+    """promote 后轮次切回 ready（同一沙箱继续对话）；机会用完时拒绝并说明。"""
+    run = make_run(cfg, BACKEND_TASK, "轮次模型", attempt=1)
+    run["status"] = "graded"
+    runs.save_run(cfg, run)
+
+    first = runs.promote(cfg, run["run_id"])
+    assert first["attempt"] == 2
+    assert first["can_promote"] is False  # TEST-01 是 medium，2 次机会已到顶
+    reloaded = runs.get_run(cfg, run["run_id"])
+    assert reloaded["status"] == "ready"
+    assert reloaded["attempt"] == 2
+
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.promote(cfg, run["run_id"])
+    assert excinfo.value.code == errors.E_BAD_REQUEST

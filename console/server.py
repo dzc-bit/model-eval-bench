@@ -303,6 +303,7 @@ def api_chat_history(cfg: dict, run_id: str) -> dict:
     return {
         "run_id": run_id,
         "messages": chat_mod.messages(run),
+        "chat_busy": chat_mod.send_active(run_id),
         "model": {"id": model.get("id"), "model": model.get("model"),
                    "protocol": model.get("protocol"), "api_mode": model.get("api_mode")},
         "tools": chat_mod.TOOLS,
@@ -397,6 +398,7 @@ def build_router() -> Router:
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (runs.reveal(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/note", lambda ctx: (runs.set_note(ctx["cfg"], ctx["run_id"], str(ctx["body"].get("note") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/diff", lambda ctx: ({"diff": runs.load_diff(ctx["cfg"], runs.get_run(ctx["cfg"], ctx["run_id"]))}, "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (runs.delete_run(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/sandbox/reset", lambda ctx: (_reset(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/sandbox/rebuild", lambda ctx: (_rebuild(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/scoreboard", lambda ctx: api_scoreboard(ctx["cfg"], ctx["query"]))
@@ -405,7 +407,7 @@ def build_router() -> Router:
     r.add("POST", r"/api/models/test", lambda ctx: (api_model_doctor(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or "")), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration", lambda ctx: (calibrate.enqueue(ctx["cfg"], str(ctx["body"].get("task") or ""), str(ctx["body"].get("model") or ""), _as_int(ctx["body"].get("trials"), 5)), "application/json; charset=utf-8"))
     r.add("GET", r"/api/calibration", lambda ctx: (calibrate.queue_status(ctx["cfg"], str(ctx["query"].get("task") or ""), str(ctx["query"].get("model") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration/cancel", lambda ctx: (calibrate.cancel(ctx["cfg"], str(ctx["body"].get("run_id") or "")), "application/json; charset=utf-8"))
