@@ -159,6 +159,8 @@ def _normalize_provider(raw: dict, index: int) -> dict:
         "note": str(raw.get("note") or ""),
         "models": [],
     }
+    if raw.get("key_masked"):
+        provider["key_masked"] = str(raw["key_masked"])
 
     for m_index, m in enumerate(raw.get("models") or []):
         if not isinstance(m, dict):
@@ -201,6 +203,10 @@ def _providers_from_legacy_models(models: list) -> list:
                 "protocol": item.get("protocol") or "openai",
                 "api_mode": item.get("api_mode") or "",
                 "base_url": base_url,
+                # 老档案的脱敏密钥带到新供应商上：不带的话界面上会显示
+                # 「未配置密钥」，用户以为密钥丢了要重填（其实本机密钥文件里还在，
+                # 只是 keyring 的 key 从 model_id 换成了 provider_id，需要重新绑定）
+                "key_masked": str(item.get("key_masked") or ""),
                 "note": "",
                 "models": [],
             }

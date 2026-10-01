@@ -60,7 +60,7 @@ const T = {
   FIELD_DEFAULT_MAX: '默认输出上限',
   FIELD_DEFAULT_MAX_HINT: '模型没单独填时用它。留空按 32768。',
   FIELD_MODELS: '模型清单',
-  FIELD_MODELS_HINT: '填「请求时发给服务商的模型名」。容量留空即跟随上面的默认值。',
+  FIELD_MODELS_HINT: '填「请求时发给服务商的模型名」。显示名与容量都在每行的展开项里，留空即用默认。',
 
   MODEL_ID: '模型名',
   MODEL_NAME: '显示名',
@@ -71,6 +71,8 @@ const T = {
   MODEL_ID_REQUIRED: '模型名不能为空。',
   MODEL_ID_DUP: '同一个供应商下模型名不能重复。',
   MODEL_INHERIT: '默认',
+  MODEL_ADVANCED: '显示名与容量（可选）',
+  MODEL_NAME_PLACEHOLDER: '留空就用模型名',
 
   DISCOVER: '从端点拉取',
   DISCOVERING: '正在拉取…',
@@ -218,32 +220,17 @@ export function createModels(props = {}) {
     placeholder: S.MODELS_FIELD_KEY_PLACEHOLDER,
     hint: T.FIELD_KEY_HINT,
   });
-  const defaultCtxField = createField({
-    label: T.FIELD_DEFAULT_CTX,
-    name: 'provider-ctx',
-    type: 'number',
-    placeholder: '262144',
-    hint: T.FIELD_DEFAULT_CTX_HINT,
-  });
-  const defaultMaxField = createField({
-    label: T.FIELD_DEFAULT_MAX,
-    name: 'provider-max',
-    type: 'number',
-    placeholder: '32768',
-    hint: T.FIELD_DEFAULT_MAX_HINT,
-  });
-  const noteField = createField({
-    label: S.MODELS_FIELD_NOTE,
-    name: 'provider-note',
-    type: 'textarea',
-    rows: 2,
-  });
 
   // ---- 模型清单编辑区 ----
   const rowsHost = el('div', { class: 'models-form__rows' });
   const rowsError = el('p', { class: 'field__error', role: 'alert' });
 
-  function rowInput(row, key, opts) {
+  /**
+   * 造一个带可见标签的输入格。
+   * 标签直接挂在每个输入上方，不用「表头 + 网格对齐」——那种排法在窄屏与
+   * 长模型名下都会错位，而且第一眼看不出哪一列是什么。
+   */
+  function labeledInput(row, key, opts) {
     const input = el('input', {
       class: 'models-form__cell-input',
       type: opts.type || 'text',
@@ -255,11 +242,16 @@ export function createModels(props = {}) {
       row[key] = input.value;
       rowsError.textContent = '';
     });
-    return input;
+    return el(
+      'label',
+      { class: 'models-form__cell' + (opts.wide ? ' models-form__cell--wide' : '') },
+      el('span', { class: 'models-form__cell-label' }, opts.label),
+      input,
+    );
   }
 
   /**
-   * 渲染一行模型。
+   * 渲染一行模型（卡片式：一行一张小卡，自带标签与删除）。
    * @param {{key:number,id:string,name:string,context_window:string,max_tokens:string}} row
    */
   function renderRow(row) {
@@ -277,11 +269,18 @@ export function createModels(props = {}) {
     const node = el(
       'div',
       { class: 'models-form__row', dataset: { key: String(row.key) } },
-      rowInput(row, 'id', { label: T.MODEL_ID, placeholder: 'cbcn/hy4-preview' }),
-      rowInput(row, 'name', { label: T.MODEL_NAME, placeholder: T.MODEL_INHERIT }),
-      rowInput(row, 'context_window', { label: T.MODEL_CTX, type: 'number', placeholder: T.MODEL_INHERIT }),
-      rowInput(row, 'max_tokens', { label: T.MODEL_MAX, type: 'number', placeholder: T.MODEL_INHERIT }),
-      removeBtn.el,
+      el('div', { class: 'models-form__row-main' },
+        labeledInput(row, 'id', { label: T.MODEL_ID, placeholder: 'cbcn/hy4-preview', wide: true }),
+        removeBtn.el,
+      ),
+      el('details', { class: 'models-form__row-advanced' },
+        el('summary', {}, T.MODEL_ADVANCED),
+        el('div', { class: 'models-form__row-grid' },
+          labeledInput(row, 'name', { label: T.MODEL_NAME, placeholder: T.MODEL_NAME_PLACEHOLDER }),
+          labeledInput(row, 'context_window', { label: T.MODEL_CTX, type: 'number', placeholder: '留空跟随默认' }),
+          labeledInput(row, 'max_tokens', { label: T.MODEL_MAX, type: 'number', placeholder: '留空跟随默认' }),
+        ),
+      ),
     );
     rowNodes.set(row.key, node);
     return node;
@@ -328,13 +327,6 @@ export function createModels(props = {}) {
       addRowBtn.el,
     ),
     el('p', { class: 'field__hint' }, T.FIELD_MODELS_HINT),
-    el('div', { class: 'models-form__grid-head' },
-      el('span', {}, T.MODEL_ID),
-      el('span', {}, T.MODEL_NAME),
-      el('span', {}, T.MODEL_CTX),
-      el('span', {}, T.MODEL_MAX),
-      el('span', {}),
-    ),
     rowsHost,
     rowsError,
     discoverHost,
@@ -344,19 +336,7 @@ export function createModels(props = {}) {
   const cancelBtn = createButton({ label: S.ACTION_CANCEL, onClick: () => closeForm() });
 
   const formError = el('p', { class: 'field__error', role: 'alert' });
-  const advancedFold = el(
-    'details',
-    { class: 'details-card models-form__advanced' },
-    el('summary', {},
-      el('span', { class: 'details-card__marker', 'aria-hidden': 'true' }, '▸'),
-      T.ADVANCED),
-    el('div', { class: 'details-card__body' },
-      protocolField.el,
-      apiModeField.el,
-      noteField.el,
-      el('p', { class: 'u-faint' }, T.PRIVACY),
-    ),
-  );
+  const privacyNote = el('p', { class: 'u-faint models-form__privacy' }, T.PRIVACY);
   const formBody = el(
     'div',
     { class: 'models-form' },
@@ -364,10 +344,10 @@ export function createModels(props = {}) {
     displayField.el,
     urlField.el,
     apiKeyField.el,
-    el('div', { class: 'models-form__defaults' }, defaultCtxField.el, defaultMaxField.el),
+    el('div', { class: 'models-form__pair' }, protocolField.el, apiModeField.el),
     idField.el,
     modelsBlock,
-    advancedFold,
+    privacyNote,
   );
 
   /** 根据协议切换 endpoint 选择器，避免给非 OpenAI 档案留下歧义值。 */
@@ -407,8 +387,6 @@ export function createModels(props = {}) {
     displayField.update({ value: p ? (p.display_name || '') : '', error: '' });
     urlField.update({ value: p ? (p.base_url || '') : '', error: '' });
     apiKeyField.update({ value: '', error: '' }); // 留空 = 保留已保存的密钥
-    defaultCtxField.update({ value: p && p.default_context_window ? String(p.default_context_window) : '' });
-    defaultMaxField.update({ value: p && p.default_max_tokens ? String(p.default_max_tokens) : '' });
     idField.update({
       value: p ? p.id : '',
       error: '',
@@ -418,7 +396,6 @@ export function createModels(props = {}) {
     const protocol = p ? (p.protocol || 'openai') : 'openai';
     protocolField.update({ value: protocol });
     syncApiModeControl(protocol, p ? (p.api_mode || 'chat_completions') : 'chat_completions');
-    noteField.update({ value: p ? (p.note || '') : '' });
 
     // 模型行草稿：容量留空表示跟随默认（不把继承来的值回填成显式值，
     // 否则用户改默认值后老模型不会跟着变）
@@ -434,7 +411,6 @@ export function createModels(props = {}) {
     });
     renderRows();
 
-    advancedFold.open = false;
     formModal = openModal({
       title: p ? `${T.FORM_EDIT}：${p.id}` : T.FORM_NEW,
       body: formBody,
@@ -470,8 +446,16 @@ export function createModels(props = {}) {
       }, { scope });
       renderDiscover(res && res.models ? res.models : []);
     } catch (err) {
-      const reason = err && err.code ? errorTitle(err.code) : errorTitle('INTERNAL');
-      discoverHost.appendChild(el('p', { class: 'field__error', role: 'alert' }, T.DISCOVER_FAIL.replace('{reason}', reason)));
+      // 优先用服务端给的 message/detail：那里面写的是真实原因（连不上、HTTP 401…），
+      // 只按 code 查通用文案会把「连不上端点」显示成「档案没有保存」，误导排查方向。
+      const reason = (err && err.message) || errorTitle(err && err.code ? err.code : 'INTERNAL');
+      const detail = (err && err.detail) || '';
+      discoverHost.appendChild(
+        el('div', { class: 'field__error', role: 'alert' },
+          el('p', {}, T.DISCOVER_FAIL.replace('{reason}', reason)),
+          detail ? el('p', { class: 'u-faint' }, detail) : null,
+        ),
+      );
     } finally {
       discoverBtn.update({ loading: false });
     }
@@ -609,9 +593,6 @@ export function createModels(props = {}) {
       protocol: protocolField.getValue(),
       api_mode: apiModeField.getValue(),
       base_url: urlField.getValue().trim(),
-      default_context_window: defaultCtxField.getValue().trim() || null,
-      default_max_tokens: defaultMaxField.getValue().trim() || null,
-      note: noteField.getValue(),
       models: modelRows
         .filter((r) => String(r.id || '').trim())
         .map((r) => ({
