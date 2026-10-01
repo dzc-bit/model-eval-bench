@@ -101,6 +101,15 @@ def load() -> dict:
 
     cfg = _defaults(raw)
 
+    # 按仓库 ID 配置多个受测仓库（题包 meta.repo.id → 路径）。
+    # 没配的题包回退到 repo_root——这样 A 股仓库不在本机时，demo 包照常能跑，
+    # core 包也会得到"哪个仓库没配"的明确报错，而不是含糊的复制失败。
+    repos_raw = raw.get("repos") if isinstance(raw.get("repos"), dict) else {}
+    cfg["repos"] = {}
+    for rid, rpath in repos_raw.items():
+        if isinstance(rid, str) and rid and isinstance(rpath, str) and rpath:
+            cfg["repos"][rid] = _resolve(EVAL_ROOT, rpath)
+
     for key in ("repo_root", "sandbox_root", "packs_root", "runs_root", "static_root",
                 "snapshot_cache"):
         if not isinstance(cfg.get(key), str) or not cfg.get(key):
@@ -154,14 +163,34 @@ def find_model(cfg: dict, model_id: str) -> dict:
     )
 
 
+def repo_root_for(cfg: dict, meta: dict) -> str:
+    """按题包 meta.repo.id 取受测仓库路径；未单独配置的回退 repo_root。"""
+    rid = str((meta.get("repo") or {}).get("id") or "")
+    root = (cfg.get("repos") or {}).get(rid)
+    return root or cfg["repo_root"]
+
+
 def repo_readable(cfg: dict) -> tuple:
-    """受测仓库可读性自检（/api/health 用）。返回 (是否可读, 说明)。"""
-    root = cfg["repo_root"]
-    if not os.path.isdir(root):
-        return False, "目录不存在"
-    if not os.access(root, os.R_OK):
-        return False, "无读取权限"
-    return True, "可读"
+    """受测仓库可读性自检（/api/health 用）。返回 (是否可读, 说明)。
+
+    决定题目能否运行的是 repo_root_for()，它按题包 meta.repo.id 去取 cfg["repos"][id]。
+    只检查 cfg["repo_root"] 会出现"设置页绿灯、核心题全废"，所以这里把 repos.* 一起查。
+    """
+    targets = [("repo_root", cfg.get("repo_root") or "")]
+    targets += sorted(
+        ("repos.%s" % rid, path) for rid, path in (cfg.get("repos") or {}).items()
+    )
+    problems = []
+    for name, path in targets:
+        if not path:
+            problems.append("%s 未配置" % name)
+        elif not os.path.isdir(path):
+            problems.append("%s 目录不存在：%s" % (name, path))
+        elif not os.access(path, os.R_OK):
+            problems.append("%s 无读取权限：%s" % (name, path))
+    if problems:
+        return False, "；".join(problems)
+    return True, "可读（%d 处）" % len(targets)
 
 
 def ensure_workspace_dirs(cfg: dict) -> None:

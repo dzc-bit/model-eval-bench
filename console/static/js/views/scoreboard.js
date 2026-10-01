@@ -296,7 +296,8 @@ export function createScoreboard(props = {}) {
       api.download(`scoreboard-${dateStamp()}.csv`, csv, 'text/csv;charset=utf-8');
       showToast({ message: S.SB_EXPORT_DONE, kind: 'success', duration: 4000 });
     } catch (err) {
-      showToast({ message: errorTitle('EXPORT_FAILED'), detail: errorBody('EXPORT_FAILED'), kind: 'error' });
+      const code = (err && err.code) || 'EXPORT_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
     } finally {
       exportBtn.update({ loading: false });
     }

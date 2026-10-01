@@ -17,7 +17,7 @@ import re
 import threading
 from typing import Callable
 
-from . import errors, packs, util
+from . import config, errors, packs, util
 
 Log = Callable[[str], None]
 
@@ -56,9 +56,17 @@ def _should_skip(rel: str, cfg_snap: dict) -> str:
     return ""
 
 
-def copy_whitelist(cfg: dict, dest: str, log: Log = _noop) -> dict:
+def copy_whitelist(cfg: dict, dest: str, log: Log = _noop, meta: dict | None = None) -> dict:
     """按白名单把受测仓库拷进 dest（只读源，绝不写回仓库）。"""
-    repo = cfg["repo_root"]
+    repo = config.repo_root_for(cfg, meta or {})
+    if not os.path.isdir(repo):
+        rid = str((meta or {}).get("repo") or {}).get("id", "") if meta else ""
+        raise errors.HarnessError(
+            errors.E_REPO_UNREADABLE,
+            "受测仓库%s在本机不存在（%s）。这道题属于仓库「%s」，"
+            "请在 console/config.json 的 repos 里配置它的路径，或把受测仓库拷到本机。"
+            % ("「%s」" % rid if rid else "", repo, rid or "默认"),
+        )
     cfg_snap = cfg["snapshot"]
     util.ensure_dir(dest)
     copied = 0
@@ -453,7 +461,7 @@ def build(cfg: dict, meta: dict, dest: str, log: Log = _noop,
     util.remove_tree(dest)
     util.ensure_dir(dest)
 
-    stats = copy_whitelist(cfg, dest, log)
+    stats = copy_whitelist(cfg, dest, log, meta=meta)
     _raise_if_cancelled(cancel_event)
     redacted = apply_redactions(dest, meta, log)
     pruned = apply_prune(dest, meta, log)
@@ -489,7 +497,9 @@ def _cache_stamp(cfg: dict, meta: dict,
     kwargs = {"timeout": 60}
     if cancel_event is not None:
         kwargs["cancel_event"] = cancel_event
-    head = util.git(cfg["repo_root"], "rev-parse", **kwargs).stdout.strip()
+    # 必须显式给 HEAD：裸 `git rev-parse` 是 usage 错误，stdout 恒空 → stamp 恒为
+    # "nohead"，受测仓库更新后骨架缓存永远不会失效（E2E 实测踩中）。
+    head = util.git(config.repo_root_for(cfg, meta), "rev-parse", "HEAD", **kwargs).stdout.strip()
     blob = _json.dumps(cfg["snapshot"], ensure_ascii=False, sort_keys=True)
     pack_blob = _json.dumps(
         {k: meta.get(k) for k in ("id", "allowed_paths", "redactions", "visible", "repo")},
@@ -503,10 +513,16 @@ def _cache_stamp(cfg: dict, meta: dict,
             patch_digest += util.sha256_file(path)[:8]
         except OSError:
             patch_digest += "missing"
-    return "%s|%s|%s|%s" % (
+    # inject/apply.json 是补丁之外的另一条注入通道（packs.load_inject_plan），
+    # 不折进版本号的话，改了它也会命中旧缓存，静默按旧注入态出题。
+    plan_path = os.path.join(meta["pack_dir"], "inject", "apply.json")
+    plan_digest = ""
+    if os.path.isfile(plan_path):
+        plan_digest = util.sha256_file(plan_path)[:8]
+    return "%s|%s|%s|%s|%s" % (
         head[:12] or "nohead",
         hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12],
-        pack_digest, patch_digest or "noinject")
+        pack_digest, patch_digest or "noinject", plan_digest or "noplan")
 
 
 _BUILD_LOCK = threading.RLock()
@@ -528,12 +544,26 @@ def ensure_snapshot(cfg: dict, meta: dict, log: Log = _noop,
     缓存按「任务 + 白名单版本 + 注入补丁」分目录，沙箱准备、评分树拼装、
     校准排队都走这里，3~4MB 的拷贝因此只在首次付代价。
     """
+    # 仓库存在性最先查：stamp/构建都需要 git 和白名单拷贝，仓库不在时给
+    # "哪个仓库没配"的业务报错，而不是 git 报错泛化成 E_INTERNAL。
+    repo_root = config.repo_root_for(cfg, meta)
+    if not os.path.isdir(repo_root):
+        rid = str((meta.get("repo") or {}).get("id") or "")
+        raise errors.HarnessError(
+            errors.E_REPO_UNREADABLE,
+            "受测仓库%s在本机不存在（%s）。这道题属于仓库「%s」，请在 console/config.json "
+            "的 repos 里配置它的路径，或把受测仓库拷到本机。"
+            % ("「%s」" % rid if rid else "", repo_root, rid or "默认"),
+        )
     cache_dir = os.path.join(cfg["snapshot_cache"], util.sanitize_id(meta["id"]))
     marker = os.path.join(cache_dir, "_snapshot.json")
     stamp = _cache_stamp(cfg, meta, cancel_event)
-    cached = util.read_json(marker, default=None)
     with _BUILD_LOCK:
         _raise_if_cancelled(cancel_event)
+        # marker 必须在锁内读：线程 A/B 同时首跑同一题，B 持锁建好缓存返回后，
+        # A 若还拿着锁外的 cached=None，会整树 remove_tree 拆掉 B 刚建好的缓存——
+        # 而此刻别的调用方可能正在锁外从该目录拷贝骨架。
+        cached = util.read_json(marker, default=None)
         if (
             isinstance(cached, dict)
             and cached.get("stamp") == stamp

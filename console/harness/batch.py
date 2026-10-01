@@ -127,6 +127,9 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
     prepared: List[dict] = []
     problems: List[str] = []
     for index, raw in enumerate(items):
+        if not isinstance(raw, dict):
+            problems.append("第 %d 个条目不是 JSON 对象，已跳过。" % (index + 1))
+            continue
         task = str(raw.get("task") or "").strip()
         model = str(raw.get("model") or "").strip()
         attempt = max(1, int(raw.get("attempt") or 1))

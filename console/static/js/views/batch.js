@@ -72,6 +72,7 @@ export function createBatch(props = {}) {
   let progressView = null;
 
   const h1 = el('h1', { tabindex: '-1' }, S.BATCH_TITLE);
+  const errorHost = el('div', { class: 'batch__error', role: 'alert' });
   const setupHost = el('div', { class: 'batch__setup' });
   const progressHost = el('div', { class: 'batch__progress' });
 
@@ -81,6 +82,7 @@ export function createBatch(props = {}) {
     el('div', { class: 'view__head' },
       el('div', {}, h1, el('p', { class: 'view__desc' }, '为每个题目和模型准备独立工作区。进入对应工作台发送提示词、查看接口返回的推理内容，并提交评分。')),
     ),
+    errorHost,
     setupHost,
     progressHost,
   );
@@ -458,21 +460,22 @@ export function createBatch(props = {}) {
       // 默认全选题、选第一个模型，减少点击
       if (!selectedTasks.size) tasks.forEach((t) => selectedTasks.add(t.id));
       if (!selectedModels.size && models.length) selectedModels.add(models[0].id);
+      clear(errorHost);
       renderPickers();
     } catch (err) {
       loading = false;
       if (err instanceof ApiError && err.code === 'ABORTED') return;
       error = err.code || 'LOAD_FAILED';
-      clear(setupHost);
-      setupHost.appendChild(
-        el('section', { class: 'panel' },
-          createEmptyState({
-            title: errorTitle(error),
-            desc: errorBody(error),
-            alert: true,
-            actions: [createButton({ label: S.ACTION_RETRY, variant: 'primary', onClick: () => load() }).el],
-          }).el,
-        ),
+      // 错误放独立宿主：setup 面板只在视图创建时挂载一次，
+      // 清掉 setupHost 后重试成功也无面板可回，排批功能永久残废。
+      clear(errorHost);
+      errorHost.appendChild(
+        createEmptyState({
+          title: errorTitle(error),
+          desc: errorBody(error),
+          alert: true,
+          actions: [createButton({ label: S.ACTION_RETRY, variant: 'primary', onClick: () => load() }).el],
+        }).el,
       );
     }
   }

@@ -138,57 +138,74 @@ export function createGradePanel(handlers) {
    * @returns {HTMLElement}
    */
   function renderGroup(group) {
-    const sem = groupSemantics(group.passed);
-    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
-    const list = el('div', { class: 'group-card__body' });
-    const head = el(
-      'div',
-      { class: 'group-card__head' },
-      el('span', { 'aria-hidden': 'true', style: { fontWeight: '700' } }, sem.glyph),
-      el('span', { class: 'group-card__name' }, group.title || group.id),
-      createStatusDot({ kind: sem.kind, text: sem.text }).el,
-      el('span', { class: 'group-card__weight' }, t(S.GRADE_GROUP_WEIGHT, { n: group.weight || 0 })),
-      el('span', { class: 'u-faint' }, `${group.passed_count || 0} / ${group.total || 0}`),
-      failed.length
-        ? createBadge({ label: t(S.GRADE_GROUP_FAILURES, { n: failed.length }), variant: 'danger', glyph: '✕' }).el
-        : null,
-    );
+    const node = el('li', { class: 'group-card' });
 
-    if (failed.length === 0) {
-      list.appendChild(el('p', { class: 'u-faint' }, S.GRADE_GROUP_PASS_SUMMARY));
-    } else {
-      // 红组可展开失败摘要（§9 验收标准）
-      const failList = el('ul', { class: 'fail-list' });
-      failed.forEach((c) => {
-        const detail = c.detail
-          ? createDetailsCard({ title: S.GRADE_CASE_DETAIL, content: c.detail, open: false, flush: true }).el
-          : null;
-        failList.appendChild(
-          el(
-            'li',
-            { class: 'fail-item' },
-            el(
-              'div',
-              { class: 'fail-item__name u-mono' },
-              t(S.GRADE_CASE_NODE, { id: c.node_id || '' }),
-              c.duration === undefined
-                ? null
-                : el('span', { class: 'u-faint' }, `　${t(S.GRADE_CASE_TIME, { time: c.duration })}`),
-            ),
-            el('div', { class: 'fail-item__msg' }, c.message || ''),
-            detail,
-          ),
-        );
+    function build(g) {
+      // 组 id 不变时 patchList 会复用本节点，靠 update 重建内容；
+      // 重建前后按 summary 文本恢复 <details> 的展开状态。
+      const wasOpen = new Map();
+      node.querySelectorAll('details').forEach((d) => {
+        if (d.open) wasOpen.set((d.querySelector('summary') || {}).textContent || '', true);
       });
-      list.appendChild(
-        createDetailsCard({
-          title: `${S.ACTION_EXPAND}（${t(S.GRADE_GROUP_FAILURES, { n: failed.length })}）`,
-          content: failList,
-          open: false,
-        }).el,
+      const sem = groupSemantics(g.passed);
+      const failed = (g.cases || []).filter((c) => c.outcome !== 'passed');
+      const list = el('div', { class: 'group-card__body' });
+      const head = el(
+        'div',
+        { class: 'group-card__head' },
+        el('span', { 'aria-hidden': 'true', style: { fontWeight: '700' } }, sem.glyph),
+        el('span', { class: 'group-card__name' }, g.title || g.id),
+        createStatusDot({ kind: sem.kind, text: sem.text }).el,
+        el('span', { class: 'group-card__weight' }, t(S.GRADE_GROUP_WEIGHT, { n: g.weight || 0 })),
+        el('span', { class: 'u-faint' }, `${g.passed_count || 0} / ${g.total || 0}`),
+        failed.length
+          ? createBadge({ label: t(S.GRADE_GROUP_FAILURES, { n: failed.length }), variant: 'danger', glyph: '✕' }).el
+          : null,
       );
+
+      if (failed.length === 0) {
+        list.appendChild(el('p', { class: 'u-faint' }, S.GRADE_GROUP_PASS_SUMMARY));
+      } else {
+        // 红组可展开失败摘要（§9 验收标准）
+        const failList = el('ul', { class: 'fail-list' });
+        failed.forEach((c) => {
+          const detail = c.detail
+            ? createDetailsCard({ title: S.GRADE_CASE_DETAIL, content: c.detail, open: false, flush: true }).el
+            : null;
+          failList.appendChild(
+            el(
+              'li',
+              { class: 'fail-item' },
+              el(
+                'div',
+                { class: 'fail-item__name u-mono' },
+                t(S.GRADE_CASE_NODE, { id: c.node_id || '' }),
+                c.duration === undefined
+                  ? null
+                  : el('span', { class: 'u-faint' }, `　${t(S.GRADE_CASE_TIME, { time: c.duration })}`),
+              ),
+              el('div', { class: 'fail-item__msg' }, c.message || ''),
+              detail,
+            ),
+          );
+        });
+        list.appendChild(
+          createDetailsCard({
+            title: `${S.ACTION_EXPAND}（${t(S.GRADE_GROUP_FAILURES, { n: failed.length })}）`,
+            content: failList,
+            open: false,
+          }).el,
+        );
+      }
+      node.className = sem.cls;
+      node.replaceChildren(head, list);
+      node.querySelectorAll('details').forEach((d) => {
+        if (wasOpen.get((d.querySelector('summary') || {}).textContent || '')) d.open = true;
+      });
     }
-    return el('li', { class: sem.cls }, head, list);
+
+    build(group);
+    return { el: node, update: (g) => build(g) };
   }
 
   /**

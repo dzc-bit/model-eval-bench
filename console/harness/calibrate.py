@@ -22,6 +22,9 @@ def enqueue(cfg: dict, task: str, model: str, trials: int = 5) -> dict:
     """排队 N 个干净沙箱。"""
     meta = packs.load_meta(cfg, task)
     config.find_model(cfg, model)
+    # 与 create_run 同口径归一：Windows 文件系统大小写不敏感，排队侧若存原串，
+    # 认领侧（_claim_queued）拿 meta["id"] 比较会永不相等，排队沙箱永远领不走。
+    task = meta["id"]
     try:
         trials = int(trials)
     except (TypeError, ValueError):
@@ -37,9 +40,16 @@ def enqueue(cfg: dict, task: str, model: str, trials: int = 5) -> dict:
         and r.get("status") == "queued" and r.get("calibration")
     ]
     for index in range(trials):
-        run_id = "%s__%s__cal%s" % (
+        base = "%s__%s__cal%s" % (
             util.sanitize_id(task), util.sanitize_id(model),
             util.now_stamp() + "-%02d" % (len(existing) + index + 1))
+        run_id = base
+        suffix = 1
+        # 之前排的批次可能已被认领/跑完（不再处于 queued），同秒再排会撞 run_id，
+        # save_run 会静默覆盖在跑记录的 run.json —— 必须 isdir 查重。
+        while os.path.isdir(os.path.join(cfg["runs_root"], *run_id.split("__"))):
+            suffix += 1
+            run_id = "%s-%d" % (base, suffix)
         run = {
             "run_id": run_id,
             "task": task,
@@ -85,6 +95,12 @@ def queue_status(cfg: dict, task: str = "", model: str = "") -> dict:
             continue
         if not run.get("calibration"):
             continue
+        last_score = run.get("last_score")
+        try:
+            score_val = float(last_score) if last_score is not None else None
+        except (TypeError, ValueError):
+            score_val = None
+        rounds = run.get("rounds") or []
         items.append({
             "run_id": run["run_id"],
             "task": run.get("task"),
@@ -92,12 +108,15 @@ def queue_status(cfg: dict, task: str = "", model: str = "") -> dict:
             "index": run.get("calibration_index"),
             "status": run.get("status"),
             "attempt": run.get("attempt", 1),
-            "score": run.get("last_score"),
-            "passed": run.get("last_score") is not None and float(run.get("last_score") or 0) >= 100.0,
+            "graded": bool(rounds) or score_val is not None,
+            "score": score_val,
+            "passed": score_val is not None and score_val >= 100.0,
             "updated_at": run.get("updated_at"),
         })
     queued = [i for i in items if i["status"] == "queued"]
-    done = [i for i in items if i["status"] not in {"queued"}]
+    # 分母只收「出过分」的样本：preparing 是还没跑，error/cancelled 是没跑成，
+    # 都按失败计入 Wilson 区间会把校准统计污染成没人能解释的数。
+    done = [i for i in items if i.get("graded")]
     passes = sum(1 for i in done if i["passed"])
     low, high = runs.wilson_interval(passes, len(done))
     return {

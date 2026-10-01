@@ -60,6 +60,14 @@
   --color-tier-t4: #513a87;
   --color-tier-t4-soft: #eee9f8;
 
+  /* 排行榜名次（金 / 银 / 铜的低饱和工程化演绎） */
+  --color-rank-1: #8a6d1d;
+  --color-rank-1-soft: #f7efda;
+  --color-rank-2: #5c6675;
+  --color-rank-2-soft: #e9edf3;
+  --color-rank-3: #8a4a2b;
+  --color-rank-3-soft: #f6e8de;
+
   /* 阴影（低彩度，靠透明度分层） */
   --shadow-xs: 0 1px 2px rgba(18, 23, 33, 0.06);
   --shadow-sm: 0 1px 3px rgba(18, 23, 33, 0.10), 0 1px 2px rgba(18, 23, 33, 0.06);
@@ -201,6 +209,13 @@
     --color-tier-t3-soft: #2c1513;
     --color-tier-t4: #c7b0ff;
     --color-tier-t4-soft: #251d34;
+
+    --color-rank-1: #e3c25c;
+    --color-rank-1-soft: #2d2410;
+    --color-rank-2: #aeb9c9;
+    --color-rank-2-soft: #232b36;
+    --color-rank-3: #e0906a;
+    --color-rank-3-soft: #2e1c12;
 
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);

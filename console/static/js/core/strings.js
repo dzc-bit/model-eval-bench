@@ -437,6 +437,7 @@ export const S = {
   LEADERBOARD_OPEN: '查看排行榜',
   LEADERBOARD_BACK: '返回题目选择',
   LEADERBOARD_TASK_META: '{tier} · {attempts} 次机会',
+  LEADERBOARD_UNCALIBRATED: '难度未校准：这道题的目标难度带（{low}–{high}）是出题侧预估，尚未经非出题模型盲测回填，暂不能作为真实难度依据（校准纪律 §9）。',
   LEADERBOARD_PODIUM_TITLE: '领先成绩',
   LEADERBOARD_TABLE_TITLE: '完整排名',
   LEADERBOARD_RANK: '第 {n} 名',
@@ -701,6 +702,8 @@ export const S = {
   ERR_UNKNOWN_TASK_BODY: '任务编号不在本机任务包里，可能任务包没装好或编号写错了。回到任务库看看现有列表。',
   ERR_BUSY: '已有操作在进行',
   ERR_BUSY_BODY: '同一时间只允许一个长操作，重复点击已被忽略。等当前操作结束后再试。',
+  ERR_CANCELLED: '本轮已取消',
+  ERR_CANCELLED_BODY: '这一轮已被手动取消或批次已停止派发，成绩不会保留。回到任务库或批量跑批页可以重新发起。',
   ERR_STORAGE_FULL: '本机存储写满了',
   ERR_STORAGE_FULL_BODY: '界面偏好这类小数据暂时存不下，本次改动不会在刷新后保留。不影响评测记录，可以点「重试」或清掉一些浏览器数据。',
   ERR_SETTINGS_LOCKED: '设置项不可用',
@@ -782,6 +785,7 @@ export const API_MODE_NAMES = {
  */
 export const ERROR_CODES = {
   OFFLINE: S.ERR_OFFLINE_TITLE,
+  CANCELLED: S.ERR_CANCELLED,
   TIMEOUT: S.ERR_TIMEOUT,
   ABORTED: S.ERR_ABORTED,
   PARSE_ERROR: S.ERR_PARSE,
@@ -822,6 +826,7 @@ export const ERROR_CODES = {
  */
 export const ERROR_BODIES = {
   OFFLINE: S.ERR_OFFLINE_BODY,
+  CANCELLED: S.ERR_CANCELLED_BODY,
   TIMEOUT: S.ERR_TIMEOUT_BODY,
   ABORTED: S.ERR_ABORTED_BODY,
   PARSE_ERROR: S.ERR_PARSE_BODY,

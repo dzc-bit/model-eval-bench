@@ -942,45 +942,80 @@
   justify-content: flex-end;
   gap: var(--space-2);
   min-width: 0;
-  min-height: 148px;
+  min-height: 156px;
   padding: var(--space-4) var(--space-3);
   border: var(--border-width) solid var(--color-border);
-  border-top: 3px solid var(--color-primary-border);
+  border-top: 3px solid var(--color-rank-2);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   text-align: center;
+  transition: var(--transition-base);
+}
+
+.leaderboard__podium-item:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .leaderboard__podium-item--1 {
-  min-height: 184px;
-  border-top-color: var(--color-primary);
+  min-height: 196px;
+  border-top-color: var(--color-rank-1);
+  background: linear-gradient(180deg, var(--color-rank-1-soft) 0%, var(--color-surface) 62%);
   box-shadow: var(--shadow-md);
 }
 
 .leaderboard__podium-item--2 {
-  min-height: 164px;
+  min-height: 172px;
+  border-top-color: var(--color-rank-2);
+}
+
+.leaderboard__podium-item--3 {
+  border-top-color: var(--color-rank-3);
+  background: linear-gradient(180deg, var(--color-rank-3-soft) 0%, var(--color-surface) 46%);
 }
 
 .leaderboard__podium-rank {
   display: grid;
   place-items: center;
-  width: 36px;
+  width: 40px;
   aspect-ratio: 1;
+  border: var(--border-width-thick) solid var(--color-rank-2);
   border-radius: 50%;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: var(--color-rank-2-soft);
+  color: var(--color-rank-2);
   font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
+}
+
+.leaderboard__podium-item--1 .leaderboard__podium-rank {
+  border-color: var(--color-rank-1);
+  background: var(--color-rank-1-soft);
+  color: var(--color-rank-1);
+}
+
+.leaderboard__podium-item--3 .leaderboard__podium-rank {
+  border-color: var(--color-rank-3);
+  background: var(--color-rank-3-soft);
+  color: var(--color-rank-3);
 }
 
 .leaderboard__podium-model {
   min-width: 0;
   max-width: 100%;
+  font-size: var(--font-size-lg);
   overflow-wrap: anywhere;
 }
 
-.leaderboard__podium-score,
+/* 分数是排行榜的主角：大号等宽数字，一眼可比 */
+.leaderboard__podium-score {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+}
+
 .leaderboard__score {
   color: var(--color-success);
   font-variant-numeric: tabular-nums;
@@ -991,14 +1026,41 @@
   width: 100%;
 }
 
+.leaderboard__table tbody tr {
+  border-top: var(--border-width) solid var(--color-surface-3);
+  transition: var(--transition-base);
+}
+
+.leaderboard__table tbody tr:hover {
+  background: var(--color-surface-2);
+}
+
 .leaderboard__table-wrap {
   max-width: 100%;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .leaderboard__rank {
-  color: var(--color-primary);
+  color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* 目标难度带未经盲测校准的诚实提示（校准纪律 §9） */
+.leaderboard__calibration-note {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-warn-border);
+  border-left: 3px solid var(--color-warn);
+  border-radius: var(--radius-md);
+  background: var(--color-warn-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
 }
 
 @media (max-width: 640px) {

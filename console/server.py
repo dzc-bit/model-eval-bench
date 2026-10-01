@@ -103,7 +103,7 @@ def _build_health(cfg: dict) -> dict:
     repo_ok, repo_msg = config.repo_readable(cfg)
     checks_list.append({"id": "repo", "label": "受测仓库", "ok": repo_ok, "value": repo_msg})
     if not repo_ok:
-        warnings.append("受测仓库读不到（%s）。请检查 config.json 的 repo_root。" % repo_msg)
+        warnings.append("受测仓库有问题：%s。路径在 config.json 的 repo_root 与 repos.* 里配置。" % repo_msg)
 
     sandbox_root = cfg["sandbox_root"]
     try:
@@ -318,6 +318,24 @@ def api_chat_send(cfg: dict, run_id: str, body: dict) -> dict:
     return chat_mod.send(cfg, run, text)
 
 
+def api_model_doctor(cfg: dict, body: dict) -> dict:
+    """分档体检一个**已保存**的模型档案（key → base_url → reach → model）。
+
+    只认 body.id 指向的既有档案：base_url 一律取服务端 config.json 里的值，
+    请求体里带的 base_url/endpoint/key 全部忽略。本服务无鉴权、只监听本机，
+    若允许浏览器指定 URL，就等于交出一个「任意地址探针」——内网端口扫描和
+    DNS rebinding 都能用它（SSRF）。档案不存在时由 find_model 报
+    E_MODEL_NOT_FOUND（404）。
+    """
+    model_id = body.get("id")
+    if not isinstance(model_id, str) or not model_id.strip():
+        raise errors.HarnessError(
+            errors.E_BAD_REQUEST,
+            "检测模型档案需要指定已保存的档案 id。",
+            "缺少 body.id")
+    return chat_mod.doctor(cfg, model_id.strip())
+
+
 def api_run_view(cfg: dict, run_id: str) -> dict:
     return runs.run_view(cfg, runs.get_run(cfg, run_id),
                          log_tail=int(cfg["grade"].get("log_tail_lines", 400)))
@@ -383,6 +401,8 @@ def build_router() -> Router:
     r.add("POST", r"/api/sandbox/rebuild", lambda ctx: (_rebuild(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/scoreboard", lambda ctx: api_scoreboard(ctx["cfg"], ctx["query"]))
     r.add("GET", r"/api/models", lambda ctx: ({"models": runs.list_models(ctx["cfg"])}, "application/json; charset=utf-8"))
+    # 分档体检：只接受 {id}，指向已保存的档案（详见 api_model_doctor 的 SSRF 说明）
+    r.add("POST", r"/api/models/test", lambda ctx: (api_model_doctor(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or "")), "application/json; charset=utf-8"))
@@ -535,6 +555,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             handler, params = ROUTER.match(method, path)
+            if method in {"POST", "PATCH", "DELETE"}:
+                self._guard_state_change()
             body = self._read_body() if method in {"POST", "PATCH", "DELETE"} else {}
             cfg = _load_config()
             # 路径参数（task_id / run_id）直接摊到 ctx 上，
@@ -553,14 +575,52 @@ class Handler(BaseHTTPRequestHandler):
         except BrokenPipeError:
             pass
         except Exception as exc:  # noqa: BLE001 - 任何未预期异常都要变成可读的中文
-            detail = traceback.format_exc(limit=6)
-            self.log_error("未预期异常：%r" % exc)
+            # traceback 与异常原文只进服务端日志：异常文本常带本机绝对路径，
+            # 回给浏览器等于对外泄漏服务器目录结构。
+            self.log_error("未预期异常：%r\n%s" % (exc, traceback.format_exc(limit=6)))
             self._send_json(errors.HTTP_STATUS[errors.E_INTERNAL], {
                 "code": errors.E_INTERNAL,
                 "message": "服务内部出错了。请把这一轮的详情发给维护者，或点「重建沙箱」后重试。",
-                "detail": str(exc),
-                "traceback": detail,
             })
+
+    _LOCAL_HOSTNAMES = {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+    def _guard_state_change(self) -> None:
+        """写操作的跨站防护：本服务无鉴权，必须挡掉浏览器替攻击者发请求。
+
+        - Content-Type 必须是 application/json（跨站 <form> 只能发
+          text/plain / multipart，前端 fetch 一律显式声明 json）；
+        - Origin 头出现时主机名必须是本机（跨站 form/fetch 一定带 Origin）；
+        - Host 头出现时主机名必须是本机或内网地址（DNS rebinding 会用公网域名）。
+        """
+        if self.headers.get("Content-Length"):
+            ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            if ctype != "application/json":
+                raise errors.HarnessError(
+                    errors.E_BAD_REQUEST,
+                    "写接口只接受 application/json 请求体。",
+                    ctype or "<empty>",
+                )
+        from urllib.parse import urlsplit
+
+        origin = self.headers.get("Origin") or ""
+        if origin:
+            hostname = urlsplit(origin).hostname or ""
+            if hostname not in self._LOCAL_HOSTNAMES and not _is_private_host(hostname):
+                raise errors.HarnessError(
+                    errors.E_BAD_REQUEST,
+                    "拒绝跨站写请求（Origin 不是本机）。",
+                    origin,
+                )
+        host = self.headers.get("Host") or ""
+        if host:
+            hostname = urlsplit("//" + host).hostname or ""
+            if hostname not in self._LOCAL_HOSTNAMES and not _is_private_host(hostname):
+                raise errors.HarnessError(
+                    errors.E_BAD_REQUEST,
+                    "拒绝非本机 Host 头的请求。",
+                    host,
+                )
 
     def _read_body(self) -> dict:
         try:
@@ -631,6 +691,16 @@ class Handler(BaseHTTPRequestHandler):
     def log_error(self, fmt: str, *args) -> None:
         sys.stderr.write("[%s] 错误 %s - %s\n" % (
             time.strftime("%H:%M:%S"), self.address_string(), fmt % args))
+
+
+def _is_private_host(hostname: str) -> bool:
+    """允许内网 IP 访问（0.0.0.0 部署的合法场景）；公网域名一律拒绝。"""
+    import ipaddress
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local
 
 
 def _escape_html(text: str) -> str:

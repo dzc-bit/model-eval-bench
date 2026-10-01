@@ -1,7 +1,7 @@
 {
   "port": 8899,
   "host": "127.0.0.1",
-  "repo_root": "D:\\New project 6",
+  "repo_root": "sandboxes/_demo-target",
   "sandbox_root": "sandboxes",
   "packs_root": "packs",
   "runs_root": "runs",
@@ -86,10 +86,25 @@
     {
       "id": "1",
       "protocol": "openai",
+      "api_mode": "chat_completions",
       "base_url": "",
       "model": "1",
       "key_masked": "",
       "note": ""
+    },
+    {
+      "id": "01",
+      "protocol": "openai",
+      "api_mode": "chat_completions",
+      "base_url": "https://api.a6api.com/v1",
+      "model": "gpt-6-luna",
+      "key_masked": "",
+      "key_env": "",
+      "note": ""
     }
-  ]
+  ],
+  "repos": {
+    "core": "D:/my own project/模型测试/ai-invest-workbench",
+    "demo": "sandboxes/_demo-target"
+  }
 }

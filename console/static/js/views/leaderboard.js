@@ -242,12 +242,26 @@ export function createLeaderboard(props = {}) {
         backBtn.el,
       ),
     );
+    // 校准纪律（§9）：出题者不填校准数据。盲测回填前必须如实告知读者
+    // 目标难度带只是出题侧预估，不能当成已验证的难度结论。
+    if (task && task.calibrated === false) {
+      const band = Array.isArray(task.target_band) && task.target_band.length === 2
+        ? { low: `${Math.round(Number(task.target_band[0]) * 100)}%`, high: `${Math.round(Number(task.target_band[1]) * 100)}%` }
+        : { low: '—', high: '—' };
+      bodyHost.appendChild(
+        el('p', { class: 'leaderboard__calibration-note', role: 'note' },
+          el('strong', {}, '⚠ 难度未校准　'),
+          t(S.LEADERBOARD_UNCALIBRATED, band),
+        ),
+      );
+    }
     const entries = Array.isArray(board.entries) ? board.entries : [];
     if (!entries.length) {
+      backBtn.destroy();
+      backBtn.el.remove();   // destroy 只解绑事件；节点不摘会留下一个点了没反应的死按钮
       bodyHost.appendChild(
         createEmptyState({ title: S.LEADERBOARD_EMPTY, desc: S.LEADERBOARD_EMPTY_DESC }).el,
       );
-      backBtn.destroy();
       return;
     }
     const podium = renderPodium(entries);

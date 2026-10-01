@@ -181,51 +181,57 @@ export function createTaskLibrary(props = {}) {
    * @returns {HTMLElement}
    */
   function renderCard(task) {
-    const history = task.history || {};
-    const hasHistory = Number(history.runs || 0) > 0;
-    const best = Number(history.best_score || 0);
-    const band = normalizeBand(task.target_band);
-    const foot = el(
-      'div',
-      { class: 'task-card__foot' },
-      createBadge({
-        label: task.calibrated ? S.LIB_CARD_CALIBRATED : S.LIB_CARD_NOT_CALIBRATED,
-        variant: task.calibrated ? 'success' : 'muted',
-        glyph: task.calibrated ? '✓' : '○',
-      }).el,
-      el(
-        'span',
-        { class: 'u-faint' },
-        hasHistory ? t(S.LIB_CARD_HISTORY, { score: best }) : S.LIB_CARD_HISTORY_NONE,
-      ),
-      el('span', { class: 'u-spacer' }),
-      createButton({
-        label: S.LIB_CARD_LEADERBOARD,
-        variant: 'ghost',
-        size: 'sm',
-        onClick: () => navigate && navigate('leaderboard', { taskId: task.id }),
-      }).el,
-      createButton({
-        label: S.LIB_CARD_ENTER,
-        variant: 'primary',
-        size: 'sm',
-        onClick: () => enterTask(task.id),
-      }).el,
-    );
-    return el(
-      'li',
-      { class: 'task-card' },
-      el(
+    const node = el('li', { class: 'task-card' });
+
+    function build(card) {
+      const history = card.history || {};
+      const hasHistory = Number(history.runs || 0) > 0;
+      const best = Number(history.best_score || 0);
+      const band = normalizeBand(card.target_band);
+      const foot = el(
         'div',
-        { class: 'task-card__top' },
-        el('span', { class: 'task-card__id' }, task.id),
-        tierBadge(task.tier, { attempts: task.attempts }).el,
-      ),
-      el('p', { class: 'task-card__title' }, task.title),
-      el('p', { class: 'task-card__symptom' }, task.symptom),
-      el('p', { class: 'u-faint' }, band ? t(S.LIB_CARD_TARGET_BAND, band) : ''),
-      foot,
-    );
+        { class: 'task-card__foot' },
+        createBadge({
+          label: card.calibrated ? S.LIB_CARD_CALIBRATED : S.LIB_CARD_NOT_CALIBRATED,
+          variant: card.calibrated ? 'success' : 'muted',
+          glyph: card.calibrated ? '✓' : '○',
+        }).el,
+        el(
+          'span',
+          { class: 'u-faint' },
+          hasHistory ? t(S.LIB_CARD_HISTORY, { score: best }) : S.LIB_CARD_HISTORY_NONE,
+        ),
+        el('span', { class: 'u-spacer' }),
+        createButton({
+          label: S.LIB_CARD_LEADERBOARD,
+          variant: 'ghost',
+          size: 'sm',
+          onClick: () => navigate && navigate('leaderboard', { taskId: card.id }),
+        }).el,
+        createButton({
+          label: S.LIB_CARD_ENTER,
+          variant: 'primary',
+          size: 'sm',
+          onClick: () => enterTask(card.id),
+        }).el,
+      );
+      node.replaceChildren(
+        el(
+          'div',
+          { class: 'task-card__top' },
+          el('span', { class: 'task-card__id' }, card.id),
+          tierBadge(card.tier, { attempts: card.attempts }).el,
+        ),
+        el('p', { class: 'task-card__title' }, card.title),
+        el('p', { class: 'task-card__symptom' }, card.symptom),
+        el('p', { class: 'u-faint' }, band ? t(S.LIB_CARD_TARGET_BAND, band) : ''),
+        foot,
+      );
+    }
+
+    build(task);
+    // 卡片内容含历史成绩/校准徽章：刷新后必须跟着数据更新，不能停在旧渲染
+    return { el: node, update: (next) => build(next) };
   }
 
   /**

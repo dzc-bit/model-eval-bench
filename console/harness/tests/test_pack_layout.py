@@ -145,14 +145,19 @@ def test_hidden_node_id_not_double_prefixed(tmp_path):
 
 
 def test_vitest_hidden_node_ids_match_the_relocated_frontend_root(tmp_path):
-    """Vitest hidden nodes use frontend-root paths after relocation into src/."""
+    """Vitest 隐藏测试必须落到 vitest root（frontend/）之内，用例 ID 前缀与盘上位置一致。
+
+    旧实现把 hidden-fe 层拷到评分树根的 hidden-fe/（root 之外），vitest 收集不到，
+    FE 组恒红；修复后 overlay 落在 frontend/src/tests_hidden_fe。
+    """
     meta = _make_pack_with_groups(
         tmp_path, ["tests_hidden_fe/test_probe.test.ts::probe"],
         hidden_rel="hidden-fe/tests_hidden_fe")
     meta["checks"][0]["kind"] = "vitest"
     hidden = packs.load_hidden_for(meta, meta["checks"][0])
 
-    assert hidden["overlay_rel"] == "hidden-fe"
+    assert hidden["overlay_rel"] == "frontend/src/tests_hidden_fe"
+    assert hidden["overlay_src"] == os.path.join(meta["pack_dir"], "hidden-fe", "tests_hidden_fe")
     assert hidden["groups"][0]["tests"] == [
         "src/tests_hidden_fe/test_probe.test.ts::probe"]
 

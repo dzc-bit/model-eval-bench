@@ -56,16 +56,43 @@ def _noop(_msg: str) -> None:
 # 统一环境注入（设计文档 §4.3 末条）
 # --------------------------------------------------------------------------
 
+#: 评分子进程的环境白名单。评分树里跑的是模型提交的代码，而服务端环境变量里
+#: 可能存着模型 API 密钥（chat.py 只从环境变量读密钥）；旧实现整包 os.environ
+#: 等于把钥匙发给被测代码。白名单只保留跑 pytest/vitest 必需的系统变量，
+#: 名字带密钥特征的变量无论是否在白名单里一律不透传。
+_ENV_ALLOWLIST = frozenset({
+    "PATH", "PATHEXT", "COMSPEC", "OS",
+    "SYSTEMDRIVE", "SYSTEMROOT", "WINDIR",
+    "TEMP", "TMP", "APPDATA", "LOCALAPPDATA", "PROGRAMDATA", "PROGRAMFILES",
+    "PROGRAMFILES(X86)", "PROGRAMW6432",
+    "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+    "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "PROCESSOR_LEVEL",
+    "GRADE_NODE",
+})
+_ENV_SECRET_HINTS = ("KEY", "SECRET", "TOKEN", "PASSWORD", "PASSWD", "CREDENTIAL")
+
+
 def build_env(cfg: dict, workdir: str) -> dict:
-    """构造子进程环境：禁网代理、禁字节码、锁哈希种子、清掉外部干扰。"""
-    env = os.environ.copy()
+    """构造子进程环境：最小白名单 + 禁网代理、禁字节码、锁哈希种子。
+
+    白名单比较统一走大写：Windows 的 os.environ 键全大写，混合大小写条目
+    永远命中不了。
+    """
+    env = {}
+    for key, value in os.environ.items():
+        if key.upper() in _ENV_ALLOWLIST:
+            env[key] = value
+    for key in list(env):
+        upper = key.upper()
+        if any(hint in upper for hint in _ENV_SECRET_HINTS):
+            env.pop(key, None)
     env["NO_PROXY"] = "*"
     env["no_proxy"] = "*"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONHASHSEED"] = "0"          # 锁死，保证同样输入同样输出
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
-    # 外部 shell 里的 PYTHONPATH / PYTEST_ADDOPTS 会污染评分，一律清掉
+    # 外部 shell 里的 PYTHONPATH / PYTEST_ADDOPTS 会污染评分，一律不透传
     for key in ("PYTHONPATH", "PYTEST_ADDOPTS", "PYTEST_PLUGINS", "COV_CORE_SOURCE"):
         env.pop(key, None)
     env["GRADE_WORKDIR"] = workdir
@@ -338,14 +365,20 @@ def build_grade_tree(cfg: dict, run: dict, meta: dict, changes: dict,
 # 分组计分（设计文档 §5.1）
 # --------------------------------------------------------------------------
 
-def _grade_groups(groups: list, p2p_tests: list, resolve_map: dict,
+def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
                   log: Log = _noop) -> dict:
-    """把用例结果按组归拢，算出每组红绿与权重。"""
+    """把用例结果按组归拢，算出每组红绿与权重。
+
+    p2p_entries 是 [(spec 序号, 该 spec 的 p2p 白名单)]；回归检查无条件覆盖
+    这些用例——题包忘写 regression 组时 p2p 也不能被静默丢弃（旧实现的洞）。
+    resolver 按 spec 序号取：同一 kind 配多条 check 时各用各的收集结果，
+    不再互相覆盖。
+    """
     resolved = []
     for group in groups:
         if group.get("mode") == "regression":
             continue
-        resolver = resolve_map.get(str(group.get("kind") or "pytest"), make_pytest_resolver({}))
+        resolver = resolve_map.get(group.get("spec_index"), make_pytest_resolver({}))
         cases = []
         for node_id in group["tests"]:
             info = resolver(node_id)
@@ -372,28 +405,46 @@ def _grade_groups(groups: list, p2p_tests: list, resolve_map: dict,
         })
 
     regression = []
+    seen_regressions = set()
+
+    def _check_regression(node_id: str, resolver) -> None:
+        if node_id in seen_regressions:
+            return
+        info = resolver(node_id)
+        if info is not None and not info.passed:
+            seen_regressions.add(node_id)
+            regression.append({
+                "node_id": node_id,
+                "outcome": info.outcome,
+                "message": info.message,
+            })
+
+    for spec_index, tests in p2p_entries:
+        resolver = resolve_map.get(spec_index, make_pytest_resolver({}))
+        for node_id in tests:
+            _check_regression(node_id, resolver)
     for group in groups:
         if group.get("mode") != "regression":
             continue
-        tests = group.get("tests") or p2p_tests
-        resolver = resolve_map.get(str(group.get("kind") or "pytest"), make_pytest_resolver({}))
-        for node_id in tests:
-            info = resolver(node_id)
-            if info is not None and not info.passed:
-                regression.append({
-                    "node_id": node_id,
-                    "outcome": info.outcome,
-                    "message": info.message,
-                })
+        resolver = resolve_map.get(group.get("spec_index"), make_pytest_resolver({}))
+        for node_id in group.get("tests") or []:
+            _check_regression(node_id, resolver)
     return {"groups": resolved, "regressions": regression}
 
 
 def compute_score(graded: dict) -> dict:
-    """score = 100 × Σ通过组权重 / Σ总权重（设计文档 §5.1）。"""
+    """score = 100 × Σ通过组权重 / Σ总权重（设计文档 §5.1）。
+
+    全部 scored 组权重为 0（或组表为空）时旧实现恒 0 分——全绿也判不过。
+    这种形态本身说明题包坏了，但语义上"没有要求"应记满分而不是 0。
+    """
     groups = graded["groups"]
     total_weight = sum(g["weight"] for g in groups) or 0.0
     passed_weight = sum(g["weight"] for g in groups if g["passed"])
-    ratio = (passed_weight / total_weight) if total_weight else 0.0
+    if total_weight > 0:
+        ratio = passed_weight / total_weight
+    else:
+        ratio = 1.0 if groups and all(g["passed"] for g in groups) else 0.0
     score = round(100.0 * ratio, 1)
     p2p_broken = bool(graded["regressions"])
     return {
@@ -468,7 +519,7 @@ def run_grade(cfg: dict, run: dict, meta: dict, log: Log = _noop) -> dict:
         "raw_score": scoring["raw_score"],
         "total_weight": scoring["total_weight"],
         "passed_weight": scoring["passed_weight"],
-        "passed": scoring["score"] >= 100.0 and not violations,
+        "passed": scoring["score"] >= 100.0 and not violations and not run_error,
         "p2p_broken": scoring["p2p_broken"],
         "regressions": graded["regressions"],
         "groups": graded["groups"],
@@ -526,13 +577,13 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
                 log: Log) -> tuple:
     """按 meta.checks 逐个跑 checker，返回 (分组结果, 报告摘要, 错误信息)。"""
     check_reports: list = []
-    resolve_map: Dict[str, Callable] = {}
+    resolve_map: Dict[int, Callable] = {}
     all_groups: list = []
-    all_p2p: list = []
+    all_p2p: list = []          # [(spec 序号, p2p 用例)]，回归检查按 spec 各查各的
     run_error = ""
 
     specs = meta.get("checks") or [{"kind": "pytest"}]
-    for spec in specs:
+    for spec_index, spec in enumerate(specs):
         kind = str(spec.get("kind") or "pytest").lower()
         try:
             hidden = packs.load_hidden_for(meta, spec)
@@ -547,10 +598,10 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
             log(run_error)
             break
 
-        groups = [dict(g, kind=kind) for g in hidden["groups"]]
+        groups = [dict(g, kind=kind, spec_index=spec_index) for g in hidden["groups"]]
         p2p_tests = hidden["p2p_tests"]
         all_groups.extend(groups)
-        all_p2p.extend(p2p_tests)
+        all_p2p.append((spec_index, p2p_tests))
         node_ids = [t for g in groups if g.get("mode") != "regression" for t in g["tests"]]
         node_ids += p2p_tests
 
@@ -581,8 +632,8 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
             "notes": outcome.notes,
             "log_tail": (outcome.stdout + "\n" + outcome.stderr)[-8000:],
         })
-        # 后注册的 checker 覆盖先注册的（同一 kind 只保留最后一次）
-        resolve_map[kind] = _make_resolver(kind, outcome.cases)
+        # resolver 按 spec 序号存：同一 kind 配多条 check 时各用各的收集结果
+        resolve_map[spec_index] = _make_resolver(kind, outcome.cases)
 
     graded = _grade_groups(all_groups, all_p2p, resolve_map, log)
     return graded, check_reports, run_error

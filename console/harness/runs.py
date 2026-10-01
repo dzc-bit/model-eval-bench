@@ -176,8 +176,14 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
     logger = log or (lambda m: None)
     if cancel_event is not None and cancel_event.is_set():
         raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消，未创建新的运行记录。")
-    run_id = _new_run_id(cfg, task, model)
+    # run["task"] 用 meta["id"] 归一：Windows 文件系统大小写不敏感，"t1-01" 与
+    # "T1-01" 都能找到题包，但按原串分组成绩会裂成两行、排行榜严格比较会漏记录。
+    task = meta["id"]
     with _STORE_LOCK:
+        # run_id 查重、建目录、首次落盘必须同一把锁：ThreadingHTTPServer 下两个线程
+        # 同秒为同「题×模型」建 run，锁外查重会双双得到同一 run_id → 同一目录互相
+        # 覆盖 → 沙箱互删、成绩串档。
+        run_id = _new_run_id(cfg, task, model)
         run = {
             "run_id": run_id,
             "task": task,
@@ -208,7 +214,7 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
         }
         save_run(cfg, run)
         raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消，未开始准备沙箱。")
-    claimed = _claim_queued(cfg, task, model, logger) if claim_queued else None
+    claimed = _claim_queued(cfg, task, model, logger, attempt) if claim_queued else None
     if claimed:
         logger("认领了一个排队中的校准沙箱：%s" % claimed["run_id"])
         target_dir = run["run_dir"]
@@ -243,14 +249,18 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
     return run
 
 
-def _claim_queued(cfg: dict, task: str, model: str, log: Log) -> Optional[dict]:
+def _claim_queued(cfg: dict, task: str, model: str, log: Log,
+                  attempt: int = 1) -> Optional[dict]:
     """认领一个排队的校准沙箱（同题同模型、状态 queued）并当场把沙箱铺好。
 
     排队时只建记录，真正用到时才创建目录；耗时取决于快照和依赖体积。
+    attempt 不匹配不认领：第 2/3 轮请求不能静默换成第 1 轮的沙箱与提示词级别。
     """
     for run in list_runs(cfg):
         if (run.get("status") == "queued" and run.get("task") == task
                 and str(run.get("model")) == str(model)):
+            if int(run.get("attempt") or 1) != attempt:
+                continue
             meta = packs.load_meta(cfg, task)
             run["status"] = "preparing"
             save_run(cfg, run)
@@ -352,6 +362,15 @@ def _latest_run_of_task(cfg: dict, task: str) -> dict:
 
 def promote(cfg: dict, run_id: str) -> dict:
     """解锁下一轮提示词（同一沙箱继续改，不清空已有代码）。"""
+    # get→改→save 与评分线程收尾的写回交错会丢更新，统一走会话锁串行化
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "模型或评分正在使用这一轮，稍后再试。", run_id)
+        return _promote_locked(cfg, run_id)
+
+
+def _promote_locked(cfg: dict, run_id: str) -> dict:
     run = get_run(cfg, run_id)
     meta = packs.load_meta(cfg, run["task"])
     if run.get("revealed"):
@@ -377,6 +396,14 @@ def promote(cfg: dict, run_id: str) -> dict:
 
 def reveal(cfg: dict, run_id: str) -> dict:
     """查看参考解：内容返回给前端，同时把这一轮标记为已揭晓（不进统计）。"""
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "模型或评分正在使用这一轮，稍后再试。", run_id)
+        return _reveal_locked(cfg, run_id)
+
+
+def _reveal_locked(cfg: dict, run_id: str) -> dict:
     run = get_run(cfg, run_id)
     meta = packs.load_meta(cfg, run["task"])
     path = packs.reference_path(meta, "fix.patch")
@@ -401,10 +428,14 @@ def reveal(cfg: dict, run_id: str) -> dict:
 
 
 def set_note(cfg: dict, run_id: str, note: str) -> dict:
-    run = get_run(cfg, run_id)
-    run["note"] = str(note or "")[:4000]
-    save_run(cfg, run)
-    return {"run_id": run_id, "note": run["note"]}
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "模型或评分正在使用这一轮，稍后再试。", run_id)
+        run = get_run(cfg, run_id)
+        run["note"] = str(note or "")[:4000]
+        save_run(cfg, run)
+        return {"run_id": run_id, "note": run["note"]}
 
 
 # --------------------------------------------------------------------------
@@ -656,7 +687,18 @@ def scoreboard(cfg: dict) -> dict:
 
 
 def _cell_stats(pair: List[dict]) -> dict:
-    """一个 (任务 × 模型) 单元格的统计。"""
+    """一个 (任务 × 模型) 单元格的统计。
+
+    作废轮（invalidated：越界/回归/校验出错）不计通过、不计分，与排行榜同口径——
+    旧实现把作废轮的 0 分计入平均、把作废轮的 passed 计入通过率，两个视图给出
+    互相矛盾的结论。
+    """
+    def _score(rnd: dict) -> float:
+        try:
+            return float(rnd.get("score") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     scored = [r for r in pair if not r.get("revealed")]
     revealed = [r for r in pair if r.get("revealed")]
     trials = len(scored)
@@ -664,7 +706,7 @@ def _cell_stats(pair: List[dict]) -> dict:
     for run in scored:
         for rnd in run.get("rounds") or []:
             if int(rnd.get("attempt") or 0) == 1:
-                if rnd.get("passed"):
+                if rnd.get("passed") and not rnd.get("invalidated"):
                     first_round_passes += 1
                 break
     any_pass = 0
@@ -672,8 +714,9 @@ def _cell_stats(pair: List[dict]) -> dict:
     for run in scored:
         best = False
         for rnd in run.get("rounds") or []:
-            score = float(rnd.get("score") or 0)
-            scores.append(score)
+            if rnd.get("invalidated"):
+                continue
+            scores.append(_score(rnd))
             if rnd.get("passed"):
                 best = True
         if best:
@@ -838,16 +881,54 @@ def _normalize_api_mode(protocol: str, value: object, *, strict: bool = False) -
     return mode
 
 
-def _model_view(item: dict) -> dict:
-    """返回可供 API/前端消费的模型档案副本，并补齐新字段。"""
-    out = dict(item)
+#: API 回传给浏览器的模型档案字段白名单。config.json 是手工可编辑的，
+#: 有人把真实密钥直接写进档案字段时，不能原样回显。
+_MODEL_VIEW_FIELDS = ("id", "protocol", "api_mode", "base_url", "model",
+                      "key_masked", "key_env", "note")
+
+
+def _model_record(item: dict) -> dict:
+    """写回 config.json 用的档案：只保留可持久化字段，不带只读诊断结果。
+
+    诊断字段（``key_candidates`` 等）是「服务端此刻的环境变量状态」，
+    落盘就成了过期事实，还会污染手工维护的 config.json。
+    """
+    out = {k: item.get(k) for k in _MODEL_VIEW_FIELDS if k in item}
     protocol = str(out.get("protocol") or "custom").lower()
     out["api_mode"] = _normalize_api_mode(protocol, out.get("api_mode"), strict=False)
     return out
 
 
+def _model_view(item: dict) -> dict:
+    """返回可供 API/前端消费的模型档案副本（字段白名单），并补齐新字段。
+
+    补的四个字段都是只读诊断口径，且**只含环境变量名**：优先级由
+    ``chat.key_candidates`` 单点定义，前端不再自己复刻一遍顺序；
+    密钥取值本身永不离开服务端。
+    """
+    out = {k: item.get(k) for k in _MODEL_VIEW_FIELDS if k in item}
+    protocol = str(out.get("protocol") or "custom").lower()
+    out["api_mode"] = _normalize_api_mode(protocol, out.get("api_mode"), strict=False)
+    status = chat.key_status(item)
+    out["key_candidates"] = status["candidates"]
+    out["key_env_effective"] = status["effective"]
+    out["key_present"] = status["present"]
+    # ready = 协议接得住 + base_url 显式填了 + 服务端确实读到了密钥。
+    # 只代表「可以开始检测」，不代表服务商那边一定通（那要 doctor 的 reach 档）。
+    out["ready"] = bool(chat.is_supported_model(item)
+                        and chat.has_usable_base_url(item)
+                        and status["present"])
+    return out
+
+
 def list_models(cfg: dict) -> List[dict]:
+    """档案列表（含只读诊断字段，供 API/前端用）。"""
     return [_model_view(m) for m in cfg.get("models", []) if isinstance(m, dict)]
+
+
+def _model_records(cfg: dict) -> List[dict]:
+    """档案列表（仅可持久化字段，供写回 config.json 用）。"""
+    return [_model_record(m) for m in cfg.get("models", []) if isinstance(m, dict)]
 
 
 def upsert_model(cfg: dict, payload: dict) -> dict:
@@ -870,7 +951,8 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
             "key_env 必须是合法的服务端环境变量名。",
             key_env,
         )
-    models = list_models(cfg)
+    # 写回的必须是原始档案，不能把只读诊断字段一起落盘
+    models = _model_records(cfg)
     entry = {
         "id": model_id,
         "protocol": protocol,
@@ -892,7 +974,7 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
 
 
 def delete_model(cfg: dict, model_id: str) -> dict:
-    models = list_models(cfg)
+    models = _model_records(cfg)
     remaining = [m for m in models if str(m.get("id")) != str(model_id)]
     if len(remaining) == len(models):
         raise errors.HarnessError(

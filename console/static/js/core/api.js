@@ -390,7 +390,9 @@ export const api = {
    */
   download(filename, content, mime = 'text/plain;charset=utf-8') {
     try {
-      const blob = new Blob([`﻿${content}`], { type: mime });
+      // UTF-8 BOM 只有 Excel 打开 CSV 需要；JSON 报告带 BOM 会被严格解析器拒读
+      const body = mime.startsWith('text/csv') ? `\uFEFF${content}` : content;
+      const blob = new Blob([body], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

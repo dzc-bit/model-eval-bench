@@ -597,6 +597,9 @@ export function createWorkspace(props = {}) {
       return;
     }
     if (s.busy) return;
+    // 乐观状态要可回滚：POST 失败后 run.status 停在 'grading' 会让按钮永久禁用、
+    // 心跳永久累加，且轮询只在成功路径启动，UI 就永远卡死。
+    const runBefore = s.run;
     patch({ busy: 'grade', newResult: false, elapsed: 0, run: { ...s.run, status: 'grading' } });
     announce(S.ANNOUNCE_GRADE_STARTED);
     try {
@@ -604,6 +607,7 @@ export function createWorkspace(props = {}) {
       poller.start();
       ensureTicker();
     } catch (err) {
+      patch({ busy: '', run: runBefore });
       reportError(err, '运行校验');
     }
   }
