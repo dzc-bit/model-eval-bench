@@ -23,7 +23,8 @@
 }
 
 /* 身份色：六个低饱和暖色变量按 data-hue 取值。
-   左缘 3px 色条 + 字母徽标同色——扫读时靠这两处就能定位「这是哪家」。 */
+   不用左缘色条（用户不喜欢）——身份信号放在**字母徽标**上：徽标底色 +
+   模型行里的小圆点用同一支色，多卡扫读时依然能定位「这是哪家」。 */
 .models {
   --prov-0: #86b58c; --prov-0-deep: #3f5c44;
   --prov-1: #d9b08c; --prov-1-deep: #6e4f33;
@@ -39,15 +40,13 @@
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
   border: var(--border-width) solid var(--color-border);
-  border-left-width: 3px;
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  border-left-color: var(--prov-hue, var(--color-border-strong));
   transition: border-color var(--motion-fast) var(--ease-out);
 }
 .models .model-card:hover,
 .models .model-card:focus-within {
-  border-color: var(--prov-hue, var(--color-border-strong));
+  border-color: var(--color-border-strong);
 }
 /* hover 只抬边框亮度，不加阴影扩散 */
 .models .model-card:hover,
@@ -98,27 +97,23 @@
   --prov-hue-deep: var(--prov-5-deep);
 }
 
-/* 字母徽标：身份色的深变体做底、白字——大小与 h2 名字行等高，
-   左缘色条 + 徽标同色，构成这张卡的「身份」信号。 */
+/* 字母徽标：透明底 + 同色系 1.5px 边框 + 同色字母。
+   比实底色块轻——它只是一个「标记」，不是按钮；三个同色元素
+   （边框 / 字母 / 模型行圆点）够构成这张卡的身份，不需要再加底色。 */
 .models .model-card__monogram {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--prov-hue) 26%, var(--color-surface));
-  color: var(--prov-hue-deep);
+  border: 1.5px solid var(--prov-hue);
+  color: var(--prov-hue);
   font-family: var(--font-display);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   line-height: 1;
-}
-/* 深色主题：底色压进 surface、字用浅变体 */
-[data-theme="dark"] .models .model-card__monogram {
-  background: color-mix(in oklab, var(--prov-hue) 30%, var(--color-surface-2));
-  color: var(--prov-hue);
 }
 
 /* 名字与端点组成左块（徽标右侧） */
@@ -205,6 +200,17 @@
   flex-wrap: wrap;
   padding: var(--space-2) 0;
   border-bottom: var(--border-width) solid var(--color-border);
+}
+/* 模型行的身份小圆点：同色系。它标出「这条属于哪家」，也填充行首的空档 */
+.models .model-card__model::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--prov-hue);
+  opacity: 0.7;
+  align-self: center;
 }
 .models .model-card__model:last-child {
   border-bottom: none;

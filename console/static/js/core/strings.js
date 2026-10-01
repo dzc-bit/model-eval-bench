@@ -446,7 +446,8 @@ export const S = {
   // ==================== 记分板 ====================
   SB_TITLE: '记分板',
   SB_DESC: '每个模型一份成绩单：通过率、得分、置信区间。',
-  SB_PROFILE_LABEL: '模型档案',
+  SB_TABLE_SCORE_COL: '成绩（通过率 / 置信区间）',
+    SB_PROFILE_LABEL: '模型档案',
   SB_PROFILE_DESC: '一次只看一个模型的成绩。',
   SB_PROFILE_EMPTY: '还没有模型档案',
   SB_PROFILE_EMPTY_DESC: '先到模型档案页加一个档案。',

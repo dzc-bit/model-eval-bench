@@ -24,6 +24,27 @@ import { percent } from '../core/format.js';
  * @param {{navigate?: Function, modelId?: string}} [props]
  * @returns {{el: HTMLElement, destroy: Function, el_h1: HTMLElement}}
  */
+/**
+ * 模型档案的身份色：按 id 哈希从六个低饱和暖色里稳定取一个（index）。
+ * 与 models.css 的 PROVIDER_HUES 同一套色板——同一模型在记分板和档案页
+ * 是同一个颜色，跨页扫读时靠颜色就能对上。
+ */
+const SB_HUES = ['#86b58c', '#d9b08c', '#8fa9d9', '#c48fb8', '#d9c08c', '#c49a8f'];
+
+/** 字符串 → 稳定的 32 位哈希（与 models.js 的 hashId 同实现）。 */
+function hashId(id) {
+  let h = 5381;
+  const str = String(id || '');
+  for (let i = 0; i < str.length; i += 1) {
+    h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function providerHueOf(id) {
+  return hashId(id) % SB_HUES.length;
+}
+
 export function createScoreboard(props = {}) {
   const { navigate } = props;
   const scope = api.scope();
@@ -99,14 +120,19 @@ export function createScoreboard(props = {}) {
     data.models.forEach((modelId) => {
       const stats = aggregate(modelId);
       const item = el('div', { class: 'sb__profile-item' });
+      const hue = providerHueOf(modelId);
       const link = el(
         'a',
         {
           class: 'sb__profile',
           href: `#/scoreboard/${encodeURIComponent(String(modelId))}`,
+          dataset: { hue: String(hue) },
         },
-        el('span', { class: 'sb__profile-name' }, modelId),
-        el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+        el('span', { class: 'sb__profile-dot', 'aria-hidden': 'true' }),
+        el('span', { class: 'sb__profile-body' },
+          el('span', { class: 'sb__profile-name' }, modelId),
+          el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+        ),
       );
       if (String(modelId) === selectedModel) link.setAttribute('aria-current', 'page');
       item.appendChild(link);
@@ -128,20 +154,20 @@ export function createScoreboard(props = {}) {
   }
 
   function renderProfileSummary() {
+    // 摘要只报「数」，不再重复模型名——芯片行上每颗都写着名字，
+    // 下面表格的列头也是它。同一个名字在 40px 内出现三次是噪音。
     if (!selectedModel) return null;
     const stats = aggregate(selectedModel);
     if (!stats.trials) {
       return el(
         'div',
         { class: 'sb__profile-summary', role: 'status' },
-        el('strong', {}, selectedModel),
         el('span', {}, S.SB_CELL_NO_DATA),
       );
     }
     return el(
       'div',
       { class: 'sb__profile-summary', role: 'status' },
-      el('strong', {}, selectedModel),
       el('span', {}, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
       el('span', {}, t(S.SB_PROFILE_RATE, { rate: percent(stats.passRate) })),
       stats.revealed ? el('span', {}, t(S.SB_CELL_REVEALED, { n: stats.revealed })) : null,
@@ -313,7 +339,7 @@ export function createScoreboard(props = {}) {
       },
       {
         key: 'model',
-        label: modelId || S.SB_PROFILE_LABEL,
+        label: S.SB_TABLE_SCORE_COL,
         sortable: true,
         value: (row) => {
           const cell = (row.cells || {})[modelId];

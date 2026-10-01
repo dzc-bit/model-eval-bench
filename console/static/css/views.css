@@ -663,6 +663,36 @@ html.keyboard-nav .view__head h1:focus {
   outline-offset: var(--focus-ring-offset);
 }
 
+/* 身份色点：六个低饱和暖色按 data-hue 取值（与 models.css 同一套色板）。
+   同一模型在记分板和档案页是同一个颜色，跨页扫读靠它对上。 */
+.sb__profile {
+  --hue: var(--color-text-faint);
+}
+.sb__profile[data-hue="0"] { --hue: #86b58c; }
+.sb__profile[data-hue="1"] { --hue: #d9b08c; }
+.sb__profile[data-hue="2"] { --hue: #8fa9d9; }
+.sb__profile[data-hue="3"] { --hue: #c48fb8; }
+.sb__profile[data-hue="4"] { --hue: #d9c08c; }
+.sb__profile[data-hue="5"] { --hue: #c49a8f; }
+.sb__profile-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hue);
+  opacity: 0.85;
+}
+.sb__profile[aria-current="page"] .sb__profile-dot {
+  opacity: 1;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--hue) 22%, transparent);
+}
+.sb__profile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .sb__profile-name {
   display: block;
   overflow-wrap: anywhere;
@@ -677,23 +707,22 @@ html.keyboard-nav .view__head h1:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* 摘要只报数：中性浅底细边框，不再用左色条+品牌底（与模型卡同一条设计纪律） */
 .sb__profile-summary {
   display: flex;
   gap: var(--space-4);
   flex-wrap: wrap;
   align-items: baseline;
-  padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-.sb__profile-summary strong {
-  font-size: var(--font-size-lg);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .sb__profile-summary span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: inherit;
 }
 
 .sb__cell {
@@ -1303,22 +1332,59 @@ kbd.key {
   background: var(--color-surface);
 }
 
-/* 选中态：以前整行只有 :hover 有变化，勾完模型页面像没反应。 */
+/* 选中态：淡 accent 底 + 勾选框旁的文字变色即可——
+   以前整行压一层 accent-soft + ring-accent，任务列表 12 行全勾时
+   是一整块鲑鱼色，视觉重量大到像出错了。 */
 .batch__pick-row--on,
 .batch__pick-row--on:hover {
-  background: var(--color-accent-soft);
-  box-shadow: var(--ring-accent);
+  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
 }
 
 /* 勾选变化后实时列出「题 × 模型」组合，并标出与上一批的差异 */
+/* 组合明细折叠条：默认一句统计，点开看「题 × 模型」明细 */
 .batch__combos {
   margin-top: var(--space-3);
 }
-
-.batch__combos-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-sm);
+.batch__combos > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm, 32px);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
   color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  list-style: none;
+  transition: var(--transition-base);
+}
+.batch__combos > summary::-webkit-details-marker {
+  display: none;
+}
+.batch__combos > summary::after {
+  content: '▸';
+  margin-left: auto;
+  color: var(--color-text-faint);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.batch__combos[open] > summary::after {
+  transform: rotate(90deg);
+}
+.batch__combos > summary:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+.batch__combos > summary:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+.batch__combos-title strong {
+  color: var(--color-accent-text);
+}
+
+.batch__combo-list-wrap {
+  padding: var(--space-3);
 }
 
 .batch__combo-list {
