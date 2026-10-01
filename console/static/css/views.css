@@ -727,7 +727,10 @@ html.keyboard-nav .view__head h1:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--space-4);
-  align-items: start;
+  /* stretch 让两张卡等高、底缘对齐——用户点名要的。
+     左卡（自检表）内容少，撑高后多出的空间留在卡内底部，
+     比露在卡外的空白好看。 */
+  align-items: stretch;
 }
 
 /* 面板说明：与标题同组（不再是裸的 u-faint），字号小一档、色弱一档 */

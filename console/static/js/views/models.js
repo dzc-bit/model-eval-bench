@@ -115,6 +115,44 @@ const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const URL_PATTERN = /^https?:\/\//i;
 
 /**
+ * 供应商的身份色：按 id 哈希从一组低饱和暖色里稳定取一个。
+ * 同一个供应商永远同一色——刷新、重排都不变；不同供应商大概率不同色，
+ * 多张卡扫读时靠这块颜色就能定位「这是哪家」。
+ * 色值取自官方扩展色板（anthropic.com 生产 CSS 的 swatch），低饱和、
+ * 与暖色系不冲突；deep 变体压暗后做浅色主题的实底。
+ */
+const PROVIDER_HUES = [
+  { soft: '#86b58c', deep: '#3f5c44' },   // mineral 绿
+  { soft: '#d9b08c', deep: '#6e4f33' },   // 沙棕
+  { soft: '#8fa9d9', deep: '#3a4c6e' },   // 雾蓝
+  { soft: '#c48fb8', deep: '#5c3a53' },   // 苔紫
+  { soft: '#d9c08c', deep: '#6e5c33' },   // 麦黄
+  { soft: '#c49a8f', deep: '#5c4038' },   // 陶粉
+];
+
+/** 字符串 → 稳定的 32 位哈希（djbx2，快且分布均匀）。 */
+function hashId(id) {
+  let h = 5381;
+  const str = String(id || '');
+  for (let i = 0; i < str.length; i += 1) {
+    h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/** 供应商 → {soft, deep} 身份色对。 */
+function providerHue(id) {
+  return PROVIDER_HUES[hashId(id) % PROVIDER_HUES.length];
+}
+
+/** 取供应商名的首字符做字母徽标（跳过符号）。 */
+function monogramOf(p) {
+  const name = String(p.display_name || p.id || '?').trim();
+  const ch = name.replace(/^[^\p{L}\p{N}]+/u, '')[0];
+  return (ch || name[0] || '?').toUpperCase();
+}
+
+/**
  * 创建模型档案视图。
  * @param {{onChange?: (models: Array) => void}} [props]
  * @returns {{el: HTMLElement, destroy: Function, el_h1: HTMLElement, getModels: Function}}
@@ -840,17 +878,21 @@ export function createModels(props = {}) {
     );
 
     const testLine = renderTestLine(testResults.get(p.id));
+    const hue = providerHue(p.id);
     return el(
       'article',
-      { class: 'model-card' },
+      { class: 'model-card', dataset: { hue: String(hashId(p.id) % PROVIDER_HUES.length) } },
       el('div', { class: 'model-card__row1' },
-        el('h2', { class: 'model-card__name' }, p.display_name || p.id),
+        el('span', { class: 'model-card__monogram', 'aria-hidden': 'true' }, monogramOf(p)),
+        el('div', { class: 'model-card__id-block' },
+          el('h2', { class: 'model-card__name' }, p.display_name || p.id),
+          el('p', { class: 'model-card__url u-mono' }, p.base_url || '—'),
+        ),
         createBadge({ label: PROTOCOL_NAMES[p.protocol] || p.protocol, variant: 'neutral' }).el,
         keyBadge.el,
         el('span', { class: 'u-spacer' }),
         actions,
       ),
-      el('p', { class: 'model-card__url u-mono' }, p.base_url || '—'),
       el('div', { class: 'model-card__models-head' },
         el('span', { class: 'u-faint' }, t(T.MODEL_COUNT, { n: (p.models || []).length })),
       ),

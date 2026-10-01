@@ -32,11 +32,57 @@
 
 /* ============================ 工具条 ============================ */
 
-.lib .lib__toolbar {
+.lib /* 工具栏：chips / 搜索 / 刷新三件同高同一行。
+   以前搜索框带着独立标签（高 77px），与 34px 的 chips 并排时
+   三个元素三个起点，工具栏就散了。统一对齐到中轴。 */
+.lib__toolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+/* 搜索：放大镜在输入框内左侧，input 自身透明底 + 细边框，
+   高度与 chips（34px）一致。 */
+.lib__search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.lib__search .lib__search-icon {
+  position: absolute;
+  left: var(--space-3);
+  display: inline-flex;
+  color: var(--color-text-faint);
+  pointer-events: none;
+}
+.lib__search-input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--space-3) 0 calc(var(--space-3) * 2 + 15px);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  transition: var(--transition-base);
+}
+.lib__search-input::placeholder {
+  color: var(--color-text-faint);
+}
+.lib__search-input:hover {
+  border-color: var(--color-border-strong);
+}
+.lib__search-input:focus-visible {
+  outline: none;
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+/* 清掉 webkit search 自带的清除按钮样式差异 */
+.lib__search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
 }
 
 /* 档位分段控件：五个单选 chip（原生 radio 提供箭头键导航，视觉全自定义） */

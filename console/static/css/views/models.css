@@ -22,15 +22,32 @@
   list-style: none;
 }
 
+/* 身份色：六个低饱和暖色变量按 data-hue 取值。
+   左缘 3px 色条 + 字母徽标同色——扫读时靠这两处就能定位「这是哪家」。 */
+.models {
+  --prov-0: #86b58c; --prov-0-deep: #3f5c44;
+  --prov-1: #d9b08c; --prov-1-deep: #6e4f33;
+  --prov-2: #8fa9d9; --prov-2-deep: #3a4c6e;
+  --prov-3: #c48fb8; --prov-3-deep: #5c3a53;
+  --prov-4: #d9c08c; --prov-4-deep: #6e5c33;
+  --prov-5: #c49a8f; --prov-5-deep: #5c4038;
+}
+
 .models .model-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
   border: var(--border-width) solid var(--color-border);
+  border-left-width: 3px;
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  border-left-color: var(--prov-hue, var(--color-border-strong));
   transition: border-color var(--motion-fast) var(--ease-out);
+}
+.models .model-card:hover,
+.models .model-card:focus-within {
+  border-color: var(--prov-hue, var(--color-border-strong));
 }
 /* hover 只抬边框亮度，不加阴影扩散 */
 .models .model-card:hover,
@@ -56,6 +73,65 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.models .model-card[data-hue="0"] {
+  --prov-hue: var(--prov-0);
+  --prov-hue-deep: var(--prov-0-deep);
+}
+.models .model-card[data-hue="1"] {
+  --prov-hue: var(--prov-1);
+  --prov-hue-deep: var(--prov-1-deep);
+}
+.models .model-card[data-hue="2"] {
+  --prov-hue: var(--prov-2);
+  --prov-hue-deep: var(--prov-2-deep);
+}
+.models .model-card[data-hue="3"] {
+  --prov-hue: var(--prov-3);
+  --prov-hue-deep: var(--prov-3-deep);
+}
+.models .model-card[data-hue="4"] {
+  --prov-hue: var(--prov-4);
+  --prov-hue-deep: var(--prov-4-deep);
+}
+.models .model-card[data-hue="5"] {
+  --prov-hue: var(--prov-5);
+  --prov-hue-deep: var(--prov-5-deep);
+}
+
+/* 字母徽标：身份色的深变体做底、白字——大小与 h2 名字行等高，
+   左缘色条 + 徽标同色，构成这张卡的「身份」信号。 */
+.models .model-card__monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--prov-hue) 26%, var(--color-surface));
+  color: var(--prov-hue-deep);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+/* 深色主题：底色压进 surface、字用浅变体 */
+[data-theme="dark"] .models .model-card__monogram {
+  background: color-mix(in oklab, var(--prov-hue) 30%, var(--color-surface-2));
+  color: var(--prov-hue);
+}
+
+/* 名字与端点组成左块（徽标右侧） */
+.models .model-card__id-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.models .model-card__name {
+  line-height: var(--line-height-tight);
+}
+
 .models .model-card__actions {
   display: flex;
   align-items: center;
