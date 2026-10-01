@@ -227,9 +227,11 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
     kind = str(spec.get("kind") or "").lower()
     if kind == "vitest":
         # vitest 以 frontend/ 为 root（vitest.config.ts 在 frontend/ 下），隐藏测试
-        # 必须落在 root 之内才会被收集。旧实现把 hidden-fe 层拷到评分树根的
-        # hidden-fe/（root 之外），vitest 永远 "No test files found"，FE 组恒红。
-        # 现在把隐藏测试目录整体搬到 frontend/src/<目录名>：与 groups.json 里
+        # 必须落在 root 之内才会被收集。旧实现把 hidden-fe **整层**搬进 frontend/src，
+        # 测试位置其实是对的（copy_tree 复制源目录内容 → frontend/src/tests_hidden_fe/），
+        # 代价是题包配置 groups_fe.json 也一起进了被测源码树，而且 overlay_rel 仍是
+        # "hidden-fe"，与真实落点不一致，让 build_grade_tree 的按层去形同虚设。
+        # 现在只搬隐藏测试那一层，目的地写全路径：与 groups.json 里
         # `src/tests_hidden_fe/...` 的用例 ID 一致，也满足隐藏测试里 `../<模块>`
         # 的相对导入（与 src 下被测模块互为兄弟目录）。
         overlay_src = hidden_dir

@@ -147,8 +147,8 @@ def test_hidden_node_id_not_double_prefixed(tmp_path):
 def test_vitest_hidden_node_ids_match_the_relocated_frontend_root(tmp_path):
     """Vitest 隐藏测试必须落到 vitest root（frontend/）之内，用例 ID 前缀与盘上位置一致。
 
-    旧实现把 hidden-fe 层拷到评分树根的 hidden-fe/（root 之外），vitest 收集不到，
-    FE 组恒红；修复后 overlay 落在 frontend/src/tests_hidden_fe。
+    搬运目的地 overlay_dest_rel 与 overlay_rel 必须是同一个完整路径：
+    build_grade_tree 按 overlay_rel 去重、按目的地落盘，两者不一致时去重形同虚设。
     """
     meta = _make_pack_with_groups(
         tmp_path, ["tests_hidden_fe/test_probe.test.ts::probe"],
@@ -163,7 +163,7 @@ def test_vitest_hidden_node_ids_match_the_relocated_frontend_root(tmp_path):
     # 光有路径不够：搬运目的地必须落在 vitest root（frontend/）之内，否则文件
     # 在树根、vitest 看不见。目的地是完整路径——copy_tree 复制的是源目录的内容，
     # 所以带上 tests_hidden_fe 这一层（下方用例按真实搬运结果验收）。
-    assert hidden["overlay_dest_rel"] == "frontend/src/tests_hidden_fe"
+    assert hidden["overlay_dest_rel"] == hidden["overlay_rel"] == "frontend/src/tests_hidden_fe"
 
 
 def test_vitest_hidden_layer_is_staged_under_frontend_src(tmp_path):
@@ -171,6 +171,7 @@ def test_vitest_hidden_layer_is_staged_under_frontend_src(tmp_path):
 
     曾经只补了 CLI 路径、没实现搬运：文件留在评分树根的 hidden-fe/ 下，
     vitest 报「No test files found」，四道前端题的 FE 组于是永远 0 分。
+    搬运范围也只到隐藏测试那一层，同层的题包配置不许跟着进 src/。
     """
     from harness import grade
 
@@ -178,6 +179,10 @@ def test_vitest_hidden_layer_is_staged_under_frontend_src(tmp_path):
         tmp_path, ["tests_hidden_fe/test_probe.test.ts::probe"],
         hidden_rel="hidden-fe/tests_hidden_fe")
     meta["checks"][0]["kind"] = "vitest"
+    # 真实题包（T1-02）在 hidden-fe/ 这层里除了 tests_hidden_fe/ 还放着 groups_fe.json。
+    with open(os.path.join(meta["pack_dir"], "hidden-fe", "groups_fe.json"), "w",
+              encoding="utf-8") as fh:
+        fh.write('{"groups": []}\n')
     hidden = packs.load_hidden_for(meta, meta["checks"][0])
 
     grade_dir = str(tmp_path / "grade-tree")
@@ -187,6 +192,8 @@ def test_vitest_hidden_layer_is_staged_under_frontend_src(tmp_path):
     staged = os.path.join(grade_dir, "frontend", "src", "tests_hidden_fe", "test_probe.py")
     assert os.path.isfile(staged), "隐藏前端用例没有被搬进 frontend/src/"
     assert not os.path.isdir(os.path.join(grade_dir, "hidden-fe"))
+    # 只搬隐藏测试那一层：题包配置不是被测代码，混进 src/ 就会被读成模型改过的文件
+    assert not os.path.isfile(os.path.join(grade_dir, "frontend", "src", "groups_fe.json"))
 
 
 def test_qualified_hidden_path_exists_on_disk(tmp_path):
