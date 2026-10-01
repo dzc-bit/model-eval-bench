@@ -675,7 +675,6 @@ export function createGradePanel(handlers) {
     } else {
       exportBtn.update({ disabled: true, reason: S.GRADE_EMPTY });
     }
-    body.appendChild(actionRow);
 
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
@@ -719,12 +718,6 @@ export function createGradePanel(handlers) {
     } else {
       progress.update({ state: 'idle', label: S.PROGRESS_IDLE });
     }
-
-    // 「进入下一轮」的实时判定：本轮已评分（rounds 里有当前轮）且还有剩余机会
-    const currentAttempt = Number(run && run.attempt) || 1;
-    const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
-    const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
-    const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
 
     if (hasReport) {
       renderResult(

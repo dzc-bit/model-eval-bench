@@ -455,7 +455,6 @@ export function createChatPanel(handlers = {}) {
     setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
   }
 
-  }
 
   /**
    * 输入框 / 发送按钮的可用性与「不可用的原因」。

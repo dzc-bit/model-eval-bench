@@ -104,8 +104,6 @@ export function createRunBar(handlers) {
     update,
     /** 读备注草稿（工作台编排层暂不需要，保留给快捷键与测试）。 */
     getNote: () => noteDraft,
-
-    },
     /** 解绑（§10.4）。 */
     destroy() {
       noteField.destroy();
