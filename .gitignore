@@ -2,6 +2,7 @@
 sandboxes/*
 !sandboxes/.gitkeep
 packs/core/tools/_work/
+packs/core/tools/_grade/
 runs/_quarantine/
 runs/blind/gates/*/
 !runs/blind/gates/.gitkeep
