@@ -35,7 +35,7 @@
   border-radius: var(--radius-md);
   font-family: var(--font-display);
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
@@ -44,18 +44,14 @@
 .brand:hover {
   background: var(--color-surface-3);
 }
+/* 徽标：SVG 刻度条直接继承赤陶主色——形状本身就是标识，不需要底板 */
 .brand__mark {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: #fff;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  transition: color var(--motion-base) var(--ease-out);
+}
+.brand:hover .brand__mark {
+  color: var(--color-accent-text);
 }
 
 /* ---------- 主操作区（全站唯一实心按钮，Claude 的「New chat」位）---------- */
@@ -66,7 +62,7 @@
 .side-cta {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
   min-height: var(--control-height-md);
   padding: var(--space-2) var(--space-3);
@@ -88,17 +84,16 @@
   outline: var(--focus-ring-width) var(--focus-ring-style) #fff;
   outline-offset: var(--focus-ring-offset);
 }
+/* 加号图标：描边 SVG，比文字「+」的字形更稳（不受字体 fallback 影响） */
 .side-cta__glyph {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.22);
-  font-size: var(--font-size-md);
-  line-height: 1;
 }
 
 /* ---------- 导航区：唯一可滚动的部分 ---------- */
@@ -115,13 +110,14 @@
   scrollbar-color: var(--color-border-strong) transparent;
 }
 
-/* 分组标题：小字号、弱色、不居中，与链接文字左对齐 */
+/* 分组标题：小字号疏排、弱色，与链接文字左对齐 */
 .app-nav__group {
   padding: var(--space-0) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-tight);
+  line-height: var(--line-height-normal);
+  letter-spacing: var(--letter-spacing-overline);
   color: var(--color-text-faint);
 }
 /* 第二段起才加分隔：上方留白 + 一条 hairline */
@@ -132,19 +128,34 @@
 }
 
 /* 导航项：Claude 的做法是「圆角底色块 + 文字变色」，不用左侧竖条。
-   竖条是 2018 式 SaaS 语汇，且会把行读成被切开的卡片。 */
+   竖条是 2018 式 SaaS 语汇，且会把行读成被切开的卡片。
+   图标 18px 与 17px 文字（规范 Body·Nav）同排，gap 10px。 */
 .app-nav__link {
   display: flex;
   align-items: center;
+  gap: 10px;
   min-height: var(--control-height-md);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   text-decoration: none;
   white-space: nowrap;
   transition: var(--transition-base);
+}
+.app-nav__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  /* 图标比文字低半档：纯色继承 currentColor，随 hover/active 与文字同步变色 */
+  opacity: 0.85;
+}
+.app-nav__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .app-nav__link:hover {
   background: var(--color-surface-3);
@@ -154,6 +165,9 @@
   background: var(--color-accent-soft);
   color: var(--color-accent-text);
   font-weight: var(--font-weight-semibold);
+}
+.app-nav__link[aria-current="page"] .app-nav__icon {
+  opacity: 1;
 }
 .app-nav__link[aria-disabled="true"] {
   cursor: not-allowed;
@@ -167,12 +181,21 @@
 /* ---------- 底部区：贴底，与导航之间一条 hairline ---------- */
 .app-header__foot {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-top: var(--border-width) solid var(--color-border);
+  color: var(--color-text-faint);
+}
+.app-header__foot-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 .app-header__foot-text {
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
 }
 
 /* ---------- 窄屏：侧栏横过来，四段全部摊平 ---------- */
@@ -204,6 +227,11 @@
   /* 横排导航里分组标题只会添乱，收起 */
   .app-nav__group {
     display: none;
+  }
+  /* 横排时导航项收成紧凑胶囊：字号回落正文 16px，图标仍在 */
+  .app-nav__link {
+    font-size: var(--font-size-md);
+    min-height: var(--control-height-sm);
   }
   .app-header__foot {
     display: none;

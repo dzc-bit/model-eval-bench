@@ -236,6 +236,8 @@ export const STORAGE_KEYS = {
   LAST_TASK: 'last-task',
   LAST_MODEL: 'last-model',
   GUIDE_DISMISSED: 'guide-dismissed',
+  /** 任务库引导是否被用户主动展开过（与 GUIDE_DISMISSED 一起决定默认收起/展开）。 */
+  GUIDE_OPENED: 'guide-opened',
   ONBOARDED: 'onboarded',
   WORKSPACE: 'workspace',
   MODELS: 'models-cache',

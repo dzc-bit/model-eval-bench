@@ -28,6 +28,7 @@ import { createToastHost, showToast } from './components/toast.js';
 import { openModal, closeTopModal, hasOpenModal } from './components/modal.js';
 import { createStatusDot } from './components/status-dot.js';
 import { createButton } from './components/button.js';
+import { createIcon } from './components/icons.js';
 import { createTaskLibrary } from './views/task-library.js';
 import { createWorkspace } from './views/workspace.js';
 
@@ -40,16 +41,17 @@ const NAV_GROUPS = {
 /**
  * 导航项：name → 文案。顺序即页签顺序。
  * group 决定该项落在哪一段里；分组的先后顺序以本数组里首次出现的顺序为准。
+ * icon 是 components/icons.js 的图标名（缺失时不画图标，只保留文字）。
  */
 const NAV_ITEMS = [
-  { name: 'tasks', label: S.NAV_TASKS, group: 'flow' },
-  { name: 'leaderboard', label: S.NAV_LEADERBOARD, group: 'flow' },
-  { name: 'workspace', label: S.NAV_WORKSPACE, group: 'flow' },
-  { name: 'batch', label: S.NAV_BATCH, group: 'flow' },
-  { name: 'scoreboard', label: S.NAV_SCOREBOARD, group: 'flow' },
-  { name: 'models', label: S.NAV_MODELS, group: 'config' },
-  { name: 'settings', label: S.NAV_SETTINGS, group: 'config' },
-  { name: 'help', label: S.NAV_HELP, group: 'config' },
+  { name: 'tasks', label: S.NAV_TASKS, group: 'flow', icon: 'tasks' },
+  { name: 'leaderboard', label: S.NAV_LEADERBOARD, group: 'flow', icon: 'podium' },
+  { name: 'workspace', label: S.NAV_WORKSPACE, group: 'flow', icon: 'chat' },
+  { name: 'batch', label: S.NAV_BATCH, group: 'flow', icon: 'play' },
+  { name: 'scoreboard', label: S.NAV_SCOREBOARD, group: 'flow', icon: 'scoreboard' },
+  { name: 'models', label: S.NAV_MODELS, group: 'config', icon: 'chip' },
+  { name: 'settings', label: S.NAV_SETTINGS, group: 'config', icon: 'sliders' },
+  { name: 'help', label: S.NAV_HELP, group: 'config', icon: 'help' },
 ];
 
 // ==================================================================
@@ -313,7 +315,14 @@ function mountNav() {
       const heading = createNavGroupHeading(item.group);
       if (heading) navEl.appendChild(heading);
     }
-    navEl.appendChild(el('a', { class: 'app-nav__link', href: buildHash(item.name) }, item.label));
+    // 图标是纯辅助形状（aria-hidden），语义仍在链接文字里；
+    // 作为链接子节点存在，不影响 syncNav() 按下标配对 `.app-nav__link`。
+    const icon = item.icon ? createIcon(item.icon, { class: 'app-nav__icon' }) : null;
+    navEl.appendChild(
+      el('a', { class: 'app-nav__link', href: buildHash(item.name) },
+        ...(icon ? [icon] : []),
+        el('span', { class: 'app-nav__label' }, item.label)),
+    );
   });
   syncNav();
   app.subscribe((s) => s.lastTask, () => syncNav());

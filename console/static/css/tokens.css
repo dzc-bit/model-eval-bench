@@ -120,13 +120,21 @@
   --space-10: 72px;
 
   /* ---------- 字体 ----------
-     本机已装思源系列（Noto Serif SC / Noto Sans SC，实测可解析），无需下载。 */
-  --font-sans: "Noto Sans SC", "Microsoft YaHei UI", "Segoe UI Variable Text",
-    "Segoe UI", "DengXian", system-ui, sans-serif;
-  --font-display: Georgia, "Noto Serif SC", "Source Han Serif SC", "Songti SC",
-    "Times New Roman", serif;
+     规范的定制字体是 Anthropic Sans/Serif（闭源），外部替代按规范 L67：
+     衬线 = Georgia，无衬线 = system-ui/Inter。拉丁字形走这条轨。
+     CJK 走另一轨：本机装的是可变字体单文件（NotoSansSC-VF.ttf /
+     NotoSerifSC-VF.ttf），Chromium 对本地 CJK VF 的中间字重（500）支持
+     不稳——font-variation-settings 显式锁 wght 实例来修正。 */
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", Inter, system-ui,
+    "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+  --font-display: Georgia, "Noto Serif SC", "Source Han Serif SC",
+    "Songti SC", "Times New Roman", serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, "DejaVu Sans Mono",
     "Courier New", monospace;
+
+  /* CJK 可变字体 wght 实例修正：500 在本地 VF 上渲染成 400 时，
+     用 variation settings 强制。放在工具类上按需挂，不全局强推。 */
+  --vf-medium: "wght" 500;
 
   /* 规范：Body Standard 16 / Body·Nav 17 / Feature Title 20.8 /
      Sub-small 25.6 / Sub 32。CJK 不能比这更小，否则密排发糊。 */
@@ -147,7 +155,9 @@
   --line-height-normal: 1.6;   /* 规范 Body 1.60 */
   --line-height-loose: 1.75;
 
-  /* 规范全程只用 400 与 500。600/700 保留给数值与徽章，标题一律 500。 */
+  /* 规范全程只用 400 与 500。600/700 保留给数值与徽章，标题一律 500。
+     注意：CJK 落在 Noto VF 时 500 可能渲染为 400（本地 VF 字重实例问题），
+     需要视觉强调的 CJK 文字请叠加 font-variation-settings: var(--vf-medium)。 */
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 500;

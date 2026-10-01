@@ -28,8 +28,9 @@ import { createIcon, resolveIcon } from './icons.js';
  *   title: string, desc?: string, icon?: string,
  *   actions?: HTMLElement[], alert?: boolean
  * }} props
- *   `icon` 取 components/icons.js 的图标名（inbox / folder / chart / plug /
- *   search / alert / check / clock），缺省或写错都用 `inbox`。
+ *   `icon` 取 components/icons.js 的图标名（见该文件 ICON_NAMES：
+ *   inbox / folder / chart / tasks / podium / chat / play / scoreboard /
+ *   chip / sliders / help / clock 等），缺省或写错都用 `inbox`。
  * @returns {{el: HTMLElement, update: Function, destroy: Function}}
  */
 export function createEmptyState(props = {}) {
