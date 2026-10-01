@@ -43,8 +43,9 @@
         <!-- 品牌区：只放标识，不与导航抢注意力（Claude 侧栏同款分区） -->
         <div class="app-header__brand">
           <a class="brand" href="#/tasks">
-            <!-- 徽标：三根刻度条立在托板上——"分档评测"的几何隐喻 -->
-            <svg class="brand__mark" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" focusable="false">
+            <!-- 徽标：三根刻度条立在托板上——"分档评测"的几何隐喻。
+                 不套底板：图形本身就是标识，多一层色块只是噪音。 -->
+            <svg class="brand__mark" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false">
               <path d="M3.5 20.5h17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <rect x="5" y="12.5" width="3.4" height="5" rx="1" fill="currentColor" />
               <rect x="10.3" y="8.5" width="3.4" height="9" rx="1" fill="currentColor" />
@@ -56,7 +57,7 @@
         <!-- 主操作区：全站唯一的「开始新评测」入口，与导航列表分开 -->
         <div class="app-header__action">
           <a class="side-cta" id="side-cta" href="#/tasks">
-            <svg class="side-cta__glyph" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+            <svg class="side-cta__glyph" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
               <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
             </svg>
             <span>开始新评测</span>

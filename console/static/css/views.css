@@ -44,14 +44,16 @@
 .brand:hover {
   background: var(--color-surface-3);
 }
-/* 徽标：SVG 刻度条直接继承赤陶主色——形状本身就是标识，不需要底板 */
+/* 徽标：三根刻度条直接继承主色，不套底板——形状本身就是标识。
+   多一层色块只会和下面的主操作按钮抢注意力（两者都是实心色块，
+   挨着放会读成「两个按钮」）。 */
 .brand__mark {
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-fill);
-  color: var(--color-accent-fill-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  transition: color var(--motion-base) var(--ease-out);
+}
+.brand:hover .brand__mark {
+  color: var(--color-accent-text);
 }
 
 /* ---------- 主操作区（全站唯一实心按钮，Claude 的「New chat」位）---------- */
@@ -59,42 +61,45 @@
   padding: var(--space-1) var(--space-4) var(--space-4);
 }
 
+/* 主操作按钮（全站唯一实心强调）。
+   设计要点：
+   - 高度比普通控件大一档（44px），它是"开始"而不是"设置"里的一个选项；
+   - 图标不小：16px 描边加号，和文字同重心，扫读时先看到「+」；
+   - 高度用 padding 撑而不是固定值，200% 缩放时文字不会溢出；
+   - 左对齐图标 + 文字，与下方导航项的左边线对齐成一条。 */
 .side-cta {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
-  min-height: var(--control-height-md);
+  min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-accent-fill);
   color: var(--color-accent-fill-text);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
   text-decoration: none;
   transition: var(--transition-base);
+  /* 悬停/按下只用亮度：位移会让它在列表里"跳"一下，抢注意力 */
 }
 .side-cta:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
 }
 .side-cta:active {
-  filter: brightness(0.96);
+  filter: brightness(0.94);
 }
-/* 主操作按钮的焦点环用「实心底上的文字色」画，而不是硬编码白——
-   深色主题下 accent-fill 是浅色，白环会完全看不见。 */
+/* 焦点环用「实心底上的文字色」画，不硬编码白——
+   深色主题下 accent-fill 是浅色，白环完全看不见。 */
 .side-cta:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-accent-fill-text);
   outline-offset: var(--focus-ring-offset);
 }
+/* 加号图标：描边 SVG。比文字「+」的字形稳——不受字体 fallback 影响，
+   也不会在窄屏被压扁；线宽与旁边文字的笔画粗细相称。 */
 .side-cta__glyph {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ---------- 导航区：唯一可滚动的部分 ---------- */
