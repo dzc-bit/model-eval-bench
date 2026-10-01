@@ -20,16 +20,7 @@ import { el, on } from '../core/dom.js';
 import { S } from '../core/strings.js';
 import { focusHeading } from '../core/a11y.js';
 
-/** 目录项。 */
-const TOC = [
-  { id: 'help-flow', label: S.HELP_FLOW_TITLE },
-  { id: 'help-sandbox', label: S.HELP_SANDBOX_TITLE },
-  { id: 'help-grade', label: S.HELP_GRADE_TITLE },
-  { id: 'help-shortcut', label: S.HELP_SHORTCUT_TITLE },
-  { id: 'help-a11y', label: S.HELP_A11Y_TITLE },
-  { id: 'help-trouble', label: S.HELP_TROUBLE_TITLE },
-  { id: 'help-term', label: S.HELP_TERM_TITLE },
-];
+
 
 /** 快捷键表。 */
 const SHORTCUTS = [
@@ -46,6 +37,7 @@ const SHORTCUTS = [
 /** 术语表，按语义分三组：跑一轮 / 沙箱与隔离 / 评分与结果。 */
 const TERM_GROUPS = [
   {
+    id: 'help-term-run',
     title: '跑一轮',
     terms: [
       ['轮次', '同一道题的第几次尝试。初级 1 轮、中级 2 轮、高级与王者各 3 轮。'],
@@ -56,6 +48,7 @@ const TERM_GROUPS = [
     ],
   },
   {
+    id: 'help-term-sandbox',
     title: '沙箱与隔离',
     terms: [
       ['沙箱', '受测仓库的独立拷贝，放在 sandbox_root 下的普通文件夹里，模型只能通过内置工具在这里改。'],
@@ -64,6 +57,7 @@ const TERM_GROUPS = [
     ],
   },
   {
+    id: 'help-term-score',
     title: '评分与结果',
     terms: [
       ['校验', '在评分树里跑仓库原始测试加隐藏测试，产出分组红绿与部分分。'],
@@ -74,6 +68,20 @@ const TERM_GROUPS = [
       ['记分板', '按模型档案分区查看任务成绩与 pass@k。'],
     ],
   },
+];
+
+/** 术语分组在目录里的二级条目（从 TERM_GROUPS 派生，避免两处手写）。 */
+const TERM_GROUP_TOC = TERM_GROUPS.map((g) => ({ id: g.id, label: g.title }));
+
+/** 目录项：一级章节，编号在渲染时按顺序生成。 */
+const TOC = [
+  { id: 'help-flow', label: S.HELP_FLOW_TITLE },
+  { id: 'help-sandbox', label: S.HELP_SANDBOX_TITLE },
+  { id: 'help-grade', label: S.HELP_GRADE_TITLE },
+  { id: 'help-shortcut', label: S.HELP_SHORTCUT_TITLE },
+  { id: 'help-a11y', label: S.HELP_A11Y_TITLE },
+  { id: 'help-trouble', label: S.HELP_TROUBLE_TITLE },
+  { id: 'help-term', label: S.HELP_TERM_TITLE },
 ];
 
 /**
@@ -87,13 +95,18 @@ export function createHelp(props = {}) {
 
   const h1 = el('h1', { tabindex: '-1' }, S.HELP_TITLE);
 
-  // ---- 目录 ----
+  // ---- 目录：一级章节 + 顺序编号 ----
   const tocList = el('ul', { class: 'help__toc-list' });
   const tocLinks = new Map();
-  TOC.forEach((item) => {
-    const link = el('a', { class: 'help__toc-link', href: `#${item.id}` }, item.label);
+  TOC.forEach((item, index) => {
+    const link = el(
+      'a',
+      { class: 'help__toc-link', href: `#${item.id}` },
+      el('span', { class: 'help__toc-num', 'aria-hidden': 'true' }, String(index + 1)),
+      el('span', { class: 'help__toc-text' }, item.label),
+    );
     tocLinks.set(item.id, link);
-    tocList.appendChild(el('li', {}, link));
+    tocList.appendChild(el('li', { class: 'help__toc-item' }, link));
   });
   const toc = el(
     'nav',
@@ -103,40 +116,47 @@ export function createHelp(props = {}) {
   );
 
   /**
-   * 滚动时高亮当前章节：长文里没有位置感，读到一半想回目录找别的节
-   * 得先猜自己在哪。
+   * 滚动时高亮当前章节。
+   *
+   * 按几何位置算，不用 IntersectionObserver：章节高度差异大，
+   * 观察带无论宽窄都会出错（宽了把下一节纳进来，窄了矮章节落不进去）。
+   * 这里取「在阅读线之上的最后一个标题」——规则单一、结果可预测。
    */
   function trackActiveSection() {
-    if (typeof IntersectionObserver !== 'function') return null;
-    const intersecting = new Set();
+    const anchors = TOC
+      .map((item) => ({ id: item.id, node: root.querySelector(`#${item.id}`) }))
+      .filter((a) => a.node);
+    if (!anchors.length) return null;
+
+    let raf = null;
     const paint = () => {
-      // 取「相交且文档顺序最靠前」的那一节。不能只看集合里的第一个——
-      // 长章节即使滚到很后面，只要还压在观察区里就仍在集合内，
-      // 高亮会一直卡在第一节不动。
-      const active = TOC.find((item) => intersecting.has(item.id));
+      raf = null;
+      // 阅读线取视口 1/4 处：太靠上（如 120px）时，滚到章节开头那一刻
+      // 标题还没越过线，高亮会停在上一节。1/4 处既能跟上滚动，
+      // 又不会因为一节很长而提前跳到下一节。
+      const line = Math.max(120, Math.round(window.innerHeight * 0.25));
+      let active = anchors[0].id;
+      for (const a of anchors) {
+        if (a.node.getBoundingClientRect().top <= line) active = a.id;
+        else break;
+      }
       tocLinks.forEach((link, id) => {
-        if (active && id === active.id) link.setAttribute('aria-current', 'true');
+        if (id === active) link.setAttribute('aria-current', 'true');
         else link.removeAttribute('aria-current');
       });
     };
-    // root 用默认的视口：本页外壳是文档滚动（.app-main 是 overflow:visible 的
-    // 普通块），指定 root 反而会让回调一次都不触发。
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const id = entry.target.dataset.section;
-          if (entry.isIntersecting) intersecting.add(id);
-          else intersecting.delete(id);
-        });
-        paint();
+    // rAF 节流：滚动事件每帧最多算一次，布局读取不叠加
+    const onScroll = () => { if (raf === null) raf = requestAnimationFrame(paint); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    paint();
+    return {
+      disconnect() {
+        if (raf !== null) cancelAnimationFrame(raf);
+        window.removeEventListener('scroll', onScroll);
+        window.removeEventListener('resize', onScroll);
       },
-      { rootMargin: '-20% 0px -55% 0px', threshold: 0 },
-    );
-    TOC.forEach((item) => {
-      const node = root.querySelector(`[data-section="${item.id}"]`);
-      if (node) observer.observe(node);
-    });
-    return observer;
+    };
   }
 
   // 目录点击后把焦点放到目标标题（§12.1 同款做法）
@@ -170,7 +190,11 @@ export function createHelp(props = {}) {
     );
   }
 
-  /** 小节标题（h3 层级，不进目录）。 */
+  /**
+   * 小节标题（h3 层级，不进目录——目录只保留一级）。
+   * @param {string} title
+   * @returns {HTMLElement}
+   */
   function sub(title) {
     return el('h3', { class: 'help__sub' }, title);
   }

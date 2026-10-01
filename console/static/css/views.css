@@ -701,25 +701,16 @@ html.keyboard-nav .view__head h1:focus {
 }
 
 /* ============================ 帮助 ============================ */
-/* 帮助页是阅读页：让它的外层容器突破全站 --content-max(1200px)。
-   :has() 精准限定在「#app-root 里装着 .help__layout」时生效，
-   其他视图的内容栏宽一律不动。 */
-.app-main > #app-root:has(.help__layout) {
-  max-width: 1560px;
-}
-
 /* 目录 + 单栏阅读流。主列刻意**不做**多栏网格：章节高度差大，auto-fill 会把
    第 4 节排到右上、第 3 节留在左下，眼睛要 Z 字跳；术语表这种等宽短条目
-   才在自己的小节里用多栏。 */
+   才在自己的小节里用多栏。
+   宽度沿用全站 --content-max，标题 / 目录 / 正文三者左缘对齐成一个整体——
+   放宽外层只会让标题贴左、正文悬在中间，看着是散的。 */
 .help__layout {
   display: grid;
-  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
-  gap: var(--space-7);
+  grid-template-columns: minmax(0, 210px) minmax(0, 1fr);
+  gap: var(--space-6);
   align-items: start;
-  /* 宽屏上别把整页挤在左边：阅读页比列表页放宽一档。
-     正文列自带 42rem 上限，所以放宽只会增加留白节奏，不会拉长行宽。
-     靠 :has() 只作用于帮助页——.app-main 里装的就是这个视图根节点。 */
-  max-width: none;
 }
 
 .help__toc {
@@ -744,7 +735,9 @@ html.keyboard-nav .view__head h1:focus {
 }
 
 .help__toc-link {
-  display: block;
+  display: grid;
+  grid-template-columns: 1.4em minmax(0, 1fr);
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   margin-left: calc(-1 * var(--border-width));
   border-left: 2px solid transparent;
@@ -753,6 +746,17 @@ html.keyboard-nav .view__head h1:focus {
   line-height: var(--line-height-normal);
   text-decoration: none;
   transition: var(--transition-base);
+}
+/* 编号列：等宽数字，扫读时序号对齐成一列 */
+.help__toc-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  text-align: right;
+}
+.help__toc-link[aria-current="true"] .help__toc-num {
+  color: var(--color-accent-text);
 }
 .help__toc-link:hover {
   color: var(--color-text);
@@ -764,21 +768,20 @@ html.keyboard-nav .view__head h1:focus {
   color: var(--color-accent-text);
   font-weight: var(--font-weight-medium);
 }
+
 .help__toc-link:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
   outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
 /* 主列：单栏阅读流，章节之间用留白分段。
-   宽度用 rem 而不是 ch——ch 按「0」的字宽算，中文字宽接近两倍，
-   76ch 实际只有 ~38 个汉字，宽屏上右侧会空掉一大片。
-   34rem ≈ 一行 42 个汉字，是中文长文的舒适区。 */
+   宽度交给外层（--content-max 减目录列），不再自设 42rem——
+   自设上限会让正文在标题和目录之间缩成窄条，三者的右缘对不齐。 */
 .help__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
   min-width: 0;
-  max-width: 42rem;
 }
 
 .help__section {
