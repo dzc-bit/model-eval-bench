@@ -655,6 +655,31 @@ export const S = {
   HELP_TROUBLE_5: '记分板和档案页打开慢：这两页是按需加载的，第一次会慢一点，之后浏览器会缓存。',
   HELP_TOC_TITLE: '本页目录',
 
+  // ---- 帮助页扩充：小标题与补充说明（2026-10-01 内容加厚）----
+  HELP_FLOW_SUB_START: '开始之前',
+  HELP_FLOW_WHY: '为什么不让它一键跑完？因为每一次模型调用都花真钱，每一轮成绩都要能追溯。让你逐步确认，是为了让分数可信。',
+  HELP_FLOW_TIP: '第一次用建议先跑 DEMO-01：它不依赖外部依赖，最快能走完整条链路。',
+  HELP_SANDBOX_SUB_RULES: '三条隔离规则',
+  HELP_SANDBOX_SUB_LIFECYCLE: '沙箱的一生',
+  HELP_SANDBOX_LIFE_1: '准备：从受测仓库拷一份骨架，脱敏后落盘，记下基线指纹。',
+  HELP_SANDBOX_LIFE_2: '使用：模型通过受限工具改代码，每次改动都会记进 diff。',
+  HELP_SANDBOX_LIFE_3: '校验：另拼一棵评分树，用仓库原始测试加隐藏测试判分，沙箱本身不参与运行。',
+  HELP_SANDBOX_LIFE_4: '清空：回到基线，模型写的代码全丢，但成绩与报告保留。',
+  HELP_GRADE_SUB_GROUPS: '组是什么',
+  HELP_GRADE_SUB_SCORE: '分数怎么算',
+  HELP_GRADE_SCORE_DESC: '得分 = 通过组权重之和 / 总权重。全绿记 pass@1；部分绿说明只修通了一部分出口。',
+  HELP_GRADE_SUB_RED: '看到红的时候',
+  HELP_GRADE_RED_1: '组内用例失败：模型没改对，看失败清单里的断言信息。',
+  HELP_GRADE_RED_2: '整组 missing：用例收集不到，通常是模型删了文件或改了导入。',
+  HELP_GRADE_RED_3: '回归被破坏：既有功能被改坏，本轮直接作废，成绩不计入统计。',
+  HELP_SHORTCUT_SUB_NOTE: '说明',
+  HELP_SHORTCUT_NOTE: '数字键 1/2/3 只在对应轮次已解锁时生效——它们切换的是「用哪一级提示词」，不是跳过前面的轮次。',
+  HELP_TROUBLE_SUB_QUICK: '快速自检',
+  HELP_TROUBLE_QUICK: '打开设置页点「健康检查」，它会一次性报告服务、Python、pytest、Node、受测仓库路径五项状态。哪项红了就按提示修那一项。',
+  HELP_TERM_SUB_NOTE: '这几个词最容易混',
+  HELP_TERM_NOTE: '「轮次」是同一道题的第几次尝试，「级别」是提示词的详细程度；「组」是评分单位，「用例」是组里的单个测试。',
+
+
   // ==================== 模态与确认框 ====================
   MODAL_CLOSE_LABEL: '关闭对话框',
   MODAL_LOADING_TITLE: '正在处理',

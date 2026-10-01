@@ -812,6 +812,9 @@ function navigate(name, params = {}, opts = {}) {
  */
 function onGlobalKeydown(event) {
   if (event.defaultPrevented) return;
+  // 键盘导航过就在 <html> 上留个标记：程序移焦（路由切换把焦点搬到 h1）
+  // 不该画焦点环，只有真人用键盘操作时才画。见 views.css 的 html.keyboard-nav。
+  markKeyboardNav();
   if (event.key === 'Escape') {
     if (hasOpenModal()) closeTopModal();
     return;
@@ -822,6 +825,12 @@ function onGlobalKeydown(event) {
     event.preventDefault();
     openShortcutHelp();
   }
+}
+
+/** 标记「用户真的在用键盘」，让程序移焦不再画焦点环。只挂一次。 */
+function markKeyboardNav() {
+  if (document.documentElement.classList.contains('keyboard-nav')) return;
+  document.documentElement.classList.add('keyboard-nav');
 }
 
 /** 打开快捷键表之前记住的焦点，关闭后还回去。 */

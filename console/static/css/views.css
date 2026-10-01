@@ -264,10 +264,15 @@
   flex: 1 1 320px;
   min-width: 0;
 }
+/* 视图标题是「程序移焦」的落点（路由切换后把焦点搬过来，供读屏软件念标题），
+   不是用户主动聚焦的目标——所以只在**真实键盘操作**后才画焦点环。
+   只靠 :focus-visible 不够：浏览器对脚本 focus() 的判定不一致，
+   进页面时会先画一圈蓝框再消失，看着像闪一下的 bug。
+   改为「键盘按下过才显示」：main.js 在 keydown 时给 <html> 挂 keyboard-nav。 */
 .view__head h1:focus {
   outline: none;
 }
-.view__head h1:focus-visible {
+html.keyboard-nav .view__head h1:focus {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
@@ -696,6 +701,13 @@
 }
 
 /* ============================ 帮助 ============================ */
+/* 帮助页是阅读页：让它的外层容器突破全站 --content-max(1200px)。
+   :has() 精准限定在「#app-root 里装着 .help__layout」时生效，
+   其他视图的内容栏宽一律不动。 */
+.app-main > #app-root:has(.help__layout) {
+  max-width: 1560px;
+}
+
 /* 目录 + 单栏阅读流。主列刻意**不做**多栏网格：章节高度差大，auto-fill 会把
    第 4 节排到右上、第 3 节留在左下，眼睛要 Z 字跳；术语表这种等宽短条目
    才在自己的小节里用多栏。 */
@@ -704,6 +716,10 @@
   grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
   gap: var(--space-7);
   align-items: start;
+  /* 宽屏上别把整页挤在左边：阅读页比列表页放宽一档。
+     正文列自带 42rem 上限，所以放宽只会增加留白节奏，不会拉长行宽。
+     靠 :has() 只作用于帮助页——.app-main 里装的就是这个视图根节点。 */
+  max-width: none;
 }
 
 .help__toc {
@@ -753,13 +769,16 @@
   outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
-/* 主列：单栏阅读流，章节之间用留白分段 */
+/* 主列：单栏阅读流，章节之间用留白分段。
+   宽度用 rem 而不是 ch——ch 按「0」的字宽算，中文字宽接近两倍，
+   76ch 实际只有 ~38 个汉字，宽屏上右侧会空掉一大片。
+   34rem ≈ 一行 42 个汉字，是中文长文的舒适区。 */
 .help__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
   min-width: 0;
-  max-width: 76ch;
+  max-width: 42rem;
 }
 
 .help__section {
@@ -793,26 +812,97 @@
   line-height: var(--line-height-relaxed);
 }
 
+/* ---------- h3 小节：字号小于 h2 但明显大于正文，靠上留白分组 ---------- */
+.help__sub {
+  margin-top: var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  line-height: var(--line-height-snug);
+}
+
+/* ---------- 提示块：左侧一道强调色竖线，正文保持原字号 ---------- */
+.help__tip {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+.help__tip[data-tone="tip"] {
+  border-left-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
 .help__prose ol,
 .help__prose ul {
-  padding-left: var(--space-6);
+  padding-left: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  /* 列表与前后段落之间留出比段间距更大的空隙，让「这是一组」看得出来 */
+  margin: var(--space-1) 0;
 }
 .help__prose li {
   line-height: var(--line-height-relaxed);
+  /* 悬挂缩进：折行回到文字左缘，不钻到序号/圆点下面 */
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+}
+.help__prose li > * {
+  text-indent: 0;
 }
 /* 有序列表的序号用强调色，扫读时能一眼数到第几步 */
 .help__prose ol > li::marker {
   color: var(--color-accent-text);
   font-weight: var(--font-weight-semibold);
 }
+/* 步骤列表再多一点存在感：每步单独成行、行距放宽。
+   选择器带 .help__prose 提高优先级，避免用 !important。 */
+.help__prose .help__steps {
+  gap: var(--space-4);
+}
+/* 要点列表的圆点同样用强调色，与步骤列表形成「有序 / 无序」的视觉区分 */
+.help__bullets > li::marker {
+  color: var(--color-accent);
+}
 
 /* ---------- 快捷键表：给足宽度，第三列不再折成三行 ---------- */
 .help__kbd-table {
   width: 100%;
   table-layout: auto;
+  border-collapse: collapse;
+}
+.help__kbd-table th,
+.help__kbd-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+/* 表头与行之间一条 hairline，行与行之间不加线（数据行本来就短，画满格子反而吵） */
+.help__kbd-table thead th {
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-border-strong);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+/* 窄屏：表格自身横向滚动，不把页面撑破 */
+@media (max-width: 900px) {
+  .help__kbd-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .help__kbd-table td:last-child {
+    white-space: normal;
+    min-width: 12em;
+  }
 }
 .help__kbd-table th[scope="row"] {
   width: 1%;
@@ -841,31 +931,60 @@ kbd.key {
   text-align: center;
 }
 
-/* ---------- 术语表：等宽短条目，这里用多栏才成立 ---------- */
-.term-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+/* ---------- 术语表 ----------
+   不用卡片：14 个术语各套一个边框盒子，读起来像 14 张并列的卡，
+   扫读时找不到「下一个词从哪开始」。改成定义列表——术语一行、释义缩进跟随，
+   靠左侧一条细线划出范围，与正文段落同构。 */
+/* 术语分组之间留出与正文一致的间距 */
+.help__term-group {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+}
+
+.term-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   list-style: none;
   padding: 0;
+  margin: 0;
+  border-left: 2px solid var(--color-border);
 }
 
 .term-list__item {
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
+  display: grid;
+  grid-template-columns: minmax(5.5em, max-content) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3) 0 var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.term-list__item:last-child {
+  border-bottom: none;
+}
+/* 悬停整行淡淡铺一层底：术语与释义分两列后，靠底色确认「读到同一行」 */
+.term-list__item:hover {
   background: var(--color-surface);
 }
 
 .term-list__term {
-  display: block;
-  margin-bottom: var(--space-1);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
+  line-height: var(--line-height-normal);
 }
 .term-list__item > div {
+  color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
+  line-height: var(--line-height-relaxed);
+}
+
+/* 窄屏：术语与释义叠成两行，术语在上 */
+@media (max-width: 640px) {
+  .term-list__item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
 }
 
 /* ---------- 窄屏：目录横排到顶部，正文单栏到底 ---------- */

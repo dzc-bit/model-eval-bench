@@ -1,14 +1,16 @@
 /**
  * help.js — 帮助视图（重内容，动态 import 延迟加载）
  *
- * 职责：把 §3 流程、§4 沙箱、§5 校验读法、§13.4 快捷键、§12 无障碍、术语表写成中文说明。
+ * 排版模型照 Markdown 文档的层级来：
+ *   h1 页面标题 → h2 章节（左侧目录一级）→ h3 小节 → 段落 / 列表 / 表格 / 提示块
+ * 阅读顺序即文档顺序：正文单栏到底，只有等宽短条目（术语表）用多栏。
  *
  * 渲染纪律：本页**零业务数据**，全部是常量文案。仍然一律走 `el()` + textContent，
  * 不用 innerHTML（§10.3 允许的静态模板例外在本项目实测不需要，故一律不写）。
  *
- * 状态：静态单页。
- * 键盘：左侧目录是页内锚点，Tab 可达；正文有 heading 层级，Tab 顺序与视觉顺序一致。
- * ARIA：目录用 nav + aria-label；每节有 h2 与 id；锚点跳转后焦点落到目标标题。
+ * 状态：静态单页。滚动时左侧目录高亮当前章节（IntersectionObserver）。
+ * 键盘：目录是页内锚点，Tab 可达；正文 heading 层级与视觉顺序一致。
+ * ARIA：目录 nav + aria-label；每节 h2 带 id；提示块用 role=note。
  *
  * 依赖：core/*、components/*
  * 导出：createHelp(props) → { el, destroy, el_h1 }
@@ -41,20 +43,37 @@ const SHORTCUTS = [
   { key: 'Esc', action: S.HELP_SHORTCUT_ESC, when: S.HELP_SHORTCUT_ESC_WHEN },
 ];
 
-/** 术语表。 */
-const TERMS = [
-  ['沙箱', '受测仓库的独立拷贝，放在 sandbox_root 下的普通文件夹里，模型只能通过内置工具在这里改。'],
-  ['基线', '沙箱生成时的初始状态。哈希用于校验前比对，判断沙箱有没有被外部动过。'],
-  ['轮次', '同一道题的第几次尝试。初级 1 轮、中级 2 轮、高级与王者各 3 轮。'],
-  ['提示词', '发送给内置模型的任务描述，分三级，逐级增加信息量，但都不给文件名。'],
-  ['接线说明', '每次都固定的一段话，告诉模型工作目录就是沙箱根目录。'],
-  ['校验', '在评分树里跑仓库原始测试加隐藏测试，产出分组红绿与部分分。'],
-  ['组', '一个对外出口或一条不变量。分组的红绿构成这一轮的成绩。'],
-  ['部分分', '通过组权重占比。用来区分「只修了一半」。'],
-  ['回归（p2p）', '既有用例的绿线。回归被破坏说明引入了新问题，本轮作废。'],
-  ['越界', '改了 tests、配置或依赖清单。这些改动不进评分树，只记违规。'],
-  ['揭晓', '查看参考解。揭晓过的轮次不计入通过率统计。'],
-  ['记分板', '按模型档案分区查看任务成绩与 pass@k。'],
+/** 术语表，按语义分三组：跑一轮 / 沙箱与隔离 / 评分与结果。 */
+const TERM_GROUPS = [
+  {
+    title: '跑一轮',
+    terms: [
+      ['轮次', '同一道题的第几次尝试。初级 1 轮、中级 2 轮、高级与王者各 3 轮。'],
+      ['级别', '提示词的详细程度，分 1/2/3 级。轮次推进才解锁更详细的级别。'],
+      ['提示词', '发送给内置模型的任务描述，逐级增加信息量，但都不给文件名。'],
+      ['接线说明', '每次都固定的一段话，告诉模型工作目录就是沙箱根目录。'],
+      ['揭晓', '查看参考解。揭晓过的轮次不计入通过率统计。'],
+    ],
+  },
+  {
+    title: '沙箱与隔离',
+    terms: [
+      ['沙箱', '受测仓库的独立拷贝，放在 sandbox_root 下的普通文件夹里，模型只能通过内置工具在这里改。'],
+      ['基线', '沙箱生成时的初始状态。指纹用于校验前比对，判断沙箱有没有被外部动过。'],
+      ['越界', '改了 tests、配置或依赖清单。这些改动不进评分树，只记违规。'],
+    ],
+  },
+  {
+    title: '评分与结果',
+    terms: [
+      ['校验', '在评分树里跑仓库原始测试加隐藏测试，产出分组红绿与部分分。'],
+      ['组', '一个对外出口或一条不变量。分组的红绿构成这一轮的成绩。'],
+      ['用例', '组里的单个测试。一条用例红，它所在的组就是红的。'],
+      ['部分分', '通过组权重占比。用来区分「只修了一半」。'],
+      ['回归（p2p）', '既有用例的绿线。回归被破坏说明引入了新问题，本轮作废。'],
+      ['记分板', '按模型档案分区查看任务成绩与 pass@k。'],
+    ],
+  },
 ];
 
 /**
@@ -85,8 +104,7 @@ export function createHelp(props = {}) {
 
   /**
    * 滚动时高亮当前章节：长文里没有位置感，读到一半想回目录找别的节
-   * 得先猜自己在哪。用 IntersectionObserver 只认「已越过顶部、还没被下一节顶掉」
-   * 的那一节，比监听 scroll 事件省算力。
+   * 得先猜自己在哪。
    */
   function trackActiveSection() {
     if (typeof IntersectionObserver !== 'function') return null;
@@ -112,7 +130,6 @@ export function createHelp(props = {}) {
         });
         paint();
       },
-      // 顶部留出 sticky 头的高度，底部收到视口 55%——让「正在读」落在上半屏
       { rootMargin: '-20% 0px -55% 0px', threshold: 0 },
     );
     TOC.forEach((item) => {
@@ -135,7 +152,7 @@ export function createHelp(props = {}) {
   });
 
   /**
-   * 造一节。
+   * 造一节（h2 层级，进左侧目录）。
    * @param {string} id
    * @param {string} title
    * @param {Array} children
@@ -153,41 +170,64 @@ export function createHelp(props = {}) {
     );
   }
 
-  // ---- 流程 ----
+  /** 小节标题（h3 层级，不进目录）。 */
+  function sub(title) {
+    return el('h3', { class: 'help__sub' }, title);
+  }
+
+  /** 提示块：一段需要被看见但不打断阅读的补充说明。 */
+  function tip(text, tone = 'info') {
+    return el('p', { class: 'help__tip', dataset: { tone }, role: 'note' }, text);
+  }
+
+  /** 编号步骤。 */
+  function steps(items) {
+    return el('ol', { class: 'help__steps' }, ...items.map((t) => el('li', {}, t)));
+  }
+
+  /** 无序要点。 */
+  function bullets(items) {
+    return el('ul', { class: 'help__bullets' }, ...items.map((t) => el('li', {}, t)));
+  }
+
+  // ==================== 一轮评测的完整流程 ====================
   const flowSection = section('help-flow', S.HELP_FLOW_TITLE, [
     el('p', {}, S.HELP_FLOW_DESC),
-    el('ol', {},
-      el('li', {}, S.HELP_STEP_1),
-      el('li', {}, S.HELP_STEP_2),
-      el('li', {}, S.HELP_STEP_3),
-      el('li', {}, S.HELP_STEP_4),
-      el('li', {}, S.HELP_STEP_5),
-      el('li', {}, S.HELP_STEP_6),
-    ),
+    tip(S.HELP_FLOW_WHY),
+    sub(S.HELP_FLOW_SUB_START),
+    steps([
+      S.HELP_STEP_1,
+      S.HELP_STEP_2,
+      S.HELP_STEP_3,
+      S.HELP_STEP_4,
+      S.HELP_STEP_5,
+      S.HELP_STEP_6,
+    ]),
+    tip(S.HELP_FLOW_TIP, 'tip'),
   ]);
 
-  // ---- 沙箱 ----
+  // ==================== 沙箱到底是什么 ====================
   const sandboxSection = section('help-sandbox', S.HELP_SANDBOX_TITLE, [
     el('p', {}, S.HELP_SANDBOX_DESC),
-    el('ul', {},
-      el('li', {}, S.HELP_SANDBOX_WHY_1),
-      el('li', {}, S.HELP_SANDBOX_WHY_2),
-      el('li', {}, S.HELP_SANDBOX_WHY_3),
-    ),
+    sub(S.HELP_SANDBOX_SUB_RULES),
+    bullets([S.HELP_SANDBOX_WHY_1, S.HELP_SANDBOX_WHY_2, S.HELP_SANDBOX_WHY_3]),
+    sub(S.HELP_SANDBOX_SUB_LIFECYCLE),
+    steps([S.HELP_SANDBOX_LIFE_1, S.HELP_SANDBOX_LIFE_2, S.HELP_SANDBOX_LIFE_3, S.HELP_SANDBOX_LIFE_4]),
   ]);
 
-  // ---- 校验读法 ----
+  // ==================== 怎么读校验结果 ====================
   const gradeSection = section('help-grade', S.HELP_GRADE_TITLE, [
     el('p', {}, S.HELP_GRADE_DESC),
-    el('ul', {},
-      el('li', {}, S.HELP_GRADE_TERM_1),
-      el('li', {}, S.HELP_GRADE_TERM_2),
-      el('li', {}, S.HELP_GRADE_TERM_3),
-      el('li', {}, S.HELP_GRADE_TERM_4),
-    ),
+    sub(S.HELP_GRADE_SUB_GROUPS),
+    bullets([S.HELP_GRADE_TERM_1, S.HELP_GRADE_TERM_4]),
+    sub(S.HELP_GRADE_SUB_SCORE),
+    el('p', {}, S.HELP_GRADE_SCORE_DESC),
+    tip(S.HELP_GRADE_TERM_3),
+    sub(S.HELP_GRADE_SUB_RED),
+    bullets([S.HELP_GRADE_RED_1, S.HELP_GRADE_RED_2, S.HELP_GRADE_RED_3]),
   ]);
 
-  // ---- 快捷键 ----
+  // ==================== 快捷键 ====================
   const shortcutRows = SHORTCUTS.map((s) =>
     el('tr', {},
       el('th', { scope: 'row' }, el('kbd', { class: 'key' }, s.key)),
@@ -206,44 +246,47 @@ export function createHelp(props = {}) {
       )),
       el('tbody', {}, ...shortcutRows),
     ),
+    sub(S.HELP_SHORTCUT_SUB_NOTE),
+    el('p', {}, S.HELP_SHORTCUT_NOTE),
   ]);
 
-  // ---- 无障碍 ----
+  // ==================== 无障碍与键盘 ====================
   const a11ySection = section('help-a11y', S.HELP_A11Y_TITLE, [
     el('p', {}, S.HELP_A11Y_DESC),
-    el('ul', {},
-      el('li', {}, S.HELP_A11Y_1),
-      el('li', {}, S.HELP_A11Y_2),
-      el('li', {}, S.HELP_A11Y_3),
-      el('li', {}, S.HELP_A11Y_4),
-      el('li', {}, S.HELP_A11Y_5),
-    ),
+    bullets([S.HELP_A11Y_1, S.HELP_A11Y_2, S.HELP_A11Y_3, S.HELP_A11Y_4, S.HELP_A11Y_5]),
   ]);
 
-  // ---- 排障 ----
+  // ==================== 排障 ====================
   const troubleSection = section('help-trouble', S.HELP_TROUBLE_TITLE, [
     el('p', {}, S.HELP_TROUBLE_DESC),
-    el('ol', {},
-      el('li', {}, S.HELP_TROUBLE_1),
-      el('li', {}, S.HELP_TROUBLE_2),
-      el('li', {}, S.HELP_TROUBLE_3),
-      el('li', {}, S.HELP_TROUBLE_4),
-      el('li', {}, S.HELP_TROUBLE_5),
-    ),
+    tip(S.HELP_TROUBLE_QUICK, 'tip'),
+    sub(S.HELP_TROUBLE_SUB_QUICK),
+    steps([
+      S.HELP_TROUBLE_1,
+      S.HELP_TROUBLE_2,
+      S.HELP_TROUBLE_3,
+      S.HELP_TROUBLE_4,
+      S.HELP_TROUBLE_5,
+    ]),
   ]);
 
-  // ---- 术语表 ----
-  const termList = el('ul', { class: 'term-list' },
-    ...TERMS.map(([term, desc]) =>
-      el('li', { class: 'term-list__item' },
-        el('span', { class: 'term-list__term' }, term),
-        el('div', { class: 'u-muted' }, desc),
+  // ==================== 术语表 ====================
+  // 按语义分三组，每组一个 h3：14 个词平铺成一列时，找某个词只能靠逐行扫。
+  const termBlocks = TERM_GROUPS.map((group) => {
+    const list = el('ul', { class: 'term-list' },
+      ...group.terms.map(([term, desc]) =>
+        el('li', { class: 'term-list__item' },
+          el('span', { class: 'term-list__term' }, term),
+          el('div', {}, desc),
+        ),
       ),
-    ),
-  );
+    );
+    return el('div', { class: 'help__term-group' }, sub(group.title), list);
+  });
   const termSection = section('help-term', S.HELP_TERM_TITLE, [
     el('p', {}, S.HELP_TERM_DESC),
-    termList,
+    tip(S.HELP_TERM_NOTE),
+    ...termBlocks,
   ]);
 
   const body = el(
