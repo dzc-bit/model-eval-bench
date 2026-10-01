@@ -1,0 +1,10 @@
+diff --git a/backend/shop/pricing.py b/backend/shop/pricing.py
+--- a/backend/shop/pricing.py
++++ b/backend/shop/pricing.py
+@@ -1,5 +1,5 @@
+ """价格计算：满 100 减 20，再打九折。"""
+-BASE_DISCOUNT_THRESHOLD = 500
++BASE_DISCOUNT_THRESHOLD = 100
+ BASE_DISCOUNT = 20
+ EXTRA_RATE = 0.9
+ 

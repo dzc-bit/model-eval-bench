@@ -153,12 +153,16 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* 卡头即 <summary>：第 1 行是标题 + 动态摘要 + 折叠箭头，第 2 行是说明行。
+   用 flex-wrap + 说明行 flex-basis:100% 让说明行永远独占一行，
+   这样右栏窄的时候摘要也不会把标题挤到换行、说明也不会跟摘要挤在一起。 */
 .ws .ws-card > summary {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
+  flex-wrap: wrap;
   min-height: var(--control-height-lg);
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   cursor: pointer;
   list-style: none;
 }
@@ -171,13 +175,14 @@
   background: var(--color-surface-2);
 }
 
+/* 非折叠卡的卡头（对话卡是 section，不是 details） */
 .ws .ws-card__head {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
   min-height: var(--control-height-lg);
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   border-bottom: var(--border-width) solid var(--color-border);
 }
 
@@ -188,9 +193,32 @@
   white-space: nowrap;
 }
 
+/* 摘要里的动态事实与说明行不许把卡头撑破 */
+.ws .ws-card__heading,
 .ws .ws-card__aside {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* 卡头左侧：标题 + 说明行（规格 §2.1「一句话说清每张卡在做什么」） */
+.ws .ws-card__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 说明行：字号小一档、颜色弱一档（规格 §3.1）；行高放宽，CJK 不挤在一起。
+   它一行说清"这一步你要做什么"，是五张卡的统一语法。
+   flex-basis:100% 让它永远独占一整行，不被标题旁的摘要挤成碎片。 */
+.ws .ws-card__desc {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
+  font-weight: var(--font-weight-normal);
+  overflow-wrap: anywhere;
 }
 
 .ws .ws-card__chevron {
@@ -302,6 +330,8 @@
 }
 
 /* ============================ 校验卡 ============================ */
+/* 说明行就是通用的 .ws-card__desc（住在卡头），这里不再需要单独的类；
+   保留 .ws-grade-desc 以便结果区需要额外调整时有个抓手。 */
 .ws .ws-grade-desc {
   margin: 0;
 }
@@ -323,24 +353,50 @@
   background: var(--color-danger-soft);
 }
 
-.ws .ws-grade-banner__score {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xl);
+.ws .ws-grade-banner__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* 编号化结论（规格 §3.2）：通过几组/共几组 · 得分 —— 一眼可扫读 */
+.ws .grade__count {
+  margin: 0;
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
+  color: var(--color-text);
   line-height: var(--line-height-tight);
 }
 
-.ws .ws-grade-banner__summary {
-  min-width: 0;
+/* 失败几组：红组时给引导（点击展开看失败用例），全过时给绿结论 */
+.ws .grade__fail-line {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+.ws .grade__fail-line[data-tone="fail"] {
+  color: var(--color-danger);
 }
 
 .ws .ws-grade-banner__note {
   margin: 0;
+  line-height: var(--line-height-loose);
 }
 
 .ws .ws-grade-exhausted {
   margin: 0;
+  line-height: var(--line-height-loose);
+}
+
+/* 结果区各段落之间留出明确段距：分数、明细、诊断块不挤在一起 */
+.ws .grade__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 /* 分组明细：列表行，不做容器卡（§0 禁止卡套卡） */
@@ -438,7 +494,39 @@
 }
 
 /* ============================ 内置对话卡 ============================ */
-.ws .chat__head .chat__title-wrap {
+/* 卡头（规格 §3.1 的图）：
+     第 1 行  内置对话 …………………………… [模型档案 ▾] [状态]
+     第 2 行  让模型在当前沙箱里改代码。改完去右侧运行校验。
+     第 3 行  档案异常（唯一落点）
+   档案是"这一轮用哪个模型"的设置，不是对话内容，所以住在卡头而不是消息流上面。 */
+.ws .chat__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.ws .chat__head-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* 标题行：标题在左，档案下拉与状态点在右（规格 §3.1）。
+   .chat__head 是纵向 flex，这里单独给一行横向排列。 */
+.ws .chat__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ws .chat__head-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -446,21 +534,40 @@
   margin: 0;
 }
 
-/* 档案选择器住进卡头：收窄提示，控件保持原生 field 样式 */
+/* 档案选择器：收窄提示，控件保持原生 field 样式 */
 .ws .chat__model {
   flex: 0 1 260px;
   min-width: 180px;
+  max-width: 320px;
+}
+
+.ws .chat__model .field__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-normal);
 }
 
 .ws .chat__model .field__hint {
   display: none; /* 提示文案太长，卡头放不下；原因说明走 .chat__model-note */
 }
 
-.ws .chat__model-note {
-  flex-basis: 100%;
-  margin: 0;
+/* 「必填未选」的行内红字也收窄：卡头放不下整句，原因在 modelNote 里说 */
+.ws .chat__model .field__error {
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+/* 档案异常的唯一落点（规格 §2.2）：就在选择器下方，处理它的出口也在这里 */
+.ws .chat__model-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-loose);
   color: var(--color-warn);
+  overflow-wrap: anywhere;
+}
+
+.ws .chat__model-note[data-tone="gone"] {
+  color: var(--color-danger);
 }
 
 .ws .chat__model-retry {
@@ -502,7 +609,7 @@
 .ws .chat__messages {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);   /* 规格 §2.4：CJK 正文下 12px 读起来是"黏在一起" */
   flex: 1 1 0;
   min-height: 0;
   max-height: none;
@@ -534,13 +641,16 @@
 .ws .chat__message {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   max-width: min(72ch, 100%);
+  /* 消息内 padding ≥12px（规格 §2.4）；正文与元信息之间也留出呼吸 */
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-surface-2);
 }
 
+/* 用户气泡：底色是半透明赤陶 tint，叠在卡片实底上没问题（不参与滚动覆盖）。
+   换成不透明色会丢掉"暖色气泡"的层次，这里保持 tint。 */
 .ws .chat__message--user {
   background: var(--color-primary-soft);
 }
@@ -566,8 +676,9 @@
   letter-spacing: var(--letter-spacing-label);
 }
 
+/* 正文行高 ≥1.7（CJK，规格 §2.4）：1.6 在满屏中文下相邻行会糊成一片 */
 .ws .chat__message-content {
-  line-height: var(--line-height-normal);
+  line-height: var(--line-height-loose);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -577,42 +688,26 @@
   font-size: var(--font-size-sm);
 }
 
-/* 思维链摘要：中性左线分区（与 .callout 同一语法，不用彩色竖条） */
-.ws .chat__reasoning {
-  border-left: calc(var(--border-width-thick) * 2) solid var(--color-border-strong);
-  padding-left: var(--space-3);
-}
-
-.ws .chat__reasoning > summary {
-  cursor: pointer;
-  min-height: var(--control-height-sm);
-  display: flex;
-  align-items: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.ws .chat__reasoning-content {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-/* 工具轮：默认折叠成一行摘要 */
+/* 工具轮：默认折叠成一行摘要。
+   折叠态本身就是"一个可见的分隔物"（描边 + 底色），与正文之间靠消息流 gap 16px 拉开；
+   展开后内部再分段，避免"摘要与正文挤成一团"（用户点名的症状）。 */
 .ws .chat__toolround {
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-surface-2);
+  overflow: hidden;
 }
 
 .ws .chat__toolround-summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-height-sm);
-  padding: var(--space-1) var(--space-3);
+  min-height: var(--control-height-md);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
   list-style: none;
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
   color: var(--color-text-muted);
 }
 
@@ -624,14 +719,22 @@
   color: var(--color-text);
 }
 
+/* 展开区与摘要行之间画一条 hairline：两段文字一眼能分开 */
+.ws .chat__toolround[open] > .chat__toolround-list,
+.ws .chat__toolround[open] > .chat__toolrow-pending,
+.ws .chat__toolround[open] > .chat__toolround-hint {
+  border-top: var(--border-width) solid var(--color-border);
+}
+
 .ws .chat__toolround-list {
   list-style: none;
   margin: 0;
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
 }
 
 .ws .chat__toolrow {
@@ -657,19 +760,45 @@
 
 .ws .chat__toolrow-pending {
   margin: 0;
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
   color: var(--color-warn);
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
 }
 
 .ws .chat__toolround-hint {
   margin: 0;
-  padding: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
 }
 
-/* 粘性输入区：对话卡比视口长时，输入区始终贴在视口底 */
+/* 思维链摘要：中性左线分区（与 .callout 同一语法，不用彩色竖条） */
+.ws .chat__reasoning {
+  border-left: calc(var(--border-width-thick) * 2) solid var(--color-border-strong);
+  padding-left: var(--space-3);
+}
+
+.ws .chat__reasoning > summary {
+  cursor: pointer;
+  min-height: var(--control-height-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.ws .chat__reasoning-content {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* 粘性输入区：对话卡比视口长时，输入区始终贴在视口底。
+   与消息流之间由这条 hairline 分隔（规格 §3.1）：输入区是"另一件事"，
+   没有分隔线时它看起来像消息流的一部分。 */
 .ws .chat__composer {
   display: flex;
   flex-direction: column;
@@ -678,7 +807,7 @@
   margin: var(--space-3) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
   padding: var(--space-3) var(--space-5) var(--space-5);
   background: var(--color-surface);
-  border-top: var(--border-width) solid var(--color-border);
+  border-top: var(--border-width) solid var(--color-border-strong);
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
@@ -734,12 +863,10 @@
   min-width: 0;
 }
 
-.ws .ws-grade-banner__score-wrap {
-  min-width: 0;
-}
-
+/* 动作行：可点元素之间 gap ≥8px（规格 §2.4），窄屏换行 */
 .ws .ws-grade__actions {
   flex-wrap: wrap;
+  row-gap: var(--space-3);
 }
 
 .ws .ws-prompt-body {

@@ -18,6 +18,8 @@ import { showToast } from '../../components/toast.js';
 
 /** 改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
+  // 说明行：说清"这一步你要做什么"（规格 §2.1）
+  DESC: '让模型在当前沙箱里改代码。改完去右侧运行校验。',
   EMPTY_ACTION: '去准备沙箱',
   NO_MESSAGES: '还没有消息，发一条开始这一轮对话。',
   // 这些文案在 strings.js 里没有对应键（旧 run-bar 引用的是不存在的键，播报一直为空），
@@ -27,6 +29,13 @@ const T = {
   DISABLED_NO_SANDBOX: '还没有沙箱，先去沙箱卡准备。',
   DISABLED_STATUS: '这一轮还不能对话：沙箱没就绪或已经收束，等状态变成「就绪」。',
   STATUS_GRADED: '本轮已校验，仍可追问让模型接着改',
+  // 档案已删（异常）：整句只出现一次，就在卡头的档案下拉旁边——那是处理它的地方。
+  // 状态点与发送按钮只说"现在不能发"，不重复同一句话（规格 §2.2）。
+  GONE_NOTE: '模型档案已删除：这一轮绑定的「{model}」已不存在，历史可以回看。先在下拉里换一个现存档案，再准备一轮。',
+  GONE_STATUS: '暂不能发送消息',
+  GONE_SEND_REASON: '先换一个现存档案',
+  // 本轮实际绑定的模型（与下拉里"下一轮用哪个"是两件事，各说一次）
+  RUN_MODEL: '本轮用：{model}',
   // 空态三选一：为什么空 + 下一步做什么（§13.1），每个只带一个动作
   EMPTY_NO_RUN_TITLE: '这一轮还没有开始',
   EMPTY_NO_RUN_DESC: '先准备沙箱，模型才有一个只属于它自己的工作目录可改。',
@@ -94,10 +103,12 @@ export function createChatPanel(handlers = {}) {
   let modelsLoading = true;
 
   const runLabel = el('p', { class: 'u-faint chat__run' });
-  const statusText = el('span', { class: 'u-faint', role: 'status', 'aria-live': 'polite' });
+  // 状态点自带可见文字（"对话就绪 / 正在加载对话"），这份 statusText 只做
+  // polite 播报源：视觉上隐藏，避免同一句状态在卡头印两遍（规格 §2.2）。
+  const statusText = el('span', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite' });
   const statusDot = createStatusDot({ kind: 'idle', text: S.CHAT_STATUS_IDLE || '未连接' });
 
-  // ---- 模型档案下拉（卡头）：选项/空态原因/重试从 run-bar 原样迁入 ----
+  // ---- 模型档案下拉（卡头右侧）：选项/空态原因/重试从 run-bar 原样迁入 ----
   // 这里是「选一个档案开始对话」，不是必填表单字段：不挂必填星号与说明段，
   // 那一套属于表单页；卡头只需要一个紧凑选择器。
   const modelField = createField({
@@ -112,6 +123,7 @@ export function createChatPanel(handlers = {}) {
     },
   });
   modelField.el.classList.add('chat__model');
+  // 档案异常（读取失败 / 已删除）的唯一落点：紧贴选择器，因为出口就在那里。
   const modelNote = el('p', { class: 'u-faint chat__model-note', role: 'status' });
   const modelRetryBtn = createButton({
     label: S.ACTION_RETRY,
@@ -197,20 +209,33 @@ export function createChatPanel(handlers = {}) {
     el('div', { class: 'chat__composer-foot' }, composerHint, el('span', { class: 'u-spacer' }), usePromptBtn.el, sendBtn.el),
   );
 
+  // 卡头结构（规格 §3.1 的图）：
+  //   第 1 行 = 标题 … [模型档案 ▾] [状态]
+  //   第 2 行 = 说明行（整行铺开："让模型在当前沙箱里改代码。改完去右侧运行校验。"）
+  //   第 3 行 = 档案异常（唯一落点，紧贴选择器）
+  // 档案是"这一轮用哪个模型"的设置，不是对话内容，所以放卡头右侧、不回消息流。
+  const headTitleRow = el(
+    'div',
+    { class: 'chat__title-row' },
+    el('h2', { class: 'ws-card__title', id: 'ws-chat-title' }, S.CHAT_TITLE || '内置对话'),
+    runLabel,
+    el('span', { class: 'u-spacer' }),
+    modelField.el,
+    // 状态点与文字只留一份：setStatus 会同时写 statusDot 与 statusText，
+    // 两者并排会把同一句话印两遍（这正是用户说的"信息重复"）。
+    statusDot.el,
+  );
+  const headDesc = el('p', { class: 'ws-card__desc', id: 'ws-chat-desc' }, T.DESC);
+  // 档案异常紧贴选择器下方，是它的唯一落点（规格 §2.2）。
+  const headNotes = el('div', { class: 'chat__head-notes' }, modelNote, modelRetryHost);
   const root = el(
     'section',
     { class: 'ws-card ws-region ws-region--chat', id: 'ws-region-chat', 'aria-labelledby': 'ws-chat-title' },
-    el('div', { class: 'ws-card__head chat__head' },
-      el('div', { class: 'chat__title-wrap' },
-        el('h2', { class: 'ws-card__title', id: 'ws-chat-title' }, S.CHAT_TITLE || '内置对话'),
-        runLabel,
-      ),
-      // 模型档案选择器从「本轮信息」区迁入对话卡头（规格 §一：卡头=档案下拉+对话状态）
-      modelField.el,
-      modelNote,
-      modelRetryHost,
-      el('span', { class: 'u-spacer' }),
-      statusDot.el,
+    el(
+      'div',
+      { class: 'ws-card__head chat__head' },
+      el('div', { class: 'chat__head-top' }, headTitleRow, headDesc),
+      headNotes,
       statusText,
     ),
     el('div', { class: 'ws-card__body chat__body' },
@@ -492,6 +517,9 @@ export function createChatPanel(handlers = {}) {
    * 状态点说清「输入框为什么锁着」。
    * 输入框按 run 状态与远端忙碌锁定，状态点却一律写「对话就绪」时，
    * 人只能靠猜——已交卷的那一轮就是这么被当成卡住的。
+   *
+   * 纪律（规格 §2.2）：档案已删除的整句只在卡头的下拉旁说一次。
+   * 这里只说"现在能不能发"，不复述同一句话。
    */
   function syncStatus() {
     if (sending) {
@@ -503,7 +531,7 @@ export function createChatPanel(handlers = {}) {
       return;
     }
     if (profileGone) {
-      setStatus('idle', S.CHAT_MODEL_GONE);
+      setStatus('idle', T.GONE_STATUS);
       return;
     }
     const status = currentRun && currentRun.status ? String(currentRun.status) : '';
@@ -536,10 +564,11 @@ export function createChatPanel(handlers = {}) {
     const sandboxOk = CHAT_OK.has(status);
     const editable = Boolean(enabled) && Boolean(currentRunId) && sandboxOk && !remoteBusy && !sending && !profileGone;
     draft.disabled = !editable;
+    // 档案已删除时不再复述整句（卡头下拉旁已说清），这里只给"下一步动作"。
     const reason = !currentRunId
       ? T.DISABLED_NO_SANDBOX
       : profileGone
-        ? S.CHAT_MODEL_GONE
+        ? T.GONE_SEND_REASON
         : remoteBusy
           ? S.CHAT_REMOTE_BUSY
           : !sandboxOk
@@ -603,10 +632,10 @@ export function createChatPanel(handlers = {}) {
       loading = false;
       remoteBusy = Boolean(data && data.chat_busy);
       profileGone = Boolean(data && data.model && data.model.gone);
-      // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
-      // 长指引交给空态那一段（有它自己的动作按钮），输入框下面只留一句原因，
-      // 同一屏三份「档案已删除」的长文案会把人绕晕。
-      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE : S.CHAT_TOOL_HINT);
+      // 档案异常的整句归卡头下拉旁的 modelNote（一处）；输入框下面只留中性提示，
+      // 免得同一句"档案已删除"在卡片头尾各出现一次（规格 §2.2）。
+      setText(composerHint, S.CHAT_TOOL_HINT);
+      renderModelNote();
       if (remoteBusy) {
         setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
@@ -631,7 +660,8 @@ export function createChatPanel(handlers = {}) {
     const text = draft.value.trim();
     if (!currentRunId || !text || loading) return false;
     if (profileGone) {
-      showToast({ message: S.CHAT_MODEL_GONE, detail: S.CHAT_MODEL_GONE_DETAIL, kind: 'warn', duration: 8000 });
+      // 整句已经在卡头下拉旁；这里只把视线带回那个出口，不再复述。
+      showToast({ message: T.GONE_SEND_REASON, detail: S.CHAT_MODEL_GONE_DETAIL, kind: 'warn', duration: 8000 });
       return false;
     }
     if (sending || remoteBusy) {
@@ -770,26 +800,29 @@ export function createChatPanel(handlers = {}) {
   }
 
   /**
-   * 档案下拉为空时把原因摊开：读取失败 ≠ 真的没有档案，两种情况给不同的话与出口。
-   * 首屏数据没落定（工作台还在取数）时先别下「没有档案」的结论。
+   * 档案下拉为空时把原因摊开：读取失败 ≠ 真的没有档案 ≠ 本轮绑定的档案被删了，
+   * 三种情况给不同的话与出口。首屏数据没落定（工作台还在取数）时先别下结论。
+   *
+   * 「模型档案已删除」整页只在这里出现一次（规格 §2.2）：它就贴在选择器下面，
+   * 替代方案（换一个档案）也就在手边。状态点与发送按钮只说"能不能发"。
    */
   function renderModelNote() {
     const count = (models || []).length;
     const failed = Boolean(modelsError);
     const pending = modelsLoading && !failed;
-    if (count === 0 && !pending) {
-      setText(modelNote, failed
-        ? t(T.MODEL_LOAD_FAILED, { reason: errorTitle(modelsError) })
-        : T.MODEL_NONE);
-      modelNote.hidden = false;
-    } else {
-      setText(modelNote, '');
-      modelNote.hidden = true;
+    let text = '';
+    if (profileGone) {
+      // 本轮绑定的模型名进正文；下拉里选的是"下一轮用哪个"，两者不是一回事。
+      text = t(T.GONE_NOTE, { model: (currentRun && currentRun.model) || S.RUN_MODEL_UNSET });
+    } else if (count === 0 && !pending) {
+      text = failed ? t(T.MODEL_LOAD_FAILED, { reason: errorTitle(modelsError) }) : T.MODEL_NONE;
     }
+    setText(modelNote, text);
+    modelNote.hidden = !text;
+    modelNote.dataset.tone = profileGone ? 'gone' : 'warn';
     // 只有「读取失败」才值得原地重试；确实一个档案都没有该去模型页新增
     modelRetryHost.hidden = !(failed && count === 0);
   }
-
   function update(state = {}) {
     if (state.run !== undefined) currentRun = state.run;
     if (state.models !== undefined) models = Array.isArray(state.models) ? state.models : [];

@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "tests": [
+    "tests/test_pricing.py::test_baseline"
+  ]
+}

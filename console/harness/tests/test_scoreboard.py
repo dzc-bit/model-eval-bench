@@ -480,6 +480,40 @@ def test_delete_model_with_runs_purges_records(cfg, monkeypatch, tmp_path):
     assert any(r.get("model") == "留档模型" for r in runs.list_runs(cfg))
 
 
+def test_delete_provider_with_runs_purges_records(cfg, monkeypatch, tmp_path):
+    """删除供应商可连带真删名下运行记录：限定名前缀与老裸 id 两种形态都算名下。"""
+    store_run(cfg, "TEST-01__prov-m1__20260101-000011", BACKEND_TASK, "prov::m1", True, 90.0)
+    store_run(cfg, "TEST-01__prov-m2__20260101-000012", BACKEND_TASK, "prov::m2", False, 10.0)
+    store_run(cfg, "TEST-01__01__20260101-000013", BACKEND_TASK, "01", True, 70.0)
+    store_run(cfg, "TEST-01__别家__20260101-000014", BACKEND_TASK, "别家", False, 0.0)
+    shadow = tmp_path / "config.json"
+    shadow.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(runs.config, "CONFIG_PATH", str(shadow))
+    cfg["providers"] = [{
+        "id": "prov", "display_name": "prov", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [
+            {"id": "m1", "name": "m1", "context_window": 262144, "max_tokens": 32768, "note": ""},
+            {"id": "m2", "name": "m2", "context_window": 262144, "max_tokens": 32768, "note": ""},
+        ],
+        "legacy_ids": ["01"],
+    }]
+
+    out = runs.delete_provider(cfg, "prov", with_runs=True)
+    assert out["deleted"] is True
+    assert sorted(out["removed_runs"]) == [
+        "TEST-01__01__20260101-000013", "TEST-01__prov-m1__20260101-000011",
+        "TEST-01__prov-m2__20260101-000012",
+    ]
+    assert out["remaining"] == 0
+    assert all(not os.path.exists(p) for p in out["purged_paths"]), "说好的真删，路径得真的没了"
+    remaining_models = [r.get("model") for r in runs.list_runs(cfg)]
+    assert remaining_models == ["别家"], "别家供应商的记录不能被牵连"
+    import json as _json
+    assert _json.loads(shadow.read_text(encoding="utf-8"))["providers"] == []
+
+
 # ---------------------------------------------------------------- 校准
 
 def test_calibration_queue_does_not_hold_drives(cfg, monkeypatch):

@@ -98,20 +98,273 @@
 }
 
 /* ---------- 弹窗表单（openModal 的 body） ---------- */
-.models .models-form {
+.models-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
-.models .models-form > .field__error {
+.models-form > .field__error {
   margin: 0;
 }
-.models .models-form__advanced .details-card__body {
+
+
+/* ---------- 卡内模型清单 ---------- */
+.models .model-card__models-head {
+  margin-top: var(--space-1);
+}
+.models .model-card__models {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* 清单与卡头之间一条 hairline，不套第二层边框（禁卡中卡） */
+  border-top: var(--border-width) solid var(--color-border);
+}
+.models .model-card__model {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.models .model-card__model:last-child {
+  border-bottom: none;
+}
+.models .model-card__model-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-code);
+  color: var(--color-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.models .model-card__model-name {
+  font-size: var(--font-size-sm);
+}
+.models .model-card__model-cap {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+/* 旧配置迁移提示 */
+.models .models__migrated {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- 表单：成对字段（协议 + 调用接口） ---------- */
+.models-form__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: var(--space-3);
 }
-/* details-card 自带 hover；这里补键盘焦点环（用全站焦点 token） */
-.models .models-form__advanced > summary:focus-visible {
+
+/* ---------- 表单：模型清单编辑区 ---------- */
+.models-form__models {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+.models-form__models-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.models-form__subtitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+.models-form__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* 一行模型 = 一张小卡：主行只放模型名 + 删除，
+   显示名与容量收进行内「展开项」——它们多数时候留空跟随默认。 */
+.models-form__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.models-form__row-main {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.models-form__row-main .models-form__cell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 行内展开项：做成一条可点的「开关条」——铺满整行、带底色与右对齐的
+   展开标记，比一行裸文字更像能点开的东西。 */
+.models-form__row-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm, 32px);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  list-style: none;
+  transition: var(--transition-base);
+}
+.models-form__row-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+/* 展开标记推到最右，用「+ / −」而不是三角：三角太小，扫读时看不到 */
+.models-form__row-advanced > summary::after {
+  content: '+';
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  color: var(--color-text-faint);
+}
+.models-form__row-advanced[open] > summary::after {
+  content: '−';
+}
+.models-form__row-advanced > summary:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+.models-form__row-advanced > summary:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-xs);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+.models-form__row-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+/* 带标签的输入格：标签在输入上方，不再依赖表头对齐 */
+.models-form__cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.models-form__cell-label {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-sans);
+}
+.models-form__cell-input {
+  width: 100%;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  /* 与全站表单控件同一套字体与字号：之前只写了 mono，中文标签与数字混排时
+     观感与上面的 .field 输入框不一致，像没套样式。模型名走等宽，其余继承。 */
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+}
+/* 模型名是标识符，用等宽更像"要照抄的东西" */
+.models-form__row-main .models-form__cell-input {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-code);
+}
+.models-form__cell-input:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+.models-form__cell-input::placeholder {
+  color: var(--color-text-faint);
+  font-family: var(--font-sans);
+  letter-spacing: normal;
+}
+
+/* 隐私说明：表单末尾的一行小字 */
+.models-form__privacy {
+  margin: 0;
+}
+
+/* ---------- 表单：从端点拉取的候选 ---------- */
+.models-form__discover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.models-form__discover-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.models-form__discover-head h4 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.models-form__discover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.models-form__discover-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+.models-form__discover-row:last-child {
+  border-bottom: none;
+}
+.models-form__discover-row:hover {
+  background: var(--color-surface-2);
+}
+.models-form__discover-row.is-configured {
+  cursor: default;
+  opacity: 0.7;
+}
+.models-form__discover-id {
+  font-family: var(--font-mono);
+  letter-spacing: var(--letter-spacing-code);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.models-form__discover-check {
+  flex-shrink: 0;
+}
+
+/* 窄屏：模型行改成纵向堆叠，每格带自己的标签 */
+@media (max-width: 720px) {
+  .models-form__row-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

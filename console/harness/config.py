@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import re
 import threading
 from typing import Any
 
@@ -25,6 +26,18 @@ MODEL_PROTOCOLS = ("openai", "anthropic", "gemini", "custom")
 OPENAI_API_MODES = ("responses", "chat_completions", "completions")
 MODEL_API_MODES = OPENAI_API_MODES + ("native",)
 DEFAULT_OPENAI_API_MODE = "chat_completions"
+
+#: 供应商层的字段（2026-10-01 模型配置重构，对齐 DSH 的 provider/model 分层）。
+#: 端点、协议、密钥属于供应商；容量与输出上限属于模型——同一供应商下加模型
+#: 不必重复填 base_url。密钥只存"引用"（keyring 按 provider_id 存），配置里不含秘密。
+PROVIDER_FIELDS = ("id", "display_name", "protocol", "api_mode", "base_url",
+                   "default_context_window", "default_max_tokens", "key_masked",
+                   "legacy_ids", "note", "models")
+#: 模型条目字段。context_window / max_tokens 留空则继承供应商的 default_*。
+PROVIDER_MODEL_FIELDS = ("id", "name", "context_window", "max_tokens", "note")
+#: 容量兜底默认值，取自 DSH 的 defaultContextWindow / defaultMaxTokens。
+DEFAULT_CONTEXT_WINDOW = 262_144
+DEFAULT_MAX_TOKENS = 32_768
 
 #: 内置对话送给模型的上下文窗口默认值（config.json 的 chat 节可按字段覆盖）。
 #: 单位与取舍见 _defaults() 里的注释；前端展示与 chat.jsonl 落盘不受这些值约束。
@@ -101,18 +114,202 @@ def _defaults(overrides: dict) -> dict:
     return base
 
 
+def _provider_id_from_url(base_url: str, fallback: str) -> str:
+    """从端点推一个供应商 id（迁移老配置时用）。
+
+    取主机名的**主域部分**（api.example.com → example），IP 与 localhost 推不出
+    有意义的名字，直接用兜底值（老档案 id）——127-0-0-1 这种 id 没法读。
+    """
+    try:
+        from urllib.parse import urlsplit
+        host = urlsplit(str(base_url or "")).hostname or ""
+    except ValueError:
+        host = ""
+    parts = [p for p in host.split(".") if p]
+    # 纯数字（IP）或本机地址：没有可读名字，用兜底
+    if not parts or all(p.isdigit() for p in parts) or host in ("localhost", ""):
+        return fallback
+    # 取倒数第二段（api.example.com → example；example.com → example）
+    candidate = parts[-2] if len(parts) >= 2 else parts[0]
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "-", candidate).strip("-").lower()
+    return cleaned or fallback
+
+
+def _normalize_provider(raw: dict, index: int) -> dict:
+    """把一个供应商条目归一成内部结构（含它展开后的模型列表）。"""
+    pid = str(raw.get("id") or "").strip() or "provider-%d" % (index + 1)
+    protocol = str(raw.get("protocol") or "openai").strip().lower()
+    api_mode = str(raw.get("api_mode") or "").strip()
+    base_url = str(raw.get("base_url") or "").strip()
+
+    def _positive_int(value):
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return None
+        return n if n > 0 else None
+
+    provider = {
+        "id": pid,
+        "display_name": str(raw.get("display_name") or pid).strip() or pid,
+        "protocol": protocol,
+        "api_mode": api_mode,
+        "base_url": base_url,
+        "default_context_window": _positive_int(raw.get("default_context_window")) or DEFAULT_CONTEXT_WINDOW,
+        "default_max_tokens": _positive_int(raw.get("default_max_tokens")) or DEFAULT_MAX_TOKENS,
+        "note": str(raw.get("note") or ""),
+        "models": [],
+    }
+    if raw.get("key_masked"):
+        provider["key_masked"] = str(raw["key_masked"])
+    legacy = raw.get("legacy_ids")
+    if isinstance(legacy, list) and legacy:
+        provider["legacy_ids"] = [str(x) for x in legacy if x]
+
+    for m_index, m in enumerate(raw.get("models") or []):
+        if not isinstance(m, dict):
+            continue
+        mid = str(m.get("id") or "").strip()
+        if not mid:
+            continue
+        # 容量与输出上限：模型级优先，留空继承供应商兜底。
+        # 这样「整个中转站都是 128k」只需在供应商上填一次。
+        provider["models"].append({
+            "id": mid,
+            "name": str(m.get("name") or mid).strip() or mid,
+            "context_window": _positive_int(m.get("context_window")) or provider["default_context_window"],
+            "max_tokens": _positive_int(m.get("max_tokens")) or provider["default_max_tokens"],
+            "note": str(m.get("note") or ""),
+        })
+    return provider
+
+
+def _providers_from_legacy_models(models: list) -> list:
+    """把老的平铺 models 数组按 base_url 分组成供应商（读时迁移，不改盘）。
+
+    老结构里每个模型各自重复写 base_url / protocol / api_mode，
+    同端点的档案合并成一个供应商——这正是重构要消除的重复。
+    """
+    grouped = {}
+    order = []
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        mid = str(item.get("id") or "").strip()
+        if not mid:
+            continue
+        base_url = str(item.get("base_url") or "").strip()
+        key = base_url or "__no_url_%s" % mid
+        if key not in grouped:
+            grouped[key] = {
+                "id": _provider_id_from_url(base_url, mid),
+                "display_name": "",
+                "protocol": item.get("protocol") or "openai",
+                "api_mode": item.get("api_mode") or "",
+                "base_url": base_url,
+                # 老档案的脱敏密钥带到新供应商上：不带的话界面上会显示
+                # 「未配置密钥」，用户以为密钥丢了要重填
+                "key_masked": str(item.get("key_masked") or ""),
+                # 老档案 id 一并记下：本机密钥文件里那把密钥还挂在它们名下
+                # （keyring 的 key 重构前是 model_id），查密钥时要能回退过去
+                "legacy_ids": [],
+                "note": "",
+                "models": [],
+            }
+            order.append(key)
+        if mid not in grouped[key]["legacy_ids"]:
+            grouped[key]["legacy_ids"].append(mid)
+        # 老结构里 model 字段才是「请求时填的模型名」；老 id 是档案名。
+        # 迁移后模型 id 用 model 字段（那才是真正发给服务商的名字），
+        # 老档案 id 记进 name，保证界面上还认得出原来叫啥。
+        grouped[key]["models"].append({
+            "id": str(item.get("model") or mid).strip() or mid,
+            "name": mid,
+            "note": str(item.get("note") or ""),
+        })
+    return [grouped[k] for k in order]
+
+
+def resolve_providers(raw: dict) -> list:
+    """读出供应商列表：新结构直接用，老结构（平铺 models）读时迁移。"""
+    providers = raw.get("providers")
+    if isinstance(providers, list) and providers:
+        return [_normalize_provider(p, i) for i, p in enumerate(providers) if isinstance(p, dict)]
+    legacy = raw.get("models")
+    if isinstance(legacy, list) and legacy:
+        return [_normalize_provider(p, i) for i, p in enumerate(_providers_from_legacy_models(legacy))]
+    return []
+
+
+def expand_models(providers: list) -> list:
+    """把供应商列表展开成扁平模型档案（下游 chat / grade / batch 只认这个形态）。
+
+    每个档案带上它所属供应商的端点、协议与容量兜底，于是下游读
+    ``model["base_url"]`` 的代码一行都不用改；同时带 ``provider_id``
+    与 ``qualified_id``（``provider/model``），run 记录用后者区分同名模型。
+    """
+    out = []
+    for p in providers:
+        for m in p.get("models") or []:
+            out.append({
+                "id": m["id"],
+                "name": m.get("name") or m["id"],
+                "provider_id": p["id"],
+                "provider_name": p.get("display_name") or p["id"],
+                # 分隔符用 "::" 而不是 "/"：模型 id 本身常带斜杠
+                # （cbcn/hy4-preview 这类中转站命名），再用 / 就分不清段落。
+                "qualified_id": "%s::%s" % (p["id"], m["id"]),
+                "protocol": p.get("protocol") or "openai",
+                "api_mode": p.get("api_mode") or "",
+                "base_url": p.get("base_url") or "",
+                "context_window": m.get("context_window"),
+                "max_tokens": m.get("max_tokens"),
+                "note": m.get("note") or "",
+                # 老字段名保留：chat.py 的 is_supported_model 等按 "model" 读请求名。
+                "model": m["id"],
+            })
+    return out
+
+
 def _resolve(root: str, value: str) -> str:
     return util.norm(value if os.path.isabs(value) else os.path.join(root, value))
 
 
+#: 入库的配置模板。config.json 本身不入库——它装着模型档案、密钥脱敏值、
+#: 各人的本机绝对路径，2026-10-01 之前曾经把这些带进过仓库。
+#: 首次启动时从模板复制一份，之后各人改自己的。
+CONFIG_TEMPLATE_PATH = os.path.join(CONSOLE_DIR, "config.example.json")
+
+
+def ensure_config_file() -> str:
+    """首次运行时从模板生成 config.json；已存在则原样返回路径。
+
+    没有这一步，别人 clone 下来会没有 config.json、服务直接起不来。
+    """
+    if os.path.isfile(CONFIG_PATH) or not os.path.isfile(CONFIG_TEMPLATE_PATH):
+        return CONFIG_PATH          # 后者交给 load() 报「找不到配置文件」
+    with _WRITE_LOCK:
+        if not os.path.isfile(CONFIG_PATH):
+            try:
+                with open(CONFIG_TEMPLATE_PATH, "r", encoding="utf-8") as src:
+                    content = src.read()
+                with open(CONFIG_PATH, "w", encoding="utf-8", newline="\n") as dst:
+                    dst.write(content)
+            except OSError:
+                pass                # 写不了就交给 load() 报错，不在这里吞异常
+    return CONFIG_PATH
+
+
 def load() -> dict:
     """读配置并补齐默认值，路径字段统一解析成绝对路径。"""
+    ensure_config_file()
     raw = util.read_json(CONFIG_PATH, default=None)
     if raw is None:
         if not os.path.isfile(CONFIG_PATH):
             raise errors.HarnessError(
                 errors.E_CONFIG_INVALID,
-                "找不到配置文件。请确认 console\\config.json 存在。",
+                "找不到配置文件。请确认 console\\config.json 存在"
+                "（可以复制 console\\config.example.json 作为起点）。",
                 CONFIG_PATH,
             )
         raise errors.HarnessError(
@@ -162,6 +359,15 @@ def load() -> dict:
 
     if not isinstance(cfg.get("models"), list):
         raise errors.HarnessError(errors.E_CONFIG_INVALID, "models 必须是数组。")
+
+    # 供应商层：新结构读 providers，老结构（平铺 models）读时迁移成供应商。
+    # cfg["models"] 是展开后的扁平档案，供下游沿用；cfg["providers"] 是嵌套结构，
+    # 供「模型档案」页编辑。两者由同一份原始数据派生，不会各说各话。
+    cfg["providers"] = resolve_providers(raw)
+    cfg["models"] = expand_models(cfg["providers"]) or cfg["models"]
+    cfg["providers_migrated"] = bool(
+        not raw.get("providers") and isinstance(raw.get("models"), list) and raw.get("models")
+    )
     return cfg
 
 
@@ -177,6 +383,30 @@ def update_models(models: list) -> None:
         raw = util.read_json(CONFIG_PATH, default={}) or {}
         raw["models"] = models
         util.write_json_atomic(CONFIG_PATH, raw)
+
+
+def update_providers(providers: list) -> None:
+    """增删改供应商（含其模型清单）：只改 providers 字段。
+
+    首次保存时把老的 models 字段清掉——两套结构并存会让「读时迁移」
+    每次启动都把用户刚编辑的内容再分组一遍，越改越乱。
+    """
+    with _WRITE_LOCK:
+        raw = util.read_json(CONFIG_PATH, default={}) or {}
+        raw["providers"] = providers
+        raw.pop("models", None)
+        util.write_json_atomic(CONFIG_PATH, raw)
+
+
+def find_provider(cfg: dict, provider_id: str) -> dict:
+    """按 id 找供应商；找不到报可操作的错误码。"""
+    for item in cfg.get("providers", []):
+        if isinstance(item, dict) and str(item.get("id")) == str(provider_id):
+            return item
+    raise errors.HarnessError(
+        errors.E_MODEL_NOT_FOUND,
+        "找不到供应商 %s。请到「模型档案」页新建后再试。" % provider_id,
+    )
 
 
 def find_model(cfg: dict, model_id: str) -> dict:

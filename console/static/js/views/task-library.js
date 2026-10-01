@@ -20,6 +20,7 @@ import { S, t, normalizeTier, TIER_NAMES } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { storage, STORAGE_KEYS } from '../core/storage.js';
 import { announce } from '../core/a11y.js';
+import { relativeTime } from '../core/format.js';
 import { createButton } from '../components/button.js';
 import { createBadge } from '../components/badge.js';
 import { createSkeleton } from '../components/skeleton.js';
@@ -30,6 +31,18 @@ import { createField } from '../components/field.js';
 const T = {
   /** 档位徽标：`初级 · 试 1 次`（spec 三、任务库 §2）。 */
   TIER_BADGE: '{tier} · 试 {n} 次',
+  /** 未校准汇总警示条：全库一题都没校准时出现在页头下（替代每卡脚注重复）。 */
+  UNCALIBRATED_BANNER: '本批题目均未做真实难度校准，「目标通过率」是出题侧预估，仅供参考。',
+  /** 校准警示条：部分校准时出现的版本。 */
+  PARTIAL_CALIBRATED_BANNER: '未校准题目的目标通过率是出题侧预估，仅供参考；已校准题目会在卡片上标注。',
+  /** 状态行 · 跑过但最好成绩为 0：比「历史最好 0」诚实。 */
+  STATUS_NO_PASS: '已跑 {n} 轮 · 尚未通过',
+  /** 状态行 · 跑过且最好成绩 > 0。 */
+  STATUS_BEST: '已跑 {n} 轮 · 最好 {score}',
+  /** 状态行 · 有上次评测时间时追加的相对时间。 */
+  STATUS_LAST: '{base} · {ago}',
+  /** 引导收起时的一行入口按钮。 */
+  GUIDE_SHOW: '查看三步指引',
 };
 
 /** 档位筛选项（值用归一后的档位名，见 core/strings.js 的 normalizeTier）。tier 用于 chip 上的色点。 */
@@ -76,8 +89,16 @@ export function createTaskLibrary(props = {}) {
   const bodyHost = el('div', { class: 'u-stack' });
   const countLine = el('p', { class: 'u-faint', role: 'status', 'aria-live': 'polite' });
 
+  /** 校准警示条节点：数据到位后才决定内容与显隐（render 里更新）。
+      必须在 DOM 组装之前声明——它会被塞进下面的根节点数组，
+      放后面会触发 TDZ（Cannot access before initialization）。 */
+  const calibBanner = el('p', { class: 'lib__calib-banner', role: 'note', hidden: true });
+
   // ---- 首启三步引导 ----
+  // 默认收起成一行：老用户每次进任务库都让引导占一屏首屏，是噪音不是帮助。
+  // 「设置页可重新打开」由 settings.js 的引导开关兑现（storage key 相同）。
   const guideDismissed = readGuideDismissed();
+  const guideOpen = storage.get(STORAGE_KEYS.GUIDE_OPENED, false) === true;
   const guideDismissBtn = createButton({
     label: S.GUIDE_DISMISS,
     variant: 'ghost',
@@ -86,6 +107,16 @@ export function createTaskLibrary(props = {}) {
       guide.hidden = true;
       storage.set(STORAGE_KEYS.GUIDE_DISMISSED, true);
       announce('已关闭首次引导。');
+    },
+  });
+  const guideToggleBtn = createButton({
+    label: T.GUIDE_SHOW,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      guide.hidden = false;
+      storage.set(STORAGE_KEYS.GUIDE_OPENED, true);
+      guideToggleBtn.el.hidden = true;
     },
   });
   const guide = el(
@@ -104,8 +135,8 @@ export function createTaskLibrary(props = {}) {
   );
   [
     { n: 1, title: S.GUIDE_STEP_1_TITLE, desc: S.GUIDE_STEP_1_DESC, action: S.GUIDE_STEP_1_ACTION, go: () => scrollToList() },
-    { n: 2, title: S.GUIDE_STEP_2_TITLE, desc: S.GUIDE_STEP_2_DESC, action: S.GUIDE_STEP_2_ACTION, go: () => enterTask(tasks[0] && tasks[0].id) },
-    { n: 3, title: S.GUIDE_STEP_3_TITLE, desc: S.GUIDE_STEP_3_DESC, action: S.GUIDE_STEP_3_ACTION, go: () => enterTask(tasks[0] && tasks[0].id, 'prompt') },
+    { n: 2, title: S.GUIDE_STEP_2_TITLE, desc: S.GUIDE_STEP_2_DESC, action: S.GUIDE_STEP_2_ACTION, go: () => scrollToList() },
+    { n: 3, title: S.GUIDE_STEP_3_TITLE, desc: S.GUIDE_STEP_3_DESC, action: S.GUIDE_STEP_3_ACTION, go: () => scrollToList() },
   ].forEach((step) => {
     guide.appendChild(
       el(
@@ -120,7 +151,10 @@ export function createTaskLibrary(props = {}) {
       ),
     );
   });
-  guide.hidden = guideDismissed;
+  // 展开态优先级：用户在引导里点过「不再显示」→ 永久隐藏；
+  // 否则只有显式打开过引导的用户（或首次使用者）能看到。
+  guide.hidden = guideDismissed || !(guideOpen || !guideDismissed && firstVisit());
+  guideToggleBtn.el.hidden = !guide.hidden;
 
   // ---- 工具条 ----
   /**
@@ -198,8 +232,10 @@ export function createTaskLibrary(props = {}) {
       el('div', {}, h1, el('p', { class: 'view__desc' }, S.LIB_DESC)),
     ),
     guide,
+    guideToggleBtn.el,
     toolbar,
     countLine,
+    calibBanner,
     listEl,
     bodyHost,
   );
@@ -239,9 +275,14 @@ export function createTaskLibrary(props = {}) {
   /**
    * 单张任务卡。
    *
-   * 层次（spec 三、任务库 §3）：标题是主角，「考察：…」紧跟标题；
-   * 目标通过率/校准/历史最好这类元数据收成脚注小字。
-   * 整卡可点进工作台（鼠标）；键盘走卡内「进入工作台」按钮。
+   * 层次（2026-10-01 卡片重设计）：
+   *   行1  编号 + 档位徽标
+   *   行2  衬线标题（阅读主角）
+   *   行3  状态行（mono + tabular-nums）：跑了几轮 / 最好成绩 / 上次评测相对时间
+   *        —— 没跑过「尚无记录」；跑过 0 分「已跑 n 轮 · 尚未通过」；有分「已跑 n 轮 · 最好 x」
+   *   悬停浮现「查看排行榜」图标钮（整卡可点进工作台，不再放第二个常驻按钮）
+   *
+   * 目标通过率/校准说明移到页头下的汇总警示条，不再每卡重复。
    *
    * @param {object} task
    * @returns {HTMLElement}
@@ -259,18 +300,30 @@ export function createTaskLibrary(props = {}) {
 
     function build(card) {
       const history = card.history || {};
-      const hasHistory = Number(history.runs || 0) > 0;
+      const runs = Number(history.runs || 0);
       const best = Number(history.best_score || 0);
-      const band = normalizeBand(card.target_band);
       const tier = normalizeTier(card.tier);
       const tierName = (TIER_NAMES[tier] || { label: tier }).label;
       const cardClass = ['task-card', TIER_CARD_CLASS[tier]].filter(Boolean).join(' ');
       if (node.className !== cardClass) node.className = cardClass;
-      const metaParts = [
-        band ? t(S.LIB_CARD_TARGET_BAND, band) : '',
-        card.calibrated ? S.LIB_CARD_CALIBRATED : S.LIB_CARD_NOT_CALIBRATED,
-        hasHistory ? t(S.LIB_CARD_HISTORY, { score: best }) : S.LIB_CARD_HISTORY_NONE,
-      ].filter(Boolean);
+
+      // 状态行：三档文案，杜绝「历史最好 0」这种像显示错误的句子
+      let status;
+      if (runs <= 0) {
+        status = S.LIB_CARD_HISTORY_NONE;
+      } else if (best > 0) {
+        status = t(T.STATUS_BEST, { n: runs, score: best });
+      } else {
+        status = t(T.STATUS_NO_PASS, { n: runs });
+      }
+      const lastAt = history.last_at ? relativeTime(history.last_at) : '';
+      if (lastAt && runs > 0) status = t(T.STATUS_LAST, { base: status, ago: lastAt });
+
+      // 校准徽章：只有真校准过的题才在卡上亮（信号，不是噪音）
+      const calibratedBadge = card.calibrated ? createBadge({
+        label: S.LIB_CARD_CALIBRATED, variant: 'success',
+      }).el : null;
+
       // replaceChildren() 按 DOM 规范会把 null 转成字符串 "null" 印到界面上，
       // 所以可选块必须先过滤，不能像 el() 那样直接传 null。
       node.replaceChildren(
@@ -279,36 +332,23 @@ export function createTaskLibrary(props = {}) {
             'div',
             { class: 'task-card__top' },
             el('span', { class: 'task-card__id' }, card.id),
+            calibratedBadge,
             el('span', { class: 'u-spacer' }),
+            createButton({
+              icon: '↗',
+              variant: 'ghost',
+              size: 'sm',
+              ariaLabel: S.LIB_CARD_LEADERBOARD,
+              title: S.LIB_CARD_LEADERBOARD,
+              onClick: () => navigate && navigate('leaderboard', { taskId: card.id }),
+            }).el,
             tierBadgeEl(tier, tierName, card.attempts),
           ),
           el('p', { class: 'task-card__title' }, card.title),
           card.summary
             ? el('p', { class: 'task-card__goal' }, t(S.LIB_CARD_GOAL, { goal: card.summary }))
             : null,
-          card.symptom
-            ? el('p', { class: 'task-card__symptom' }, card.symptom)
-            : null,
-          metaParts.length
-            ? el('p', { class: 'task-card__meta' }, metaParts.join(' · '))
-            : null,
-          el(
-            'div',
-            { class: 'task-card__foot' },
-            el('span', { class: 'u-spacer' }),
-            createButton({
-              label: S.LIB_CARD_LEADERBOARD,
-              variant: 'ghost',
-              size: 'sm',
-              onClick: () => navigate && navigate('leaderboard', { taskId: card.id }),
-            }).el,
-            createButton({
-              label: S.LIB_CARD_ENTER,
-              variant: 'ghost',
-              size: 'sm',
-              onClick: () => enterTask(card.id),
-            }).el,
-          ),
+          el('p', { class: 'task-card__status' }, status),
         ].filter(Boolean),
       );
     }
@@ -407,12 +447,32 @@ export function createTaskLibrary(props = {}) {
   }
 
   /**
+   * 根据当前任务集更新校准警示条：
+   * 全部未校准 → 直说「均未校准」；部分未校准 → 提示预估口径；全部已校准 → 隐藏。
+   * 卡片上不再重复「未校准」脚注（12 连重复是噪音，说一次说清楚）。
+   */
+  function updateCalibBanner() {
+    if (!tasks.length) { calibBanner.hidden = true; return; }
+    const uncalibrated = tasks.filter((task) => !task.calibrated).length;
+    if (uncalibrated === tasks.length) {
+      setText(calibBanner, T.UNCALIBRATED_BANNER);
+      calibBanner.hidden = false;
+    } else if (uncalibrated > 0) {
+      setText(calibBanner, T.PARTIAL_CALIBRATED_BANNER);
+      calibBanner.hidden = false;
+    } else {
+      calibBanner.hidden = true;
+    }
+  }
+
+  /**
    * 全量渲染（三态）。
    */
   function render() {
     bodyHost.textContent = '';
     if (loading) {
       countLine.textContent = '';
+      calibBanner.hidden = true;
       bodyHost.appendChild(
         createSkeleton({ rows: 4, variant: 'card', label: `${S.STATE_LOADING}：${S.LIB_LOADING_DESC}` }).el,
       );
@@ -420,6 +480,7 @@ export function createTaskLibrary(props = {}) {
     }
     if (error) {
       countLine.textContent = '';
+      calibBanner.hidden = true;
       bodyHost.appendChild(
         createEmptyState({
           title: errorTitle(error),
@@ -430,6 +491,7 @@ export function createTaskLibrary(props = {}) {
       );
       return;
     }
+    updateCalibBanner();
     renderList();
   }
 
@@ -475,4 +537,13 @@ export function createTaskLibrary(props = {}) {
 function readGuideDismissed() {
   const value = storage.get(STORAGE_KEYS.GUIDE_DISMISSED, false);
   return value === true || value === 1 || value === 'true';
+}
+
+/**
+ * 是否首次使用：没有任何评测历史记录时视为首访。
+ * 首访才默认展开引导；跑过一轮评测的老用户不再被打扰。
+ * @returns {boolean}
+ */
+function firstVisit() {
+  return !storage.get(STORAGE_KEYS.LAST_TASK, '');
 }

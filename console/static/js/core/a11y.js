@@ -225,18 +225,35 @@ export function restoreFocus(fallback) {
  * 把焦点移到视图标题（路由切换后调用，§10.3 / §12.1）。
  *
  * 做法：确保 tabindex="-1"，focus，并让读屏软件念出整段标题。
+ *
+ * 只移焦、不滚动：调用方在挂载新视图前已经 resetPageScroll 归零，
+ * 这里再滚一次会让页面莫名其妙往上跳——h1 自己带着 --space-6 的上内边距，
+ * 被 scrollBelowStickyHeader 当成「需要滚掉的遮挡」滚了 16px。
+ * 那个函数是给**页内锚点跳转**用的（目录点击、跳到某区域），不是给程序移焦用的。
  * @param {HTMLElement|null} heading 该视图的 h1
  * @returns {void}
  */
 export function focusHeading(heading) {
   if (!(heading instanceof HTMLElement)) return;
   if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+  // 打一个「这是程序移焦」的标记，让 CSS 知道这次不该画焦点环。
+  //
+  // 为什么不能只靠 :focus-visible：浏览器对脚本 focus() 的判定不一致——
+  // Chromium 对 h1[tabindex="-1"] 这类「不可编辑的聚焦元素」会判成
+  // :focus-visible，于是切页那一刻画出一圈蓝框。键盘导航标记（html.keyboard-nav）
+  // 也挡不住：用户只要按过一次键盘，之后每次切页都会画。
+  // 显式标记 + 下一帧移除，是唯一与浏览器实现无关的做法。
+  heading.setAttribute('data-focus-programmatic', '');
+  const clear = () => heading.removeAttribute('data-focus-programmatic');
   try {
+    // preventScroll 已经挡住浏览器为聚焦而做的自动滚动；这里不再主动滚。
     heading.focus({ preventScroll: true });
   } catch {
     heading.focus();
   }
-  scrollBelowStickyHeader(heading);
+  // 下一帧就摘掉：真键盘焦点进来时（Tab）仍会正常画环。
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(clear);
+  else setTimeout(clear, 0);
 }
 
 /** 可能钉在视口顶部、挡住滚动目标的条状节点（选择器，按出现顺序找）。 */

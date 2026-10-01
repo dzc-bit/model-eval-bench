@@ -1,37 +1,36 @@
 /**
- * models.js — 模型档案视图（2026-10 改版，specs/ui-revamp-2026-10-01.md §二）
+ * models.js — 模型档案视图（供应商 → 模型清单两层结构）
  *
- * 信息架构：
- *   页头：标题 + 一句话说明 + [新增档案]（全页唯一强调按钮）。
- *   档案卡两行：行1 模型名（主字）+ 服务商徽标 + 密钥状态 chip + 幽灵动作组
- *              [测试连接][编辑][删除]；行2 base_url（mono 一行截断）。
- *   卡上有本会话内的最近一次连接测试结果（一行：✓ 全过 / ✗ 具体原因）。
- *   新增/编辑走 openModal 弹窗表单；保存成功后自动触发一次测试连接并标在卡上。
+ * 设计依据：specs/模型配置重构-2026-10-01.md，对齐 DeepSeek Harness 的
+ * provider / model 分层——端点、协议、密钥属于**供应商**；上下文容量与输出
+ * 上限属于**模型**。同一供应商下加模型不必重复填 base_url，密钥也只需一把。
  *
- * 状态：loading / ready / empty / error；表单态：新建 / 编辑 / 校验错误。
- * 键盘：弹窗焦点圈定、Esc 关闭、关闭后焦点还原；删除走二次确认（默认焦点在取消）。
- * ARIA：必填 aria-required、错误 role="alert"、动作按钮 aria-label 带档案名。
+ * 页面结构：
+ *   供应商卡（展示名 / 协议 / 端点 / 密钥状态 / 连接测试）
+ *     └─ 卡内模型清单（id / 展示名 / 上下文 / 输出上限）
+ *   编辑用弹窗：上半段供应商信息，下半段模型清单（可增删行）+ 从端点拉取
  *
  * 依赖：core/*、components/*
  * 导出：createModels(props) → { el, destroy, el_h1, getModels }
  */
 
-import { el, setText, patchList, clear } from '../core/dom.js';
+import { el, setText, clear, patchList } from '../core/dom.js';
 import { S, t, PROTOCOL_NAMES, API_MODE_NAMES } from '../core/strings.js';
-import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
+import { api, errorTitle, errorBody } from '../core/api.js';
 import { announce } from '../core/a11y.js';
-import { createField } from '../components/field.js';
 import { createButton } from '../components/button.js';
-import { createSkeleton } from '../components/skeleton.js';
-import { createEmptyState } from '../components/empty-state.js';
-import { confirmDialog } from '../components/confirm-dialog.js';
-import { showToast } from '../components/toast.js';
+import { createField } from '../components/field.js';
 import { createBadge } from '../components/badge.js';
+import { createEmptyState } from '../components/empty-state.js';
+import { createSkeleton } from '../components/skeleton.js';
+import { createIcon } from '../components/icons.js';
 import { openModal } from '../components/modal.js';
+import { confirmDialog } from '../components/confirm-dialog.js';
 
-/** 本视图改版新增文案（strings.js 只读，新增词集中在这里；可复用的沿用 S.*）。 */
+/** 本视图文案（strings.js 本轮冻结，新增一律走本地常量）。 */
 const T = {
-  DESC: '新增档案后，工作台就能用它对话与跑分；密钥只保存在这台电脑上，不会进 git。',
+  DESC: '一个供应商下可以放多个模型，它们共用接口地址与密钥。',
+
   TEST: '测试连接',
   TESTING: '正在测试连接…',
   TEST_OK: '✓ {n} 项检查全过 · {time}',
@@ -41,18 +40,63 @@ const T = {
   TEST_ANNOUNCE_OK: '连接测试通过。',
   TEST_ANNOUNCE_FAIL: '连接测试未通过。',
   TEST_ANNOUNCE_START: '正在测试连接。',
+
   KEY_PRESENT: '已存密钥',
-  KEY_MISSING: '未配置',
-  FIELD_MODEL: '模型名称',
-  FIELD_MODEL_HINT: '调用时填的模型名，与服务商文档里的 model 一致。',
-  FIELD_MODEL_REQUIRED: '请填写模型名称。',
+  KEY_MISSING: '未配置密钥',
+  MODEL_COUNT: '{n} 个模型',
+  NO_MODELS: '还没有模型，点「从端点拉取」或「添加一行」。',
+
+  FIELD_ID: '供应商编号',
+  FIELD_ID_HINT: '英文标识，用作 run 记录里模型名的前缀。',
+  FIELD_ID_READONLY_HINT: '保存后不可修改。',
+  FIELD_DISPLAY: '供应商名称',
+  FIELD_DISPLAY_REQUIRED: '请填写供应商名称。',
   FIELD_URL: '接口地址',
-  FIELD_URL_HINT: '一般以 /v1 结尾。',
+  FIELD_URL_HINT: '该供应商下所有模型共用。',
   FIELD_URL_REQUIRED: '请填写接口地址。',
-  FIELD_URL_INVALID: '接口地址要以 http:// 或 https:// 开头。',
-  FIELD_KEY_HINT: '只保存在这台电脑上，不会进 git；编辑时留空表示保留已存密钥。',
-  FIELD_ID_READONLY_HINT: '档案编号保存后不可修改。',
+  FIELD_URL_INVALID: '要以 http:// 或 https:// 开头。',
+  FIELD_KEY_PLACEHOLDER_NEW: '粘贴 API 密钥',
+  FIELD_KEY_PLACEHOLDER_KEEP: '留空则保持已存密钥',
+  FIELD_KEY_HINT: '只保存在本机，不会进 git。该供应商下的模型共用这一把。',
+  FIELD_KEY_MISSING_HINT: '这个供应商还没有可用密钥。填一把再拉取模型。',
+
+  FIELD_MODELS: '模型清单',
+  FIELD_MODELS_HINT: '模型名填「请求时发给服务商的名称」。显示名与容量在每行的展开项里，留空就用默认。',
+  MODEL_ID: '模型名',
+  MODEL_NAME: '显示名',
+  MODEL_CTX: '上下文窗口',
+  MODEL_MAX: '输出上限',
+  MODEL_ADD: '添加一行',
+  MODEL_REMOVE: '删除这一行',
+  MODEL_ID_REQUIRED: '模型名不能为空。',
+  MODEL_ID_DUP: '同一个供应商下模型名不能重复。',
+  MODEL_INHERIT: '默认',
+  MODEL_ADVANCED: '显示名与容量',
+
+  DISCOVER: '从端点拉取',
+  DISCOVERING: '正在拉取…',
+  DISCOVER_TITLE: '端点返回的模型',
+  DISCOVER_EMPTY: '端点没有返回任何模型。',
+  DISCOVER_HINT: '勾选要加进清单的。已在清单里的不会再列一遍。',
+  DISCOVER_ADD: '加入清单（{n}）',
+  DISCOVER_CONFIGURED: '已在清单',
+  DISCOVER_SEARCH_PLACEHOLDER: '搜索模型名…',
+  DISCOVER_SELECT_ALL: '全选当前结果',
+  DISCOVER_NO_MATCH: '没有匹配的模型。',
+  DISCOVER_FAIL: '拉取失败：{reason}',
+  DISCOVER_NEED_KEY: '先填 API 密钥再拉取；填完不再改动的话，保存前也能拉到。',
+
   FORM_INVALID: '表单还有错误，请看标红的字段。',
+  TIME_JUST_NOW: '刚刚',
+  TIME_MINUTES: '{n} 分钟前',
+  TIME_HOURS: '{n} 小时前',
+  DELETE_TITLE: '删除供应商「{id}」？',
+  DELETE_BODY_1: '它下面的 {n} 个模型会一起消失，已粘贴的密钥也会清除。',
+  DELETE_BODY_2: '历史记录仍然保留，但记分板会把它当作未知档案。这不能撤销。',
+  FORM_NEW: '新增供应商',
+  FORM_EDIT: '编辑供应商',
+  MIGRATED: '旧版按模型平铺的配置已按接口地址合并成供应商，保存后新结构生效。',
+  PRIVACY: '密钥只存在本机，不入 git。',
 };
 
 /** doctor 档位 → 中文（POST /api/models/test 返回的 stages[].id）。 */
@@ -65,10 +109,8 @@ const OPENAI_API_MODE_OPTIONS = ['responses', 'chat_completions', 'completions']
   .map((value) => ({ value, label: API_MODE_NAMES[value] }));
 const NATIVE_API_MODE_OPTIONS = [{ value: 'native', label: API_MODE_NAMES.native }];
 
-/** 档案编号合法性：小写字母、数字、连字符。 */
+/** 供应商编号合法性：小写字母、数字、连字符。 */
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-// 与服务端 upsert_model 的 key_env 校验同规则：环境变量名，不是密钥本身
-const KEY_ENV_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // base_url 必须是显式的 http(s) 地址（与服务端 chat.has_usable_base_url 同口径）
 const URL_PATTERN = /^https?:\/\//i;
 
@@ -81,22 +123,29 @@ export function createModels(props = {}) {
   const { onChange } = props;
   const scope = api.scope();
 
-  let models = [];
+  let providers = [];
+  /** 展开后的扁平模型列表（工作台下拉用），随 providers 一起更新。 */
+  let flatModels = [];
   let loading = true;
   let error = null;
-  /** 正在编辑的档案 id；null 表示新建。 */
+  let migrated = false;
+  /** 正在编辑的供应商 id；null 表示新建。 */
   let editingId = null;
-  /** 编辑态下原档案的脱敏密钥，保存时原样带回（后端不保存明文）。 */
+  /** 编辑态下原条目的脱敏密钥，保存时原样带回（后端不保存明文）。 */
   let editingKeyMasked = '';
-  /** 本会话内每个档案的最近一次连接测试结果：id → {ok, n?, text, title?, at}。 */
+  /** 本会话内每个供应商的最近一次连接测试结果：id → {ok, n?, text, title?, at}。 */
   const testResults = new Map();
-  /** 正在测试连接的档案 id。 */
+  /** 正在测试连接的供应商 id。 */
   const testing = new Set();
   /** 当前打开的表单弹窗句柄。 */
   let formModal = null;
+  /** 表单里的模型行草稿：{key, id, name, context_window, max_tokens}。 */
+  let modelRows = [];
+  let rowSeq = 0;
 
   const h1 = el('h1', { tabindex: '-1' }, S.MODELS_TITLE);
   const listHost = el('div', { class: 'models__list' });
+  const migrateNote = el('p', { class: 'models__migrated', role: 'note', hidden: true }, T.MIGRATED);
 
   const addBtn = createButton({
     label: S.MODELS_FORM_NEW,
@@ -111,26 +160,39 @@ export function createModels(props = {}) {
       el('div', {}, h1, el('p', { class: 'view__desc' }, T.DESC)),
       el('div', { class: 'view__actions' }, addBtn.el),
     ),
+    migrateNote,
     listHost,
   );
 
-  // ---- 弹窗表单 ----
-  /** 用户是否手动改过档案编号；没动过就跟着模型名自动建议（仅新建）。 */
+  // ==================================================================
+  // 表单（供应商 + 模型清单）
+  // ==================================================================
+
   let idTouched = false;
 
   const idField = createField({
-    label: S.MODELS_FIELD_ID,
-    name: 'model-id',
+    label: T.FIELD_ID,
+    name: 'provider-id',
     required: true,
-    hint: S.MODELS_FIELD_ID_HINT,
+    hint: T.FIELD_ID_HINT,
     onInput: () => {
       idTouched = true;
       idField.update({ error: '' });
     },
   });
+  const displayField = createField({
+    label: T.FIELD_DISPLAY,
+    name: 'provider-display',
+    required: true,
+    hint: T.FIELD_DISPLAY_HINT,
+    onInput: (value) => {
+      // 新建且编号没手动改过时跟着名称建议
+      if (!editingId && !idTouched) idField.update({ value: suggestId(value), error: '' });
+    },
+  });
   const protocolField = createField({
     label: S.MODELS_FIELD_PROTOCOL,
-    name: 'model-protocol',
+    name: 'provider-protocol',
     type: 'select',
     options: PROTOCOL_OPTIONS,
     value: 'openai',
@@ -138,80 +200,156 @@ export function createModels(props = {}) {
   });
   const apiModeField = createField({
     label: S.MODELS_FIELD_API_MODE,
-    name: 'model-api-mode',
+    name: 'provider-api-mode',
     type: 'select',
     options: OPENAI_API_MODE_OPTIONS,
     value: 'chat_completions',
     hint: S.MODELS_FIELD_API_MODE_HINT,
   });
-  const modelField = createField({
-    label: T.FIELD_MODEL,
-    name: 'model-name',
-    required: true,
-    hint: T.FIELD_MODEL_HINT,
-    onInput: (value) => {
-      modelField.update({ error: '' });
-      // 新建且编号没手动改过时跟着模型名建议
-      if (!editingId && !idTouched) idField.update({ value: suggestId(value), error: '' });
-    },
-  });
   const urlField = createField({
     label: T.FIELD_URL,
-    name: 'model-url',
+    name: 'provider-url',
     type: 'url',
+    required: true,
     placeholder: 'https://api.example.com/v1',
     hint: T.FIELD_URL_HINT,
     onInput: () => urlField.update({ error: '' }),
   });
   const apiKeyField = createField({
     label: S.MODELS_FIELD_KEY,
-    name: 'model-key',
+    name: 'provider-key',
     type: 'password',
-    placeholder: S.MODELS_FIELD_KEY_PLACEHOLDER,
+    placeholder: T.FIELD_KEY_PLACEHOLDER_NEW,
     hint: T.FIELD_KEY_HINT,
-    autocomplete: 'new-password',
   });
-  const keyEnvField = createField({
-    label: S.MODELS_FIELD_KEY_ENV,
-    name: 'model-key-env',
-    hint: S.MODELS_FIELD_KEY_ENV_HINT,
-    placeholder: 'OPENAI_API_KEY',
+
+  // ---- 模型清单编辑区 ----
+  const rowsHost = el('div', { class: 'models-form__rows' });
+  const rowsError = el('p', { class: 'field__error', role: 'alert' });
+
+  /**
+   * 造一个带可见标签的输入格。
+   * 标签直接挂在每个输入上方，不用「表头 + 网格对齐」——那种排法在窄屏与
+   * 长模型名下都会错位，而且第一眼看不出哪一列是什么。
+   */
+  function labeledInput(row, key, opts) {
+    const input = el('input', {
+      class: 'models-form__cell-input',
+      type: opts.type || 'text',
+      value: row[key] == null ? '' : String(row[key]),
+      placeholder: opts.placeholder || '',
+      'aria-label': opts.label,
+    });
+    input.addEventListener('input', () => {
+      row[key] = input.value;
+      rowsError.textContent = '';
+    });
+    return el(
+      'label',
+      { class: 'models-form__cell' + (opts.wide ? ' models-form__cell--wide' : '') },
+      el('span', { class: 'models-form__cell-label' }, opts.label),
+      input,
+    );
+  }
+
+  /**
+   * 渲染一行模型（卡片式：一行一张小卡，自带标签与删除）。
+   * @param {{key:number,id:string,name:string,context_window:string,max_tokens:string}} row
+   */
+  function renderRow(row) {
+    const removeBtn = createButton({
+      label: '',
+      icon: '×',
+      variant: 'ghost',
+      size: 'sm',
+      ariaLabel: T.MODEL_REMOVE,
+      onClick: () => {
+        modelRows = modelRows.filter((r) => r.key !== row.key);
+        renderRows();
+      },
+    });
+    const node = el(
+      'div',
+      { class: 'models-form__row', dataset: { key: String(row.key) } },
+      el('div', { class: 'models-form__row-main' },
+        labeledInput(row, 'id', { label: T.MODEL_ID, placeholder: 'cbcn/hy4-preview', wide: true }),
+        removeBtn.el,
+      ),
+      el('details', { class: 'models-form__row-advanced' },
+        el('summary', {}, T.MODEL_ADVANCED),
+        el('div', { class: 'models-form__row-grid' },
+          labeledInput(row, 'name', { label: T.MODEL_NAME, placeholder: T.MODEL_NAME_PLACEHOLDER }),
+          labeledInput(row, 'context_window', { label: T.MODEL_CTX, type: 'number', placeholder: '留空跟随默认' }),
+          labeledInput(row, 'max_tokens', { label: T.MODEL_MAX, type: 'number', placeholder: '留空跟随默认' }),
+        ),
+      ),
+    );
+    rowNodes.set(row.key, node);
+    return node;
+  }
+
+  const rowNodes = new Map();
+
+  function renderRows() {
+    rowsHost.textContent = '';
+    rowNodes.clear();
+    modelRows.forEach((row) => rowsHost.appendChild(renderRow(row)));
+    if (!modelRows.length) {
+      rowsHost.appendChild(el('p', { class: 'u-faint' }, T.NO_MODELS));
+    }
+  }
+
+  const addRowBtn = createButton({
+    label: T.MODEL_ADD,
+    variant: 'ghost',
+    size: 'sm',
+    icon: '+',
+    onClick: () => {
+      rowSeq += 1;
+      modelRows.push({ key: rowSeq, id: '', name: '', context_window: '', max_tokens: '' });
+      renderRows();
+    },
   });
-  // 老档案可能存过备注，后端仍接收 note；不单占一屏，收进高级折叠
-  const noteField = createField({
-    label: S.MODELS_FIELD_NOTE,
-    name: 'model-note',
-    type: 'textarea',
-    rows: 2,
+
+  const discoverBtn = createButton({
+    label: T.DISCOVER,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => runDiscover(),
   });
+  const discoverHost = el('div', { class: 'models-form__discover' });
+
+  const modelsBlock = el(
+    'div',
+    { class: 'models-form__models' },
+    el('div', { class: 'models-form__models-head' },
+      el('h3', { class: 'models-form__subtitle' }, T.FIELD_MODELS),
+      el('span', { class: 'u-spacer' }),
+      discoverBtn.el,
+      addRowBtn.el,
+    ),
+    el('p', { class: 'field__hint' }, T.FIELD_MODELS_HINT),
+    rowsHost,
+    rowsError,
+    discoverHost,
+  );
 
   const saveBtn = createButton({ label: S.MODELS_SAVE, variant: 'primary', onClick: () => save() });
   const cancelBtn = createButton({ label: S.ACTION_CANCEL, onClick: () => closeForm() });
 
   const formError = el('p', { class: 'field__error', role: 'alert' });
-  const advancedFold = el(
-    'details',
-    { class: 'details-card models-form__advanced' },
-    el('summary', {},
-      el('span', { class: 'details-card__marker', 'aria-hidden': 'true' }, '▸'),
-      S.MODELS_FORM_ADVANCED),
-    el('div', { class: 'details-card__body' },
-      protocolField.el,
-      apiModeField.el,
-      keyEnvField.el,
-      noteField.el,
-      el('p', { class: 'u-faint' }, S.MODELS_KEY_PRIVACY),
-    ),
-  );
+  const privacyNote = el('p', { class: 'u-faint models-form__privacy' }, T.PRIVACY);
   const formBody = el(
     'div',
     { class: 'models-form' },
     formError,
-    modelField.el,
+    displayField.el,
     urlField.el,
     apiKeyField.el,
+    el('div', { class: 'models-form__pair' }, protocolField.el, apiModeField.el),
     idField.el,
-    advancedFold,
+    modelsBlock,
+    privacyNote,
   );
 
   /** 根据协议切换 endpoint 选择器，避免给非 OpenAI 档案留下歧义值。 */
@@ -229,48 +367,261 @@ export function createModels(props = {}) {
     });
   }
 
-  /** 由模型名建议档案编号：小写字母数字连字符，数字开头补 m- 前缀。 */
-  function suggestId(modelName) {
-    const slug = String(modelName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /** 由名称建议供应商编号：小写字母数字连字符，数字开头补 p- 前缀。 */
+  function suggestId(name) {
+    const slug = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!slug) return '';
-    return /^[0-9]/.test(slug) ? `m-${slug}` : slug;
+    return /^[0-9]/.test(slug) ? `p-${slug}` : slug;
   }
 
   /**
    * 打开新增 / 编辑弹窗。
-   * @param {object|null} m 档案对象；null 表示新建
+   * @param {object|null} p 供应商对象；null 表示新建
    */
-  function openForm(m) {
-    editingId = m ? m.id : null;
-    editingKeyMasked = m ? (m.key_masked || '') : '';
-    idTouched = Boolean(m);
+  function openForm(p) {
+    editingId = p ? p.id : null;
+    editingKeyMasked = p ? (p.key_masked || '') : '';
+    idTouched = Boolean(p);
     setText(formError, '');
-    modelField.update({ value: m ? (m.model || '') : '', error: '' });
-    urlField.update({ value: m ? (m.base_url || '') : '', error: '' });
-    apiKeyField.update({ value: '', error: '' }); // 留空 = 保留已保存的密钥
-    idField.update({
-      value: m ? m.id : '',
+    rowsError.textContent = '';
+    discoverHost.textContent = '';
+
+    displayField.update({ value: p ? (p.display_name || '') : '', error: '' });
+    urlField.update({ value: p ? (p.base_url || '') : '', error: '' });
+    // 留空 = 保留已存密钥。有已存密钥时才用「留空则保持」的占位符；
+    // 没有的话说清楚要填——之前两种情况共用同一句占位符，
+    // 用户以为不用填，结果拉取时发的是无密钥/旧密钥请求。
+    const hasStoredKey = Boolean(p && p.key_present);
+    apiKeyField.update({
+      value: '',
       error: '',
-      disabled: Boolean(m),
-      hint: m ? T.FIELD_ID_READONLY_HINT : S.MODELS_FIELD_ID_HINT,
+      placeholder: hasStoredKey ? T.FIELD_KEY_PLACEHOLDER_KEEP : T.FIELD_KEY_PLACEHOLDER_NEW,
+      hint: hasStoredKey ? T.FIELD_KEY_HINT : T.FIELD_KEY_MISSING_HINT,
     });
-    const protocol = m ? (m.protocol || 'openai') : 'openai';
+    idField.update({
+      value: p ? p.id : '',
+      error: '',
+      disabled: Boolean(p),
+      hint: p ? T.FIELD_ID_READONLY_HINT : T.FIELD_ID_HINT,
+    });
+    const protocol = p ? (p.protocol || 'openai') : 'openai';
     protocolField.update({ value: protocol });
-    syncApiModeControl(protocol, m ? (m.api_mode || 'chat_completions') : 'chat_completions');
-    keyEnvField.update({ value: m ? (m.key_env || '') : '', error: '' });
-    noteField.update({ value: m ? (m.note || '') : '' });
-    advancedFold.open = false; // 高级项默认收起
+    syncApiModeControl(protocol, p ? (p.api_mode || 'chat_completions') : 'chat_completions');
+
+    // 模型行草稿：容量留空表示跟随默认（不把继承来的值回填成显式值，
+    // 否则用户改默认值后老模型不会跟着变）
+    modelRows = ((p && p.models) || []).map((m) => {
+      rowSeq += 1;
+      return {
+        key: rowSeq,
+        id: m.id || '',
+        name: m.name && m.name !== m.id ? m.name : '',
+        context_window: m.context_window == null ? '' : String(m.context_window),
+        max_tokens: m.max_tokens == null ? '' : String(m.max_tokens),
+      };
+    });
+    renderRows();
+
     formModal = openModal({
-      title: m ? `${S.MODELS_FORM_EDIT}：${m.id}` : S.MODELS_FORM_NEW,
+      title: p ? `${T.FORM_EDIT}：${p.id}` : T.FORM_NEW,
       body: formBody,
       footer: [cancelBtn.el, saveBtn.el],
-      initialFocus: modelField.getControl(),
+      initialFocus: displayField.getControl(),
       onClose: () => { formModal = null; },
     });
   }
 
   function closeForm() {
     if (formModal) formModal.close('cancel');
+  }
+
+  /**
+   * 从端点拉取模型清单（候选，不落盘）。
+   * 对齐 DSH 的 discovery 语义：拉到的只是建议，勾选后才进配置。
+   */
+  async function runDiscover() {
+    const baseUrl = urlField.getValue().trim();
+    if (!baseUrl) {
+      urlField.update({ error: T.FIELD_URL_REQUIRED });
+      return;
+    }
+    urlField.update({ error: '' });
+    // 拉取要用密钥。本机没存过、表单里也没填时先说清楚——
+    // 否则请求会带着空密钥出去，回一个 401 让人以为是地址写错了。
+    const typedKey = apiKeyField.getValue().trim();
+    const editingProvider = providers.find((x) => x.id === editingId);
+    const hasKey = Boolean(typedKey) || Boolean(editingProvider && editingProvider.key_present);
+    if (!hasKey) {
+      discoverHost.textContent = '';
+      discoverHost.appendChild(el('p', { class: 'field__error', role: 'alert' }, T.DISCOVER_NEED_KEY));
+      apiKeyField.update({ error: T.DISCOVER_NEED_KEY });
+      return;
+    }
+    discoverHost.textContent = '';
+    discoverBtn.update({ loading: true, busyLabel: T.DISCOVERING });
+    try {
+      const res = await api.post('/providers/discover', {
+        id: idField.getValue().trim(),
+        base_url: baseUrl,
+        protocol: protocolField.getValue(),
+        api_key: typedKey,
+      }, { scope });
+      renderDiscover(res && res.models ? res.models : []);
+    } catch (err) {
+      // 优先用服务端给的 message/detail：那里面写的是真实原因（连不上、HTTP 401…），
+      // 只按 code 查通用文案会把「连不上端点」显示成「档案没有保存」，误导排查方向。
+      const reason = (err && err.message) || errorTitle(err && err.code ? err.code : 'INTERNAL');
+      const detail = (err && err.detail) || '';
+      discoverHost.appendChild(
+        el('div', { class: 'field__error', role: 'alert' },
+          el('p', {}, T.DISCOVER_FAIL.replace('{reason}', reason)),
+          detail ? el('p', { class: 'u-faint' }, detail) : null,
+        ),
+      );
+    } finally {
+      discoverBtn.update({ loading: false });
+    }
+  }
+
+  /** 渲染拉取结果：勾选框列表，已存在的标注并禁用。 */
+  function renderDiscover(candidates) {
+    discoverHost.textContent = '';
+    if (!candidates.length) {
+      discoverHost.appendChild(el('p', { class: 'u-faint' }, T.DISCOVER_EMPTY));
+      return;
+    }
+    const picked = new Set();
+    const rows = [];
+    const list = el('div', { class: 'models-form__discover-list' });
+
+    const addPickedBtn = createButton({
+      label: t(T.DISCOVER_ADD, { n: 0 }),
+      variant: 'primary',
+      size: 'sm',
+      onClick: () => {
+        candidates.filter((m) => picked.has(m.id)).forEach((m) => {
+          rowSeq += 1;
+          modelRows.push({
+            key: rowSeq,
+            id: m.id,
+            name: '',
+            context_window: m.context_window ? String(m.context_window) : '',
+            max_tokens: m.max_tokens ? String(m.max_tokens) : '',
+          });
+        });
+        renderRows();
+        discoverHost.textContent = '';
+      },
+    });
+    addPickedBtn.update({ disabled: true });
+
+    /** 勾选状态变化后统一刷新按钮与全选态。 */
+    const syncPicked = () => {
+      addPickedBtn.update({ label: t(T.DISCOVER_ADD, { n: picked.size }), disabled: picked.size === 0 });
+      const selectable = rows.filter((r) => !r.already);
+      const allOn = selectable.length > 0 && selectable.every((r) => r.box.checked);
+      selectAllBox.checked = allOn;
+      selectAllBox.indeterminate = !allOn && picked.size > 0;
+    };
+
+    // 搜索：端点返回几十上百个模型时，逐个找太慢
+    const searchInput = el('input', {
+      class: 'models-form__discover-search',
+      type: 'search',
+      placeholder: T.DISCOVER_SEARCH_PLACEHOLDER,
+      'aria-label': T.DISCOVER_SEARCH_PLACEHOLDER,
+    });
+
+    // 全选：只作用于当前**筛选后可见**的行。筛了 "claude" 再点全选，
+    // 用户要的是"这批 claude 都要"，不是把没显示出来的也选上。
+    const selectAllBox = el('input', {
+      type: 'checkbox',
+      class: 'models-form__discover-check',
+      'aria-label': T.DISCOVER_SELECT_ALL,
+    });
+    const selectAllLabel = el(
+      'label',
+      { class: 'models-form__discover-selectall' },
+      selectAllBox,
+      el('span', {}, T.DISCOVER_SELECT_ALL),
+    );
+
+    candidates.forEach((m) => {
+      const already = Boolean(m.configured) || modelRows.some((r) => r.id === m.id);
+      const box = el('input', {
+        type: 'checkbox',
+        class: 'models-form__discover-check',
+        'aria-label': m.id,
+        disabled: already,
+      });
+      if (!already) {
+        box.addEventListener('change', () => {
+          if (box.checked) picked.add(m.id);
+          else picked.delete(m.id);
+          syncPicked();
+        });
+      }
+      const row = el(
+        'label',
+        { class: 'models-form__discover-row' + (already ? ' is-configured' : '') },
+        box,
+        el('span', { class: 'models-form__discover-id' }, m.id),
+        el('span', { class: 'u-faint' },
+          [m.context_window ? `上下文 ${fmtTokens(m.context_window)}` : '',
+           m.max_tokens ? `输出 ${fmtTokens(m.max_tokens)}` : ''].filter(Boolean).join(' · ')),
+        already ? createBadge({ label: T.DISCOVER_CONFIGURED, variant: 'neutral' }).el : null,
+      );
+      rows.push({ id: m.id, lower: m.id.toLowerCase(), box, node: row, already });
+      list.appendChild(row);
+    });
+
+    /** 按关键词筛行：只改显隐，不重建节点（重建会丢掉已勾选状态）。 */
+    const applyFilter = () => {
+      const q = searchInput.value.trim().toLowerCase();
+      let visible = 0;
+      rows.forEach((r) => {
+        const hit = !q || r.lower.includes(q);
+        r.node.hidden = !hit;
+        if (hit) visible += 1;
+      });
+      emptyHint.hidden = visible > 0;
+      syncPicked();
+    };
+    searchInput.addEventListener('input', applyFilter);
+
+    // 全选：切换当前可见且未在清单里的行
+    selectAllBox.addEventListener('change', () => {
+      const on = selectAllBox.checked;
+      rows.forEach((r) => {
+        if (r.already || r.node.hidden) return;
+        r.box.checked = on;
+        if (on) picked.add(r.id);
+        else picked.delete(r.id);
+      });
+      syncPicked();
+    });
+
+    const emptyHint = el('p', { class: 'u-faint', hidden: true }, T.DISCOVER_NO_MATCH);
+
+    discoverHost.append(
+      el('div', { class: 'models-form__discover-head' },
+        el('h4', {}, T.DISCOVER_TITLE),
+        el('span', { class: 'u-faint' }, T.DISCOVER_HINT),
+      ),
+      el('div', { class: 'models-form__discover-bar' }, searchInput, selectAllLabel),
+      list,
+      emptyHint,
+      el('div', { class: 'u-row' }, addPickedBtn.el),
+    );
+    syncPicked();
+  }
+
+  /** 大数字可读化：262144 → 256k。 */
+  function fmtTokens(n) {
+    const v = Number(n) || 0;
+    if (v >= 1000 && v % 1000 === 0) return `${v / 1000}k`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return String(v);
   }
 
   /**
@@ -286,12 +637,12 @@ export function createModels(props = {}) {
     } else if (!ID_PATTERN.test(id)) {
       idField.update({ error: S.MODELS_FIELD_ID_INVALID });
       ok = false;
-    } else if (!editingId && models.some((m) => m.id === id)) {
+    } else if (!editingId && providers.some((p) => p.id === id)) {
       idField.update({ error: S.MODELS_FIELD_ID_DUP });
       ok = false;
     }
-    if (!modelField.getValue().trim()) {
-      modelField.update({ error: T.FIELD_MODEL_REQUIRED });
+    if (!displayField.getValue().trim()) {
+      displayField.update({ error: T.FIELD_DISPLAY_REQUIRED });
       ok = false;
     }
     const url = urlField.getValue().trim();
@@ -302,17 +653,22 @@ export function createModels(props = {}) {
       urlField.update({ error: T.FIELD_URL_INVALID });
       ok = false;
     }
-    const keyEnv = keyEnvField.getValue().trim();
-    if (keyEnv && !KEY_ENV_PATTERN.test(keyEnv)) {
-      keyEnvField.update({ error: S.MODELS_FIELD_KEY_ENV_INVALID });
+    // 模型清单：至少一行、每行都要有模型名、不能重复
+    const ids = modelRows.map((r) => String(r.id || '').trim()).filter(Boolean);
+    if (!ids.length) {
+      rowsError.textContent = T.MODEL_ID_REQUIRED;
       ok = false;
-    } else {
-      keyEnvField.update({ error: '' });
+    } else if (new Set(ids).size !== ids.length) {
+      rowsError.textContent = T.MODEL_ID_DUP;
+      ok = false;
+    } else if (modelRows.some((r) => !String(r.id || '').trim())) {
+      rowsError.textContent = T.MODEL_ID_REQUIRED;
+      ok = false;
     }
     return ok;
   }
 
-  /** 保存档案；成功后关弹窗、刷新列表并自动测一次连接。 */
+  /** 保存供应商；成功后关弹窗、刷新列表并自动测一次连接。 */
   async function save() {
     setText(formError, '');
     if (!validate()) {
@@ -321,213 +677,201 @@ export function createModels(props = {}) {
     }
     const payload = {
       id: idField.getValue().trim(),
+      display_name: displayField.getValue().trim(),
       protocol: protocolField.getValue(),
       api_mode: apiModeField.getValue(),
-      model: modelField.getValue().trim(),
       base_url: urlField.getValue().trim(),
-      key_env: keyEnvField.getValue().trim(),
-      note: noteField.getValue(),
+      models: modelRows
+        .filter((r) => String(r.id || '').trim())
+        .map((r) => ({
+          id: String(r.id).trim(),
+          name: String(r.name || '').trim(),
+          context_window: String(r.context_window || '').trim() || null,
+          max_tokens: String(r.max_tokens || '').trim() || null,
+        })),
       // 粘贴了新密钥才传 api_key；留空则后端保留已存密钥。config.json 只存脱敏值
       key_masked: editingKeyMasked,
       api_key: apiKeyField.getValue().trim(),
+      previous_id: editingId || '',
     };
 
     saveBtn.update({ loading: true, busyLabel: S.ACTION_SAVED });
     try {
-      // 契约：POST 新建、PATCH 覆盖，id 一律走请求体，没有 /models/{id} 这样的路径
+      // 契约：POST 新建、PATCH 覆盖，id 一律走请求体，没有 /providers/{id} 这样的路径
       if (editingId) {
-        await api.patch('/models', payload, { scope });
+        await api.patch('/providers', payload, { scope });
       } else {
-        await api.post('/models', payload, { scope });
+        await api.post('/providers', payload, { scope });
       }
-      const savedId = payload.id;
-      if (formModal) formModal.close('saved');
-      showToast({ message: t(S.MODELS_SAVED, { id: savedId }), kind: 'success', duration: 4000 });
+      closeForm();
       await load();
-      // 保存后自动测一次连接，结果标在卡上（失败不打断，quiet 模式不再弹错）
-      runTest(savedId, { quiet: true });
+      announce(S.MODELS_SAVED);
+      // 保存后自动测一次连接：结果标在卡上，失败不弹 toast（免得打扰）
+      runTest(payload.id, { quiet: true });
     } catch (err) {
-      const code = err instanceof ApiError ? err.code : 'SAVE_FAILED';
-      // 服务端对表单类错误会返回一句具体中文（如「key_env 必须是合法的服务端环境变量名。」），
-      // 比按码查到的通用标题更能指出错在哪个字段，优先展示
-      const backendMessage = err instanceof ApiError ? String(err.message || '').trim() : '';
-      const detail = errorBody(code);
-      setText(formError, backendMessage || detail);
-      showToast({ message: backendMessage || errorTitle(code), detail, kind: 'error' });
-    } finally {
+      setText(formError, err && err.code ? errorTitle(err.code) : errorTitle('INTERNAL'));
       saveBtn.update({ loading: false });
     }
   }
 
-  /** 相对时间：测试结果行尾的「刚刚 / n 分钟前」。 */
+  // ==================================================================
+  // 连接测试
+  // ==================================================================
+
+  /** 相对时间：刚刚 / N 分钟前 / N 小时前。 */
   function timeAgo(ts) {
-    const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
-    if (s < 60) return '刚刚';
-    if (s < 3600) return `${Math.floor(s / 60)} 分钟前`;
-    if (s < 86400) return `${Math.floor(s / 3600)} 小时前`;
-    return new Date(ts).toLocaleString();
+    const diff = Date.now() - Number(ts || 0);
+    if (diff < 60_000) return T.TIME_JUST_NOW;
+    if (diff < 3_600_000) return t(T.TIME_MINUTES, { n: Math.floor(diff / 60_000) });
+    return t(T.TIME_HOURS, { n: Math.floor(diff / 3_600_000) });
   }
 
   /**
-   * 测试连接（复用服务端 doctor：POST /api/models/test，只带已保存档案的 id）。
-   * @param {string} id
-   * @param {{quiet?: boolean}} [opts] quiet：保存后的自动测试，失败只标在卡上不弹 toast
+   * 跑一次分档体检。
+   * @param {string} id 供应商 id
+   * @param {{quiet?: boolean}} [opts]
    */
   async function runTest(id, { quiet = false } = {}) {
     if (testing.has(id)) return;
     testing.add(id);
-    announce(T.TEST_ANNOUNCE_START);
     render();
+    if (!quiet) announce(T.TEST_ANNOUNCE_START);
     try {
-      const res = await api.post('/models/test', { id }, { scope });
-      const stages = Array.isArray(res && res.stages) ? res.stages : [];
+      // 体检接口按「档案」粒度：取该供应商下的第一个模型作为代表
+      const provider = providers.find((p) => p.id === id);
+      const first = provider && provider.models && provider.models[0];
+      const res = await api.post('/models/test', { id: first ? first.id : id }, { scope });
+      const stages = (res && res.stages) || [];
+      const bad = stages.find((s) => !s.ok);
       if (res && res.ok) {
-        // 跳过的档位（ok=None）不算失败，也不计入全过数
-        const n = stages.filter((s) => s && s.ok === true).length;
-        testResults.set(id, { ok: true, n, at: Date.now() });
-        announce(T.TEST_ANNOUNCE_OK);
+        testResults.set(id, { ok: true, n: stages.length, at: Date.now() });
+        if (!quiet) announce(T.TEST_ANNOUNCE_OK);
       } else {
-        const stage = stages.find((s) => s && s.ok === false) || {};
-        const label = STAGE_LABELS[stage.id] || stage.id || '连接';
-        const text = t(T.TEST_FAIL, { stage: label, detail: String(stage.detail || stage.hint || '未通过') });
+        const stage = bad ? (STAGE_LABELS[bad.id] || bad.id) : '';
+        const detail = bad ? String(bad.detail || '').slice(0, 80) : '';
         testResults.set(id, {
           ok: false,
-          text,
-          title: [stage.detail, stage.hint].filter(Boolean).join('；'),
+          text: bad ? T.TEST_FAIL.replace('{stage}', stage).replace('{detail}', detail)
+                    : T.TEST_FAIL_NET.replace('{title}', errorTitle((res && res.error) || 'INTERNAL')),
+          title: bad ? [bad.detail, bad.hint].filter(Boolean).join(' — ') : '',
           at: Date.now(),
         });
-        announce(T.TEST_ANNOUNCE_FAIL);
-        if (!quiet) showToast({ message: text, kind: 'error' });
+        if (!quiet) announce(T.TEST_ANNOUNCE_FAIL);
       }
     } catch (err) {
-      testing.delete(id);
-      render();
-      if (err instanceof ApiError && err.code === 'ABORTED') return; // 页面切换，静默
-      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
-      const detail = errorBody(code);
       testResults.set(id, {
         ok: false,
-        text: t(T.TEST_FAIL_NET, { title: errorTitle(code) }),
-        title: detail,
+        text: T.TEST_FAIL_NET.replace('{title}', errorTitle(err && err.code ? err.code : 'INTERNAL')),
         at: Date.now(),
       });
-      announce(T.TEST_ANNOUNCE_FAIL);
-      if (!quiet) showToast({ message: errorTitle(code), detail, kind: 'error' });
-      return;
-    }
-    testing.delete(id);
-    render();
-  }
-
-  /**
-   * 删除档案（二次确认，破坏性操作默认焦点在取消）。
-   * @param {object} m
-   */
-  async function remove(m) {
-    const id = m.id;
-    const ok = await confirmDialog({
-      title: t(S.MODELS_DELETE_CONFIRM_TITLE, { id }),
-      messages: [S.MODELS_DELETE_CONFIRM_BODY_1, S.MODELS_DELETE_CONFIRM_BODY_2],
-      confirmLabel: S.ACTION_DELETE,
-      cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      // 契约：DELETE /api/models?id=xxx；不带 with_runs，跑分记录保留（确认框里已说明）
-      await api.del('/models', { scope, params: { id } });
-      testResults.delete(id);
-      showToast({ message: t(S.MODELS_DELETED, { id }), kind: 'success', duration: 4000 });
-      await load();
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
-      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+      if (!quiet) announce(T.TEST_ANNOUNCE_FAIL);
+    } finally {
+      testing.delete(id);
+      render();
     }
   }
 
-  /** 测试结果行。 */
+  /** 卡上的测试结果一行。 */
   function renderTestLine(state) {
-    if (state.running) {
-      return el('p', { class: 'model-card__test model-card__test--running', 'aria-busy': 'true' }, T.TESTING);
-    }
-    if (state.ok) {
-      const time = timeAgo(state.at);
-      const text = state.n
-        ? t(T.TEST_OK, { n: state.n, time })
-        : t(T.TEST_OK_FALLBACK, { time });
-      return el('p', { class: 'model-card__test model-card__test--ok', title: text }, text);
-    }
-    return el('p', { class: 'model-card__test model-card__test--fail', title: state.title || state.text }, state.text);
-  }
-
-  /**
-   * 档案卡（两行 + 可选测试结果行）。
-   * @param {object} m
-   * @returns {HTMLElement}
-   */
-  function renderRow(m) {
-    const protocol = String(m.protocol || 'openai').toLowerCase();
-    const state = testing.has(m.id) ? { running: true } : testResults.get(m.id);
-    return el(
-      'li',
-      { class: 'model-card' },
-      el('div', { class: 'model-card__row1' },
-        el('strong', { class: 'model-card__name', title: m.model ? m.id : '' }, m.model || m.id || '—'),
-        createBadge({
-          label: PROTOCOL_NAMES[protocol] || protocol || S.PROTOCOL_CUSTOM,
-          variant: 'info',
-          glyph: '·',
-        }).el,
-        createBadge({
-          label: m.key_masked ? T.KEY_PRESENT : T.KEY_MISSING,
-          variant: m.key_masked ? 'success' : 'muted',
-        }).el,
-        el('div', { class: 'model-card__actions' },
-          createButton({
-            label: T.TEST,
-            size: 'sm',
-            variant: 'ghost',
-            disabled: testing.has(m.id),
-            ariaLabel: `${T.TEST}：${m.model || m.id}`,
-            onClick: () => runTest(m.id),
-          }).el,
-          createButton({
-            label: S.ACTION_EDIT,
-            size: 'sm',
-            variant: 'ghost',
-            ariaLabel: `${S.ACTION_EDIT}：${m.id}`,
-            onClick: () => openForm(m),
-          }).el,
-          createButton({
-            label: S.ACTION_DELETE,
-            size: 'sm',
-            variant: 'ghost',
-            ariaLabel: `${S.ACTION_DELETE}：${m.id}`,
-            onClick: () => remove(m),
-          }).el,
-        ),
-      ),
-      el('div', { class: 'model-card__row2' },
-        el('code', { class: 'model-card__url', title: m.base_url || '—' }, m.base_url || '—'),
-      ),
-      state ? renderTestLine(state) : null,
+    if (!state) return null;
+    const text = state.ok
+      ? (state.n ? t(T.TEST_OK, { n: state.n, time: timeAgo(state.at) })
+                 : t(T.TEST_OK_FALLBACK, { time: timeAgo(state.at) }))
+      : state.text;
+    const node = el(
+      'p',
+      { class: 'model-card__test' + (state.ok ? ' model-card__test--ok' : ' model-card__test--fail'), role: 'status' },
+      text,
     );
-  }
-
-  /** 同上：patchList 复用行节点，档案被改过就必须原地重画那一行。 */
-  const rowSignatures = new WeakMap();
-
-  function createRow(m) {
-    const node = renderRow(m);
-    rowSignatures.set(node, JSON.stringify(m));
+    if (state.title) node.title = state.title;
     return node;
   }
 
-  function refreshRow(node, m) {
-    const signature = JSON.stringify(m);
+  // ==================================================================
+  // 列表渲染
+  // ==================================================================
+
+  /** 一张供应商卡：头部一行信息 + 动作，下面是模型清单。 */
+  function renderCard(p) {
+    const keyBadge = createBadge({
+      label: p.key_present ? T.KEY_PRESENT : T.KEY_MISSING,
+      variant: p.key_present ? 'success' : 'neutral',
+      glyph: p.key_present ? '✓' : '',
+    });
+    const actions = el('div', { class: 'model-card__actions' });
+    const testBtn = createButton({
+      label: testing.has(p.id) ? T.TESTING : T.TEST,
+      variant: 'ghost',
+      size: 'sm',
+      loading: testing.has(p.id),
+      onClick: () => runTest(p.id),
+    });
+    const editBtn = createButton({
+      label: S.MODELS_FORM_EDIT,
+      variant: 'ghost',
+      size: 'sm',
+      onClick: () => openForm(p),
+    });
+    const delBtn = createButton({
+      label: S.ACTION_DELETE,
+      variant: 'ghost',
+      size: 'sm',
+      onClick: () => remove(p),
+    });
+    actions.append(testBtn.el, editBtn.el, delBtn.el);
+
+    const modelList = el(
+      'ul',
+      { class: 'model-card__models' },
+      ...(p.models || []).map((m) => {
+        // 容量显示：与供应商默认值相同的标「默认」，一眼看出哪些是继承来的
+        const ctxInherit = m.context_window === p.default_context_window;
+        const maxInherit = m.max_tokens === p.default_max_tokens;
+        return el(
+          'li',
+          { class: 'model-card__model' },
+          el('span', { class: 'model-card__model-id' }, m.id),
+          m.name && m.name !== m.id ? el('span', { class: 'model-card__model-name u-faint' }, m.name) : null,
+          el('span', { class: 'model-card__model-cap u-faint' },
+            `上下文 ${fmtTokens(m.context_window)}${ctxInherit ? `（${T.MODEL_INHERIT}）` : ''} · ` +
+            `输出 ${fmtTokens(m.max_tokens)}${maxInherit ? `（${T.MODEL_INHERIT}）` : ''}`),
+        );
+      }),
+    );
+
+    const testLine = renderTestLine(testResults.get(p.id));
+    return el(
+      'article',
+      { class: 'model-card' },
+      el('div', { class: 'model-card__row1' },
+        el('h2', { class: 'model-card__name' }, p.display_name || p.id),
+        createBadge({ label: PROTOCOL_NAMES[p.protocol] || p.protocol, variant: 'neutral' }).el,
+        keyBadge.el,
+        el('span', { class: 'u-spacer' }),
+        actions,
+      ),
+      el('p', { class: 'model-card__url u-mono' }, p.base_url || '—'),
+      el('div', { class: 'model-card__models-head' },
+        el('span', { class: 'u-faint' }, t(T.MODEL_COUNT, { n: (p.models || []).length })),
+      ),
+      modelList,
+      testLine,
+    );
+  }
+
+  const rowSignatures = new WeakMap();
+
+  function createRow(p) {
+    const node = renderCard(p);
+    rowSignatures.set(node, JSON.stringify(p));
+    return node;
+  }
+
+  function refreshRow(node, p) {
+    const signature = JSON.stringify(p);
     if (rowSignatures.get(node) === signature) return;
     rowSignatures.set(node, signature);
-    const rebuilt = renderRow(m);
+    const rebuilt = renderCard(p);
     node.className = rebuilt.className;
     clear(node);
     while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
@@ -536,6 +880,7 @@ export function createModels(props = {}) {
   /** 三态渲染列表。 */
   function render() {
     listHost.textContent = '';
+    migrateNote.hidden = !migrated;
     if (loading) {
       listHost.appendChild(createSkeleton({ rows: 3, variant: 'row', label: S.MODELS_LOADING_DESC }).el);
       return;
@@ -546,13 +891,13 @@ export function createModels(props = {}) {
           title: errorTitle(error),
           desc: errorBody(error),
           alert: true,
-          // 页头「新增档案」是全页唯一强调按钮，这里用幽灵态避免双实心
+          // 页头「新增供应商」是全页唯一强调按钮，这里用幽灵态避免双实心
           actions: [createButton({ label: S.ACTION_RETRY, variant: 'ghost', onClick: () => load() }).el],
         }).el,
       );
       return;
     }
-    if (models.length === 0) {
+    if (providers.length === 0) {
       listHost.appendChild(
         createEmptyState({
           title: S.MODELS_EMPTY,
@@ -563,26 +908,59 @@ export function createModels(props = {}) {
       return;
     }
     const ul = el('ul', { class: 'models__list' });
-    patchList(ul, models, (m) => m.id, createRow, refreshRow);
+    patchList(ul, providers, (p) => p.id, createRow, refreshRow);
     listHost.appendChild(ul);
   }
 
-  /** 拉取档案列表。 */
+  /** 拉取供应商列表（含展开后的扁平模型，供工作台下拉用）。 */
   async function load() {
     loading = true;
     error = null;
     render();
     try {
-      const res = await api.get('/models', { scope });
-      models = (res && res.models) || [];
+      const [provRes, modelRes] = await Promise.all([
+        api.get('/providers', { scope }),
+        api.get('/models', { scope }),
+      ]);
+      providers = (provRes && provRes.providers) || [];
+      migrated = Boolean(provRes && provRes.migrated);
+      flatModels = (modelRes && modelRes.models) || [];
       loading = false;
       render();
-      if (onChange) onChange(models);
+      if (typeof onChange === 'function') onChange(flatModels);
     } catch (err) {
       loading = false;
-      if (err instanceof ApiError && err.code === 'ABORTED') return;
-      error = err.code || 'LOAD_FAILED';
+      error = err && err.code ? err.code : 'INTERNAL';
+      // 临时诊断：渲染阶段的异常会被这里吞掉，打出来才知道真实原因
+      if (typeof console !== 'undefined' && console.error) {
+        console.error('[models] load 失败：', err);
+      }
       render();
+    }
+  }
+
+  /**
+   * 删除供应商（连同它的模型与密钥）。
+   * @param {object} p
+   */
+  async function remove(p) {
+    const n = (p.models || []).length;
+    const ok = await confirmDialog({
+      title: t(T.DELETE_TITLE, { id: p.display_name || p.id }),
+      messages: [
+        t(T.DELETE_BODY_1, { n }),
+        T.DELETE_BODY_2,
+      ],
+      confirmLabel: S.ACTION_DELETE,
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.del('/providers', { scope, params: { id: p.id } });
+      await load();
+      announce(S.MODELS_DELETED);
+    } catch (err) {
+      announce(errorTitle(err && err.code ? err.code : 'INTERNAL'), { assertive: true });
     }
   }
 
@@ -591,14 +969,12 @@ export function createModels(props = {}) {
   return {
     el: root,
     el_h1: h1,
-    /** 当前档案列表（供工作台绑定用）。 */
-    getModels: () => models,
-    /** 解绑 + 关弹窗 + 取消在途请求。 */
+    /** 解绑：关掉可能开着的弹窗，避免残留。 */
     destroy() {
-      if (formModal) formModal.destroy();
-      scope.cancelAll();
-      [idField, protocolField, apiModeField, modelField, urlField, apiKeyField, keyEnvField, noteField,
-        saveBtn, cancelBtn, addBtn].forEach((c) => c.destroy());
+      if (formModal) formModal.close('cancel');
+      formModal = null;
     },
+    /** 展开后的扁平模型列表（工作台下拉用）。 */
+    getModels: () => flatModels,
   };
 }

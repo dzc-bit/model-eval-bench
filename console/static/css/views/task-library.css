@@ -117,8 +117,9 @@
 
 .lib .lib__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
-  gap: var(--space-4);
+  /* 280px：1200px 主栏下 4 列——一屏可见的题数比 3 列多一排 */
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -130,10 +131,11 @@
 
 /* 卡片：顶部 2px 发丝线 = 档位色；hover 只允许边框变亮 + 150ms，无阴影扩散 */
 .lib .task-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-5);
+  padding: var(--space-4);
   border: var(--border-width) solid var(--color-border);
   border-top: 2px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -178,35 +180,63 @@
   color: var(--color-text);
 }
 
-/* 「考察：…」紧跟标题：第一眼读到的内容 */
+/* 「考察：…」：数据到位于才出现（meta.summary），紧跟标题 */
 .lib .task-card__goal {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   line-height: var(--line-height-normal);
   color: var(--color-text-muted);
 }
 
-.lib .task-card__symptom {
+/* 状态行：卡片里唯一的数字行——轮次/最好成绩/上次时间，mono 对齐可比 */
+.lib .task-card__status {
   margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-  color: var(--color-text-faint);
-}
-
-/* 校准元数据（目标通过率/未校准/历史最好）：脚注小字，弱化 */
-.lib .task-card__meta {
-  margin: 0;
+  margin-top: auto;
+  padding-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
   color: var(--color-text-faint);
 }
 
-.lib .task-card__foot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: auto;
-  padding-top: var(--space-2);
+/* 悬停浮现的「查看排行榜」图标钮：常驻显形时是视觉噪音，也稀释整卡可点 */
+.lib .task-card .task-card__top .u-inline {
+  transition: opacity 150ms var(--ease-out);
+}
+.lib .task-card__top > .u-inline:last-of-type {
+  margin-left: calc(-1 * var(--space-2));
+}
+.lib .task-card__top > .u-inline .btn--icon {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  color: var(--color-text-faint);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lib .task-card__top > .u-inline .btn--icon {
+    opacity: 0;
+  }
+  .lib .task-card:hover .task-card__top > .u-inline .btn--icon,
+  .lib .task-card:focus-within .task-card__top > .u-inline .btn--icon {
+    opacity: 1;
+  }
+}
+
+/* ============================ 校准警示条 ============================ */
+/* 页头下的单条 warn 说明：替代每卡重复的「未校准」脚注 */
+.lib .lib__calib-banner {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-warn-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-warn-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+.lib .lib__calib-banner[hidden] {
+  display: none;
 }
 
 /* 档位徽章：spec 官方色板的 tint 底 + 档位文字色（覆盖 components.css 的旧配色） */
@@ -245,6 +275,11 @@
 
 .lib .guide[hidden] {
   display: none;
+}
+
+/* 引导收起时的入口按钮：一行幽灵钮，不占首屏 */
+.lib > .u-inline:has(> .btn--ghost) {
+  align-self: flex-start;
 }
 
 .lib .guide__head {
@@ -311,5 +346,12 @@
 @media (min-width: 960px) {
   .lib .guide {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 窄屏：卡片回到单列整宽，网格密度让位可读性 */
+@media (max-width: 640px) {
+  .lib .lib__grid {
+    grid-template-columns: 1fr;
   }
 }

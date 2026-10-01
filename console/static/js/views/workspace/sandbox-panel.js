@@ -49,6 +49,8 @@ const SANDBOX_OK = new Set(['ready', 'graded']);
 
 /** 本卡新增文案。 */
 const T = {
+  // 说明行：说清"这一步你要做什么"（规格 §2.1）
+  DESC: '模型的工作目录。可以清空改动重来，或打开目录自己看。',
   CHANGED: '已改动 {n} 个文件',
   DETAILS: '详情',
   FACT_ROUND_STARTED: '本轮开始于',
@@ -77,16 +79,21 @@ export function createSandboxPanel(handlers) {
   // ---- 卡片骨架 ----
   const title = el('h2', { class: 'ws-card__title', id: 'ws-sandbox-title' }, S.SANDBOX_TITLE);
   const statusDot = createStatusDot({ kind: 'idle', text: S.SANDBOX_NO_RUN });
-  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' }, S.SANDBOX_NO_RUN);
+  // 状态点已经报了服务端状态词（就绪 / 正在校验…），摘要行不再复述它：
+  // 摘要只放**动态事实**（已改动 n 个文件 / 正在长操作），没有就留空（规格 §2.2）。
+  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' });
   const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
+  // 卡头两行（规格 §2.1）：第 1 行 = 标题 …… [状态点] [已改动 n 个文件] ›，
+  // 第 2 行 = 说明行整行铺开（折叠着也读得到"沙箱是做什么的"）。
   const summary = el(
     'summary',
     { class: 'ws-card__summary' },
     title,
-    statusDot.el,
     el('span', { class: 'u-spacer' }),
+    statusDot.el,
     cardAside,
     chevron,
+    el('p', { class: 'ws-card__desc' }, T.DESC),
   );
   const bodyHost = el('div', { class: 'ws-card__body' });
   const root = el('details', { class: 'ws-card ws-region', id: 'ws-region-sandbox' }, summary, bodyHost);
@@ -227,18 +234,17 @@ export function createSandboxPanel(handlers) {
   }
 
   /**
-   * 卡头摘要一句话：可用状态优先报「改了几个文件」，其次报服务端状态词。
-   * 没有沙箱时留空——卡头的状态点和卡内空态已经说清楚了，标题旁再挂一遍
-   * 「还没有沙箱」会变成同一句话出现三次。
+   * 卡头摘要只放**动态变化的事实**：改了 n 个文件。
+   * 服务端状态词由紧邻的状态点负责（"就绪 / 正在校验 / 正在准备沙箱"），
+   * 这里再说一遍就是同一事实出现两次（规格 §2.2）；没有动态事实就留空。
    * @param {object} run
    * @returns {string}
    */
   function asideText(run) {
     const diff = run.report && run.report.diff;
     const files = diff ? Number(diff.files || 0) : 0;
-    if (SANDBOX_OK.has(run.status) && files > 0) return t(T.CHANGED, { n: files });
-    if (!SANDBOX_OK.has(run.status)) return '';
-    return statusText(run.status);
+    if (files > 0) return t(T.CHANGED, { n: files });
+    return '';
   }
 
   /**
@@ -358,7 +364,8 @@ export function createSandboxPanel(handlers) {
     }
 
     if (current.loading) {
-      setText(cardAside, S.STATE_LOADING);
+      // 状态点已经说「正在加载」，摘要再说一遍就是重复（规格 §2.2）。
+      setText(cardAside, '');
       statusDot.update({ kind: 'busy', text: S.STATE_LOADING });
       bodyHost.appendChild(skeleton.el);
       return;
@@ -366,7 +373,7 @@ export function createSandboxPanel(handlers) {
 
     if (current.error) {
       root.open = true; // 错误不能藏在收起的卡里
-      setText(cardAside, S.ERR_LOAD);
+      setText(cardAside, '');
       statusDot.update({ kind: 'error', text: S.ERR_LOAD });
       errorState.update({});
       bodyHost.appendChild(errorState.el);
@@ -382,8 +389,8 @@ export function createSandboxPanel(handlers) {
       const starting = busy === 'prepare' || busy === 'reset' || busy === 'rebuild';
       const preparing = busy === 'prepare';
       statusDot.update({ kind: starting ? 'busy' : 'idle', text: starting ? progressLabel(busy) : S.SANDBOX_NO_RUN });
-      // 摘要只在长操作时报进度；静止的空态留给卡内空态说明，卡头不重复。
-      setText(cardAside, starting ? progressLabel(busy) : '');
+      // 进度词归状态点，摘要留空：同一句"正在准备沙箱"不写两遍。
+      setText(cardAside, '');
       emptyState.update({});
       bodyHost.appendChild(emptyState.el);
       emptyPrepareBtn.update({
