@@ -1,5 +1,11 @@
 # Claude 风格 UI 验收清单
 
+> **状态：已被取代（2026-10-01 第三轮）**。视觉母版已切换为 workbuddy2api 面板风格
+> （石墨黑 + 翡翠绿深色默认，见 `runs/audit/2026-10-01/修复记录.md` 追加第三节），
+> 本清单与 `claude-DESIGN.md` 的色值/质感要求**不再是验收依据**，仅作历史沿革保留。
+> 其中的工程纪律（不卡片套卡片、一屏一个实心按钮、对比度、reduced-motion）已被吸收进
+> 现行 `console/static/css/tokens.css` 与 `console/static/NOTES.md`，仍然适用。
+
 > **规范原件在仓库里**：`specs/claude-DESIGN.md`（20KB，来自 github.com/nexu-io/open-design
 > 的 plugins/_official/design-systems/claude/DESIGN.md）。本文件只是把它翻译成
 > 本项目可执行的逐条验收项。**两者冲突时以原件为准，并回来更新本文件。**

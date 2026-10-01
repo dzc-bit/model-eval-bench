@@ -5,6 +5,9 @@
 > 按 Apache-2.0 的要求保留本出处说明；在此基础上做的增改请就近标注，不要覆盖这段。
 > 描述对象是 Anthropic Claude 的公开界面风格，不构成任何形式的官方授权。
 
+> **本项目内的状态（2026-10-02 注）**：已不再是现行视觉母版——2026-10-01 第三轮改版
+> 切换为 workbuddy2api 风格（`runs/audit/2026-10-01/修复记录.md`）。本文件仅作参考资料保留。
+
 > Category: AI & LLM
 > Anthropic's AI assistant. Warm terracotta accent, clean editorial layout.
 

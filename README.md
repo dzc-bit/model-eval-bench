@@ -5,7 +5,7 @@
 
 - 设计与验收标准：[`设计文档.md`](设计文档.md)（v2.2，含四层隔离、难度四杠杆、十一道起步题、任务包规范）
 - 任务包出题指南：[`packs/core/README.md`](packs/core/README.md)（流水线 8 步、工具速查、删除纪律）
-- 本次整理账本：[`整理报告.md`](整理报告.md)
+- 历次审计与整理账本：[`runs/audit/`](runs/audit/)（按日期归档；最新一次见 `runs/audit/2026-10-02/`）
 
 > **⚠️ 先读这一句**：本仓库是**出题侧**——题库与**标准答案**的家。
 > `packs/core/tasks/*/reference/`（锚解、半成品解、注入点说明）与 `packs/core/tasks/*/hidden/`
@@ -38,7 +38,6 @@
 ```
 .
 ├─ 设计文档.md                  ← 规格源头（v2.2）
-├─ 整理报告.md                  ← 最近一次工作区整理与 pack 体检账本
 ├─ 启动.cmd                    ← 双击即起服务并打开浏览器
 ├─ console/                    ← 评测台本体（纯标准库，零构建）
 │  ├─ server.py                ← HTTP 服务 + JSON API + 静态托管
@@ -47,17 +46,18 @@
 │  │  └─ tests/                ← 引擎自身的用例与自造题包 fixture（数量见最新验收记录）
 │  └─ static/                  ← 前端（原生 ES 模块，无构建、无第三方依赖）
 │     ├─ js/views/             ← 八个视图：任务库 / 排行榜 / 工作台 / 批量跑批 / 记分板 / 模型档案 / 设置 / 帮助
-│     └─ js/components/        ← 16 个组件（含 result-mark 成功失败 SVG 动画）
+│     └─ js/components/        ← 17 个组件（含 result-mark 成功失败 SVG 动画）
 ├─ packs/                      ← 题库与答案的家，**永不进沙箱**
 │  └─ core/
 │     ├─ index.json            ← 题目登记表（status / target_band / prune / p2p / 门禁摘要）
 │     ├─ README.md             ← 出题指南（流水线、工具、删除纪律）
 │     ├─ tools/                ← 出题侧自验工具（纯标准库）
 │     └─ tasks/T1-01 … T4-11/  ← 十一道起步题
-├─ runs/                       ← 运行记录与出题侧脚本
-│  ├─ blind/tools/             ← 门禁 runner、成题脚本、整理工具
+├─ runs/                       ← 运行记录、出题侧脚本与历次审计报告
+│  ├─ blind/tools/             ← 门禁 runner、盲测编排、整理工具（成题脚本存档在 tools/archive/）
 │  ├─ blind/gates/             ← 门禁临时评分树落点（跑完自动删，不入库）
-│  └─ blind/calib/             ← 盲测试跑记录
+│  ├─ blind/calib/             ← 盲测试跑记录
+│  └─ audit/<日期>/            ← 历次审计 / 整理 / 重构报告
 └─ sandboxes/                  ← 沙箱落点 + 快照缓存 + 跑批快照（内容不入库）
    ├─ .snapshots/              ← 按题缓存的"已注入基线骨架"
    └─ _batches/                ← 批量跑批的批次快照（batch.json，服务重启后可查）
@@ -94,6 +94,13 @@ calibration/gate_*.json    ← 三级门禁原始输出
 
 不需要 `pip install` 任何东西就能启动控制台；跑门禁时才需要目标仓库的依赖可导入。
 
+> **解释器纪律**：评分子进程用的是「启动服务的那个 Python」（`checks/pytest.py` 走
+> `sys.executable -m pytest`）。隐藏用例要 import 受测仓库的依赖（pandas / numpy /
+> pyarrow / duckdb / akshare / pydantic / openai …），所以正确做法是在评测台根建一个
+> `.venv-gate`（已被 `.gitignore` 排除）把这些依赖装上——`启动.cmd` 检测到它就优先用，
+> 否则退回系统 `python` 并给出警告。直接双击启动前请先确认这一点，否则校验会在收集阶段
+> 全灭、分数直接是 0。
+
 ---
 
 ## 4. 快速开始
@@ -112,7 +119,7 @@ http://127.0.0.1:8899
 ```
 
 启动后控制台会做一次环境自检（受测仓库可读、pytest/Node 可用、文件夹沙箱可用、静态资源完整），
-异常项直接显示在页面上。API 入口：`GET /api/tasks`、`GET /api/task/<ID>`、`GET /api/runs`、
+异常项直接显示在页面上。API 入口：`GET /api/tasks`、`GET /api/tasks/<ID>`、`GET /api/runs`、
 `POST /api/batches`（批量跑批）等。
 
 多仓库是可选的：题包 `meta.json` 写了 `repo.id` 时，可以在 `config.json` 里加
@@ -283,7 +290,7 @@ python t0310_loop.py fixed --rebuild                  # 成题期快速迭代：
 | `T3-10-scan.py` | 只读勘察：`outline` / `show` / `grep` 某个源文件 |
 | `tidy_workspace.py` | 工作区整理（按 README §六 的删除纪律，支持 `--dry-run`） |
 | `hidden_group_audit.py` | 审计某题隐藏用例是否都被分组引用（判断能否低成本补组内断言） |
-| `author_t0*.py` | 各题成题脚本（历史存档，含绝对路径，换机器需改常量） |
+| `author_t0*.py` | 各题成题脚本，已归档到 [`runs/blind/tools/archive/`](runs/blind/tools/archive/)（含绝对路径、不可直接运行，仅作"题目当时怎么造出来"的存档） |
 
 ---
 
@@ -346,7 +353,7 @@ draft 题（T4-11）默认只做骨架级检查，强制成品级检查用 `pack
 | 2 | ~~T3-08 的 2 项 packcheck 红~~ **已修复（2026-10-02）** | coherence 组补第二数据场景（中断残留 + 参数体超限）；`packcheck.py` 的"半成品是锚解真子集"判据对单文件锚解降级为改动体量比较（半成品 25 行 < 锚解 58 行）。三态门禁重跑全绿，已转正 active |
 | 3 | **校准全部未做** | `blind_runs` 均为空表（§9 纪律），目标带待非出题模型盲测回填 |
 | 4 | **王者 T4-11 尚未校准** | 题包门禁已完成、`packcheck --full` 实测 0 红（2026-10-02）；联合 coherence 组已重做为真交互断言（写入失效协议 × 行情宽度校验、一次写入穿透健康与行情两出口，见该题 notes §九）；`pass_at_3` 仍需非出题模型完成独立三轮会话盲测，在此之前保持 `draft` / `calibrated=false` |
-| 5 | **成题脚本含绝对路径** | `runs/blind/tools/author_t0*.py` 顶部硬编码 `D:\new model test` / `D:\New project 6`（历史存档）。`packgate.py`、`console/config.json` 已改为可配置/相对路径 |
+| 5 | ~~成题脚本含绝对路径~~ **已归置（2026-10-02）** | `author_t0*.py` 移入 `runs/blind/tools/archive/` 并注明"存档不可直接运行"；日常出题流程（`inject_edits.py` / `packgate.py` / `console/config.json`）本就是可配置/相对路径 |
 | 6 | **harness 侧的其它待跟进** | 见 `console/harness/NOTES.md` 第三节（uv/pnpm 未接、并行校验无跨进程磁盘锁、大 monorepo 全树哈希偏慢） |
 | 7 | **同端口可能并存两个服务实例** | Windows `SO_REUSEADDR` 允许两个进程都 `LISTEN` 成功，请求随机分流到新旧代码，表现为"接口时好时坏/偶发 500"。排障先看 `netstat -ano \| findstr :8899` 是否只有一个 LISTENING 的 pid（本轮就踩过） |
 | 8 | **跑批沙箱默认不留存** | `auto_release=True` 时在评分结束后回收目录；报告、diff 和对话记录保留。需要保留目录时可由 API 设置 `auto_release=False` |

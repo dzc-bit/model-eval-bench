@@ -14,7 +14,8 @@
 - 后端（纯标准库，无框架）：`console/harness/{runs,grade,chat,packs,sandbox,config,calibrate,server}.py`，
   检查器在 `console/harness/checks/{pytest,vitest}.py`，工具自检 `console/harness/selfcheck.py`。
 - 前端：原生 ES module，入口 `console/static/js/main.js`，视图 `console/static/js/views/**`，
-  工作台按面板拆成 `views/workspace/{chat,sandbox,grade,prompt,run}-panel.js`；样式令牌在 `static/css/tokens.css`。
+  工作台 = `views/workspace.js`（编排）+ `views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js`；
+  样式令牌在 `static/css/tokens.css`。
 - 设计文档 `设计文档.md` 是规则源，用户手册 `README.md`，出题纪律 `packs/core/README.md`。
   三处与代码冲突时，先判"是实现错还是规则源过期"，两边都可能要改。
 
@@ -130,7 +131,8 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
 这些已经报过，等他点头再动：
 
 - 批次视图不渲染 `started_at` / `finished_at`；跑批与工作台对"同一组合"的措辞还没统一。
-- `T4-11` 的隐藏前端用例与 `T3-09` 完全相同；前端题的 node-ID 前缀约定还没定稿。
-- `packgate.py` 仍留 private 兜底；`selfgrade.py` 不认识 vitest，前端题自校会假绿。
-- `T2-05` 还是 `draft`：`allowed_paths` 只有 2 个文件、`coherence` 组只有 1 条断言。
+- `packgate.py` 的补丁应用仍借用 `selfgrade.apply_patch`，与 harness 自带的 `_apply_unified`
+  是两份实现（2026-10-02 复核：`selfgrade.py` 不认识 vitest 一条已修——声明了非 pytest 检查的题
+  现在 fail-closed；T4-11 与 T3-09 用例重复、node-ID 前缀约定两条也已随题库修复定稿，
+  前缀约定见 `packs/core/README.md` 步骤 3）。
 - 真实外部服务商调用仍未验证（本机没有有效密钥）；难度校准本轮明确不执行。
