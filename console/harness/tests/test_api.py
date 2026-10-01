@@ -85,6 +85,24 @@ def as_json(text):
 
 # ------------------------------------------------------------------ health
 
+def test_chat_history_survives_a_deleted_model_profile(live, cfg):
+    """档案被删也要能回看历史；只有继续发送才需要档案。"""
+    run = make_run(cfg, model="已删档案")
+    runs.save_run(cfg, run)
+    chat._append_message(run, {"role": "user", "content": "上一轮问过的问题"})
+
+    status, body, _ = live("/api/runs/%s/chat" % run["run_id"])
+    assert status == 200, "读历史不该因为档案没了就 404"
+    doc = as_json(body)
+    assert doc["model"]["gone"] is True
+    assert [m["role"] for m in doc["messages"]] == ["user"]
+
+    status, body, _ = live("/api/runs/%s/chat" % run["run_id"], method="POST",
+                           body={"message": "继续"})
+    assert status == 404
+    assert "已被删除" in as_json(body)["message"]
+
+
 def test_health_reports_environment(live, cfg):
     """health 要把版本、路径、盘符、磁盘一次说全（设计文档 §15 末段）。"""
     status, body, _ = live("/api/health")

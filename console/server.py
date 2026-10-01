@@ -297,15 +297,24 @@ def api_create_run(cfg: dict, body: dict) -> dict:
 
 
 def api_chat_history(cfg: dict, run_id: str) -> dict:
-    """读取当前 run 的服务端对话记录。"""
+    """读取当前 run 的服务端对话记录。
+
+    模型档案被删掉也必须能回看：查档案只是为了在响应里附带一段展示信息，
+    不能因为它把整段历史变成 404。真正需要档案的是继续发送（见 api_chat_send）。
+    """
     run = runs.get_run(cfg, run_id)
-    model = config.find_model(cfg, str(run.get("model") or ""))
+    model_id = str(run.get("model") or "")
+    try:
+        model = config.find_model(cfg, model_id)
+        info = {"id": model.get("id"), "model": model.get("model"),
+                "protocol": model.get("protocol"), "api_mode": model.get("api_mode")}
+    except errors.HarnessError:
+        info = {"id": model_id, "model": "", "protocol": "", "api_mode": "", "gone": True}
     return {
         "run_id": run_id,
         "messages": chat_mod.messages(run),
         "chat_busy": chat_mod.send_active(run_id),
-        "model": {"id": model.get("id"), "model": model.get("model"),
-                   "protocol": model.get("protocol"), "api_mode": model.get("api_mode")},
+        "model": info,
         "tools": chat_mod.TOOLS,
     }
 
@@ -321,6 +330,15 @@ def api_chat_send(cfg: dict, run_id: str, body: dict) -> dict:
     text = body.get("message")
     if not isinstance(text, str) or not text.strip():
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
+    try:
+        config.find_model(cfg, str(run.get("model") or ""))
+    except errors.HarnessError:
+        # 这一轮绑定的档案已经不存在：让他新建一个叫旧 id 的档案是荒谬的建议
+        raise errors.HarnessError(
+            errors.E_MODEL_NOT_FOUND,
+            "这一轮绑定的模型档案 %s 已被删除，无法继续对话。请在运行区改选一个现存档案，"
+            "再准备新一轮。" % run.get("model"),
+        )
     return chat_mod.start_send(cfg, run, text)
 
 
@@ -541,7 +559,11 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_static(path)
             return
         try:
-            handler, params = ROUTER.match(method, path)
+            # 路由前先解码：前端按 encodeURIComponent 发 run_id，而模型档案名允许中文
+            # （runs/ 记录里就有中文档案名）。不解码的话这类 run 的接口全部 404。
+            # 静态分支不这么做——_serve_static 自己解码，这里再解一次就成了双重解码，
+            # %252e%252e 这类绕过手段正好会因此失效。
+            handler, params = ROUTER.match(method, unquote(path))
             body = self._read_body() if method in {"POST", "PATCH", "DELETE"} else {}
             cfg = _load_config()
             # 路径参数（task_id / run_id）直接摊到 ctx 上，

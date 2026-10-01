@@ -42,6 +42,8 @@ export function createChatPanel(handlers = {}) {
   let sending = false;
   /** 服务端还有一轮发送在跑（浏览器刷新/离开后线程不会断），此时对话显示“模型仍在处理”。 */
   let remoteBusy = false;
+  /** 这一轮绑定的模型档案已被删除：历史可以回看，但不能再发。 */
+  let profileGone = false;
   let requestSeq = 0;
   let progressTimer = null;
   let remoteTimer = null;
@@ -350,6 +352,10 @@ export function createChatPanel(handlers = {}) {
       setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
       return;
     }
+    if (profileGone) {
+      setStatus('idle', S.CHAT_MODEL_GONE);
+      return;
+    }
     const status = currentRun && currentRun.status;
     if (status && status !== 'ready') {
       setStatus('idle', CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
@@ -359,7 +365,7 @@ export function createChatPanel(handlers = {}) {
   }
 
   function setEnabled(enabled) {
-    enabled = enabled && currentRun?.status === 'ready' && !remoteBusy;
+    enabled = enabled && currentRun?.status === 'ready' && !remoteBusy && !profileGone;
     draft.disabled = !enabled || sending;
     sendBtn.update({ disabled: !enabled || sending || !draft.value.trim(), loading: sending, busyLabel: S.CHAT_SENDING || '正在处理' });
     usePromptBtn.update({ disabled: !enabled });
@@ -411,6 +417,9 @@ export function createChatPanel(handlers = {}) {
       messages = normalizeMessages(data && data.messages);
       loading = false;
       remoteBusy = Boolean(data && data.chat_busy);
+      profileGone = Boolean(data && data.model && data.model.gone);
+      // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
+      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE_DETAIL : S.CHAT_TOOL_HINT);
       if (remoteBusy) {
         setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
@@ -434,6 +443,10 @@ export function createChatPanel(handlers = {}) {
   async function send() {
     const text = draft.value.trim();
     if (!currentRunId || !text || loading) return false;
+    if (profileGone) {
+      showToast({ message: S.CHAT_MODEL_GONE, detail: S.CHAT_MODEL_GONE_DETAIL, kind: 'warn', duration: 8000 });
+      return false;
+    }
     if (sending || remoteBusy) {
       // 上一条还在服务端跑（一轮可能几十次工具调用）。必须当场说明并留住草稿：
       // 只在界面上留一个气泡、消息永远发不出去，看起来就像对话死了。
@@ -555,6 +568,8 @@ export function createChatPanel(handlers = {}) {
       sending = false;
       loading = false;
       remoteBusy = false;
+      profileGone = false;
+      setText(composerHint, S.CHAT_TOOL_HINT);
       currentRunId = nextRunId;
       messages = [];
       requestSeq += 1;
