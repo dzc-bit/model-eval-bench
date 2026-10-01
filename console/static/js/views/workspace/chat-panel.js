@@ -459,9 +459,9 @@ export function createChatPanel(handlers = {}) {
   /**
    * 输入框 / 发送按钮的可用性与「不可用的原因」。
    *
-   * 可用 = 有运行记录 + 沙箱状态在 CHAT_OK（ready / graded）+ 没有请求在途。
-   * 不可用时必须把原因写在按钮旁边（createButton 的 reason 会渲染成可见文字并
-   * 挂 aria-describedby），否则使用者只会读成「对话框坏了」。
+   * 可用 = 有运行记录 + 沙箱状态在 CHAT_OK（ready / graded）+ 这一轮绑定的模型档案
+   * 还在 + 没有请求在途。不可用时必须把原因写在按钮旁边（createButton 的 reason 会
+   * 渲染成可见文字并挂 aria-describedby），否则使用者只会读成「对话框坏了」。
    *
    * @param {boolean} enabled 调用方希望的可用状态
    * @returns {void}
@@ -469,15 +469,17 @@ export function createChatPanel(handlers = {}) {
   function setEnabled(enabled) {
     const status = currentRun && currentRun.status ? String(currentRun.status) : '';
     const sandboxOk = CHAT_OK.has(status);
-    const editable = Boolean(enabled) && Boolean(currentRunId) && sandboxOk && !remoteBusy && !sending;
+    const editable = Boolean(enabled) && Boolean(currentRunId) && sandboxOk && !remoteBusy && !sending && !profileGone;
     draft.disabled = !editable;
     const reason = !currentRunId
       ? T.DISABLED_NO_SANDBOX
-      : remoteBusy
-        ? S.CHAT_REMOTE_BUSY
-        : !sandboxOk
-          ? T.DISABLED_STATUS
-          : '';
+      : profileGone
+        ? S.CHAT_MODEL_GONE
+        : remoteBusy
+          ? S.CHAT_REMOTE_BUSY
+          : !sandboxOk
+            ? T.DISABLED_STATUS
+            : '';
     // 发送另加一条：草稿为空时不给点（send() 内部本来也会挡住空消息）
     const canSend = editable && Boolean(draft.value.trim());
     sendBtn.update({

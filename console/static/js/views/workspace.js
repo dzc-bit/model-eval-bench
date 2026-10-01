@@ -538,6 +538,8 @@ export function createWorkspace(props = {}) {
   function applyRun(run) {
     const prev = store.getState();
     const prevStatus = prev.run ? prev.run.status : '';
+    // 换 run 或进下一轮：上一轮的改动正文当场作废（在途响应由 diffToken 比对丢掉）
+    if (diffTokenOf(prev.run) !== diffTokenOf(run)) invalidateDiff();
     const serverBusy = BUSY_STATUS.has(run.status);
     const next = { run, newResult: false };
 
@@ -871,6 +873,27 @@ export function createWorkspace(props = {}) {
   }
 
   /**
+   * 改动正文归属的「运行 × 轮次」。diff.patch 是评分产物，进下一轮后服务端给的是
+   * 新一轮的改动，旧正文留在面板上就会被读成「模型这一轮什么也没改 / 又改了同样的东西」。
+   */
+  let diffToken = '';
+
+  /** @param {object|null} run @returns {string} */
+  function diffTokenOf(run) {
+    return run ? `${run.run_id}#${run.attempt}` : '';
+  }
+
+  /** 换轮或换 run 时作废已显示的改动正文与在途请求。 */
+  function invalidateDiff() {
+    diffToken = '';
+    setText(diffText, '');
+    diffCard.update({ hint: '' });
+    diffCard.setOpen(false);
+    diffWrap.hidden = true;
+    diffBtn.getButton().setAttribute('aria-expanded', 'false');
+  }
+
+  /**
    * 题头 [查看改动]：开合改动正文。展开时按需拉取一次（不轮询）。
    */
   function toggleDiff() {
@@ -888,10 +911,14 @@ export function createWorkspace(props = {}) {
   async function doShowDiff() {
     const s = store.getState();
     if (!s.run) return;
+    const token = diffTokenOf(s.run);
+    diffToken = token;
     setText(diffText, S.RUN_DIFF_LOADING);
     diffCard.update({ hint: S.STATE_LOADING });
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/diff`, {}, { scope });
+      // 换轮 / 换 run 之后这份正文不再属于当前视图，迟到的响应必须丢掉
+      if (diffToken !== token) return;
       // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
       if (typeof res.diff !== 'string') {
         setText(diffText, S.RUN_DIFF_BAD_PAYLOAD);
@@ -901,6 +928,7 @@ export function createWorkspace(props = {}) {
       setText(diffText, res.diff || S.RUN_DIFF_EMPTY);
       diffCard.update({ hint: diffStats(s.run) });
     } catch (err) {
+      if (diffToken !== token) return;
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
       setText(diffText, errorBody(code));
       diffCard.update({ hint: errorTitle(code) });
