@@ -225,6 +225,11 @@ export function restoreFocus(fallback) {
  * 把焦点移到视图标题（路由切换后调用，§10.3 / §12.1）。
  *
  * 做法：确保 tabindex="-1"，focus，并让读屏软件念出整段标题。
+ *
+ * 只移焦、不滚动：调用方在挂载新视图前已经 resetPageScroll 归零，
+ * 这里再滚一次会让页面莫名其妙往上跳——h1 自己带着 --space-6 的上内边距，
+ * 被 scrollBelowStickyHeader 当成「需要滚掉的遮挡」滚了 16px。
+ * 那个函数是给**页内锚点跳转**用的（目录点击、跳到某区域），不是给程序移焦用的。
  * @param {HTMLElement|null} heading 该视图的 h1
  * @returns {void}
  */
@@ -232,11 +237,11 @@ export function focusHeading(heading) {
   if (!(heading instanceof HTMLElement)) return;
   if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
   try {
+    // preventScroll 已经挡住浏览器为聚焦而做的自动滚动；这里不再主动滚。
     heading.focus({ preventScroll: true });
   } catch {
     heading.focus();
   }
-  scrollBelowStickyHeader(heading);
 }
 
 /** 可能钉在视口顶部、挡住滚动目标的条状节点（选择器，按出现顺序找）。 */

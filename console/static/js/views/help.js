@@ -164,11 +164,14 @@ export function createHelp(props = {}) {
     const link = ev.target.closest('a');
     if (!link) return;
     const target = root.querySelector(link.getAttribute('href'));
-    if (target) {
-      ev.preventDefault();
-      focusHeading(target);
-      target.scrollIntoView({ behavior: 'auto', block: 'start' });
-    }
+    if (!target) return;
+    ev.preventDefault();
+    focusHeading(target);
+    // 用绝对定位滚动，不用 scrollIntoView：本页是文档滚动，
+    // scrollIntoView 在滚动容器判定上依赖浏览器启发式，实测不稳定。
+    // 减去阅读线高度，让标题落在目录高亮所认定的位置上。
+    const y = target.getBoundingClientRect().top + window.scrollY - 120;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
   });
 
   /**
