@@ -77,6 +77,52 @@ def test_reopen_voids_the_round_and_unlocks_the_chat(cfg):
     assert "参考解" in exc.value.message
 
 
+def test_reopen_discards_a_stale_report_left_on_a_ready_run(cfg):
+    """轮次记账是后补的：状态早已退回 ready、目录里还挂着旧报告的 run 也必须能作废。
+
+    这种 run 在面板上永远显示一个 0 分，而「作废本轮」以前只认 graded，
+    用户既删不掉分数也不能重跑，只能看着一条死记录。
+    """
+    run = make_run(cfg, model="旧报告模型")
+    run["status"] = "ready"
+    run["rounds"] = []
+    run["last_score"] = None
+    runs.save_run(cfg, run)
+    report_path = os.path.join(run["run_dir"], "report.json")
+    util.write_json_atomic(report_path, {"score": 0.0, "passed": False, "groups": []})
+    assert runs.load_report(cfg, runs.get_run(cfg, run["run_id"])) is not None
+
+    out = runs.reopen(cfg, run["run_id"])
+    assert out["status"] == "ready" and out["report_archived"] is True
+    assert not os.path.isfile(report_path), "旧报告还在，面板就还会显示那个 0 分"
+    assert runs.load_report(cfg, runs.get_run(cfg, run["run_id"])) is None
+    archived = [n for n in os.listdir(run["run_dir"]) if n.startswith("report-discarded-")]
+    assert archived, "作废的证据要留在原地，不能直接删掉"
+
+
+def test_release_sandbox_frees_workspace_but_keeps_the_record(cfg):
+    """回收沙箱只删工作区目录：磁盘要还，成绩、报告、对话记录一个都不能少。"""
+    run = make_run(cfg, model="回收模型")
+    workspace = os.path.join(cfg["sandbox_root"], run["run_id"])
+    util.ensure_dir(workspace)
+    with open(os.path.join(workspace, "app.py"), "w", encoding="utf-8") as fh:
+        fh.write("print('模型改过的文件')\n")
+    run["sandbox"] = workspace
+    run["status"] = "graded"
+    runs.save_run(cfg, run)
+
+    out = runs.release_sandbox(cfg, run["run_id"])
+    assert out["released"] is True
+    assert not os.path.isdir(workspace)
+    after = runs.get_run(cfg, run["run_id"])
+    assert after["sandbox"] == ""
+    assert os.path.isfile(os.path.join(after["run_dir"], "run.json"))
+
+    # 没有沙箱时再点一次不该报错，也不能假装回收成功
+    again = runs.release_sandbox(cfg, run["run_id"])
+    assert again["released"] is False and again["message"]
+
+
 def test_run_directory_holds_full_archive(cfg, log):
     """一轮跑完，记录目录里该有的都在。"""
     meta = __import__("harness.packs", fromlist=["packs"]).load_meta(cfg, BACKEND_TASK)

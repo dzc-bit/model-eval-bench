@@ -206,6 +206,9 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
             "attempts_allowed": meta["attempts"],
             "status": "preparing",
             "created_at": util.iso_now(),
+            # 本轮起点：created_at 是这条记录被建出来的时刻，重建/清空都不会动它，
+            # 所以"本轮跑了多久"必须另起一个字段，否则时间会跨模型累加。
+            "round_started_at": util.iso_now(),
             "updated_at": util.iso_now(),
             "revealed": False,
             "rounds": [],
@@ -326,6 +329,14 @@ def reset_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
         result = sandbox.reset_changes(run["sandbox"], logger, dependencies_source)
         run["status"] = "ready"
         run["updated_at"] = util.iso_now()
+        # 回到基线就是新纪元：旧报告、旧改动证据和**旧对话**一起归档。
+        # 对话不归档会被 _model_history 原样喂给下一个模型，等于共享答案。
+        _archive_epoch(run.get("run_dir") or _run_dir_of(cfg, run["run_id"]),
+                       int(run.get("attempt") or 1))
+        _void_rounds(run, "清空改动后沙箱回到基线，旧成绩不再描述当前代码")
+        run["last_score"] = None
+        run["last_passed"] = None
+        run["round_started_at"] = util.iso_now()
         save_run(cfg, run)
         result["run_id"] = run["run_id"]
         result["sandbox"] = run["sandbox"]
@@ -358,7 +369,14 @@ def rebuild_sandbox(cfg: dict, task: str, run_id: str = "", log: Log = None) -> 
         logger("开始重建沙箱：%s" % run["run_id"])
         sandbox.rebuild(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run["run_id"]), log=logger)
         run["status"] = "ready"
-        run["rounds"] = []
+        # 重建是新纪元：旧对话、旧改动证据与旧轮次记录整体归档。轮次只作废不删除
+        # （记录目录与 run_id 都不变，删了就没法复盘上一个模型到底做了什么）。
+        _archive_epoch(run.get("run_dir") or _run_dir_of(cfg, run["run_id"]),
+                       int(run.get("attempt") or 1))
+        _void_rounds(run, "重建沙箱：上一个模型的对话与成绩不再计入这一轮")
+        run["last_score"] = None
+        run["last_passed"] = None
+        run["round_started_at"] = util.iso_now()
         save_run(cfg, run)
         return {"run_id": run["run_id"], "sandbox": run["sandbox"], "drive": run.get("drive", "")}
 
@@ -394,6 +412,16 @@ def _promote_locked(cfg: dict, run_id: str) -> dict:
             run_id,
         )
     current = int(run.get("attempt") or 1)
+    # 只有"当前这一轮真的考过"才允许进入下一轮：前端 canPromote 一直是这么假设的，
+    # 后端不拦的话连点或直调 API 就能跳级，白拿一次提示词等级。
+    graded_attempts = {int(r.get("attempt") or 0) for r in (run.get("rounds") or [])
+                       if not r.get("voided")}
+    if current not in graded_attempts:
+        raise errors.HarnessError(
+            errors.E_BAD_REQUEST,
+            "第 %d 轮还没有校验结果，不能进入下一轮。先运行校验，或点「作废本轮成绩」重来。" % current,
+            run_id,
+        )
     if current >= meta["attempts"]:
         raise errors.HarnessError(
             errors.E_BAD_REQUEST,
@@ -444,12 +472,79 @@ def _reveal_locked(cfg: dict, run_id: str) -> dict:
     }
 
 
+def _archive_report(run_dir_path: str) -> str:
+    """把当前报告挪成 report-discarded-<时间戳>.json，返回新路径（没有报告则空串）。
+
+    只挪不删：那是模型真实考出来的一次结果，评完就销毁会让复盘无从下手。
+    """
+    report_path = os.path.join(run_dir_path, "report.json")
+    if not os.path.isfile(report_path):
+        return ""
+    stamp = "".join(ch for ch in util.iso_now() if ch.isdigit())
+    target = os.path.join(run_dir_path, "report-discarded-%s.json" % stamp)
+    os.replace(report_path, target)
+    return target
+
+
+#: 回基线（清空改动 / 重建沙箱）时要整体归档的证据。
+#: chat.jsonl 必须在列：`chat._model_history()` 全量回放它，不归档就等于把
+#: 上一个模型的提示词、回答、工具原文结果和思考一起喂给下一个模型。
+EPOCH_ARTIFACTS = ("report.json", "diff.patch", "notes.md", "grade.log", "chat.jsonl")
+
+
+def _archive_artifacts(run_dir_path: str, names: list, label: str = "epoch") -> str:
+    """把列出的文件挪进 epochs/<时间戳>/，返回归档目录（没有可挪的文件则空串）。"""
+    present = [n for n in names if os.path.isfile(os.path.join(run_dir_path, n))]
+    if not present:
+        return ""
+    stamp = "".join(ch for ch in util.iso_now() if ch.isdigit())
+    target = os.path.join(run_dir_path, "epochs", "%s-%s" % (stamp, label))
+    suffix = 1
+    while os.path.exists(target):        # 同一秒内连续两次归档不能互相覆盖
+        suffix += 1
+        target = os.path.join(run_dir_path, "epochs", "%s-%s-%d" % (stamp, label, suffix))
+    util.ensure_dir(target)
+    for name in present:
+        os.replace(os.path.join(run_dir_path, name), os.path.join(target, name))
+    return target
+
+
+def _archive_epoch(run_dir_path: str, attempt: int = 0) -> str:
+    """把这一"纪元"的全部产物挪进 epochs/，返回归档目录（无可归档则空串）。
+
+    纪元的边界就是"沙箱回到基线"：从这一刻起沙箱是全新的，之前那份对话与
+    改动既不该再展示给下一个模型，也不该再算成它的成果。
+    """
+    if not os.path.isdir(run_dir_path):
+        return ""
+    names = list(EPOCH_ARTIFACTS)
+    if attempt:
+        names.append("round-%d.json" % attempt)
+    return _archive_artifacts(run_dir_path, names, label="epoch")
+
+
+def _void_rounds(run: dict, reason: str) -> int:
+    """把还没作废的轮次全部标成作废（不删：它们仍是历史，只是不再算分）。"""
+    count = 0
+    for rnd in run.get("rounds") or []:
+        if not rnd.get("voided"):
+            rnd["voided"] = True
+            rnd["voided_at"] = util.iso_now()
+            rnd["void_reason"] = reason
+            count += 1
+    return count
+
+
 def reopen(cfg: dict, run_id: str) -> dict:
-    """把已校验的一轮退回「可继续对话」，并作废本轮分数。
+    """作废本轮成绩，退回「可继续对话」的状态。
 
     误点一次校验不该毁掉一次尝试：本轮分数标成 voided（不进 pass@k 与均分），
-    报告文件留在原地当证据；模型改完再校验会追加新的一轮。
+    报告挪成 report-discarded-*.json 留在原地当证据；模型改完再校验会追加新的一轮。
     已揭晓参考解的轮次不允许重开——那等于给了无限次看答案后重试。
+
+    除 graded 之外还接受「状态早已退回 ready、目录里却还挂着旧报告」这种形态：
+    轮次记账是后补的，那批 run 的 rounds 为空、last_score 为 None，报告却一直
+    被 run_view 读出来，不放开的话面板上永远挂着一个作废不掉的 0 分。
     """
     with chat.exclusive(run_id, blocking=False) as acquired:
         if not acquired:
@@ -471,10 +566,18 @@ def reopen(cfg: dict, run_id: str) -> dict:
                 "这一轮已经揭晓过参考解，不能再继续对话重算成绩。",
                 run_id,
             )
-        if run.get("status") != "graded":
+        if run.get("status") == "grading":
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "校验正在进行，等它出结果再作废本轮，否则两份结果会互相覆盖。",
+                run_id,
+            )
+        run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+        report_path = os.path.join(run_dir_path, "report.json")
+        if run.get("status") != "graded" and not os.path.isfile(report_path):
             raise errors.HarnessError(
                 errors.E_BAD_REQUEST,
-                "这一轮还没有校验结果，不需要重开；直接在内置对话里发送即可。",
+                "这一轮还没有校验结果，不需要作废；直接在内置对话里发送即可。",
                 run_id,
             )
         voided = 0
@@ -484,6 +587,15 @@ def reopen(cfg: dict, run_id: str) -> dict:
                 rnd["voided_at"] = util.iso_now()
                 voided += 1
                 break
+        archived = ""
+        try:
+            archived = _archive_report(run_dir_path)
+        except OSError as exc:
+            raise errors.HarnessError(
+                errors.E_INTERNAL,
+                "旧报告挪不动，本轮成绩未能作废。请把报错记下来再处理。",
+                str(exc),
+            )
         run["status"] = "ready"
         run["last_score"] = None
         run["last_passed"] = None
@@ -492,8 +604,37 @@ def reopen(cfg: dict, run_id: str) -> dict:
         "run_id": run_id,
         "status": run["status"],
         "voided_rounds": voided,
-        "notice": "本轮分数已作废，不计入通过率与均分；模型改完后重新校验会记作新一轮结果。",
+        "report_archived": bool(archived),
+        "notice": "本轮分数已作废，不计入通过率与均分；模型改完后重新校验会记作新一轮结果。"
+                  if not archived else
+                  "本轮成绩已作废，旧报告已挪到 report-discarded-*.json 留证；"
+                  "面板回到「还没有校验结果」，让模型动手改完再重新校验。",
     }
+
+
+def release_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
+    """回收这一轮的工作区目录：只删沙箱，runs/ 里的记录、报告、diff 全部保留。
+
+    批次跑完会自动释放，但服务重启会带走监控线程，校验完的沙箱就一直占着磁盘；
+    工作台单轮 run 更是从来没有释放入口（只有清空改动与重建）。这个口子补上两者。
+    """
+    logger = log or (lambda m: None)
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "模型或评分正在使用这一轮，等它结束再回收沙箱。", run_id)
+        run = get_run(cfg, run_id)
+        if run.get("status") in {"preparing", "grading"}:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "这一轮正在准备或校验中，先等它结束再回收沙箱。", run_id)
+        workspace = str(run.get("sandbox") or "")
+        if not workspace or not os.path.isdir(workspace):
+            return {"run_id": run_id, "released": False, "sandbox": "",
+                    "message": "这一轮已经没有可回收的沙箱工作区了。"}
+        sandbox.destroy(cfg, run, log=logger)
+        save_run(cfg, run)
+        return {"run_id": run_id, "released": True, "sandbox": "",
+                "message": "沙箱工作区已回收；成绩与报告仍在 runs/ 里。"}
 
 
 def set_note(cfg: dict, run_id: str, note: str) -> dict:
@@ -579,9 +720,13 @@ def _grade_worker(cfg: dict, run_id: str) -> None:
 
         with _STORE_LOCK:
             run_dir_path = _run_dir_of(cfg, run_id)
+            attempt_no = int(run.get("attempt") or 1)
+            # 同一 attempt 再校验：旧那份是真实考出来的结果，先归档再写新的。
+            # 直接覆盖会让第一次尝试的证据永远消失，记分板的 trials 还会 +1。
+            _archive_artifacts(run_dir_path, ["round-%d.json" % attempt_no], label="retry")
             util.write_json_atomic(os.path.join(run_dir_path, "report.json"), final)
             util.write_json_atomic(
-                os.path.join(run_dir_path, "round-%d.json" % int(run.get("attempt") or 1)), final)
+                os.path.join(run_dir_path, "round-%d.json" % attempt_no), final)
             util.write_text_atomic(
                 os.path.join(run_dir_path, "diff.patch"), result.get("_diff_text") or "")
             util.write_text_atomic(
@@ -625,11 +770,18 @@ def _run_dir_of(cfg: dict, run_id: str) -> str:
 
 
 def _previous_round(run: dict, attempt: int) -> Optional[dict]:
-    """取上一轮的报告（红转绿对比用）。"""
+    """取上一轮的报告（红转绿对比用）。
+
+    作废的轮次要跳过：回基线之后旧轮次只是留证，拿它当"上一轮"会让红转绿
+    对比凭空造出一个从未发生过的进步。
+    """
     run_dir_path = run.get("run_dir") or ""
     if not run_dir_path:
         return None
+    voided = {int(r.get("attempt") or 0) for r in (run.get("rounds") or []) if r.get("voided")}
     for index in range(attempt - 1, 0, -1):
+        if index in voided:
+            continue
         doc = util.read_json(os.path.join(run_dir_path, "round-%d.json" % index), default=None)
         if isinstance(doc, dict):
             return doc
@@ -660,13 +812,44 @@ def load_diff(cfg: dict, run: dict) -> str:
         return ""
 
 
+def model_work_seconds(cfg: dict, run: dict) -> float:
+    """模型实际动手的秒数：每条提问到"这一条彻底回完"的间隔之和。
+
+    不能用 `created_at` 到现在的时间：那里面混着挂机、混着上一个模型、也混着
+    排队校验，实测一条 run 因此显示成 28.9 小时，而它自己的校验只花了 3.4 秒。
+    也不含本纪元之外的对话（回基线时 chat.jsonl 已整体归档）。
+    """
+    try:
+        records = chat._read_records(run)
+    except errors.HarnessError:
+        return 0.0
+    segments: list = []
+    for item in records:
+        stamp = _timestamp_seconds(item.get("created_at"))
+        if stamp is None:
+            continue
+        if item.get("role") == "user" or not segments:
+            segments.append([stamp, stamp])
+        else:
+            segments[-1][1] = max(segments[-1][1], stamp)
+    return round(sum(max(0.0, end - start) for start, end in segments), 1)
+
+
 def run_view(cfg: dict, run: dict, log_tail: int = 200) -> dict:
     """GET /api/runs/{id} 的响应体：状态 / 日志 / 报告一次给全。"""
     doc = load_report(cfg, run)
+    try:
+        config.find_model(cfg, str(run.get("model") or ""))
+        model_gone = False
+    except errors.HarnessError:
+        model_gone = True
     view = {
         "run_id": run["run_id"],
         "task": run.get("task"),
         "model": run.get("model"),
+        "model_gone": model_gone,
+        "round_started_at": run.get("round_started_at") or run.get("created_at"),
+        "model_work_seconds": model_work_seconds(cfg, run),
         "attempt": int(run.get("attempt") or 1),
         "attempts_allowed": int(run.get("attempts_allowed") or 1),
         "status": run.get("status", "unknown"),
@@ -941,7 +1124,11 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
             continue
         passed_rounds = []
         for result in run.get("rounds") or []:
-            if not isinstance(result, dict) or result.get("passed") is not True or result.get("invalidated"):
+            if not isinstance(result, dict) or result.get("passed") is not True:
+                continue
+            # 作废轮（用户点「作废本轮」）与越界/回归轮（invalidated）都不算成绩，
+            # 排行榜以前只挡后者，满分轮被作废之后仍然排第 1。
+            if result.get("invalidated") or result.get("voided"):
                 continue
             try:
                 attempt = int(result.get("attempt") or 0)
@@ -953,7 +1140,9 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
             continue
 
         attempt, result = min(passed_rounds, key=lambda pair: pair[0])
-        created_at = run.get("created_at")
+        # 起点用"本轮开始"，不是记录建号时刻：重建/清空之后 created_at 仍是几个月前，
+        # 用它算出来的"用时"会把上一个模型和所有挂机时间一起累计进来。
+        created_at = run.get("round_started_at") or run.get("created_at")
         completed_at = result.get("graded_at")
         start_s = _timestamp_seconds(created_at)
         finish_s = _timestamp_seconds(completed_at)
@@ -967,6 +1156,9 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
             "model": str(run.get("model") or ""),
             "rounds": attempt,
             "duration_s": round(duration_s, 3) if duration_s is not None else None,
+            # 与墙钟用时并列给出：排行榜要说清排的是哪一个，
+            # 否则"挂机两小时"和"模型干两小时"看起来是同一个成绩。
+            "model_work_seconds": model_work_seconds(cfg, run),
             "completed_at": completed_at,
             "score": score,
         })

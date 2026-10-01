@@ -87,6 +87,8 @@ def as_json(text):
 
 def test_grade_refuses_before_the_model_has_replied(live, cfg):
     """新沙箱上点校验只会按「未改动」判 0，白烧一次机会——接口先拦下。"""
+    cfg["models"] = [{"id": "校验门槛", "protocol": "openai",
+                      "base_url": "http://model.invalid/v1", "model": "校验门槛"}]
     run = make_run(cfg, model="校验门槛")
     runs.save_run(cfg, run)
     assert chat.has_model_reply(run) is False
@@ -97,6 +99,31 @@ def test_grade_refuses_before_the_model_has_replied(live, cfg):
 
     chat._append_message(run, {"role": "assistant", "content": "我改完了。"})
     assert chat.has_model_reply(run) is True
+
+
+def test_grade_and_promote_refuse_a_deleted_model_profile(live, cfg):
+    """档案已删除的记录不能再产生新成绩：放行的话会写出一条无主成绩。
+
+    作废本轮与回收沙箱不在受限之列——那正是清理这条死记录要用的出口。
+    """
+    cfg["models"] = []
+    run = make_run(cfg, model="消失的档案")
+    runs.save_run(cfg, run)
+    chat._append_message(run, {"role": "assistant", "content": "上一个模型留下的回复"})
+
+    status, body, _ = live("/api/runs/%s/grade" % run["run_id"], method="POST", body={})
+    assert status == 404
+    assert "已被删除" in as_json(body)["message"]
+
+    status, body, _ = live("/api/runs/%s/promote" % run["run_id"], method="POST", body={})
+    assert status == 404
+    assert "已被删除" in as_json(body)["message"]
+
+    # 出口还在：作废本轮成绩允许（它只清成绩，不产生新成绩）
+    util.write_json_atomic(os.path.join(run["run_dir"], "report.json"),
+                           {"score": 0.0, "passed": False, "groups": []})
+    status, _, _ = live("/api/runs/%s/reopen" % run["run_id"], method="POST", body={})
+    assert status == 200
 
 
 def test_chat_history_survives_a_deleted_model_profile(live, cfg):
@@ -469,6 +496,10 @@ def test_promote_reopens_run_and_refuses_when_exhausted(cfg):
     """promote 后轮次切回 ready（同一沙箱继续对话）；机会用完时拒绝并说明。"""
     run = make_run(cfg, BACKEND_TASK, "轮次模型", attempt=1)
     run["status"] = "graded"
+    # 真实考过第 1 轮才有"下一轮"可进：没有轮次记录的 graded 是手搓状态，
+    # 后端现在会拒绝（否则连点或直调 API 就能跳级白拿提示词等级）。
+    run["rounds"] = [{"attempt": 1, "score": 60.0, "passed": False,
+                      "invalidated": False, "graded_at": "2026-01-01T00:00:00"}]
     runs.save_run(cfg, run)
 
     first = runs.promote(cfg, run["run_id"])
@@ -481,3 +512,16 @@ def test_promote_reopens_run_and_refuses_when_exhausted(cfg):
     with pytest.raises(errors.HarnessError) as excinfo:
         runs.promote(cfg, run["run_id"])
     assert excinfo.value.code == errors.E_BAD_REQUEST
+
+
+def test_promote_refuses_a_round_that_was_never_graded(cfg):
+    """没考过的轮次不能进入下一轮：作废之后也不能拿旧成绩当跳板。"""
+    run = make_run(cfg, BACKEND_TASK, "跳级模型", attempt=1)
+    run["status"] = "graded"
+    run["rounds"] = [{"attempt": 1, "score": 100.0, "passed": True,
+                      "voided": True, "graded_at": "2026-01-01T00:00:00"}]
+    runs.save_run(cfg, run)
+
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.promote(cfg, run["run_id"])
+    assert "还没有校验结果" in excinfo.value.message
