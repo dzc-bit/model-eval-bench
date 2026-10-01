@@ -36,7 +36,7 @@ const SANDBOX_OK = new Set(['ready', 'graded']);
  * 创建沙箱区。
  * @param {{
  *   onPrepare: Function, onReset: Function, onRebuild: Function,
- *   onOpenDir: Function, onCopyPath: Function
+ *   onOpenDir: Function, onCopyPath: Function, onReload: Function
  * }} handlers
  * @returns {{el: HTMLElement, update: Function, destroy: Function, doReset: Function, doPrepare: Function}}
  */
@@ -141,6 +141,7 @@ export function createSandboxPanel(handlers) {
     onClick: () => handlers.onPrepare(),
   });
   const emptyState = createEmptyState({
+    icon: 'folder',
     title: S.SANDBOX_NO_RUN,
     desc: S.SANDBOX_NO_RUN_DESC,
     actions: [emptyPrepareBtn.el],
@@ -270,7 +271,9 @@ export function createSandboxPanel(handlers) {
           title: S.ERR_LOAD,
           desc: S.ERR_LOAD_BODY,
           alert: true,
-          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onPrepare() }).el],
+          // 重试只做只读回读。原先挂的是 handlers.onPrepare()，等于「读取失败 →
+          // 点重试」直接开出一轮新的沙箱准备（写操作），和按钮语义对不上。
+          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
         }).el,
       );
       return;
@@ -288,9 +291,37 @@ export function createSandboxPanel(handlers) {
     }
 
     if (!run) {
-      statusDot.update({ kind: 'idle', text: S.SANDBOX_NO_RUN });
+      // 首次「准备沙箱」是**同步**长请求（POST /api/runs 阻塞到沙箱铺完，
+      // config.json 的 timeouts.prepare_s 上限 180 秒），这期间 run 仍然是 null。
+      // 忙态与进度条必须在这个分支里就画出来：下面那段只有 run 存在才走得到，
+      // 原先在这里直接 return，导致第一次准备时按钮标签和进度条永远不更新，
+      // 使用者读到的是「点了没反应」。
+      const starting = busy === 'prepare' || busy === 'reset' || busy === 'rebuild';
+      const preparing = busy === 'prepare';
+      statusDot.update({
+        kind: starting ? 'busy' : 'idle',
+        text: starting ? progressLabel(busy) : S.SANDBOX_NO_RUN,
+      });
       headExtra.appendChild(statusDot.el);
-      renderLog(false);
+      emptyPrepareBtn.update({
+        loading: preparing,
+        busyLabel: S.SANDBOX_PREPARING,
+        disabled: starting,
+        reason: preparing ? S.SANDBOX_PREPARING : '',
+      });
+      if (starting) {
+        progress.update({
+          state: 'running',
+          determinate: false,
+          label: progressLabel(busy),
+          elapsed: Math.floor((current.elapsed || 0) / 1000),
+          total: null,
+        });
+        statusHost.appendChild(progress.el);
+      } else {
+        progress.update({ state: 'idle', label: S.PROGRESS_IDLE });
+      }
+      renderLog(starting);
       statusHost.appendChild(logCard.el);
       return;
     }

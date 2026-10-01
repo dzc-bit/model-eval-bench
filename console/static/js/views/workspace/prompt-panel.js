@@ -27,7 +27,7 @@ import { createButton } from '../../components/button.js';
 
 /**
  * 创建提示词区。
- * @param {{onRoundChange: (n: number) => void, onGoSandbox: () => void}} handlers
+ * @param {{onRoundChange: (n: number) => void, onGoSandbox: () => void, onReload: () => void}} handlers
  * @returns {{el: HTMLElement, update: Function, destroy: Function}}
  */
 export function createPromptPanel(handlers) {
@@ -128,14 +128,18 @@ export function createPromptPanel(handlers) {
   const emptyState = createEmptyState({
     title: S.PROMPT_EMPTY,
     desc: S.PROMPT_EMPTY_DESC,
-    actions: [createButton({ label: S.SANDBOX_PREPARE, variant: 'primary', onClick: () => handlers.onGoSandbox() }).el],
+    // 这是"跳到沙箱面板"的导航，不是执行准备动作；用 primary 会和真正的
+    // 「准备沙箱」按钮在同屏出现两个实心主按钮，读起来像有两个可点的下一步
+    actions: [createButton({ label: S.SANDBOX_PREPARE, variant: 'ghost', onClick: () => handlers.onGoSandbox() }).el],
   });
   const skeleton = createSkeleton({ rows: 2, variant: 'card', label: S.STATE_LOADING });
   const errorState = createEmptyState({
     title: S.ERR_LOAD,
     desc: S.ERR_LOAD_BODY,
     alert: true,
-    actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onRoundChange(current.round) }).el],
+    // 重试只做只读回读：原先挂 onRoundChange(current.round)——切轮次不重新取数，
+    // 读取失败时点它等于什么也没做。
+    actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
   });
 
   /**

@@ -80,7 +80,7 @@ export function createBatch(props = {}) {
     'div',
     { class: 'view' },
     el('div', { class: 'view__head' },
-      el('div', {}, h1, el('p', { class: 'view__desc' }, '为每个题目和模型准备独立工作区。进入对应工作台发送提示词、查看接口返回的推理内容，并提交评分。')),
+      el('div', {}, h1, el('p', { class: 'view__desc' }, '每题 × 每模型一个独立工作区：发提示词 → 模型改代码 → 跑评分。')),
     ),
     errorHost,
     setupHost,
@@ -140,7 +140,7 @@ export function createBatch(props = {}) {
   setupHost.appendChild(
     el('section', { class: 'panel' },
       el('h2', { class: 'panel__title' }, S.BATCH_SETUP_TITLE),
-      el('p', { class: 'u-faint' }, '勾选题与模型后，为每个组合准备独立工作区。就绪后打开对应工作台，在内置对话中让模型操作；完成后启动评分，评分结束会自动回收工作区。'),
+      el('p', { class: 'u-faint' }, '每题 × 每模型一个独立工作区，评分后自动回收。'),
       el('div', { class: 'batch__pickers' },
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_TASKS), taskListEl),
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_MODELS), modelListEl),
@@ -298,7 +298,11 @@ export function createBatch(props = {}) {
             : item.status === 'pending' || item.status === 'cancelled' ? 'idle' : 'busy';
         mark.update({ kind: markKind, animate: done, label: '' });
         statusDot.update({ kind: stateNow.kind, text: stateNow.text });
-        card.className = `batch__item batch__item--${item.status}`;
+        // 通过/失败必须上类：views.css 的 --pass/--fail 左边框规则靠它生效，
+        // 否则完成的行全部同灰，多列网格里成功失败无法扫读。
+        const passFail = item.status === 'graded'
+          ? (item.passed ? ' batch__item--pass' : ' batch__item--fail') : '';
+        card.className = `batch__item batch__item--${item.status}${passFail}`;
         score.hidden = item.status !== 'graded';
         setText(score, `${item.score === null || item.score === undefined ? '—' : item.score} 分`);
         setText(runId, item.run_id ? `运行：${item.run_id}` : '');
@@ -376,15 +380,7 @@ export function createBatch(props = {}) {
         el('span', { class: 'u-spacer' }),
         el('span', { class: 'u-mono u-faint' }, batch.batch_id || ''),
       );
-      const list = el('ul', {
-        class: 'batch__list',
-        style: {
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-          gap: 'var(--space-3)',
-          padding: '0',
-        },
-      });
+      const list = el('ul', { class: 'batch__list' });   // 布局在 views.css 的 .batch__list
       const section = el('section', { class: 'panel' }, head, bar, list);
       if (batch.problems && batch.problems.length) {
         const probs = el('ul', { class: 'batch__problems' });

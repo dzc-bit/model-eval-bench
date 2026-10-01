@@ -4,6 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      // 首屏前应用主题。没存过偏好时用系统偏好解析成显式 data-theme，
+      // 这样 CSS 只需要一份深色定义（原先在 media query 里重复一份，改一处漏一处）
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (t !== 'dark' && t !== 'light') {
+            t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+              ? 'dark' : 'light';
+          }
+          document.documentElement.dataset.theme = t;
+        } catch (e) { /* 无痕模式等存储不可用：按浅色渲染 */ }
+      })();
+    </script>
     <meta name="referrer" content="no-referrer" />
     <!--
       模型评测台 — 零构建单页外壳。

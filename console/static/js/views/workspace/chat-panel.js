@@ -20,6 +20,14 @@ const ROLE_LABELS = {
 };
 
 /**
+ * 可以继续对话的服务端状态。
+ * 与 sandbox-panel.js 的 SANDBOX_OK / workspace.js 的同名集对齐：
+ * 已校验（graded）的这一轮仍然要能追问模型、让它接着改沙箱。
+ * 原先只认 'ready'，跑完一次校验后输入框和发送按钮就永久变灰且不给原因。
+ */
+const CHAT_OK = new Set(['ready', 'graded']);
+
+/**
  * 创建内置对话面板。
  * @param {{scope?: object, onUsePrompt?: Function}} [handlers]
  * @returns {{el: HTMLElement, update: Function, setDraft: Function, destroy: Function}}
@@ -210,11 +218,35 @@ export function createChatPanel(handlers = {}) {
     setText(statusText, text || '');
   }
 
+  /**
+   * 输入框 / 发送按钮的可用性与「不可用的原因」。
+   *
+   * 可用 = 有运行记录 + 沙箱状态在 CHAT_OK（ready / graded）+ 没有请求在途。
+   * 不可用时必须把原因写在按钮旁边（createButton 的 reason 会渲染成可见文字并
+   * 挂 aria-describedby），否则使用者只会读成「对话框坏了」。
+   *
+   * @param {boolean} enabled 调用方希望的可用状态
+   * @returns {void}
+   */
   function setEnabled(enabled) {
-    enabled = enabled && currentRun?.status === 'ready';
-    draft.disabled = !enabled || sending;
-    sendBtn.update({ disabled: !enabled || sending || !draft.value.trim(), loading: sending, busyLabel: S.CHAT_SENDING || '正在处理' });
-    usePromptBtn.update({ disabled: !enabled });
+    const status = currentRun && currentRun.status ? String(currentRun.status) : '';
+    const sandboxOk = CHAT_OK.has(status);
+    const editable = Boolean(enabled) && Boolean(currentRunId) && sandboxOk && !sending;
+    draft.disabled = !editable;
+    const reason = !currentRunId
+      ? S.CHAT_DISABLED_NO_SANDBOX
+      : !sandboxOk
+        ? S.CHAT_DISABLED_STATUS
+        : '';
+    // 发送另加一条：草稿为空时不给点（send() 内部本来也会挡住空消息）
+    const canSend = editable && Boolean(draft.value.trim());
+    sendBtn.update({
+      disabled: !canSend,
+      loading: sending,
+      busyLabel: S.CHAT_SENDING,
+      reason,
+    });
+    usePromptBtn.update({ disabled: !editable });
   }
 
   async function loadHistory(runId) {

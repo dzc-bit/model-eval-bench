@@ -8,12 +8,18 @@
  *   - 区域用 `role="status"`（温和），错误空态用 `role="alert"`。
  *   - 图标 aria-hidden，语义全靠文字。
  *
- * 依赖：core/dom.js、core/strings.js
+ * 图形：一律走 components/icons.js 的内联 SVG。以前这里把 `icon` 当**文字**渲染
+ * （`'○'` 塞进一个带边框的圆角方块），看起来像控件坏了而不是设计（§.empty-state 明确禁止）；
+ * 现在 `icon` 传的是图标名，认不出的名字回落 `inbox`，保证永远有图形。
+ * 结构：图形 → 标题 → 说明 → 最多一个动作，垂直居中（§.empty-state）。
+ *
+ * 依赖：core/dom.js、core/strings.js、components/icons.js
  * 导出：createEmptyState(props) → { el, update, destroy }
  */
 
 import { el, setText, clear } from '../core/dom.js';
 import { S } from '../core/strings.js';
+import { createIcon, resolveIcon } from './icons.js';
 
 /**
  * 创建空态。
@@ -22,13 +28,16 @@ import { S } from '../core/strings.js';
  *   title: string, desc?: string, icon?: string,
  *   actions?: HTMLElement[], alert?: boolean
  * }} props
+ *   `icon` 取 components/icons.js 的图标名（inbox / folder / chart / plug /
+ *   search / alert / check / clock），缺省或写错都用 `inbox`。
  * @returns {{el: HTMLElement, update: Function, destroy: Function}}
  */
 export function createEmptyState(props = {}) {
   let current = { ...props };
 
-  const icon = el('div', { class: 'empty-state__icon', 'aria-hidden': 'true' }, current.icon || '○');
-  const title = el('p', { class: 'empty-state__title' }, current.title || S.STATE_EMPTY);
+  // 图形挂在 .empty-state__icon 里，尺寸与颜色由 CSS 控制
+  const icon = el('div', { class: 'empty-state__icon', 'aria-hidden': 'true' });
+  const title = el('p', { class: 'empty-state__title' });
   const desc = el('p', { class: 'empty-state__desc' });
   const actions = el('div', { class: 'empty-state__actions' });
 
@@ -41,13 +50,27 @@ export function createEmptyState(props = {}) {
     actions,
   );
 
+  /** 上一次真正渲染出来的图标名，用来避免每次 update 都重建 SVG 节点。 */
+  let renderedIcon = '';
+
+  /**
+   * 换图标：只在名字真的变了时重建节点。
+   * @param {string} name
+   */
+  function renderIcon(name) {
+    if (renderedIcon === name) return;
+    renderedIcon = name;
+    clear(icon);
+    icon.appendChild(createIcon(name));
+  }
+
   /**
    * 差异更新。
    * @param {object} patch
    */
   function update(patch = {}) {
     current = { ...current, ...patch };
-    setText(icon, current.icon || '○');
+    renderIcon(resolveIcon(current.icon));
     setText(title, current.title || S.STATE_EMPTY);
     if (current.desc) {
       setText(desc, current.desc);

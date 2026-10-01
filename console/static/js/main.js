@@ -23,7 +23,7 @@ import { createStore } from './core/store.js';
 import { createRouter, buildHash } from './core/router.js';
 import { api, ApiError, errorTitle, errorBody } from './core/api.js';
 import { storage, STORAGE_KEYS, DEFAULT_PREFS } from './core/storage.js';
-import { announce, focusHeading, isEditableTarget, restoreFocus } from './core/a11y.js';
+import { announce, focusHeading, isEditableTarget, resetPageScroll, restoreFocus } from './core/a11y.js';
 import { createToastHost, showToast } from './components/toast.js';
 import { openModal, closeTopModal, hasOpenModal } from './components/modal.js';
 import { createStatusDot } from './components/status-dot.js';
@@ -31,16 +31,25 @@ import { createButton } from './components/button.js';
 import { createTaskLibrary } from './views/task-library.js';
 import { createWorkspace } from './views/workspace.js';
 
-/** 导航项：name → 文案。顺序即页签顺序。 */
+/** 导航分组：组 key → 侧栏分组标题。顺序即分组自上而下出现的顺序。 */
+const NAV_GROUPS = {
+  flow: S.NAV_GROUP_FLOW,
+  config: S.NAV_GROUP_CONFIG,
+};
+
+/**
+ * 导航项：name → 文案。顺序即页签顺序。
+ * group 决定该项落在哪一段里；分组的先后顺序以本数组里首次出现的顺序为准。
+ */
 const NAV_ITEMS = [
-  { name: 'tasks', label: S.NAV_TASKS },
-  { name: 'leaderboard', label: S.NAV_LEADERBOARD },
-  { name: 'workspace', label: S.NAV_WORKSPACE },
-  { name: 'batch', label: S.NAV_BATCH },
-  { name: 'scoreboard', label: S.NAV_SCOREBOARD },
-  { name: 'models', label: S.NAV_MODELS },
-  { name: 'settings', label: S.NAV_SETTINGS },
-  { name: 'help', label: S.NAV_HELP },
+  { name: 'tasks', label: S.NAV_TASKS, group: 'flow' },
+  { name: 'leaderboard', label: S.NAV_LEADERBOARD, group: 'flow' },
+  { name: 'workspace', label: S.NAV_WORKSPACE, group: 'flow' },
+  { name: 'batch', label: S.NAV_BATCH, group: 'flow' },
+  { name: 'scoreboard', label: S.NAV_SCOREBOARD, group: 'flow' },
+  { name: 'models', label: S.NAV_MODELS, group: 'config' },
+  { name: 'settings', label: S.NAV_SETTINGS, group: 'config' },
+  { name: 'help', label: S.NAV_HELP, group: 'config' },
 ];
 
 // ==================================================================
@@ -61,8 +70,15 @@ let connBar = null;
 
 /** 当前挂载的视图句柄。 */
 let currentView = null;
-/** 当前路由标识，用来识别「同一路由的重复通知」。 */
+/** 当前路由标识（含子参数），用来识别「同一路由的重复通知」。 */
 let currentRouteKey = '';
+/**
+ * 当前视图的「身份」标识：工作台只去掉 region / runId 这两个就地参数。
+ * 同一身份下的路由变化只做就地跳转，不销毁重建视图（§10.4）。
+ */
+let currentViewKey = '';
+/** 已经交给当前视图的区域名，防止「视图写 URL → 路由回调 → 视图再写 URL」打转。 */
+let currentRegionParam = '';
 
 /** 按需加载的视图模块缓存，避免重复 import。 */
 let scoreboardMod = null;
@@ -76,6 +92,8 @@ let modelsReady = false;
  */
 const app = createStore({
   models: [],
+  /** 模型档案读取失败的错误码；空串表示没有失败。工作台下拉框要能说出为什么是空的。 */
+  modelsError: '',
   prefs: readPrefs(),
   lastTask: storage.get(STORAGE_KEYS.LAST_TASK, '') || '',
   route: { name: '', params: {} },
@@ -279,15 +297,36 @@ function showGlobalError(err, code) {
 
 /**
  * 建页头导航。链接走 hash，浏览器前进/后退天然可用。
+ *
+ * 每个分组的第一项之前插一条分组标题（评测流程 / 配置）。标题节点刻意不带
+ * `app-nav__link` 类——syncNav() 用数组下标把 NAV_ITEMS 和
+ * `.app-nav__link` 一对一配对，多一个同类节点就会整列错位高亮。
  * @returns {void}
  */
 function mountNav() {
   clear(navEl);
+  let previousGroup = null;
   NAV_ITEMS.forEach((item) => {
+    if (item.group !== previousGroup) {
+      previousGroup = item.group;
+      const heading = createNavGroupHeading(item.group);
+      if (heading) navEl.appendChild(heading);
+    }
     navEl.appendChild(el('a', { class: 'app-nav__link', href: buildHash(item.name) }, item.label));
   });
   syncNav();
   app.subscribe((s) => s.lastTask, () => syncNav());
+}
+
+/**
+ * 分组标题节点（视觉上是「标题 + 一条分隔线」，线由 CSS 画）。
+ * @param {string} groupKey NAV_ITEMS 里用到的分组 key
+ * @returns {HTMLElement|null} 没有配文案的分组返回 null，不插空标题
+ */
+function createNavGroupHeading(groupKey) {
+  const label = NAV_GROUPS[groupKey];
+  if (!label) return null;
+  return el('h2', { class: 'app-nav__group' }, label);
 }
 
 /**
@@ -333,6 +372,25 @@ function syncNav(snapshot = app.getState()) {
 // ==================================================================
 
 /**
+ * 视图「身份」串：只包含决定要不要重建视图的参数。
+ *
+ * 工作台的 `region`（跳到哪个区域）与 `runId`（对话区带回的运行编号）都是同一
+ * 视图内部的就地状态。把它们算进身份，点一次「跳转到沙箱」就会整页销毁重建 +
+ * `window.scrollTo(0,0)`，用户读到的是「按钮没反应」或「页面自己刷新了」。
+ *
+ * @param {{name: string, params: object}} route
+ * @returns {string}
+ */
+function viewIdentity(route) {
+  const params = { ...(route.params || {}) };
+  if (route.name === 'workspace') {
+    delete params.region;
+    delete params.runId;
+  }
+  return `${route.name}#${JSON.stringify(params)}`;
+}
+
+/**
  * 路由变化：销毁旧视图 → 挂载新视图 → 焦点移到本视图 h1。
  * @param {{name: string, params: object, hash: string}} route
  * @returns {void}
@@ -351,20 +409,38 @@ function onRouteChange(route) {
   syncNav({ route: nextRoute, lastTask: nextLastTask });
 
   const key = `${route.name}#${JSON.stringify(route.params)}`;
-  if (key === currentRouteKey && currentView) return;
-  currentRouteKey = key;
+  const identity = viewIdentity(route);
+  const region = route.name === 'workspace' ? String(route.params.region || '') : '';
 
-  destroyCurrentView();
-  window.scrollTo(0, 0);
-
-  // 工作台要拿模型档案当档案下拉的数据源，没到位就先挂一次，数据到了再重挂
-  if (route.name === 'workspace' && !modelsReady) {
-    mountView(route);
-    loadModels().then(() => {
-      if (currentRouteKey === key && currentView) remount(route);
-    });
+  // 同一视图、只换了区域段：就地跳转，绝不重挂（§10.4 生命周期）
+  if (currentView && identity === currentViewKey) {
+    currentRouteKey = key;
+    if (region && region !== currentRegionParam && typeof currentView.focusRegion === 'function') {
+      currentRegionParam = region;
+      currentView.focusRegion(region);
+    } else if (!region && currentRegionParam) {
+      // 地址栏把区域段去掉了（点侧栏「工作台」直达当前任务）：回到顶部就行。
+      // 重挂视图会连带丢掉正在输入的备注和已经滚到的位置，收益不值。
+      currentRegionParam = '';
+      focusHeading(currentView.el_h1);
+    }
     return;
   }
+  if (key === currentRouteKey && currentView) return;
+
+  currentRouteKey = key;
+  currentViewKey = identity;
+  currentRegionParam = region;
+
+  destroyCurrentView();
+  // 归零的是「真正在滚的那个容器」：外壳改成主内容区自己滚动后，
+  // window.scrollTo(0,0) 是空操作，换视图会带着上一个视图的滚动位置进来。
+  resetPageScroll(rootEl);
+
+  // 工作台要拿模型档案当档案下拉的数据源。首次没到位时补拉一次：视图订阅了
+  // 档案变化，数据到了自己会把下拉填满，不再整页重挂（旧写法重挂会丢掉
+  // 已经滚到的区域与正在输入的内容）。
+  if (route.name === 'workspace' && !modelsReady) loadModels();
 
   mountView(route);
 }
@@ -397,16 +473,6 @@ function mountView(route) {
   }
 
   announce(t(S.ANNOUNCE_ROUTE, { page: pageLabel(route.name) }));
-}
-
-/**
- * 占位视图就位、数据到位后重挂一次。
- * @param {{name: string, params: object}} route
- * @returns {void}
- */
-function remount(route) {
-  destroyCurrentView();
-  mountView(route);
 }
 
 /**
@@ -444,6 +510,11 @@ function createView(route) {
         runId: route.params.runId,
         navigate,
         models: state.models,
+        modelsError: state.modelsError,
+        // 档案是异步到位的（首屏可能还在读、模型页刚改过、启动时那次可能失败了）。
+        // 只把创建时的快照传进去会永久停在空下拉，所以给视图一个订阅句柄。
+        subscribeModels: subscribeModels,
+        reloadModels: loadModels,
         prefs: state.prefs,
       });
     case 'scoreboard':
@@ -622,7 +693,8 @@ function destroyCurrentView() {
 // ==================================================================
 
 /**
- * 拉一次模型档案。拉不到不算致命：工作台会显示「先在模型档案页新增」的空态。
+ * 拉一次模型档案。拉不到不算致命：工作台会显示「先在模型档案页新增」的空态，
+ * 并把失败原因写进档案下拉旁边，下一次进工作台还会再试一次。
  * @returns {Promise<void>}
  */
 function loadModels() {
@@ -631,15 +703,39 @@ function loadModels() {
     .get('/models', { scope })
     .then((res) => {
       const list = Array.isArray(res) ? res : (res && res.models) || [];
-      app.setState({ models: list });
+      app.setState({ models: list, modelsError: '' });
       modelsReady = true;
     })
     .catch((err) => {
       if (err instanceof ApiError && err.code === 'OFFLINE') setConnBar(false);
-      app.setState({ models: [] });
-      modelsReady = true; // 失败也放行，让页面给出可操作的空态而不是一直转圈
+      // 旧写法在这里也写 modelsReady = true：一次请求失败 = 整个会话的下拉永远是
+      // 空的，而且页面不给任何原因，使用者只会读成「模型选不了」。
+      // 现在：① 保持 modelsReady=false，下一次进工作台会重新拉；
+      //       ② 把错误码交给工作台的档案下拉说明原因；③ 顶部给出可见错误。
+      const aborted = err instanceof ApiError && err.code === 'ABORTED';
+      app.setState({ models: [], modelsError: aborted ? '' : (err instanceof ApiError ? err.code : 'INTERNAL') });
+      if (!aborted && !(err instanceof ApiError && err.code === 'OFFLINE')) showGlobalError(err, 'models');
     })
     .finally(() => scope.cancelAll());
+}
+
+/**
+ * 模型档案 + 读取错误码的订阅句柄，交给工作台这类「数据比首屏晚到」的视图。
+ *
+ * 视图不能只吃创建时的快照：档案可能晚于视图到达，也可能在模型页改完后到达
+ * （见 mountNav 里对 lastTask 的同款订阅）。
+ *
+ * @param {(models: Array, modelsError: string) => void} handler
+ * @returns {() => void} 退订函数，视图 destroy() 时调用（§10.4）
+ */
+function subscribeModels(handler) {
+  if (typeof handler !== 'function') return () => {};
+  const offList = app.subscribe((s) => s.models, (models) => handler(models, app.getState().modelsError));
+  const offError = app.subscribe((s) => s.modelsError, (code) => handler(app.getState().models, code));
+  return () => {
+    offList();
+    offError();
+  };
 }
 
 /**
@@ -648,7 +744,7 @@ function loadModels() {
  * @returns {void}
  */
 function onModelsChanged(models) {
-  app.setState({ models: Array.isArray(models) ? models.slice() : [] });
+  app.setState({ models: Array.isArray(models) ? models.slice() : [], modelsError: '' });
   loadModels();
 }
 

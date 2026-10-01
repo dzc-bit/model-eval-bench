@@ -10,7 +10,8 @@
  *
  * 依赖：无（只操作 DOM 与 aria 属性）。
  * 导出：announce, trapFocus, restoreFocus, focusHeading, scrollBelowStickyHeader,
- *       isEditableTarget, focusables
+ *       stickyTopOffset, revealIfCoveredByStickyTop, pageScrollTop, resetPageScroll,
+ *       setPageScroll, isEditableTarget, focusables
  *
  * 纪律：
  *   - 全站只有这一处 live region（toast 容器是组件自带的第二个，见 toast.js 注释），
@@ -238,6 +239,153 @@ export function focusHeading(heading) {
   scrollBelowStickyHeader(heading);
 }
 
+/** 可能钉在视口顶部、挡住滚动目标的条状节点（选择器，按出现顺序找）。 */
+const STICKY_TOP_CANDIDATES = ['.error-bar', '.conn-bar', '.app-header'];
+
+/** 目标元素顶部预留的呼吸空隙（像素）。 */
+const STICKY_TOP_GAP = 8;
+
+/**
+ * 找到真正负责滚动的容器。
+ *
+ * 外壳有两种现实，都得支持：
+ *   1. 文档滚动（窗口滚动条）——document.scrollingElement 自己动；
+ *   2. 主内容区 .app-main 内部滚动（overflow: clip auto + 固定高度，
+ *      为的是让粘性表头有滚动容器）——这时 window.scrollTo 是空操作，
+ *      跳转必须落到那个容器上。
+ * @param {HTMLElement} target 目标元素
+ * @returns {Element|null} 可滚动祖先；没有就返回 null（交给窗口）
+ */
+function findScrollContainer(target) {
+  let node = target && target.parentElement ? target.parentElement : null;
+  while (node && node !== document.body) {
+    const cs = window.getComputedStyle(node);
+    const overflowY = cs.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  const root = document.scrollingElement || document.documentElement;
+  return root && root.scrollHeight > root.clientHeight + 1 ? root : null;
+}
+
+/**
+ * 这个 sticky / fixed 节点当前是否真的钉在顶部。
+ *
+ * sticky 只能在自己的包含块里钉住：`#status-host` 只装了错误条这一行，
+ * 行高 == 条高，没有可钉住的余量，于是它随文档一起滚走，永远挡不到内容。
+ * 只认「计算样式是 sticky/fixed + 父容器比它高（有余量）+ 顶边贴住容器上沿」的节点。
+ *
+ * @param {HTMLElement} node 候选条
+ * @returns {boolean}
+ */
+function isPinnedToTop(node) {
+  const position = window.getComputedStyle(node).position;
+  if (position !== 'sticky' && position !== 'fixed') return false;
+  const rect = node.getBoundingClientRect();
+  if (rect.height <= 0) return false;
+  if (rect.top > 1 || rect.bottom < 1) return false;
+  if (position === 'fixed') return true;
+  const parent = node.parentElement;
+  if (!parent) return false;
+  return parent.getBoundingClientRect().height - rect.height >= 2;
+}
+
+/**
+ * 在滚动容器上沿方向量出真正盖住目标的顶部条高度。
+ * @param {HTMLElement} target 即将滚到顶部的目标元素
+ * @param {number} containerTop 滚动容器可视区上沿（视口坐标）
+ * @returns {number}
+ */
+function stickyCoverHeight(target, containerTop) {
+  const bounds = target.getBoundingClientRect();
+  let cover = 0;
+  for (const selector of STICKY_TOP_CANDIDATES) {
+    const node = document.querySelector(selector);
+    if (!(node instanceof HTMLElement)) continue;
+    if (!isPinnedToTop(node)) continue;
+    const rect = node.getBoundingClientRect();
+    // 横向不重叠 = 那是左侧边栏，挡不到主内容
+    if (rect.right <= bounds.left + 1 || rect.left >= bounds.right - 1) continue;
+    cover = Math.max(cover, Math.min(rect.bottom - containerTop, rect.height));
+  }
+  return Math.max(0, cover);
+}
+
+/**
+ * 量出「真正压在滚动容器上沿、挡住目标」的顶部条高度。
+ *
+ * 不能直接拿 .app-header 的高度当偏移：桌面宽度下它是 .app-shell 这个
+ * flex-row 里的**左侧粘性侧栏**（`height: 100vh`，见 css/views.css 顶部与
+ * base.css 的 min-width:901px 分支），横向并不在主内容上方。按 100vh 让位
+ * 会把每个跳转目标顶到视口下方一整屏，点跳转看起来就像「什么都没发生」。
+ * 因此逐个候选节点判定：钉在顶部 **且** 横向挡住目标 **且** 竖向盖住容器上沿。
+ *
+ * @param {HTMLElement} target 即将滚到顶部的目标元素
+ * @returns {number} 需要让出的像素高度（桌面主内容区为 0）
+ */
+export function stickyTopOffset(target) {
+  if (!(target instanceof HTMLElement)) return 0;
+  const container = findScrollContainer(target);
+  const containerTop = container ? Math.max(0, container.getBoundingClientRect().top) : 0;
+  return stickyCoverHeight(target, containerTop);
+}
+
+/**
+ * 当前页面滚动位置（自动适配「文档滚动」与「.app-main 内部滚动」两种外壳）。
+ * @param {HTMLElement} [reference] 用哪个元素定位滚动容器；缺省取外壳主内容区
+ * @returns {number}
+ */
+export function pageScrollTop(reference) {
+  const container = findScrollContainer(reference || document.getElementById('app-root') || document.body);
+  return container ? container.scrollTop : (window.scrollY || 0);
+}
+
+/**
+ * 把页面滚动清零（切换视图时用，§10.3）。
+ * @param {HTMLElement} [reference]
+ * @returns {void}
+ */
+export function resetPageScroll(reference) {
+  const container = findScrollContainer(reference || document.getElementById('app-root') || document.body);
+  if (container) container.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+/**
+ * 把页面滚到指定位置（§13.5 恢复上次位置）。
+ * @param {number} y 滚动偏移
+ * @param {HTMLElement} [reference]
+ * @returns {void}
+ */
+export function setPageScroll(y, reference) {
+  const top = Number(y) || 0;
+  const container = findScrollContainer(reference || document.getElementById('app-root') || document.body);
+  if (container) container.scrollTop = top;
+  else window.scrollTo(0, top);
+}
+
+/**
+ * 目标被顶部粘性条压住（或已经滚出容器上沿）时才把它挪到条下方；否则一动不动。
+ * @param {HTMLElement} target
+ * @returns {boolean} 有没有真的挪动
+ */
+export function revealIfCoveredByStickyTop(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  const container = findScrollContainer(target);
+  const containerTop = container ? Math.max(0, container.getBoundingClientRect().top) : 0;
+  const rect = target.getBoundingClientRect();
+  const cover = stickyCoverHeight(target, containerTop);
+  if (rect.top <= containerTop - 1) {
+    scrollBelowStickyHeader(target);
+    return true;
+  }
+  if (cover <= 0 || rect.top >= containerTop + cover) return false;
+  scrollBelowStickyHeader(target);
+  return true;
+}
+
 /**
  * 将页面目标放在粘性导航下方，适配导航随视口换行后的实际高度。
  * @param {HTMLElement} target 页面中的目标元素
@@ -245,9 +393,14 @@ export function focusHeading(heading) {
  */
 export function scrollBelowStickyHeader(target) {
   if (!(target instanceof HTMLElement)) return;
-  const headerHeight = document.querySelector('.app-header')?.getBoundingClientRect().height || 0;
-  const targetTop = target.getBoundingClientRect().top + window.scrollY;
-  window.scrollTo({ top: Math.max(0, targetTop - headerHeight - 8), behavior: 'auto' });
+  const container = findScrollContainer(target);
+  const containerTop = container ? Math.max(0, container.getBoundingClientRect().top) : 0;
+  const offset = stickyCoverHeight(target, containerTop);
+  const delta = target.getBoundingClientRect().top - containerTop - offset - STICKY_TOP_GAP;
+  if (Math.abs(delta) < 1) return;
+  const options = { top: delta, behavior: 'auto' };
+  if (container) container.scrollBy(options);
+  else window.scrollBy(options);
 }
 
 /**

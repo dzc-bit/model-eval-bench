@@ -21,6 +21,7 @@
 
 import { el, setText } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
+import { errorTitle } from '../../core/api.js';
 import { createField } from '../../components/field.js';
 import { createButton } from '../../components/button.js';
 import { createCopyButton } from '../../components/copy-button.js';
@@ -33,12 +34,13 @@ import { relativeTime, fullTime } from '../../core/format.js';
  * @param {{
  *   onModelChange: (id: string) => void,
  *   onNotesSave: (note: string) => void,
- *   onShowDiff: () => void
+ *   onShowDiff: () => void,
+ *   onReloadModels?: () => void
  * }} handlers
  * @returns {{el: HTMLElement, update: Function, destroy: Function, getNote: Function, copyPath: Function, showDiff: Function}}
  */
 export function createRunBar(handlers) {
-  let current = { run: null, models: [], modelId: '', busy: '', error: null, loading: true };
+  let current = { run: null, models: [], modelsError: '', modelId: '', busy: '', error: null, loading: true };
   /** 备注草稿：轮询不覆盖用户正在输入的内容，只有换了一轮才从服务端同步（§11.2 #14）。 */
   let noteDraft = '';
   /** 草稿属于哪一轮（run_id）。 */
@@ -69,6 +71,30 @@ export function createRunBar(handlers) {
       noteDraft = value;
     },
   });
+
+  // ---- 档案列表为空时的可见原因 + 重读入口 ----
+  // 空下拉以前既不说为什么空、也不给第二次机会：启动时那一次 GET /api/models
+  // 失败就整个会话都选不了模型。这里把原因摊开，并提供只读的重试。
+  const modelNote = el('p', { class: 'u-faint run__model-note', role: 'status' });
+  const modelRetryBtn = createButton({
+    label: S.ACTION_RETRY,
+    size: 'sm',
+    variant: 'ghost',
+    onClick: () => {
+      if (!handlers.onReloadModels) return;
+      // 重读是一次网络请求，按钮自己担一个忙态，免得点完看着没反应又点一次。
+      modelRetryBtn.update({ loading: true, busyLabel: S.ACTION_LOADING });
+      Promise.resolve(handlers.onReloadModels())
+        .catch(() => {})
+        .finally(() => modelRetryBtn.update({ loading: false }));
+    },
+  });
+  modelNote.hidden = true;
+  // 重试按钮先装进一个无类名容器再整体切 hidden：createButton 的根节点自带
+  // inline 的 display（inline-flex），作者层样式永远盖过浏览器 UA 的
+  // [hidden]{display:none}，直接 hidden 那个节点是藏不掉的。
+  const modelRetryHost = el('div', {}, modelRetryBtn.el);
+  modelRetryHost.hidden = true;
   const saveNoteBtn = createButton({
     label: S.RUN_SAVE_NOTES,
     size: 'sm',
@@ -78,9 +104,12 @@ export function createRunBar(handlers) {
   });
 
   // ---- 本轮改动统计 ----
-  const diffFiles = el('span', { class: 'run__diff-num' }, '0');
-  const diffAdd = el('span', { class: 'run__diff-num run__diff-num--add' }, '0');
-  const diffDel = el('span', { class: 'run__diff-num run__diff-num--del' }, '0');
+  // 原先是"数字在上、标签在下"的三列，标签还写死在 JS 里；
+  // 数字缺失时三个「—」看着像「— + −」，对应关系完全读不出来。
+  // 现在每项直接渲染成一句人话（"新增 12 行"），标签来自 strings.js。
+  const diffFiles = el('span', { class: 'run__diff-item' }, '—');
+  const diffAdd = el('span', { class: 'run__diff-item run__diff-item--add' }, '—');
+  const diffDel = el('span', { class: 'run__diff-item run__diff-item--del' }, '—');
   const diffBlock = el(
     'div',
     { class: 'u-stack', style: { gap: 'var(--space-2)' } },
@@ -88,16 +117,16 @@ export function createRunBar(handlers) {
     el(
       'div',
       { class: 'run__diff' },
-      el('div', { class: 'run__diff-item' }, diffFiles, el('span', { class: 'run__diff-label' }, '文件')),
-      el('div', { class: 'run__diff-item' }, diffAdd, el('span', { class: 'run__diff-label' }, '新增行')),
-      el('div', { class: 'run__diff-item' }, diffDel, el('span', { class: 'run__diff-label' }, '删除行')),
+      diffFiles,
+      diffAdd,
+      diffDel,
     ),
   );
 
   // ---- 改动正文（按需拉取，不轮询） ----
   const diffText = el('pre', { class: 'code-block__pre', tabindex: '0' });
   const diffCard = createDetailsCard({
-    title: S.RUN_DIFF_SHOW,
+    title: S.RUN_DIFF_BODY,
     content: diffText,
     open: false,
   });
@@ -148,14 +177,17 @@ export function createRunBar(handlers) {
     ),
     el(
       'div',
-      { class: 'panel__body' },
-      modelField.el,
-      noteField.el,
-      el('div', { class: 'u-row' }, saveNoteBtn.el),
-      diffBlock,
-      el('div', { class: 'u-row' }, showDiffBtn.el, copyPathBtn.el),
-      diffCard.el,
-      metaBlock,
+      { class: 'panel__body run__body' },
+      el('div', { class: 'run__col' }, modelField.el, modelNote, modelRetryHost, metaBlock),
+      el(
+        'div',
+        { class: 'run__col' },
+        noteField.el,
+        // 备注的保存与改动的查看/复制是一组动作，同一行，不再散在两列
+        el('div', { class: 'u-row run__actions' }, saveNoteBtn.el, el('span', { class: 'u-spacer' }), showDiffBtn.el, copyPathBtn.el),
+        diffBlock,
+        diffCard.el,
+      ),
     ),
   );
 
@@ -166,10 +198,15 @@ export function createRunBar(handlers) {
    */
   function syncModelOptions(models, selected) {
     const options = [{ value: '', label: S.RUN_MODEL_EMPTY }].concat(
-      models.map((m) => ({
-        value: m.id,
-        label: m.model && m.model !== m.id ? `${m.id}（${m.model}）` : m.id,
-      })),
+      models.map((m) => {
+        // 档案只有一个 id 时（config.json 里 id 和 model 都是 "1"），
+        // 下拉框显示光秃秃的"1"，使用者不知道它是什么。补可辨识信息或明说未配置。
+        const detail = m.model && m.model !== m.id ? m.model : (m.note || '');
+        return {
+          value: m.id,
+          label: detail ? `${m.id}（${detail}）` : `${m.id}（${S.RUN_MODEL_UNSET}）`,
+        };
+      }),
     );
     // 档案列表没变就不动 select，避免打断键盘选择（§11.2 #14）
     const sig = options.map((o) => o.value).join('|');
@@ -226,6 +263,23 @@ export function createRunBar(handlers) {
       error: needModel && !current.modelId ? S.RUN_MODEL_REQUIRED : '',
     });
 
+    // 档案为空时把原因摊开：读取失败 ≠ 真的没有档案，两者给不同的话与不同的出口。
+    // 首屏数据还没落定（workspace 正在取任务）时先别急着下「没有档案」的结论。
+    const modelCount = (current.models || []).length;
+    const modelsFailed = Boolean(current.modelsError);
+    const modelsPending = Boolean(current.loading) && !modelsFailed;
+    if (modelCount === 0 && !modelsPending) {
+      setText(modelNote, modelsFailed
+        ? t(S.RUN_MODEL_LOAD_FAILED, { reason: errorTitle(current.modelsError) })
+        : S.RUN_MODEL_NONE);
+      modelNote.hidden = false;
+    } else {
+      setText(modelNote, '');
+      modelNote.hidden = true;
+    }
+    // 只有「读失败」才值得重试；确实一个档案都没有就该去模型页新增，不摆一个没用的按钮。
+    modelRetryHost.hidden = !(modelsFailed && modelCount === 0);
+
     // 备注：只有切换到另一轮时才从服务端同步，平时绝不覆盖用户草稿
     const serverNote = run ? run.note || '' : '';
     const runId = run ? run.run_id : null;
@@ -240,16 +294,19 @@ export function createRunBar(handlers) {
 
     // diff 统计：契约里只有跑完校验后报告里才有 diff 数字
     const diff = (run && run.report && run.report.diff) || null;
-    setText(diffFiles, diff && diff.files !== undefined ? String(diff.files) : '—');
-    setText(diffAdd, diff && diff.added_lines !== undefined ? String(diff.added_lines) : '—');
-    setText(diffDel, diff && diff.removed_lines !== undefined ? String(diff.removed_lines) : '—');
+    const n = (v) => (v === undefined || v === null ? '—' : String(v));
+    setText(diffFiles, t(S.RUN_DIFF_FILES, { n: n(diff && diff.files) }));
+    setText(diffAdd, t(S.RUN_DIFF_ADD, { n: n(diff && diff.added_lines) }));
+    setText(diffDel, t(S.RUN_DIFF_DEL, { n: n(diff && diff.removed_lines) }));
     diffBlock.setAttribute(
       'aria-label',
       diff
         ? `${S.RUN_DIFF_TITLE}：${t(S.RUN_DIFF_FILES, { n: diff.files || 0 })}，${t(S.RUN_DIFF_ADD, { n: diff.added_lines || 0 })}，${t(S.RUN_DIFF_DEL, { n: diff.removed_lines || 0 })}`
         : S.RUN_DIFF_PENDING,
     );
-    showDiffBtn.update({ disabled: !run, reason: run ? '' : S.ERR_NO_RUN });
+    // 理由文案只在「保存备注」一处展示；查看改动同批禁用，避免同屏重复两行"这一轮还不存在"
+    showDiffBtn.update({ disabled: !run, reason: '' });
+    showDiffBtn.el.title = run ? '' : S.ERR_NO_RUN;
     copyPathBtn.update({ getText: () => (current.run ? current.run.sandbox || '' : '') });
 
     // 元信息
@@ -318,6 +375,7 @@ export function createRunBar(handlers) {
       modelField.destroy();
       noteField.destroy();
       saveNoteBtn.destroy();
+      modelRetryBtn.destroy();
       showDiffBtn.destroy();
       copyPathBtn.destroy();
       diffCard.destroy();

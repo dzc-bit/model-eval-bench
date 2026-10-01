@@ -215,17 +215,26 @@ export function createTaskLibrary(props = {}) {
           onClick: () => enterTask(card.id),
         }).el,
       );
+      // replaceChildren() 按 DOM 规范会把 null 转成字符串 "null" 印到界面上，
+      // 所以可选块必须先过滤，不能像 el() 那样直接传 null。
       node.replaceChildren(
-        el(
-          'div',
-          { class: 'task-card__top' },
-          el('span', { class: 'task-card__id' }, card.id),
-          tierBadge(card.tier, { attempts: card.attempts }).el,
-        ),
-        el('p', { class: 'task-card__title' }, card.title),
-        el('p', { class: 'task-card__symptom' }, card.symptom),
-        el('p', { class: 'u-faint' }, band ? t(S.LIB_CARD_TARGET_BAND, band) : ''),
-        foot,
+        ...[
+          el(
+            'div',
+            { class: 'task-card__top' },
+            el('span', { class: 'task-card__id' }, card.id),
+            tierBadge(card.tier, { attempts: card.attempts }).el,
+          ),
+          el('p', { class: 'task-card__title' }, card.title),
+          card.symptom
+            ? el('p', { class: 'task-card__symptom' }, card.symptom)
+            : null,
+          card.summary
+            ? el('p', { class: 'task-card__goal' }, t(S.LIB_CARD_GOAL, { goal: card.summary }))
+            : null,
+          band ? el('p', { class: 'u-faint' }, t(S.LIB_CARD_TARGET_BAND, band)) : null,
+          foot,
+        ].filter(Boolean),
       );
     }
 

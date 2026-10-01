@@ -43,7 +43,7 @@ const SANDBOX_OK = new Set(['ready', 'graded']);
  * 创建校验区。
  * @param {{
  *   onGrade: Function, onPromote: Function, onReveal: Function,
- *   onExport: Function, onGoPrompt: Function
+ *   onExport: Function, onGoPrompt: Function, onReload: Function
  * }} handlers
  * @returns {{el: HTMLElement, update: Function, destroy: Function, doGrade: Function}}
  */
@@ -116,9 +116,12 @@ export function createGradePanel(handlers) {
   const newFlag = el('span', { class: 'grade__new-flag' }, `● ${S.GRADE_NEW_RESULT}`);
 
   const emptyState = createEmptyState({
+    icon: 'chart',
     title: S.GRADE_EMPTY,
     desc: S.GRADE_EMPTY_DESC,
-    actions: [createButton({ label: S.WS_JUMP_SANDBOX, variant: 'primary', onClick: () => handlers.onGoPrompt() }).el],
+    // 原先标签用 S.WS_JUMP_SANDBOX（「沙箱」）而 onClick 是 onGoPrompt，
+    // 标签和动作对不上；且实心 primary 会和沙箱面板的「准备沙箱」同屏撞车
+    actions: [createButton({ label: S.GRADE_EMPTY_ACTION, variant: 'ghost', onClick: () => handlers.onGoPrompt() }).el],
   });
 
   /**
@@ -547,7 +550,9 @@ export function createGradePanel(handlers) {
           title: S.ERR_LOAD,
           desc: S.ERR_LOAD_BODY,
           alert: true,
-          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onGrade() }).el],
+          // 重试 = 重新读取状态。原先挂 handlers.onGrade()，点一下「重试」就
+          // 提交了一次校验（写操作），既开新一轮也可能把沙箱状态推走。
+          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
         }).el,
       );
       return;

@@ -8,18 +8,30 @@
    纪律：颜色 / 间距 / 圆角 / 焦点环一律 var()，不出现字面色值。
    ========================================================================== */
 
-/* ============================ 卡片容器 ============================ */
+/* ============================ 容器层级 ============================
+   .panel = 章节容器（有标题、有内容区）：象牙底 + 细边 + 柔影
+   .card  = 面板/网格里的内容块：无描边，靠底色差和悬浮阴影区分
+   两者必须不同，否则"层级"只是说说。 */
 .card {
+  padding: var(--space-4) var(--space-5);
+  border: var(--border-width) solid transparent;
+  /* 规范：standard card = 8px（16px 留给 featured） */
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  box-shadow: var(--shadow-xs);
+  transition: var(--transition-base);
+}
+.card:hover {
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 .panel {
-  background: var(--color-surface);
+  padding: var(--space-6) var(--space-7);
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
 
@@ -51,10 +63,11 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  white-space: nowrap;
   min-height: var(--control-height-md);
   min-width: var(--tap-target-min);
   padding: var(--space-2) var(--space-4);
-  border: var(--border-width) solid var(--color-border-strong);
+  border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
@@ -66,6 +79,14 @@
   cursor: pointer;
   transition: var(--transition-base);
   user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn--primary:hover:not(:disabled):not([aria-disabled="true"]),
+  .btn--primary:active:not(:disabled):not([aria-disabled="true"]),
+  .btn--danger:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: none;
+  }
 }
 
 .btn:hover:not(:disabled):not([aria-disabled="true"]) {
@@ -80,21 +101,28 @@
 .btn:disabled,
 .btn[aria-disabled="true"] {
   cursor: not-allowed;
-  opacity: 0.62;
-  background: var(--color-surface-2);
+  opacity: 0.5;
+  /* 这里绝不能覆盖 background：.btn:disabled 特异性高于 .btn--primary，
+     会把主按钮底色换成近白的 surface-2，而文字仍是 primary-fg（也近白），
+     结果是"白底白字"的空白按钮。让各变体保留自己的底色，只用透明度表达禁用。 */
 }
 
+/* Claude 主按钮：深炭实心，靠明度和阴影表达状态，不做高光扫过那类装饰 */
 .btn--primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-primary-fg);
+  box-shadow: var(--shadow-xs);
 }
 .btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-sm);
 }
 .btn--primary:active:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+  transform: translateY(1px);
 }
 
 .btn--danger {
@@ -110,10 +138,10 @@
 .btn--ghost {
   background: transparent;
   border-color: transparent;
-  color: var(--color-primary);
+  color: var(--color-accent-text);
 }
 .btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: var(--color-primary-soft);
+  background: var(--color-accent-soft);
   border-color: transparent;
 }
 
@@ -144,8 +172,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1em;
+  width: 1em;
+  height: 1em;
+  /* 图标是文本字形（▶ ↗ ⧉）时，1em 会明显比 CJK 字面大、且基线不齐 */
+  font-size: 0.82em;
   line-height: 1;
+  color: var(--color-text-muted);
+}
+.btn--primary .btn__icon {
+  color: inherit;
+}
+
+/* 规范按钮内边距 `0 12px 0 8px` —— 图标侧（左）比文字侧（右）更紧，
+   让图标与按钮边缘的关系更贴。用 :has 避免改每个调用点。 */
+.btn:has(.btn__icon) {
+  padding-left: var(--space-2);
 }
 
 /* 加载旋转指示：尊重 prefers-reduced-motion（base.css 已统一收敛） */
@@ -155,7 +196,7 @@
   flex: 0 0 auto;
   border: 2px solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   animation: spin 720ms linear infinite;
 }
 
@@ -165,18 +206,25 @@
   }
 }
 
-/* 快捷键角标 */
+/* 快捷键角标：去掉"键帽"式 2px 下边框（拟物且与 Claude 的扁平克制冲突），
+   改成低对比小片，靠间距与文字分开 */
 .btn__kbd {
   margin-left: var(--space-1);
-  padding: 0 var(--space-1);
-  border: var(--border-width) solid var(--color-border);
-  border-bottom-width: 2px;
+  padding: 1px var(--space-1);
+  min-width: 1.5em;
+  border: 0;
   border-radius: var(--radius-xs);
-  background: var(--color-surface-2);
+  background: color-mix(in srgb, var(--color-text) 9%, transparent);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  line-height: 1.5;
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  text-align: center;
+}
+.btn--primary .btn__kbd {
+  background: color-mix(in srgb, var(--color-primary-fg) 18%, transparent);
+  color: inherit;
 }
 
 .btn--primary .btn__kbd,
@@ -242,7 +290,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background: rgba(10, 14, 20, 0.55);
+  background: var(--color-mask);
   animation: fade-in var(--motion-base) var(--ease-out);
 }
 
@@ -342,8 +390,7 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-left: 4px solid var(--color-border-strong);
+  border: var(--border-width-thick) solid var(--color-border-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   font-size: var(--font-size-sm);
@@ -504,6 +551,13 @@
   vertical-align: top;
 }
 
+/* 行头是短中文标签（"文件夹沙箱"），换行会把它劈成两截 */
+.table tbody th {
+  white-space: nowrap;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
 .table thead th {
   position: sticky;
   top: 0;
@@ -572,33 +626,38 @@
   gap: var(--space-1);
   padding: 1px var(--space-2);
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-2);
   color: var(--color-text);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
+  /* 规范 Label：12px 及以下要加正向字距补偿 readability */
+  letter-spacing: var(--letter-spacing-label);
   line-height: 1.6;
   white-space: nowrap;
 }
 
+/* 档位徽章的描边从档位色本身推导。
+   原先 t3 借了 --color-danger-border（红）、t2 借 warn、t4 借 info，
+   等于让"高级题"看起来像报错——语义色不该拿来做分类装饰。 */
 .badge--tier-t1 {
   background: var(--color-tier-t1-soft);
-  border-color: var(--color-success-border);
+  border-color: color-mix(in srgb, var(--color-tier-t1) 30%, transparent);
   color: var(--color-tier-t1);
 }
 .badge--tier-t2 {
   background: var(--color-tier-t2-soft);
-  border-color: var(--color-warn-border);
+  border-color: color-mix(in srgb, var(--color-tier-t2) 30%, transparent);
   color: var(--color-tier-t2);
 }
 .badge--tier-t3 {
   background: var(--color-tier-t3-soft);
-  border-color: var(--color-danger-border);
+  border-color: color-mix(in srgb, var(--color-tier-t3) 30%, transparent);
   color: var(--color-tier-t3);
 }
 .badge--tier-t4 {
   background: var(--color-tier-t4-soft);
-  border-color: var(--color-info-border);
+  border-color: color-mix(in srgb, var(--color-tier-t4) 30%, transparent);
   color: var(--color-tier-t4);
 }
 .badge--info {
@@ -628,13 +687,15 @@
   gap: var(--space-2);
   font-size: var(--font-size-sm);
   color: var(--color-text);
+  /* 状态词（"正常"/"异常"）被压成 2 行 × 1 字会竖排；宁可让表格横向滚动 */
+  white-space: nowrap;
 }
 
 .status-dot__dot {
   flex: 0 0 auto;
   width: 10px;
   height: 10px;
-  border-radius: var(--radius-pill);
+  border-radius: 50%;   /* 网点豁免：10px 状态点保持圆形，即印刷 halftone 的圆点 */
   border: var(--border-width) solid var(--color-border-strong);
   background: var(--color-text-faint);
 }
@@ -709,7 +770,7 @@
 .progress__track {
   position: relative;
   height: 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   background: var(--color-surface-3);
   border: var(--border-width) solid var(--color-border);
   overflow: hidden;
@@ -719,7 +780,7 @@
   height: 100%;
   width: 0%;
   background: var(--color-primary);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-md);
   transition: width var(--motion-base) var(--ease-out);
 }
 
@@ -748,25 +809,20 @@
 }
 
 /* ============================ skeleton ============================ */
+/* 孔版印刷机不懂渐变：骨架屏用纯色块 + 透明度阶闪（像网点深浅交替） */
 .skeleton {
   display: block;
   border-radius: var(--radius-sm);
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-2) 25%,
-    var(--color-surface-3) 37%,
-    var(--color-surface-2) 63%
-  );
-  background-size: 400% 100%;
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  background: var(--color-surface-3);
+  animation: skeleton-blink 1.4s steps(2, jump-none) infinite;
 }
 
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 100% 50%;
+@keyframes skeleton-blink {
+  0%, 100% {
+    opacity: 1;
   }
-  100% {
-    background-position: 0 50%;
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -793,39 +849,46 @@
   gap: var(--space-2);
 }
 
-/* ============================ empty-state ============================ */
+/* ============================ empty-state ============================
+   §.empty-state：图形 + 16.5px 标题 + 15px 说明 + 最多 1 个动作，垂直居中，上下留白 ≥32px。
+   图形**不加边框 / 底色 / 圆角方块**：图标直接坐在面板底上、走低对比度弱色。
+   以前外面套一层圆角描边盒子，里面只有一个字符，读起来是"控件坏了"而不是设计。 */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-7) var(--space-4);
+  padding: var(--space-8) var(--space-6); /* 上下 40px ≥ 32px，左右 24px（§0 留白） */
   text-align: center;
   color: var(--color-text-muted);
 }
 
 .empty-state__icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-2);
-  border: var(--border-width) solid var(--color-border);
-  font-size: var(--font-size-lg);
+  display: block;
+  flex: 0 0 auto;
+  width: var(--tap-target-min); /* 36px */
+  height: var(--tap-target-min);
+  margin-bottom: var(--space-2);
   color: var(--color-text-faint);
 }
 
+.empty-state__icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .empty-state__title {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-lg); /* 16.5px */
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
   color: var(--color-text);
 }
 
 .empty-state__desc {
   max-width: 46ch;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md); /* 15px */
+  line-height: var(--line-height-normal);
 }
 
 .empty-state__actions {
@@ -833,7 +896,14 @@
   gap: var(--space-2);
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* 组件自己设了 display，会盖掉 UA 的 [hidden]{display:none}；
+   不补这一条，空说明/空动作就是两个还在吃 gap 的空盒子。 */
+.empty-state__desc[hidden],
+.empty-state__actions[hidden] {
+  display: none;
 }
 
 /* ============================ code-block ============================ */
@@ -957,23 +1027,46 @@
 .field input {
   width: 100%;
   min-height: var(--control-height-md);
-  padding: var(--space-2) var(--space-3);
+  padding: 10px 14px;
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: var(--font-size-md);
+  font-family: inherit;
+  box-shadow: var(--shadow-xs);
   transition: var(--transition-base);
+}
+.field ::placeholder {
+  color: var(--color-text-faint);
+  opacity: 1;
+}
+.field select {
+  cursor: pointer;
+  padding-right: var(--space-7);
+}
+/* 规范：输入焦点用全站唯一冷色 #3898ec 的环，不用主色（暖色）表达焦点 */
+.field__control:focus,
+.field select:focus,
+.field textarea:focus,
+.field input:focus {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--color-focus-ring);
+  background: var(--color-bg);
 }
 
 .field textarea {
-  min-height: 72px;
+  min-height: 88px;
   resize: vertical;
   line-height: var(--line-height-normal);
 }
 
-.field__control:hover {
-  border-color: var(--color-border-strong);
+.field__control:hover,
+.field select:hover,
+.field textarea:hover,
+.field input:hover {
+  border-color: var(--color-accent-border);
 }
 
 .field__control[aria-invalid="true"] {
