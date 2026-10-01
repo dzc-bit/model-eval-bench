@@ -168,13 +168,17 @@ export function createChatPanel(handlers = {}) {
   }
 
   /** 最后一条「有正文、不带工具调用、不是错误」的助手消息就是本轮总结。 */
+  /**
+   * 该不该钉住收尾总结：只有当对话**确实以这条结尾**时才钉。
+   * 一旦后面又出现新消息（进入下一轮、模型又在调工具、报错行），它就是历史，
+   * 继续顶在列表上方会挡住正在发生的事，而读者要看的恰恰是正在发生的事。
+   * @param {Array} list
+   * @returns {number}
+   */
   function finalSummaryIndex(list) {
-    for (let index = list.length - 1; index >= 0; index -= 1) {
-      const item = list[index];
-      if (item.role !== 'assistant' || item.status || item.toolCalls.length) continue;
-      if (String(item.content || '').trim()) return index;
-    }
-    return -1;
+    const last = list[list.length - 1];
+    if (!last || last.role !== 'assistant' || last.status || last.toolCalls.length) return -1;
+    return String(last.content || '').trim() ? list.length - 1 : -1;
   }
 
   function renderMessages() {
