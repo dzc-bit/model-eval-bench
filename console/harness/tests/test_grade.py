@@ -115,6 +115,20 @@ def test_model_fix_is_not_penalised_for_style(bench):
     assert grade_with(alternative)["score"] == pytest.approx(100.0, abs=0.1)
 
 
+def test_zero_weight_pack_never_mints_a_pass():
+    """权重合计为 0 的题包是坏题包：只能记 0 分，不能因为「全绿」给满分。
+
+    计分口径一旦在这里放开，一个把 weight 全写成 0（或漏写 scored 组）的题包就会
+    对所有模型报 100 分，而门禁与排行榜都看不出异常。
+    """
+    all_green = {"groups": [
+        {"id": "g1", "weight": 0.0, "passed": True},
+        {"id": "g2", "weight": 0.0, "passed": True},
+    ], "regressions": []}
+    assert grade.compute_score(all_green)["score"] == 0.0
+    assert grade.compute_score({"groups": [], "regressions": []})["score"] == 0.0
+
+
 # ------------------------------------------------------------------ 回归红线
 
 def test_p2p_regression_zeroes_the_round(bench):
@@ -294,6 +308,24 @@ def test_grade_env_is_hermetic(bench):
     assert env["PYTHONHASHSEED"] == "0"
     for key in ("PYTHONPATH", "PYTEST_ADDOPTS", "PYTEST_PLUGINS"):
         assert key not in env
+
+
+def test_grade_env_does_not_export_server_secrets(bench, monkeypatch):
+    """评分树里跑的是模型提交的代码：服务端环境变量里的密钥一律不能透传。
+
+    旧实现整包 os.environ.copy()，等于把模型 API 密钥交给被测代码。
+    """
+    _cfg, _run, _meta, _grade_with = bench
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret-value")
+    monkeypatch.setenv("CBCN_GATEWAY_TOKEN", "tok-secret-value")
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+    env = grade.build_env(_cfg, "D:/某个评分树")
+    assert "OPENAI_API_KEY" not in env
+    assert "CBCN_GATEWAY_TOKEN" not in env
+    assert "sk-secret-value" not in " ".join(env.values())
+    # 白名单不是「只减密钥」：跑 pytest/vitest 必需的系统变量必须还在
+    assert env.get("PATH")
+    assert env.get("SYSTEMROOT") or env.get("WINDIR") or env.get("TEMP")
 
 
 def test_broken_sandbox_aborts_before_scoring(bench):

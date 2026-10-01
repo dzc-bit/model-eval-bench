@@ -473,16 +473,13 @@ def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
 def compute_score(graded: dict) -> dict:
     """score = 100 × Σ通过组权重 / Σ总权重（设计文档 §5.1）。
 
-    全部 scored 组权重为 0（或组表为空）时旧实现恒 0 分——全绿也判不过。
-    这种形态本身说明题包坏了，但语义上"没有要求"应记满分而不是 0。
+    权重合计为 0（含没有任何 scored 组）一律记 0 分而不是满分：这种形态说明题包
+    本身是坏的，而评分台唯一能保证的底线是「坏题包不会批量制造假通过」。
     """
     groups = graded["groups"]
     total_weight = sum(g["weight"] for g in groups) or 0.0
     passed_weight = sum(g["weight"] for g in groups if g["passed"])
-    if total_weight > 0:
-        ratio = passed_weight / total_weight
-    else:
-        ratio = 1.0 if groups and all(g["passed"] for g in groups) else 0.0
+    ratio = (passed_weight / total_weight) if total_weight > 0 else 0.0
     score = round(100.0 * ratio, 1)
     p2p_broken = bool(graded["regressions"])
     return {
