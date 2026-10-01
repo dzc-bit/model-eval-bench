@@ -435,6 +435,9 @@ def _promote_locked(cfg: dict, run_id: str) -> dict:
     # 同一个沙箱继续改（模型已写的代码保留），对话要能接着进行：
     # 评分后的轮次是冻结态，不切回 ready 的话输入框会一直禁用
     run["status"] = "ready"
+    # 新一轮的计时起点：不重置的话，第 2 轮的"用时"里含第 1 轮的对话时间，
+    # 排行榜会把两轮的工作量算成一个更快的成绩。
+    run["round_started_at"] = util.iso_now()
     save_run(cfg, run)
     return {"run_id": run_id, "attempt": run["attempt"], "can_promote": run["attempt"] < meta["attempts"]}
 
@@ -739,6 +742,8 @@ def _grade_worker(cfg: dict, run_id: str) -> None:
                 "passed": final.get("passed", False),
                 "invalidated": final.get("invalidated", False),
                 "graded_at": final.get("graded_at"),
+                # 排行榜按这个排名，不按"从建号到交卷的墙钟"
+                "model_work_seconds": model_work_seconds(cfg, run),
                 "report": "round-%d.json" % int(run.get("attempt") or 1),
             })
             run["last_score"] = final.get("score", 0)
@@ -812,21 +817,22 @@ def load_diff(cfg: dict, run: dict) -> str:
         return ""
 
 
-def model_work_seconds(cfg: dict, run: dict) -> float:
+def model_work_seconds(cfg: dict, run: dict, since: object = None) -> float:
     """模型实际动手的秒数：每条提问到"这一条彻底回完"的间隔之和。
 
     不能用 `created_at` 到现在的时间：那里面混着挂机、混着上一个模型、也混着
     排队校验，实测一条 run 因此显示成 28.9 小时，而它自己的校验只花了 3.4 秒。
-    也不含本纪元之外的对话（回基线时 chat.jsonl 已整体归档）。
+    默认只算本轮（起点 `round_started_at`）；老记录没有这个字段时退回全量跨度。
     """
     try:
         records = chat._read_records(run)
     except errors.HarnessError:
         return 0.0
+    floor = _timestamp_seconds(since if since is not None else run.get("round_started_at"))
     segments: list = []
     for item in records:
         stamp = _timestamp_seconds(item.get("created_at"))
-        if stamp is None:
+        if stamp is None or (floor is not None and stamp < floor):
             continue
         if item.get("role") == "user" or not segments:
             segments.append([stamp, stamp])
@@ -955,38 +961,51 @@ def scoreboard(cfg: dict) -> dict:
     }
 
 
-def _archive_run_record(cfg: dict, run: dict) -> str:
-    """把一条运行记录整目录移入隔离区并清理沙箱副本，返回归档路径。
+def _purge_path(root: str, path: object, sink: list) -> None:
+    """删掉一条路径，但先确认它在这个根目录里面。
 
-    模型改动已存档在记录目录的 diff.patch 里，沙箱是可重建的派生数据。
+    删除是不可逆的，路径越界（比如记录里存了个 ../ 或者被手工改过的绝对路径）
+    必须当场中止而不是"少删一个目录继续走"。
     """
-    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run["run_id"])
-    if not os.path.isdir(run_dir_path):
+    target = str(path or "")
+    if not target or not os.path.exists(target):
+        return
+    if not util.path_within(root, target):
         raise errors.HarnessError(
-            errors.E_RUN_NOT_FOUND,
-            "运行记录目录不存在，可能已被删除。",
-            str(run.get("run_id") or ""),
+            errors.E_INTERNAL,
+            "要删除的路径不在预期根目录内，已中止删除。",
+            target,
         )
-    quarantine_root = os.path.join(cfg["runs_root"], "_quarantine", "manual-deletes")
-    util.ensure_dir(quarantine_root)
-    target = os.path.join(quarantine_root, str(run.get("run_id") or "run"))
-    suffix = 2
-    while os.path.exists(target):
-        target = os.path.join(quarantine_root, "%s-%d" % (run.get("run_id"), suffix))
-        suffix += 1
-    shutil.move(run_dir_path, target)
-    sandbox_path = str(run.get("sandbox") or "")
-    if sandbox_path and os.path.isdir(sandbox_path):
-        util.remove_tree(sandbox_path)
-    return target
+    util.remove_tree(target)
+    sink.append(target)
+
+
+def _prune_empty_dirs(removed: str, stop_at: str) -> None:
+    """记录目录删空后把上层空壳一并收掉，别在 runs/ 里留一串空目录。
+
+    从被删目录的**父级**往上收：父级本身可能已经空了（这条 run 是该档案在这道题下
+    唯一的记录），也可能还有兄弟记录（看到非空就停）。从被删的那个目录本身开始判空
+    是错的——它刚被 rmtree 掉，listdir 直接抛 FileNotFoundError。
+    """
+    stop = os.path.normpath(stop_at)
+    current = os.path.dirname(os.path.normpath(removed))
+    while current and current != stop and current.startswith(stop + os.sep):
+        try:
+            if os.listdir(current):
+                return
+            os.rmdir(current)
+        except OSError:
+            return
+        current = os.path.dirname(current)
 
 
 def delete_run(cfg: dict, run_id: str) -> dict:
-    """删除一条运行记录。
+    """真删一条运行记录：记录目录、沙箱副本、评分树全部移除，不可恢复。
 
-    遵循工作区的删除纪律：记录目录**整目录移入** runs/_quarantine/manual-deletes/
-    （list_runs 不扫隔离区，统计里立刻消失；要恢复手工移回原位即可），
-    关联沙箱副本用 util.remove_tree 清掉。对话或校验进行中拒绝删除。
+    「废弃」的语义就是这次尝试不算数、也不占地方：对话记录（含 epochs/ 归档）、
+    报告、diff、指纹、依赖基线跟着记录目录一起走。共享的快照缓存
+    sandboxes/.snapshots 不动 —— 那是受测仓库的基线，别的 run 还要用。
+    对话或校验进行中拒绝删除。
     """
     with chat.exclusive(run_id, blocking=False) as acquired:
         if not acquired:
@@ -1002,8 +1021,32 @@ def delete_run(cfg: dict, run_id: str) -> dict:
             "这一轮正在校验中，等校验结束后再删除。",
             run_id,
         )
-    archived_to = _archive_run_record(cfg, run)
-    return {"run_id": run_id, "deleted": True, "archived_to": archived_to}
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+    if not os.path.isdir(run_dir_path):
+        raise errors.HarnessError(
+            errors.E_RUN_NOT_FOUND,
+            "运行记录目录不存在，可能已经被删除过了。",
+            run_id,
+        )
+    return {"run_id": run_id, "deleted": True, "purged": purge_run(cfg, run),
+            "notice": "记录、对话与沙箱已彻底删除，不可恢复。"}
+
+
+def purge_run(cfg: dict, run: dict) -> list:
+    """删掉一条 run 名下的全部派生数据，返回被删掉的路径。
+
+    调用方负责持住这一轮的会话锁。共享的快照缓存 sandboxes/.snapshots 不动：
+    那是受测仓库的基线，别的 run 还要用。
+    """
+    run_id = str(run.get("run_id") or "")
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+    purged: list = []
+    _purge_path(cfg["sandbox_root"],
+                os.path.join(cfg["sandbox_root"], grade.GRADE_DIR_PREFIX, util.sanitize_id(run_id)), purged)
+    _purge_path(cfg["sandbox_root"], run.get("sandbox"), purged)
+    _purge_path(cfg["runs_root"], run_dir_path, purged)
+    _prune_empty_dirs(run_dir_path, cfg["runs_root"])
+    return purged
 
 
 def _live_rounds(run: dict) -> List[dict]:
@@ -1140,13 +1183,21 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
             continue
 
         attempt, result = min(passed_rounds, key=lambda pair: pair[0])
-        # 起点用"本轮开始"，不是记录建号时刻：重建/清空之后 created_at 仍是几个月前，
-        # 用它算出来的"用时"会把上一个模型和所有挂机时间一起累计进来。
-        created_at = run.get("round_started_at") or run.get("created_at")
         completed_at = result.get("graded_at")
-        start_s = _timestamp_seconds(created_at)
+        # 墙钟用时（本轮起点 → 交卷）只作为兜底与对照：里面混着挂机与思考。
+        start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
         finish_s = _timestamp_seconds(completed_at)
-        duration_s = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
+        wall_s = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
+        # 排名口径 = 模型实际工作时间：优先用轮次记录里落盘的那一份（就是那一轮的
+        # 跨度），老记录没这个字段就按本轮起点现算，再算不出来才退回墙钟。
+        work_s = result.get("model_work_seconds")
+        try:
+            work_s = float(work_s) if work_s is not None else None
+        except (TypeError, ValueError):
+            work_s = None
+        if not work_s:
+            fresh = model_work_seconds(cfg, run)
+            work_s = fresh if fresh else None
         try:
             score = float(result.get("score") or 0)
         except (TypeError, ValueError):
@@ -1155,10 +1206,12 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
             "run_id": run.get("run_id", ""),
             "model": str(run.get("model") or ""),
             "rounds": attempt,
-            "duration_s": round(duration_s, 3) if duration_s is not None else None,
-            # 与墙钟用时并列给出：排行榜要说清排的是哪一个，
+            "duration_s": round(work_s, 3) if work_s is not None else (
+                round(wall_s, 3) if wall_s is not None else None),
+            # 两个口径都下发：排行榜排的是模型工作时间，墙钟留着做对照，
             # 否则"挂机两小时"和"模型干两小时"看起来是同一个成绩。
-            "model_work_seconds": model_work_seconds(cfg, run),
+            "model_work_seconds": round(work_s, 3) if work_s is not None else None,
+            "wall_seconds": round(wall_s, 3) if wall_s is not None else None,
             "completed_at": completed_at,
             "score": score,
         })
@@ -1421,10 +1474,10 @@ def upsert_provider(cfg: dict, payload: dict) -> dict:
 
 
 def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dict:
-    """删除供应商（连同已存密钥与其下所有模型）；with_runs=True 时一并隔离运行记录。
+    """删除供应商（连同已存密钥与其下所有模型）；with_runs=True 时名下运行记录一并真删。
 
-    记分板的档案芯片随「供应商 + 名下记录」一起消失；正被对话/校验占用的
-    运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    记录目录、沙箱副本、评分树随「供应商 + 名下记录」一起消失，不可恢复；
+    正被对话/校验占用的运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
     """
     providers = [dict(p) for p in cfg.get("providers", [])]
     target = next((p for p in providers if str(p.get("id")) == str(provider_id)), None)
@@ -1435,13 +1488,18 @@ def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dic
     config.update_providers(remaining)
     keyring.remove_key(provider_id)
 
-    # 名下运行记录按「限定名前缀」或「老裸 id」两种形态匹配：
+    # 名下运行记录按「限定名前缀」或「老档案 id」两种形态匹配：
     # 老记录里 model 字段是档案 id，重构后是 provider::model。
     owned_prefix = "%s::" % provider_id
     legacy_ids = {str(m.get("id")) for m in (target.get("models") or [])}
     legacy_ids.add(str(provider_id))
+    # 读时迁移记下的老档案 id 也算名下（与 _key_owner_candidates 同一份名单）：
+    # 老记录的 model 字段挂的是它们，漏了就会留下删不掉的幽灵记录。
+    for item in (target.get("legacy_ids") or []):
+        legacy_ids.add(str(item or ""))
 
     removed_runs: List[str] = []
+    purged_paths: List[str] = []
     skipped_busy: List[str] = []
     if with_runs:
         for run in list_runs(cfg):
@@ -1457,17 +1515,16 @@ def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dic
                 if not acquired:
                     skipped_busy.append(rid)
                     continue
-                try:
-                    removed_runs.append(_archive_run_record(cfg, run))
-                except errors.HarnessError as exc:
-                    if exc.code == errors.E_RUN_NOT_FOUND:
-                        continue  # 记录目录已不在，视为已处理
-                    raise
+                purged_paths.extend(purge_run(cfg, run))
+                removed_runs.append(rid)
     return {
         "id": provider_id,
         "deleted": True,
         "remaining": len(remaining),
+        # 与 delete_model 同一口径：removed_runs 是名下 run_id（给"删了几条"用），
+        # purged_paths 是实际抹掉的目录（排障时核对到底动了哪些路径）。
         "removed_runs": removed_runs,
+        "purged_paths": purged_paths,
         "skipped_busy": skipped_busy,
     }
 
@@ -1506,10 +1563,10 @@ def discover_models(cfg: dict, payload: dict) -> dict:
 
 
 def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
-    """删除模型档案（连同已存密钥）；with_runs=True 时把名下运行记录一并移入隔离区。
+    """删除模型档案（连同已存密钥）；with_runs=True 时名下运行记录一并真删。
 
-    记分板的档案芯片随「档案本身 + 名下记录」一起消失；正被对话/校验占用的
-    运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    记录目录、沙箱副本、评分树随「档案本身 + 名下记录」一起消失，不可恢复；
+    正被对话/校验占用的运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
     """
     models = _model_records(cfg)
     remaining = [m for m in models if str(m.get("id")) != str(model_id)]
@@ -1519,6 +1576,7 @@ def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
     config.update_models(remaining)
     keyring.remove_key(model_id)
     removed_runs: List[str] = []
+    purged_paths: List[str] = []
     skipped_busy: List[str] = []
     if with_runs:
         for run in list_runs(cfg):
@@ -1533,16 +1591,15 @@ def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
                 if not acquired:
                     skipped_busy.append(rid)
                     continue
-                try:
-                    removed_runs.append(_archive_run_record(cfg, run))
-                except errors.HarnessError as exc:
-                    if exc.code == errors.E_RUN_NOT_FOUND:
-                        continue  # 记录目录已不在，视为已处理
-                    raise
+                purged_paths.extend(purge_run(cfg, run))
+                removed_runs.append(rid)
     return {
         "id": model_id,
         "deleted": True,
         "remaining": len(remaining),
+        # removed_runs 是档案名下的 run_id（给"删了几条"这句话用），
+        # purged_paths 是实际被抹掉的目录（排障时要能核对到底动了哪些路径）。
         "removed_runs": removed_runs,
+        "purged_paths": purged_paths,
         "skipped_busy": skipped_busy,
     }
