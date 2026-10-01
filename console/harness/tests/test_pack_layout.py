@@ -155,6 +155,31 @@ def test_vitest_hidden_node_ids_match_the_relocated_frontend_root(tmp_path):
     assert hidden["overlay_rel"] == "hidden-fe"
     assert hidden["groups"][0]["tests"] == [
         "src/tests_hidden_fe/test_probe.test.ts::probe"]
+    # 光有路径不够：搬运目的地必须和这个前缀一致，否则文件在树根、vitest 看不见
+    assert hidden["overlay_dest_rel"] == "frontend/src"
+
+
+def test_vitest_hidden_layer_is_staged_under_frontend_src(tmp_path):
+    """隐藏前端用例必须真的落进 frontend/src/tests_hidden_fe/。
+
+    曾经只补了 CLI 路径、没实现搬运：文件留在评分树根的 hidden-fe/ 下，
+    vitest 报「No test files found」，四道前端题的 FE 组于是永远 0 分。
+    """
+    from harness import grade
+
+    meta = _make_pack_with_groups(
+        tmp_path, ["tests_hidden_fe/test_probe.test.ts::probe"],
+        hidden_rel="hidden-fe/tests_hidden_fe")
+    meta["checks"][0]["kind"] = "vitest"
+    hidden = packs.load_hidden_for(meta, meta["checks"][0])
+
+    grade_dir = str(tmp_path / "grade-tree")
+    os.makedirs(os.path.join(grade_dir, "frontend", "src"), exist_ok=True)
+    grade._overlay_hidden(grade_dir, hidden["overlay_src"], hidden["overlay_dest_rel"], lambda m: None)
+
+    staged = os.path.join(grade_dir, "frontend", "src", "tests_hidden_fe", "test_probe.py")
+    assert os.path.isfile(staged), "隐藏前端用例没有被搬进 frontend/src/"
+    assert not os.path.isdir(os.path.join(grade_dir, "hidden-fe"))
 
 
 def test_qualified_hidden_path_exists_on_disk(tmp_path):

@@ -364,7 +364,10 @@ def build_grade_tree(cfg: dict, run: dict, meta: dict, changes: dict,
         if hidden["overlay_rel"] in overlaid_layers:
             continue          # 多条 check 共用同一层 hidden，只搬一次
         overlaid_layers.add(hidden["overlay_rel"])
-        _overlay_hidden(grade_dir, hidden["overlay_src"], hidden["overlay_rel"], log)
+        # 目的地由 checker 决定：vitest 的 root 是 frontend/，隐藏用例必须落进
+        # frontend/src/ 才会被 `src/tests_hidden_fe/…` 命中（放在树根它永远看不见）。
+        _overlay_hidden(grade_dir, hidden["overlay_src"],
+                        hidden.get("overlay_dest_rel") or hidden["overlay_rel"], log)
     util.ensure_dir(os.path.join(grade_dir, ".grade-cache"))
     return grade_dir
 

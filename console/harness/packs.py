@@ -234,6 +234,9 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
         prefix = "src"
     else:
         prefix = "" if overlay_rel in ("", ".") else overlay_rel.replace("\\", "/").strip("/")
+    # 搬运目的地必须和上面的 CLI 前缀一致：vitest 看不见评分树根下的 hidden-fe/，
+    # 只有落进 frontend/src/ 才会被 `src/tests_hidden_fe/…` 这条过滤命中。
+    overlay_dest = "frontend/src" if prefix == "src" else overlay_rel
     for group in groups:
         group["tests"] = [_qualify_node_id(t, prefix) for t in group["tests"]]
     p2p_tests = [_qualify_node_id(t, "") for t in p2p_tests]
@@ -242,6 +245,7 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
         "hidden_rel": hidden_rel,
         "overlay_src": overlay_src,
         "overlay_rel": overlay_rel,
+        "overlay_dest_rel": overlay_dest,
         "groups": groups,
         "p2p_tests": p2p_tests,
         "groups_path": groups_path,
