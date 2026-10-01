@@ -103,6 +103,25 @@ def test_file_tools_reject_paths_outside_workspace(cfg, tmp_path, path):
     assert outside.read_text(encoding="utf-8") == "untouched"
 
 
+def test_system_prompt_discloses_the_edit_boundary(cfg, tmp_path, monkeypatch):
+    """越界按路径判整轮作废，就必须先把这条规则告诉模型。"""
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    calls = []
+    responses = [{"choices": [{"message": {"role": "assistant", "content": "改好了。"}}]}]
+
+    def fake_post(url, payload, key, timeout):
+        calls.append(payload)
+        return responses.pop(0)
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    chat.send(cfg, run, "把逻辑修好")
+
+    system = calls[0]["messages"][0]["content"]
+    assert "backend/miniapp/**" in system, "题包允许路径要出现在系统提示词里"
+    assert "只允许修改" in system
+
+
 def test_run_command_rejects_inline_scripts(cfg, tmp_path):
     _run, sandbox_root = _ready_run(cfg, tmp_path)
 

@@ -19,7 +19,7 @@ from typing import Callable, Dict, Iterator, List, Optional
 from urllib import error as url_error
 from urllib import request as url_request
 
-from . import config, errors, keyring, util
+from . import config, errors, keyring, packs, util
 
 #: 上下文窗口参数在 config.DEFAULT_CHAT（config.json 的 chat 节能按字段覆盖）。
 #: 下面三个上限是工具执行的安全线，不随配置放松，只能收紧。
@@ -388,7 +388,8 @@ TOOLS = [
 ]
 
 
-def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0) -> str:
+def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0,
+                   allowed: Optional[List[str]] = None) -> str:
     root = util.norm(str(run.get("sandbox") or ""))
     prompt = (
         "你正在一个代码评测 harness 中工作。当前唯一允许读写和运行命令的工作区是：%s。"
@@ -397,6 +398,11 @@ def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0
     )
     if tool_enabled:
         prompt += " 可用工具只能操作该工作区：list_files、read_file、write_file、run_command。"
+    if tool_enabled and allowed:
+        # 边界必须事先说：越界按路径判整轮作废，而题面按脱敏纪律不能出现文件名。
+        # 系统提示词是操作规程不是题目信息量，所以写在这里不违反 §6.5。
+        prompt += (" 本轮只允许修改这些文件：%s。清单之外的文件（含测试、构建配置与依赖锁）"
+                   "可以读，但只要发生改动，本轮就直接判无效。" % "、".join(allowed))
     if omitted_rounds:
         # 上下文窗口放不下时才会走到这里：明确告诉模型更早的轮次被省略了，
         # 别让它以为对话只有这些（历史里的工具返回此时已压成摘要）。
@@ -817,6 +823,8 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
         model = config.find_model(cfg, str(run.get("model") or ""))
         mode, url = _endpoint(model)
         key = _model_key(model)
+        # 每次发送都重新读一遍边界：题目改了，模型看到的规则也要跟着变
+        allowed = list(packs.load_meta(cfg, str(run.get("task") or "")).get("allowed_paths") or [])
         _append_message(run, {"role": "user", "content": text})
         model_history, omitted_rounds = _model_history(cfg, _read_records(run))
         history = model_history
@@ -824,7 +832,8 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
 
         try:
             if mode == "chat_completions":
-                api_messages = [{"role": "system", "content": _system_prompt(run, True, omitted_rounds)}] + _history_for_api(history)
+                api_messages = [{"role": "system",
+                                 "content": _system_prompt(run, True, omitted_rounds, allowed)}] + _history_for_api(history)
                 # 不限工具轮数：模型不再发起工具调用时自然收束；单轮请求有超时兜底
                 read_slots: Dict[str, int] = {}
                 while True:

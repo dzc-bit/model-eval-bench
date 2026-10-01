@@ -93,19 +93,54 @@ def collect_changes(cfg: dict, run: dict) -> dict:
     return util.manifest_diff(baseline, current)
 
 
-def _classify_violations(cfg: dict, changes: dict, allowed: list, noise: list) -> tuple:
-    """把越界改动分成「硬违规」「运行噪音」两类。
+#: 注释行前缀：越界文件若只动了这些行，按提示处理而不是作废整轮
+COMMENT_PREFIXES = ("#", "//", "/*", "*", "<!--", "--")
+
+
+def _diff_lines_by_file(diff_text: str) -> Dict[str, List[str]]:
+    """把合并后的 unified diff 拆成「每个文件的增删正文行」。"""
+    per_file: Dict[str, List[str]] = {}
+    current = ""
+    for line in (diff_text or "").splitlines():
+        if line.startswith("+++ b/"):
+            current = line[len("+++ b/"):].strip()
+            per_file.setdefault(current, [])
+            continue
+        if not current or not line or line[0] not in "+-":
+            continue
+        if line.startswith("--- ") or line.startswith("+++ "):
+            continue
+        per_file[current].append(line[1:].strip())
+    return per_file
+
+
+def _comment_only(lines: List[str]) -> bool:
+    """这一组改动行是否只有注释与空行。拿不准就算代码——宁可判红。"""
+    if not lines:
+        return False
+    return all((not body) or body.startswith(COMMENT_PREFIXES) for body in lines)
+
+
+def _classify_violations(cfg: dict, changes: dict, allowed: list, noise: list,
+                         diff_text: str = "") -> tuple:
+    """把越界改动分成「硬违规」「只提示」两类。
 
     硬违规 → 本轮判红（设计文档 §4.2：allowed_paths 之外任何变化记 violations，命中即红）；
-    运行噪音（__pycache__、.log 之类）→ 只提示，不影响判分，避免无谓的 0 分。
+    运行噪音（__pycache__、.log 之类）与「越界但只改了注释」→ 只提示，不影响判分。
+    后者是为了不把测量变成惩罚：模型在无权文件里改一行注释，既不进入评分树
+    （`_apply_overlay` 只收 allowed_paths），也不该抹掉它其余的正确改动。
     """
     hard, soft = [], []
+    diff_lines = _diff_lines_by_file(diff_text)
     for kind in ("added", "modified", "removed"):
         for rel in changes[kind]:
             if packs.allowed_match(rel, allowed):
                 continue
             if util.match_any(rel, noise):
                 soft.append({"path": rel, "change": kind, "reason": "运行产物"})
+                continue
+            if kind == "modified" and _comment_only(diff_lines.get(rel, [])):
+                soft.append({"path": rel, "change": kind, "reason": "越界但只改了注释，未进入评分树"})
                 continue
             reason = "改动了无权修改的文件"
             if util.match_any(rel, FORBIDDEN_CHANGE_PATTERNS):
@@ -426,13 +461,14 @@ def run_grade(cfg: dict, run: dict, meta: dict, log: Log = _noop) -> dict:
     # ② 全树哈希 diff + 越界检测
     log("开始全树哈希比对，统计模型改动")
     changes = collect_changes(cfg, run)
+    diff = build_diff_text(cfg, run, changes)
+    # 先出 diff 正文再判越界：注释级改动要靠改动行本身区分，不能只看路径就作废整轮
     violations, noise = _classify_violations(
-        cfg, changes, meta["allowed_paths"], NOISE_GLOBS)
+        cfg, changes, meta["allowed_paths"], NOISE_GLOBS, diff["text"])
     baseline_problems = check_baseline_intact(run, log)
-    log("改动文件 %d 个；越界 %d 项；运行噪音 %d 项"
+    log("改动文件 %d 个；越界 %d 项；提示 %d 项"
         % (len(changes["changed"]), len(violations), len(noise)))
 
-    diff = build_diff_text(cfg, run, changes)
     over_cap = diff["changed_lines"] > cap
     log("diff 统计：+%d / -%d 行（上限 %d%s）"
         % (diff["added_lines"], diff["removed_lines"], cap, "，已超限" if over_cap else ""))
