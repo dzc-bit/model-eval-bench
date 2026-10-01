@@ -105,7 +105,7 @@
       "api_mode": "chat_completions",
       "base_url": "https://api.a6api.com/v1",
       "model": "gpt-6-luna",
-      "key_masked": "",
+      "key_masked": "sk-H****aj7o",
       "key_env": "",
       "note": ""
     }

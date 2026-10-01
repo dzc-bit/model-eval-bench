@@ -183,6 +183,17 @@ hr {
 }
 
 /* 侧栏布局：header 是左列（workbuddy 式 176px 侧栏），主内容在右 */
+.app-main {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-9);
+}
+.app-main:focus {
+  outline: none;
+}
+
 @media (min-width: 901px) {
   .app-shell {
     flex-direction: row;
@@ -206,17 +217,6 @@ hr {
     margin-right: auto;
     width: 100%;
   }
-}
-
-.app-main {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-5) var(--space-9);
-}
-.app-main:focus {
-  outline: none;
 }
 
 /* ---------- 工具类 ---------- */

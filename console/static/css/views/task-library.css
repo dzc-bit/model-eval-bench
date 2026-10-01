@@ -1,0 +1,315 @@
+/* ============================================================
+   task-library.css — 任务库视图（spec ui-revamp-2026-10-01 三）
+   选择器全部挂在视图根 .lib 下（index.html 在 views.css 之后挂载本文件）。
+
+   色值纪律：本文件唯一允许的硬编码色是 spec 给出的四个官方色板档位色
+     初级 mineral #629987 / 中级 pencil #f0ac54 / 高级 kraft #d4a27f / 王者 plum #827dbd
+   其余一律走 tokens 变量或对档位色做 color-mix（暗色降饱和、保文字对比度）。
+   hover 只允许边框变亮（150ms），禁止阴影扩散。
+   ========================================================================== */
+
+.lib {
+  /* 档位色（spec 指定的官方色板值，仅此四处硬编码） */
+  --tier-c1: #629987;
+  --tier-c2: #f0ac54;
+  --tier-c3: #d4a27f;
+  --tier-c4: #827dbd;
+
+  /* 档位文字色：浅色态往正文色压深，保证 12px 徽标文字的对比度 */
+  --tier-text-1: color-mix(in srgb, var(--tier-c1) 60%, var(--color-text));
+  --tier-text-2: color-mix(in srgb, var(--tier-c2) 60%, var(--color-text));
+  --tier-text-3: color-mix(in srgb, var(--tier-c3) 60%, var(--color-text));
+  --tier-text-4: color-mix(in srgb, var(--tier-c4) 60%, var(--color-text));
+}
+
+/* 暗色态：往亮文字方向 mix 一手——降饱和、提亮度，色相保持 */
+[data-theme="dark"] .lib {
+  --tier-text-1: color-mix(in srgb, var(--tier-c1) 78%, var(--color-text));
+  --tier-text-2: color-mix(in srgb, var(--tier-c2) 78%, var(--color-text));
+  --tier-text-3: color-mix(in srgb, var(--tier-c3) 78%, var(--color-text));
+  --tier-text-4: color-mix(in srgb, var(--tier-c4) 78%, var(--color-text));
+}
+
+/* ============================ 工具条 ============================ */
+
+.lib .lib__toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* 档位分段控件：五个单选 chip（原生 radio 提供箭头键导航，视觉全自定义） */
+.lib .lib__chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-bottom: 2px; /* 与右侧输入框的底边取齐 */
+}
+
+.lib .lib__chip {
+  position: relative;
+  display: inline-flex;
+}
+
+/* input 铺满 chip 但透明：点击区域即整颗 chip，焦点环画在 face 上 */
+.lib .lib__chip-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lib .lib__chip-face {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  transition:
+    border-color 150ms var(--ease-out),
+    background-color 150ms var(--ease-out),
+    color 150ms var(--ease-out);
+}
+
+/* 档位 chip 的色点：与卡片发丝线同一档位色，充当颜色图例 */
+.lib .lib__chip[data-tier] .lib__chip-face::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.lib .lib__chip[data-tier="primary"] .lib__chip-face::before { background: var(--tier-c1); }
+.lib .lib__chip[data-tier="medium"] .lib__chip-face::before { background: var(--tier-c2); }
+.lib .lib__chip[data-tier="hard"] .lib__chip-face::before { background: var(--tier-c3); }
+.lib .lib__chip[data-tier="king"] .lib__chip-face::before { background: var(--tier-c4); }
+
+.lib .lib__chip:hover .lib__chip-face {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.lib .lib__chip-input:checked + .lib__chip-face {
+  background: var(--color-surface-3);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+}
+
+.lib .lib__chip-input:focus-visible + .lib__chip-face {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ============================ 卡片网格 ============================ */
+
+.lib .lib__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lib .lib__grid[hidden] {
+  display: none;
+}
+
+/* 卡片：顶部 2px 发丝线 = 档位色；hover 只允许边框变亮 + 150ms，无阴影扩散 */
+.lib .task-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--color-border);
+  border-top: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-out);
+}
+
+.lib .task-card:hover,
+.lib .task-card:focus-within {
+  border-bottom-color: var(--color-border-strong);
+  border-left-color: var(--color-border-strong);
+  border-right-color: var(--color-border-strong);
+}
+
+/* 档位发丝线 */
+.lib .task-card--t1 { border-top-color: var(--tier-c1); }
+.lib .task-card--t2 { border-top-color: var(--tier-c2); }
+.lib .task-card--t3 { border-top-color: var(--tier-c3); }
+.lib .task-card--t4 { border-top-color: var(--tier-c4); }
+
+.lib .task-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lib .task-card__id {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+}
+
+/* 标题是阅读主角：衬线加大一级 */
+.lib .task-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  color: var(--color-text);
+}
+
+/* 「考察：…」紧跟标题：第一眼读到的内容 */
+.lib .task-card__goal {
+  margin: 0;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+.lib .task-card__symptom {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-faint);
+}
+
+/* 校准元数据（目标通过率/未校准/历史最好）：脚注小字，弱化 */
+.lib .task-card__meta {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-faint);
+}
+
+.lib .task-card__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+/* 档位徽章：spec 官方色板的 tint 底 + 档位文字色（覆盖 components.css 的旧配色） */
+.lib .badge--tier-t1 {
+  background: color-mix(in srgb, var(--tier-c1) 13%, transparent);
+  border-color: color-mix(in srgb, var(--tier-c1) 34%, transparent);
+  color: var(--tier-text-1);
+}
+.lib .badge--tier-t2 {
+  background: color-mix(in srgb, var(--tier-c2) 13%, transparent);
+  border-color: color-mix(in srgb, var(--tier-c2) 34%, transparent);
+  color: var(--tier-text-2);
+}
+.lib .badge--tier-t3 {
+  background: color-mix(in srgb, var(--tier-c3) 13%, transparent);
+  border-color: color-mix(in srgb, var(--tier-c3) 34%, transparent);
+  color: var(--tier-text-3);
+}
+.lib .badge--tier-t4 {
+  background: color-mix(in srgb, var(--tier-c4) 13%, transparent);
+  border-color: color-mix(in srgb, var(--tier-c4) 34%, transparent);
+  color: var(--tier-text-4);
+}
+
+/* ============================ 首启三步引导 ============================ */
+
+.lib .guide {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.lib .guide[hidden] {
+  display: none;
+}
+
+.lib .guide__head {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  grid-column: 1 / -1;
+}
+
+.lib .guide__head h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.lib .guide__desc {
+  margin: var(--space-1) 0 0;
+  max-width: var(--prose-max);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+.lib .guide__step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.lib .guide__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-surface-3);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.lib .guide__step-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.lib .guide__step-desc {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-muted);
+}
+
+/* 桌面三步并排；窄屏单列（DOM 顺序即阅读顺序） */
+@media (min-width: 960px) {
+  .lib .guide {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

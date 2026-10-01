@@ -16,24 +16,44 @@
  */
 
 import { el, setText, patchList } from '../core/dom.js';
-import { S, t, normalizeTier } from '../core/strings.js';
+import { S, t, normalizeTier, TIER_NAMES } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { storage, STORAGE_KEYS } from '../core/storage.js';
 import { announce } from '../core/a11y.js';
 import { createButton } from '../components/button.js';
-import { createBadge, tierBadge } from '../components/badge.js';
+import { createBadge } from '../components/badge.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { createField } from '../components/field.js';
 
-/** 档位筛选项（值用归一后的档位名，见 core/strings.js 的 normalizeTier）。 */
+/** 本视图新增文案（strings.js 只读，此处放本轮改造的新句子）。 */
+const T = {
+  /** 档位徽标：`初级 · 试 1 次`（spec 三、任务库 §2）。 */
+  TIER_BADGE: '{tier} · 试 {n} 次',
+};
+
+/** 档位筛选项（值用归一后的档位名，见 core/strings.js 的 normalizeTier）。tier 用于 chip 上的色点。 */
 const TIER_FILTERS = [
   { value: '', label: S.LIB_FILTER_ALL },
-  { value: 'primary', label: S.LIB_TIER_T1 },
-  { value: 'medium', label: S.LIB_TIER_T2 },
-  { value: 'hard', label: S.LIB_TIER_T3 },
-  { value: 'king', label: S.LIB_TIER_T4 },
+  { value: 'primary', label: S.LIB_TIER_T1, tier: 'primary' },
+  { value: 'medium', label: S.LIB_TIER_T2, tier: 'medium' },
+  { value: 'hard', label: S.LIB_TIER_T3, tier: 'hard' },
+  { value: 'king', label: S.LIB_TIER_T4, tier: 'king' },
 ];
+
+/** 档位 → 徽标符号（与颜色构成三重编码，同 components/badge.js 的约定）。 */
+const TIER_GLYPHS = { primary: '●', medium: '◆', hard: '▲', king: '★' };
+
+/** 档位 → 徽章变体类（badge--tier-tN，颜色在 task-library.css 里按官方色板覆盖）。 */
+const TIER_VARIANTS = { primary: 'tier-t1', medium: 'tier-t2', hard: 'tier-t3', king: 'tier-t4' };
+
+/** 档位 → 卡片顶部发丝线的修饰类（task-library.css）。 */
+const TIER_CARD_CLASS = {
+  primary: 'task-card--t1',
+  medium: 'task-card--t2',
+  hard: 'task-card--t3',
+  king: 'task-card--t4',
+};
 
 /**
  * 创建任务库。
@@ -103,17 +123,44 @@ export function createTaskLibrary(props = {}) {
   guide.hidden = guideDismissed;
 
   // ---- 工具条 ----
-  const tierField = createField({
-    label: S.LIB_FILTER_TIER,
-    name: 'task-tier',
-    type: 'select',
-    options: TIER_FILTERS,
-    onChange: (value) => {
-      filterTier = value;
-      renderList();
-    },
-  });
-  tierField.el.style.maxWidth = '220px';
+  /**
+   * 档位筛选：五个单选 chip 的分段控件（spec 三、任务库 §1）。
+   * 用原生 radio（同 name 一组）拿免费的箭头键导航，视觉全部自定义。
+   */
+  function createTierChips() {
+    const group = el('div', { class: 'lib__chips', role: 'radiogroup', 'aria-label': S.LIB_FILTER_TIER });
+    const inputs = TIER_FILTERS.map((f) => {
+      const input = el('input', {
+        class: 'lib__chip-input',
+        type: 'radio',
+        name: 'lib-tier-filter',
+        value: f.value,
+        checked: f.value === '',
+        onChange: () => {
+          filterTier = f.value;
+          renderList();
+        },
+      });
+      group.appendChild(
+        el(
+          'label',
+          { class: 'lib__chip', 'data-tier': f.tier },
+          input,
+          el('span', { class: 'lib__chip-face' }, f.label),
+        ),
+      );
+      return input;
+    });
+    return {
+      el: group,
+      /** 程序化选中某个档位（空状态「显示全部」用）。 */
+      setValue(value) {
+        const input = inputs.find((i) => i.value === value);
+        if (input) input.checked = true;
+      },
+    };
+  }
+  const tierChips = createTierChips();
 
   const searchField = createField({
     label: S.LIB_SEARCH_LABEL,
@@ -136,7 +183,7 @@ export function createTaskLibrary(props = {}) {
   const toolbar = el(
     'div',
     { class: 'lib__toolbar' },
-    tierField.el,
+    tierChips.el,
     searchField.el,
     el('span', { class: 'u-spacer' }),
     refreshBtn.el,
@@ -144,7 +191,7 @@ export function createTaskLibrary(props = {}) {
 
   const root = el(
     'div',
-    { class: 'view' },
+    { class: 'view lib' },
     el(
       'div',
       { class: 'view__head' },
@@ -176,45 +223,54 @@ export function createTaskLibrary(props = {}) {
   }
 
   /**
+   * 档位徽标：`初级 · 试 1 次`（徽标文案见 spec 三、任务库 §2）。
+   * @param {string} tier 归一后的档位名
+   * @param {string} tierName 档位中文名
+   * @param {number} [attempts]
+   */
+  function tierBadgeEl(tier, tierName, attempts) {
+    return createBadge({
+      label: attempts ? t(T.TIER_BADGE, { tier: tierName, n: attempts }) : tierName,
+      variant: TIER_VARIANTS[tier] || 'muted',
+      glyph: TIER_GLYPHS[tier] || '·',
+    }).el;
+  }
+
+  /**
    * 单张任务卡。
+   *
+   * 层次（spec 三、任务库 §3）：标题是主角，「考察：…」紧跟标题；
+   * 目标通过率/校准/历史最好这类元数据收成脚注小字。
+   * 整卡可点进工作台（鼠标）；键盘走卡内「进入工作台」按钮。
+   *
    * @param {object} task
    * @returns {HTMLElement}
    */
   function renderCard(task) {
-    const node = el('li', { class: 'task-card' });
+    const node = el('li', {
+      class: 'task-card',
+      onClick: (ev) => {
+        if (ev.target.closest('button, a, input, select, label')) return;
+        const sel = typeof getSelection === 'function' ? String(getSelection()) : '';
+        if (sel) return; // 正在选中文字时不触发跳转
+        enterTask(task.id);
+      },
+    });
 
     function build(card) {
       const history = card.history || {};
       const hasHistory = Number(history.runs || 0) > 0;
       const best = Number(history.best_score || 0);
       const band = normalizeBand(card.target_band);
-      const foot = el(
-        'div',
-        { class: 'task-card__foot' },
-        createBadge({
-          label: card.calibrated ? S.LIB_CARD_CALIBRATED : S.LIB_CARD_NOT_CALIBRATED,
-          variant: card.calibrated ? 'success' : 'muted',
-          glyph: card.calibrated ? '✓' : '○',
-        }).el,
-        el(
-          'span',
-          { class: 'u-faint' },
-          hasHistory ? t(S.LIB_CARD_HISTORY, { score: best }) : S.LIB_CARD_HISTORY_NONE,
-        ),
-        el('span', { class: 'u-spacer' }),
-        createButton({
-          label: S.LIB_CARD_LEADERBOARD,
-          variant: 'ghost',
-          size: 'sm',
-          onClick: () => navigate && navigate('leaderboard', { taskId: card.id }),
-        }).el,
-        createButton({
-          label: S.LIB_CARD_ENTER,
-          variant: 'primary',
-          size: 'sm',
-          onClick: () => enterTask(card.id),
-        }).el,
-      );
+      const tier = normalizeTier(card.tier);
+      const tierName = (TIER_NAMES[tier] || { label: tier }).label;
+      const cardClass = ['task-card', TIER_CARD_CLASS[tier]].filter(Boolean).join(' ');
+      if (node.className !== cardClass) node.className = cardClass;
+      const metaParts = [
+        band ? t(S.LIB_CARD_TARGET_BAND, band) : '',
+        card.calibrated ? S.LIB_CARD_CALIBRATED : S.LIB_CARD_NOT_CALIBRATED,
+        hasHistory ? t(S.LIB_CARD_HISTORY, { score: best }) : S.LIB_CARD_HISTORY_NONE,
+      ].filter(Boolean);
       // replaceChildren() 按 DOM 规范会把 null 转成字符串 "null" 印到界面上，
       // 所以可选块必须先过滤，不能像 el() 那样直接传 null。
       node.replaceChildren(
@@ -223,17 +279,36 @@ export function createTaskLibrary(props = {}) {
             'div',
             { class: 'task-card__top' },
             el('span', { class: 'task-card__id' }, card.id),
-            tierBadge(card.tier, { attempts: card.attempts }).el,
+            el('span', { class: 'u-spacer' }),
+            tierBadgeEl(tier, tierName, card.attempts),
           ),
           el('p', { class: 'task-card__title' }, card.title),
-          card.symptom
-            ? el('p', { class: 'task-card__symptom' }, card.symptom)
-            : null,
           card.summary
             ? el('p', { class: 'task-card__goal' }, t(S.LIB_CARD_GOAL, { goal: card.summary }))
             : null,
-          band ? el('p', { class: 'u-faint' }, t(S.LIB_CARD_TARGET_BAND, band)) : null,
-          foot,
+          card.symptom
+            ? el('p', { class: 'task-card__symptom' }, card.symptom)
+            : null,
+          metaParts.length
+            ? el('p', { class: 'task-card__meta' }, metaParts.join(' · '))
+            : null,
+          el(
+            'div',
+            { class: 'task-card__foot' },
+            el('span', { class: 'u-spacer' }),
+            createButton({
+              label: S.LIB_CARD_LEADERBOARD,
+              variant: 'ghost',
+              size: 'sm',
+              onClick: () => navigate && navigate('leaderboard', { taskId: card.id }),
+            }).el,
+            createButton({
+              label: S.LIB_CARD_ENTER,
+              variant: 'ghost',
+              size: 'sm',
+              onClick: () => enterTask(card.id),
+            }).el,
+          ),
         ].filter(Boolean),
       );
     }
@@ -292,7 +367,7 @@ export function createTaskLibrary(props = {}) {
                 onClick: () => {
                   filterTier = '';
                   keyword = '';
-                  tierField.setValue('');
+                  tierChips.setValue('');
                   searchField.setValue('');
                   renderList();
                 },
@@ -366,7 +441,6 @@ export function createTaskLibrary(props = {}) {
     /** 解绑 + 取消在途请求（§10.4）。 */
     destroy() {
       scope.cancelAll();
-      tierField.destroy();
       searchField.destroy();
       refreshBtn.destroy();
       guideDismissBtn.destroy();
