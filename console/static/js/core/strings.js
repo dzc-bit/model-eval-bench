@@ -61,6 +61,8 @@ export const S = {
   // 侧栏分组标题（specs/claude-ui.md §2 .app-nav）
   NAV_GROUP_FLOW: '评测流程',
   NAV_GROUP_CONFIG: '配置',
+  SIDE_CTA_NEW: '开始新评测',
+  SIDE_CTA_BACK: '回到任务库',
   SKIP_TO_MAIN: '跳到主内容',
   NAV_LABEL: '主导航',
   APP_FOOTER: '模型评测台 · 评测数据留在本机 · 模型调用由服务端代理',

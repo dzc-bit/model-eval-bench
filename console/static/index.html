@@ -40,12 +40,25 @@
       <div id="status-host"></div>
 
       <header class="app-header">
-        <div class="app-header__inner">
+        <!-- 品牌区：只放标识，不与导航抢注意力（Claude 侧栏同款分区） -->
+        <div class="app-header__brand">
           <a class="brand" href="#/tasks">
             <span class="brand__mark" aria-hidden="true">评</span>
             <span class="brand__name">模型评测台</span>
           </a>
-          <nav class="app-nav" id="app-nav" aria-label="主导航"></nav>
+        </div>
+        <!-- 主操作区：全站唯一的「开始新评测」入口，与导航列表分开 -->
+        <div class="app-header__action">
+          <a class="side-cta" id="side-cta" href="#/tasks">
+            <span class="side-cta__glyph" aria-hidden="true">+</span>
+            <span>开始新评测</span>
+          </a>
+        </div>
+        <!-- 导航区：唯一可滚动的部分，分组标题 + 链接 -->
+        <nav class="app-nav" id="app-nav" aria-label="主导航"></nav>
+        <!-- 底部区：固定贴底，与导航拉开距离 -->
+        <div class="app-header__foot">
+          <span class="app-header__foot-text">评测数据留在本机</span>
         </div>
       </header>
 

@@ -305,6 +305,7 @@ function showGlobalError(err, code) {
  */
 function mountNav() {
   clear(navEl);
+  mountSideCta();
   let previousGroup = null;
   NAV_ITEMS.forEach((item) => {
     if (item.group !== previousGroup) {
@@ -327,6 +328,26 @@ function createNavGroupHeading(groupKey) {
   const label = NAV_GROUPS[groupKey];
   if (!label) return null;
   return el('h2', { class: 'app-nav__group' }, label);
+}
+
+/**
+ * 侧栏主操作：全站唯一实心按钮（Claude 侧栏「新对话」位）。
+ * 在任务库时它就是入口本身；到了别的视图改成「回到任务库」，
+ * 避免同一句话在两处重复，也保证任何时候都有一个明确的下一步。
+ * @returns {void}
+ */
+function mountSideCta() {
+  const cta = document.getElementById('side-cta');
+  if (!cta) return;
+  const label = cta.querySelector('span:not(.side-cta__glyph)');
+  app.subscribe(
+    (s) => (s.route && s.route.name) || '',
+    (name) => {
+      const onTasks = name === 'tasks';
+      if (label) label.textContent = onTasks ? S.SIDE_CTA_NEW : S.SIDE_CTA_BACK;
+      cta.setAttribute('href', buildHash('tasks'));
+    },
+  );
 }
 
 /**
