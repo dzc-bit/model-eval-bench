@@ -176,15 +176,29 @@ hr {
 }
 
 /* ---------- 应用外壳 ---------- */
+/* 用 grid 而不是 flex-wrap：外壳有「通栏状态条 / 侧栏 / 主栏 / 通栏页脚」四种
+   角色，flex-wrap 靠宽度抢行——状态条和页脚各自 width:100%，谁先占满一行谁说了算，
+   主栏就被挤成窄条（宽屏下尤其明显，窄屏总宽不够反而看不出）。
+   grid 用命名区域直接表达这份意图，不依赖元素顺序与宽度博弈。 */
 .app-shell {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-areas:
+    "status"
+    "header"
+    "main"
+    "footer";
   min-height: 100vh;
 }
 
-/* 侧栏布局：header 是左列（workbuddy 式 176px 侧栏），主内容在右 */
+#status-host {
+  grid-area: status;
+}
+.app-header {
+  grid-area: header;
+}
 .app-main {
-  flex: 1 1 auto;
+  grid-area: main;
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
@@ -193,25 +207,31 @@ hr {
 .app-main:focus {
   outline: none;
 }
+.app-footer {
+  grid-area: footer;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  width: 100%;
+}
 
 @media (min-width: 901px) {
+  /* 桌面：状态条仍通栏，侧栏与主栏并排，页脚回到主栏下方通栏 */
   .app-shell {
-    flex-direction: row;
-    flex-wrap: wrap;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "status status"
+      "header main"
+      "header footer";
   }
   .app-header {
     height: 100vh;
   }
-  #status-host {
-    width: 100%;
-  }
   .app-main {
-    flex: 1 1 0;
-    width: auto;
     max-width: none;
+    margin: 0;
   }
-  .app-main > #app-root,
-  .app-footer {
+  .app-main > #app-root {
     max-width: var(--content-max);
     margin-left: auto;
     margin-right: auto;
