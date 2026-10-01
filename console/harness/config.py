@@ -275,14 +275,41 @@ def _resolve(root: str, value: str) -> str:
     return util.norm(value if os.path.isabs(value) else os.path.join(root, value))
 
 
+#: 入库的配置模板。config.json 本身不入库——它装着模型档案、密钥脱敏值、
+#: 各人的本机绝对路径，2026-10-01 之前曾经把这些带进过仓库。
+#: 首次启动时从模板复制一份，之后各人改自己的。
+CONFIG_TEMPLATE_PATH = os.path.join(CONSOLE_DIR, "config.example.json")
+
+
+def ensure_config_file() -> str:
+    """首次运行时从模板生成 config.json；已存在则原样返回路径。
+
+    没有这一步，别人 clone 下来会没有 config.json、服务直接起不来。
+    """
+    if os.path.isfile(CONFIG_PATH) or not os.path.isfile(CONFIG_TEMPLATE_PATH):
+        return CONFIG_PATH          # 后者交给 load() 报「找不到配置文件」
+    with _WRITE_LOCK:
+        if not os.path.isfile(CONFIG_PATH):
+            try:
+                with open(CONFIG_TEMPLATE_PATH, "r", encoding="utf-8") as src:
+                    content = src.read()
+                with open(CONFIG_PATH, "w", encoding="utf-8", newline="\n") as dst:
+                    dst.write(content)
+            except OSError:
+                pass                # 写不了就交给 load() 报错，不在这里吞异常
+    return CONFIG_PATH
+
+
 def load() -> dict:
     """读配置并补齐默认值，路径字段统一解析成绝对路径。"""
+    ensure_config_file()
     raw = util.read_json(CONFIG_PATH, default=None)
     if raw is None:
         if not os.path.isfile(CONFIG_PATH):
             raise errors.HarnessError(
                 errors.E_CONFIG_INVALID,
-                "找不到配置文件。请确认 console\\config.json 存在。",
+                "找不到配置文件。请确认 console\\config.json 存在"
+                "（可以复制 console\\config.example.json 作为起点）。",
                 CONFIG_PATH,
             )
         raise errors.HarnessError(

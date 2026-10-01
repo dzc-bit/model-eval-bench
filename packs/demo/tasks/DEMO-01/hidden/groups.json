@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "task": "DEMO-01",
+  "groups": [
+    {
+      "id": "threshold_exit",
+      "weight": 1,
+      "tests": [
+        "tests_hidden/test_pricing_hidden.py::test_threshold_is_100",
+        "tests_hidden/test_pricing_hidden.py::test_below_threshold_no_discount"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "tests": []
+    }
+  ]
+}

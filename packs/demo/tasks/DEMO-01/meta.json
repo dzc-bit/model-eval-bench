@@ -1,0 +1,31 @@
+{
+  "id": "DEMO-01",
+  "title": "满 100 减 20 的门槛被改坏了",
+  "tier": "primary",
+  "summary": "订单实付与页面提示对不上。",
+  "symptom": "下单一百元的商品，页面写「已减 20」，实付却没减。",
+  "tags": [
+    "demo"
+  ],
+  "repo": {
+    "id": "demo"
+  },
+  "allowed_paths": [
+    "backend/**"
+  ],
+  "forbidden_paths": [],
+  "visible": {},
+  "redactions": [],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 300,
+    "diff_line_cap": 500
+  }
+}
