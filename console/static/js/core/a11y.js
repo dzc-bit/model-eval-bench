@@ -10,7 +10,7 @@
  *
  * 依赖：无（只操作 DOM 与 aria 属性）。
  * 导出：announce, trapFocus, restoreFocus, focusHeading, scrollBelowStickyHeader,
- *       stickyTopOffset, revealIfCoveredByStickyTop, pageScrollTop, resetPageScroll,
+ *       revealIfCoveredByStickyTop, pageScrollTop, resetPageScroll,
  *       setPageScroll, isEditableTarget, focusables
  *
  * 纪律：
@@ -18,8 +18,6 @@
  *     避免同一句话被读两遍。
  *   - 播报内容去重：连续两次相同文本会被 screen reader 忽略，这里做一次去重节流。
  */
-
-import { S } from './strings.js';
 
 /** 可聚焦元素选择器（不含 disabled / aria-hidden 的容器）。 */
 const FOCUSABLE_SELECTOR = [
@@ -44,9 +42,6 @@ let assertiveRegion = null;
 
 /** 上一次播报内容与时间，用于去重节流。 */
 let lastAnnounce = { text: '', at: 0 };
-
-/** 当前保存的「返回焦点」目标。 */
-let restoreTarget = null;
 
 /**
  * 懒建全局 live region。
@@ -197,27 +192,16 @@ export function trapFocus(container, opts = {}) {
 }
 
 /**
- * 记录一个「关闭后要还给焦点」的元素。
- * @param {Element|null} node
- * @returns {void}
- */
-export function rememberFocus(node) {
-  restoreTarget = node instanceof HTMLElement ? node : null;
-}
-
-/**
- * 把焦点还给最近记录的触发元素（浮层关闭时用，§12.5）。
- * @param {Element} [fallback] 记录缺失时的备选目标
+ * 把焦点还给指定元素（快捷键面板/浮层关闭后用，§12.5）。
+ * @param {Element} [fallback] 要接收焦点的目标
  * @returns {void}
  */
 export function restoreFocus(fallback) {
-  const target = (restoreTarget && document.contains(restoreTarget) && restoreTarget) || fallback;
-  restoreTarget = null;
-  if (!(target instanceof HTMLElement)) return;
+  if (!(fallback instanceof HTMLElement)) return;
   try {
-    target.focus({ preventScroll: true });
+    fallback.focus({ preventScroll: true });
   } catch {
-    target.focus();
+    fallback.focus();
   }
 }
 
@@ -314,25 +298,6 @@ function stickyCoverHeight(target, containerTop) {
 }
 
 /**
- * 量出「真正压在滚动容器上沿、挡住目标」的顶部条高度。
- *
- * 不能直接拿 .app-header 的高度当偏移：桌面宽度下它是 .app-shell 这个
- * flex-row 里的**左侧粘性侧栏**（`height: 100vh`，见 css/views.css 顶部与
- * base.css 的 min-width:901px 分支），横向并不在主内容上方。按 100vh 让位
- * 会把每个跳转目标顶到视口下方一整屏，点跳转看起来就像「什么都没发生」。
- * 因此逐个候选节点判定：钉在顶部 **且** 横向挡住目标 **且** 竖向盖住容器上沿。
- *
- * @param {HTMLElement} target 即将滚到顶部的目标元素
- * @returns {number} 需要让出的像素高度（桌面主内容区为 0）
- */
-export function stickyTopOffset(target) {
-  if (!(target instanceof HTMLElement)) return 0;
-  const container = findScrollContainer(target);
-  const containerTop = container ? Math.max(0, container.getBoundingClientRect().top) : 0;
-  return stickyCoverHeight(target, containerTop);
-}
-
-/**
  * 当前页面滚动位置（自动适配「文档滚动」与「.app-main 内部滚动」两种外壳）。
  * @param {HTMLElement} [reference] 用哪个元素定位滚动容器；缺省取外壳主内容区
  * @returns {number}
@@ -414,6 +379,3 @@ export function isEditableTarget(target) {
   if (node.isContentEditable) return true;
   return Boolean(node.closest && node.closest(EDITABLE_SELECTOR));
 }
-
-/** 供视图显示「快捷键帮助」时复用的播报文案。 */
-export const SHORTCUT_HELP_ANNOUNCE = S.HELP_SHORTCUT_TITLE;

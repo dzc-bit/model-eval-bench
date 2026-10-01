@@ -8,7 +8,7 @@
  *
  * 依赖：无（core 层最底层）。
  * 导出：S（文案表）、ERROR_CODES（错误码映射）、TIER_NAMES、PROTOCOL_NAMES、
- *       t(key, vars)、S_UNKNOWN_ERROR。
+ *       t(key, vars)。
  *
  * 文案风格（§14）：动词开头、短句、不用感叹号、不卖萌；同一动作全站用同一词。
  * 术语表：沙箱、校验、提示词、轮次、组、部分分、记分板、揭晓、基线。
@@ -42,9 +42,6 @@ export function t(keyOrText, vars) {
   const value = typeof byKey === 'string' ? byKey : keyOrText;
   return fill(value, vars);
 }
-
-/** 未知错误码的兜底文案模板，{code} 为后端原始错误码。 */
-export const S_UNKNOWN_ERROR = '操作未完成（错误码 {code}）。请稍后重试；若反复出现，请查看帮助页的排障说明。';
 
 export const S = {
   // ==================== 应用与导航 ====================
@@ -450,7 +447,7 @@ export const S = {
   SB_PROFILE_DESC: '一次只看一个模型的成绩。',
   SB_PROFILE_EMPTY: '还没有模型档案',
   SB_PROFILE_EMPTY_DESC: '先到模型档案页加一个档案。',
-  SB_PROFILE_TRIALS: '{pass} 次通过 / {trials} 轮',
+  SB_PROFILE_TRIALS: '{pass} 次通过 / {trials} 次尝试',
   SB_PROFILE_RATE: '通过率 {rate}',
   SB_PROFILE_AVG: '平均分 {score}',
   SB_TOOLBAR_EXPORT: '导出 CSV',
@@ -460,15 +457,15 @@ export const S = {
   SB_CELL_PASS: '一次通过',
   SB_CELL_NO_PASS: '未通过',
   SB_CELL_TRIES: '{n} 次通过',
-  SB_CELL_TRIES_TOTAL: '共 {n} 轮',
+  SB_CELL_TRIES_TOTAL: '共 {n} 次尝试',
   SB_CELL_WILSON: '区间 {low}~{high}',
-  SB_CELL_REVEALED: '{n} 轮已揭晓',
+  SB_CELL_REVEALED: '{n} 次尝试已揭晓',
   SB_CELL_NO_DATA: '—',
   SB_TOTAL_LABEL: '当前档案合计',
   SB_OFFBAND: '偏离目标带',
   SB_OFFBAND_DESC: '真实通过率落在目标带 {low}~{high} 之外，可以考虑加码或降档（§6.4）。',
   SB_LEGEND_PASS: '一次通过记 pass@1',
-  SB_LEGEND_REVEAL: '揭晓轮不计入统计',
+  SB_LEGEND_REVEAL: '已揭晓的尝试不计入统计',
   SB_EXPORT_DONE: '记分板已导出为 CSV。',
   SB_LOADING_DESC: '正在汇总当前档案的成绩。',
   LIB_CARD_LEADERBOARD: '查看排行榜',

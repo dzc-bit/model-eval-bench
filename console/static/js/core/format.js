@@ -1,9 +1,9 @@
 /**
  * format.js — 中文格式化工具（§10.3）
  *
- * 职责：相对时间、绝对时间、耗时、百分比、文件大小的中文显示。
+ * 职责：相对时间、绝对时间、耗时、百分比、千分位数字的中文显示。
  * 依赖：无。
- * 导出：relativeTime, absoluteTime, fullTime, duration, percent, fileSize, number, isoToDate
+ * 导出：relativeTime, absoluteTime, fullTime, duration, percent, number, clock
  *
  * 纪律（§11.2 #10 / §13.7）：
  *   - 时间一律本地时区，绝不做 UTC 假设。
@@ -112,25 +112,6 @@ export function percent(ratio, digits = 1) {
   const fixed = value.toFixed(digits);
   const trimmed = fixed.replace(/\.0+$/, '');
   return `${trimmed}%`;
-}
-
-/**
- * 文件大小：字节 → 「3.4 MB」
- * @param {number} bytes
- * @returns {string}
- */
-export function fileSize(bytes) {
-  const n = Number(bytes);
-  if (!Number.isFinite(n) || n < 0) return '—';
-  if (n < 1024) return `${Math.round(n)} 字节`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let value = n / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-  return `${value.toFixed(1)} ${units[i]}`;
 }
 
 /**

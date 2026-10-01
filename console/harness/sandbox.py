@@ -688,11 +688,9 @@ def verify_integrity(cfg: dict, run: dict, meta: dict) -> list:
     return problems
 
 
-def prepare(cfg: dict, run: dict, meta: dict, reserved: dict | None = None,
-            wait_s: float = 0.0, log: Log = _noop,
+def prepare(cfg: dict, run: dict, meta: dict, log: Log = _noop,
             cancel_event: threading.Event | None = None) -> dict:
     """在 sandbox_root 内创建一个普通文件夹工作区。"""
-    del reserved, wait_s
     _raise_if_cancelled(cancel_event)
     workspace = _workspace_path(cfg, run["run_id"])
     util.remove_tree(workspace)
@@ -760,10 +758,8 @@ def _prepare_into_folder(cfg: dict, run: dict, meta: dict, workspace: str, log: 
     return run
 
 
-def rebuild(cfg: dict, run: dict, meta: dict, reserved: dict | None = None,
-            log: Log = _noop) -> dict:
+def rebuild(cfg: dict, run: dict, meta: dict, log: Log = _noop) -> dict:
     """删除当前工作区并在同一个根目录内重新准备。"""
-    del reserved
     old = str(run.get("sandbox") or "")
     if old and util.path_within(cfg["sandbox_root"], old):
         util.remove_tree(old)

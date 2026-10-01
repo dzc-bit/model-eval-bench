@@ -7,12 +7,11 @@
  * ARIA 要点：原生语义自带 `aria-expanded`（由浏览器计算），summary 内必须有可读文字；
  *   折叠状态下的内容对读屏不可见，天然满足"隐藏内容不占 Tab 序列"。
  *
- * 依赖：core/dom.js、core/strings.js
+ * 依赖：core/dom.js
  * 导出：createDetailsCard(props) → { el, update, destroy, setOpen }
  */
 
 import { el, setText, clear } from '../core/dom.js';
-import { S } from '../core/strings.js';
 
 /**
  * 创建可折叠卡片。
@@ -80,15 +79,4 @@ export function createDetailsCard(props = {}) {
     /** 原生 details 无自定义事件绑定，无需解绑。 */
     destroy() {},
   };
-}
-
-/** 便捷：造一个「技术细节」折叠块（§13.7 原始错误信息默认折叠）。 */
-export function detailsCard(label, content, options = {}) {
-  return createDetailsCard({
-    title: label,
-    content,
-    flush: true,
-    hint: options.hint || S.ERROR_DETAIL_LABEL,
-    ...options,
-  });
 }

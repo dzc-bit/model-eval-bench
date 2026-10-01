@@ -155,12 +155,6 @@ def get_run(cfg: dict, run_id: str) -> dict:
     )
 
 
-def reserved_drives(cfg: dict, exclude: str = "") -> dict:
-    """兼容旧调用方；文件夹沙箱不需要全局盘符预留。"""
-    del cfg, exclude
-    return {}
-
-
 # --------------------------------------------------------------------------
 # 生命周期
 # --------------------------------------------------------------------------
@@ -174,8 +168,9 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
     若有同一题同模型的排队中校准沙箱（§6.4 盲测排队），直接认领一个，
     这样校准排了 N 个名额后，真正使用时才创建文件夹沙箱。
 
-    :param wait_s: 保留旧调用签名；文件夹沙箱不等待盘符。
+    :param wait_s: 保留旧调用签名（跑批仍传 30s）；文件夹沙箱没有盘符可等，值被忽略。
     """
+    del wait_s
     meta = packs.load_meta(cfg, task)
     config.find_model(cfg, model)          # 模型档案不存在就直接报错
     attempt = max(1, int(attempt or 1))
@@ -248,8 +243,6 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
         return claimed
 
     prepare_kwargs = {
-        "reserved": reserved_drives(cfg, exclude=run_id),
-        "wait_s": wait_s,
         "log": logger,
     }
     if cancel_event is not None:
@@ -282,8 +275,7 @@ def _claim_queued(cfg: dict, task: str, model: str, log: Log,
             run["status"] = "preparing"
             save_run(cfg, run)
             try:
-                sandbox.prepare(cfg, run, meta,
-                                reserved=reserved_drives(cfg, exclude=run["run_id"]), log=log)
+                sandbox.prepare(cfg, run, meta, log=log)
             except errors.HarnessError:
                 run["status"] = "queued"
                 save_run(cfg, run)
@@ -367,7 +359,7 @@ def rebuild_sandbox(cfg: dict, task: str, run_id: str = "", log: Log = None) -> 
             raise errors.HarnessError(errors.E_RUN_CANCELLED, "这一轮已被取消，不能重建沙箱。", target_id)
         meta = packs.load_meta(cfg, task)
         logger("开始重建沙箱：%s" % run["run_id"])
-        sandbox.rebuild(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run["run_id"]), log=logger)
+        sandbox.rebuild(cfg, run, meta, log=logger)
         run["status"] = "ready"
         # 重建是新纪元：旧对话、旧改动证据与旧轮次记录整体归档。轮次只作废不删除
         # （记录目录与 run_id 都不变，删了就没法复盘上一个模型到底做了什么）。

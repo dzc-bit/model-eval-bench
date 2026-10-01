@@ -586,8 +586,3 @@ def ensure_snapshot(cfg: dict, meta: dict, log: Log = _noop,
             "injected": info["injected"], "built_at": util.iso_now(),
         })
     return cache_dir
-
-
-def task_meta(cfg: dict, task_id: str) -> dict:
-    """便捷入口：读某道题的 meta。"""
-    return packs.load_meta(cfg, task_id)
