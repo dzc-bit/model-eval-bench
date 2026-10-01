@@ -360,6 +360,8 @@ export function createChatPanel(handlers = {}) {
         }
       } catch { /* 网络抖动就下一轮再试 */ }
       remoteBusy = false;
+      errorMessage.hidden = true;
+      setText(errorMessage, '');
       setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
       setEnabled(true);
       renderMessages();
@@ -402,7 +404,19 @@ export function createChatPanel(handlers = {}) {
 
   async function send() {
     const text = draft.value.trim();
-    if (!currentRunId || !text || loading || sending) return false;
+    if (!currentRunId || !text || loading) return false;
+    if (sending || remoteBusy) {
+      // 上一条还在服务端跑（一轮可能几十次工具调用）。必须当场说明并留住草稿：
+      // 只在界面上留一个气泡、消息永远发不出去，看起来就像对话死了。
+      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      showToast({
+        message: S.CHAT_SEND_BLOCKED,
+        detail: S.CHAT_SEND_BLOCKED_DESC,
+        kind: 'warn',
+        duration: 8000,
+      });
+      return false;
+    }
     const runId = currentRunId;
     const seq = requestSeq;
     let finished = false;
@@ -421,6 +435,8 @@ export function createChatPanel(handlers = {}) {
       try {
         const data = await api.get(`/runs/${encodeURIComponent(runId)}/chat`, { scope });
         if (finished || seq !== requestSeq) return;
+        // 服务端仍在这一轮里：即使本条请求中途到期，对话也没死，据此锁定输入。
+        remoteBusy = Boolean(data?.chat_busy);
         const next = normalizeMessages(data?.messages);
         if (next.length && next.map(messageKey).join('\n') !== messages.map(messageKey).join('\n')) {
           messages = next;
@@ -431,16 +447,34 @@ export function createChatPanel(handlers = {}) {
     }
     progressTimer = setTimeout(refreshProgress, 1200);
     try {
-      const data = await api.longPost(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
+      const data = await api.chatPost(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
       if (seq !== requestSeq || runId !== currentRunId) return;
       if (data && Array.isArray(data.messages)) messages = normalizeMessages(data.messages);
       else if (data && data.message) mergeMessages([data.message]);
+      remoteBusy = false;
       setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
       renderMessages();
       return true;
     } catch (err) {
       if (seq !== requestSeq || runId !== currentRunId) return;
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
+      if (code === 'TIMEOUT' || code === 'ABORTED') {
+        // 这条请求到期或被取消，不等于模型那一轮失败：服务端按契约继续跑完，
+        // 所以交回远端轮询，而不是报一个看起来像失败的错。
+        remoteBusy = true;
+        setText(errorMessage, S.CHAT_DETACHED_HINT);
+        errorMessage.hidden = false;
+        setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+        showToast({
+          message: S.CHAT_DETACHED_TITLE,
+          detail: S.CHAT_REMOTE_BUSY_DETAIL,
+          kind: 'warn',
+          duration: 9000,
+        });
+        renderMessages();
+        watchRemoteSend(runId, requestSeq);
+        return false;
+      }
       const detail = formatError(err);
       setText(errorMessage, detail);
       errorMessage.hidden = false;

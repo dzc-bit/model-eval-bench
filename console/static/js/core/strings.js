@@ -200,6 +200,10 @@ export const S = {
   CHAT_TOOL_ROUND: '工具轮',
   CHAT_REMOTE_BUSY: '模型仍在处理上一条消息…',
   CHAT_REMOTE_BUSY_DETAIL: '服务端的这一轮对话还没结束（不限工具轮数，可能要几分钟）；结束后再启动校验。关闭页面不会中断它。',
+  CHAT_SEND_BLOCKED: '上一条还在处理中',
+  CHAT_SEND_BLOCKED_DESC: '这一轮会连续调用工具，可能要几分钟才收束。这句话留在输入框里没丢，等状态变成「对话就绪」再发；期间可以展开工具轮看进展。',
+  CHAT_DETACHED_TITLE: '页面与这一轮脱钩了',
+  CHAT_DETACHED_HINT: '这条请求到期或被取消了，但服务端仍在跑完本轮，页面会自动接回结果——不用重发。',
   CHAT_TOOL_CALL_EMPTY: '模型请求使用受限工具。',
   CHAT_REASONING: '模型思考 / 推理摘要（接口返回）',
   CHAT_TOOL_ROUND_HINT: '这一轮只列出调用了哪些工具；每次调用的参数与返回原文保存在该轮运行目录的 chat.jsonl。',
@@ -228,7 +232,8 @@ export const S = {
   PROMPT_COPY_BODY: '复制第 {n} 级提示词',
   PROMPT_COPY_ALL: '复制全部（接线说明 + 提示词）',
   PROMPT_EMPTY: '还没有提示词',
-  PROMPT_EMPTY_DESC: '准备沙箱之后，提示词会出现在这里。先在下面点「准备沙箱」。',
+  PROMPT_EMPTY_DESC: '准备沙箱之后，提示词会出现在这里。先在沙箱区点「准备沙箱」（要先在运行区选好模型档案）。',
+  PROMPT_GO_SANDBOX: '跳到沙箱区准备',
   PROMPT_ROUND_HINT: '当前是第 {n} 级；点击内置对话区的按钮即可直接发送。',
 
   // 复制结果播报（§9 / §11.1 copy-button）
