@@ -562,6 +562,14 @@
   scroll-behavior: smooth;
 }
 
+/* 列向 flex + 滚动容器：子项默认允许收缩，一条长对话会把每行压成十几像素的
+   空壳气泡（内容看不见，只剩圆角背景）；min-width 默认 auto，长路径/长命令
+   又会把行撑破容器。这里两样都关掉，高度交给容器滚动、宽度交给折行。 */
+.chat__messages > * {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
 .chat__message {
   max-width: min(90%, 58rem);
   padding: var(--space-2) var(--space-3);
@@ -701,11 +709,18 @@
   line-height: 1.75;
 }
 
-/* 置顶那条：滚动时也留在列表顶部，收尾结论不被历史淹没 */
+/* 置顶那条：滚动时也留在列表顶部，收尾结论不被历史淹没。
+   必须限高并整幅占满：一条长总结若高过对话区，sticky 永不释放，
+   会把整段历史盖住、只从两侧露出半截气泡，看起来像一列空壳。 */
 .chat__message--pinned {
   position: sticky;
   top: 0;
   z-index: 1;
+  align-self: stretch;
+  max-width: none;
+  min-width: 0;
+  max-height: min(40vh, 16rem);
+  overflow-y: auto;
 }
 
 .chat__composer {
