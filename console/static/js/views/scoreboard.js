@@ -204,7 +204,7 @@ export function createScoreboard(props = {}) {
   }
 
   /**
-   * 删除模型档案：档案本身与已存密钥同步删除，名下运行记录一并移入隔离区，
+   * 删除模型档案：档案、已存密钥与名下运行记录一起真删，不可恢复。
    * 记分板的档案芯片随之消失。
    * @param {string} modelId 档案编号
    */
@@ -217,9 +217,9 @@ export function createScoreboard(props = {}) {
       title: t(S.SB_PROFILE_DELETE_TITLE || '删除模型档案「{id}」？', { id: modelId }),
       messages: [
         runIds.length
-          ? t(S.SB_PROFILE_DELETE_RUNS || '它名下的 {n} 条运行记录会一并移入隔离区（runs/_quarantine/manual-deletes/，可手工恢复），记分板不再显示这一列。', { n: runIds.length })
-          : (S.SB_PROFILE_DELETE_NO_RUNS || '它名下没有运行记录。'),
-        S.SB_PROFILE_DELETE_WARN || '档案本身与已保存的密钥会同步删除；之后需要到「模型档案」页重新新建。',
+          ? `它名下的 ${runIds.length} 条运行记录会一并删除：对话记录、评分报告、diff、沙箱全部移除，不可恢复。`
+          : '它名下没有运行记录。',
+        '档案本身与已保存的密钥会同步删除；之后需要到「模型档案」页重新新建。',
       ],
       confirmLabel: S.ACTION_DELETE || '删除',
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
@@ -248,7 +248,7 @@ export function createScoreboard(props = {}) {
   }
 
   /**
-   * 删除一格背后的运行记录（逐条调用 DELETE，服务端会把记录目录移入隔离区）。
+   * 删除一格背后的运行记录：逐条 DELETE，服务端真删记录目录、沙箱与评分树。
    * @param {object} row 记分板行
    * @param {object} cell 单元格统计数据
    */
@@ -261,8 +261,8 @@ export function createScoreboard(props = {}) {
         : (S.SB_RUN_DELETE_ONE || '删除这条运行记录？'),
       messages: [
         `将删除：${runIds.join('、')}`,
-        S.SB_RUN_DELETE_ARCHIVE || '记录目录会移入 runs/_quarantine/manual-deletes/（可在文件管理器手工恢复），对话记录与评分报告随目录一起归档。',
-        S.SB_RUN_DELETE_SANDBOX || '关联的沙箱副本会一并清理；统计里会立刻消失。',
+        '记录目录、对话记录（含纪元归档）、评分报告与 diff 全部删除，不留隔离副本，不可恢复。',
+        '关联的沙箱与评分树一并清理；要重跑这道题就重新准备沙箱。',
       ],
       confirmLabel: S.ACTION_DELETE || '删除',
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',

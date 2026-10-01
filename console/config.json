@@ -100,16 +100,6 @@
       "note": ""
     },
     {
-      "id": "01",
-      "protocol": "openai",
-      "api_mode": "chat_completions",
-      "base_url": "https://api.a6api.com/v1",
-      "model": "gpt-6-luna",
-      "key_masked": "sk-H****aj7o",
-      "key_env": "",
-      "note": ""
-    },
-    {
       "id": "cbcn-deepseek-v4-1-flash",
       "protocol": "openai",
       "api_mode": "chat_completions",

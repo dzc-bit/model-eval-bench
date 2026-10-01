@@ -264,6 +264,28 @@ def test_task_leaderboard_prioritizes_rounds_then_elapsed_time(cfg):
     assert result["entries"][0]["duration_s"] == 5.0
 
 
+def test_leaderboard_ranks_by_model_work_time_not_wall_clock(cfg):
+    """排行榜排的是"模型干了多久"，不是"从建号到交卷挂了多久"。
+
+    墙钟口径会让挂机比干活更快：一条 3 秒交卷但模型实际跑了 15 分钟的记录，
+    不该赢过一条挂了半小时、模型只干了 1 分钟的记录。
+    """
+    idle = store_run(cfg, "TEST-01__挂机模型__20260101-000001", BACKEND_TASK, "挂机模型", True, 100.0)
+    idle["rounds"][0]["graded_at"] = "2026-01-01T00:00:03"
+    idle["rounds"][0]["model_work_seconds"] = 900.0
+    runs.save_run(cfg, idle)
+
+    busy = store_run(cfg, "TEST-01__干活模型__20260101-000001", BACKEND_TASK, "干活模型", True, 100.0)
+    busy["rounds"][0]["graded_at"] = "2026-01-01T00:30:00"
+    busy["rounds"][0]["model_work_seconds"] = 60.0
+    runs.save_run(cfg, busy)
+
+    entries = runs.task_leaderboard(cfg, BACKEND_TASK)["entries"]
+    assert [e["model"] for e in entries] == ["干活模型", "挂机模型"]
+    assert entries[0]["duration_s"] == 60.0
+    assert entries[0]["wall_seconds"] == 1800.0, "墙钟口径要留着做对照，不能悄悄丢掉"
+
+
 def test_revealed_rounds_are_excluded_from_main_stats(cfg):
     """揭晓过的轮次不进通过率，但要单独计数并出现在 CSV 的已揭晓块。"""
     store_run(cfg, "TEST-01__A__20260101-000001", BACKEND_TASK, "A", True, 100.0)
@@ -344,8 +366,12 @@ def test_scoreboard_skips_runs_without_task_or_model(cfg):
     assert board["matrix"][0]["cells"]["正常模型"]["trials"] == 1
 
 
-def test_delete_run_archives_record_and_clears_sandbox(cfg):
-    """删除 = 记录目录移入隔离区（可恢复）+ 沙箱副本清理 + 统计立刻消失。"""
+def test_delete_run_purges_everything_it_owns(cfg):
+    """废弃 = 真删：记录目录（含对话与 epochs 归档）、沙箱、评分树全部消失。
+
+    旧的"移进隔离区"留着一堆永远不会再看的目录，用户要的"废弃后回到初始界面"
+    也就做不到；共享的快照缓存 sandboxes/.snapshots 必须原样留着。
+    """
     run = store_run(cfg, "TEST-01__待删模型__20260101-000006", BACKEND_TASK, "待删模型", True, 100.0)
     sandbox_dir = os.path.join(cfg["sandbox_root"], run["run_id"])
     util.ensure_dir(sandbox_dir)
@@ -353,16 +379,51 @@ def test_delete_run_archives_record_and_clears_sandbox(cfg):
     run["sandbox"] = sandbox_dir
     runs.save_run(cfg, run)
     run_dir_path = run["run_dir"]
+    util.write_text_atomic(os.path.join(run_dir_path, "chat.jsonl"), '{"role":"user"}\n')
+    util.ensure_dir(os.path.join(run_dir_path, "epochs", "20260101000000"))
+    grade_dir = os.path.join(cfg["sandbox_root"], "_grade", util.sanitize_id(run["run_id"]))
+    util.ensure_dir(grade_dir)
+    util.write_text_atomic(os.path.join(grade_dir, "leftover.py"), "x = 1\n")
+    snapshot_cache = os.path.join(cfg["sandbox_root"], ".snapshots")
+    util.ensure_dir(snapshot_cache)
+    util.write_text_atomic(os.path.join(snapshot_cache, "keep.me"), "共享基线")
 
     out = runs.delete_run(cfg, run["run_id"])
-    assert out["deleted"] is True
-    assert os.path.isdir(out["archived_to"]), "记录目录应整体移入隔离区而不是真删"
-    assert not os.path.isdir(run_dir_path)
-    assert not os.path.isdir(sandbox_dir)
+    assert out["deleted"] is True and out["purged"]
+    assert not os.path.exists(run_dir_path), "记录目录必须真删，不是挪进隔离区"
+    assert not os.path.exists(sandbox_dir)
+    assert not os.path.exists(grade_dir)
+    assert os.path.isfile(os.path.join(snapshot_cache, "keep.me")), "别的 run 还要用快照缓存"
     assert run["run_id"] not in {r["run_id"] for r in runs.list_runs(cfg)}
+    assert not os.path.exists(os.path.dirname(run_dir_path)), "档案目录空了要一起收掉，别留空壳"
     with pytest.raises(errors.HarnessError) as excinfo:
         runs.delete_run(cfg, run["run_id"])
     assert excinfo.value.code == errors.E_RUN_NOT_FOUND
+
+
+def test_hard_delete_keeps_a_sibling_record(cfg):
+    """收空壳只在该档案真的没记录之后：同档案还有兄弟记录时父目录必须留着。"""
+    keep = store_run(cfg, "TEST-01__留兄弟__20260101-000010", BACKEND_TASK, "留兄弟", True, 80.0)
+    gone = store_run(cfg, "TEST-01__留兄弟__20260101-000011", BACKEND_TASK, "留兄弟", False, 10.0)
+    parent = os.path.dirname(gone["run_dir"])
+
+    runs.delete_run(cfg, gone["run_id"])
+
+    assert parent == os.path.dirname(keep["run_dir"])
+    assert not os.path.exists(gone["run_dir"])
+    assert os.path.isdir(os.path.join(parent, "20260101-000010")), "兄弟记录不能跟着被收掉"
+
+
+def test_purge_refuses_paths_outside_the_roots(cfg):
+    """路径越界必须当场中止：删除不可逆，不能"少删一个目录继续往下走"。"""
+    run = store_run(cfg, "TEST-01__越界模型__20260101-000008", BACKEND_TASK, "越界模型", False, 0.0)
+    run["sandbox"] = os.path.dirname(os.path.abspath(cfg["sandbox_root"]))
+    runs.save_run(cfg, run)
+
+    with pytest.raises(errors.HarnessError) as excinfo:
+        runs.delete_run(cfg, run["run_id"])
+    assert excinfo.value.code == errors.E_INTERNAL
+    assert os.path.isdir(os.path.dirname(os.path.abspath(cfg["sandbox_root"]))), "越界路径一个字节都不能碰"
 
 
 def test_delete_run_refuses_while_chat_lock_held(cfg):
@@ -390,8 +451,8 @@ def test_delete_run_refuses_while_chat_lock_held(cfg):
     assert out["deleted"] is True
 
 
-def test_delete_model_with_runs_archives_records(cfg, monkeypatch, tmp_path):
-    """删除档案可连带把名下运行记录移入隔离区；不带 with_runs 时记录保留。"""
+def test_delete_model_with_runs_purges_records(cfg, monkeypatch, tmp_path):
+    """删除档案可连带真删名下运行记录；不带 with_runs 时记录保留。"""
     store_run(cfg, "TEST-01__全删模型__20260101-000008", BACKEND_TASK, "全删模型", True, 100.0)
     store_run(cfg, "TEST-01__全删模型__20260101-000009", BACKEND_TASK, "全删模型", False, 20.0)
     shadow = tmp_path / "config.json"
@@ -401,11 +462,11 @@ def test_delete_model_with_runs_archives_records(cfg, monkeypatch, tmp_path):
 
     out = runs.delete_model(cfg, "全删模型", with_runs=True)
     assert out["deleted"] is True
-    assert sorted(os.path.basename(p) for p in out["removed_runs"]) == [
+    assert sorted(out["removed_runs"]) == [
         "TEST-01__全删模型__20260101-000008", "TEST-01__全删模型__20260101-000009",
     ]
     assert out["remaining"] == 0
-    assert all(os.path.isdir(p) for p in out["removed_runs"]), "记录应可恢复地躺在隔离区"
+    assert all(not os.path.exists(p) for p in out["purged_paths"]), "说好的真删，路径得真的没了"
     assert all(r.get("model") != "全删模型" for r in runs.list_runs(cfg))
     import json as _json
     assert _json.loads(shadow.read_text(encoding="utf-8"))["models"] == []
