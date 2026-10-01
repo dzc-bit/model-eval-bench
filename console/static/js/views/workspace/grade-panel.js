@@ -25,7 +25,7 @@
  * 导出：createGradePanel(handlers) → { el, update, destroy, doGrade }
  */
 
-import { el, setText, patchList } from '../../core/dom.js';
+import { el, setText, patchList, clear } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
 import { createButton } from '../../components/button.js';
 import { createProgress } from '../../components/progress.js';
@@ -137,7 +137,7 @@ export function createGradePanel(handlers) {
    * @param {object} group 报告里的一个 group
    * @returns {HTMLElement}
    */
-  function renderGroup(group) {
+  function buildGroupCard(group) {
     const sem = groupSemantics(group.passed);
     const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
     const list = el('div', { class: 'group-card__body' });
@@ -189,6 +189,42 @@ export function createGradePanel(handlers) {
       );
     }
     return el('li', { class: sem.cls }, head, list);
+  }
+
+  /** 决定这张卡片要不要重画：结论、计数或失败清单变了才算变。 */
+  function groupSignature(group) {
+    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
+    return [
+      group.passed,
+      group.passed_count,
+      group.total,
+      group.weight,
+      failed.map((c) => `${c.node_id}=${c.message || ''}`).join('|'),
+    ].join('#');
+  }
+
+  /**
+   * 组卡片：节点上记一份内容签名。
+   * patchList 按组 id 复用节点，重跑校验后同一组会从红转绿；只在建卡那一刻画一次
+   * 就会让旧结论永远挂在页面上（分数已更新、卡片还写着失败）。
+   */
+  const groupSignatures = new WeakMap();
+
+  function renderGroup(group) {
+    const node = buildGroupCard(group);
+    groupSignatures.set(node, groupSignature(group));
+    return node;
+  }
+
+  /** 原地震换成新结论：签名没变就不动，保住用户展开的失败清单。 */
+  function refreshGroup(node, group) {
+    const signature = groupSignature(group);
+    if (groupSignatures.get(node) === signature) return;
+    groupSignatures.set(node, signature);
+    const rebuilt = buildGroupCard(group);
+    node.className = rebuilt.className;
+    clear(node);
+    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
   }
 
   /**
@@ -391,7 +427,7 @@ export function createGradePanel(handlers) {
     resultHost.appendChild(el('p', { class: 'u-muted' }, summaryText));
 
     // 分组卡片（key 化复用：同一组重渲染不丢展开状态）
-    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), () => {});
+    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), refreshGroup);
     resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
 
     // 回归

@@ -11,7 +11,7 @@
  * 导出：createModels(props) → { el, destroy, el_h1, getModels }
  */
 
-import { el, setText, patchList } from '../core/dom.js';
+import { el, setText, patchList, clear } from '../core/dom.js';
 import { S, t, PROTOCOL_NAMES, API_MODE_NAMES } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { announce } from '../core/a11y.js';
@@ -466,6 +466,25 @@ export function createModels(props = {}) {
     );
   }
 
+  /** 同上：patchList 复用行节点，档案被改过就必须原地重画那一行。 */
+  const rowSignatures = new WeakMap();
+
+  function createRow(m) {
+    const node = renderRow(m);
+    rowSignatures.set(node, JSON.stringify(m));
+    return node;
+  }
+
+  function refreshRow(node, m) {
+    const signature = JSON.stringify(m);
+    if (rowSignatures.get(node) === signature) return;
+    rowSignatures.set(node, signature);
+    const rebuilt = renderRow(m);
+    node.className = rebuilt.className;
+    clear(node);
+    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
+  }
+
   /**
    * 三态渲染列表。
    */
@@ -497,7 +516,7 @@ export function createModels(props = {}) {
       return;
     }
     const ul = el('ul', { class: 'models__list' });
-    patchList(ul, models, (m) => m.id, renderRow, () => {});
+    patchList(ul, models, (m) => m.id, createRow, refreshRow);
     listHost.appendChild(ul);
   }
 
