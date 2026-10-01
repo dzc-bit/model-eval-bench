@@ -194,6 +194,8 @@ export const S = {
   CHAT_STATUS_IDLE: '尚未连接',
   CHAT_STATUS_READY: '对话就绪',
   CHAT_STATUS_ERROR: '对话不可用',
+  CHAT_STATUS_CLOSED: '本轮已交卷，不再接收新消息',
+  CHAT_STATUS_NOT_READY: '沙箱还没就绪，暂不能对话',
   CHAT_USE_PROMPT: '发送当前提示词',
   CHAT_TOOL_HINT: '模型可在当前沙箱内读写文件并运行受限检查。',
   CHAT_TOOL_CALL: '工具调用',

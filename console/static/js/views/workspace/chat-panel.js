@@ -24,6 +24,9 @@ const ROLE_LABELS = {
 /** 展开的工具轮（按消息 id 记住，轮询重渲染时不塌回去）。 */
 const expandedRounds = new Set();
 
+/** 已经收束、不再接收新消息的运行状态。 */
+const CLOSED_STATUS = new Set(['graded', 'cancelled', 'error']);
+
 /**
  * 创建内置对话面板。
  * @param {{scope?: object, onUsePrompt?: Function}} [handlers]
@@ -329,6 +332,28 @@ export function createChatPanel(handlers = {}) {
     setText(statusText, text || '');
   }
 
+  /**
+   * 状态点说清「输入框为什么锁着」。
+   * 输入框按 run 状态与远端忙碌锁定，状态点却一律写「对话就绪」时，
+   * 人只能靠猜——已交卷的那一轮就是这么被当成卡住的。
+   */
+  function syncStatus() {
+    if (sending) {
+      setStatus('busy', S.CHAT_SENDING || '模型处理中');
+      return;
+    }
+    if (remoteBusy) {
+      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      return;
+    }
+    const status = currentRun && currentRun.status;
+    if (status && status !== 'ready') {
+      setStatus('idle', CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
+      return;
+    }
+    setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+  }
+
   function setEnabled(enabled) {
     enabled = enabled && currentRun?.status === 'ready' && !remoteBusy;
     draft.disabled = !enabled || sending;
@@ -362,7 +387,7 @@ export function createChatPanel(handlers = {}) {
       remoteBusy = false;
       errorMessage.hidden = true;
       setText(errorMessage, '');
-      setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+      syncStatus();
       setEnabled(true);
       renderMessages();
     }
@@ -386,7 +411,7 @@ export function createChatPanel(handlers = {}) {
         setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
       } else {
-        setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+        syncStatus();
       }
       renderMessages();
     } catch (err) {
@@ -461,7 +486,6 @@ export function createChatPanel(handlers = {}) {
         return true;
       }
       remoteBusy = false;
-      setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
       renderMessages();
       return true;
     } catch (err) {
@@ -496,6 +520,8 @@ export function createChatPanel(handlers = {}) {
       if (seq === requestSeq && runId === currentRunId) {
         clearTimeout(progressTimer);
         sending = false;
+        // 错误提示还挂着就不要覆盖它；否则按当前 run 状态与远端忙碌重说一遍。
+        if (errorMessage.hidden) syncStatus();
         setEnabled(Boolean(currentRunId));
         if (currentRunId) draft.focus();
       }
