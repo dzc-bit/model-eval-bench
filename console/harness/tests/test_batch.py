@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 import threading
 
@@ -56,6 +57,42 @@ def test_auto_send_failure_keeps_the_workspace_usable(cfg, monkeypatch):
 
     assert [e["kind"] for e in item["events"]] == ["error"]
     assert "手动发送" in item["events"][0]["message"]
+
+
+def test_batch_get_reconciles_items_after_a_restart(cfg):
+    """服务重启带走监控线程后，读批次要按 run 的真实状态补齐。
+
+    否则工作台里早就校验完的一条，批次页会永远显示「工作区就绪，等待评分」，
+    人还会照着旧状态再点一次启动评分。
+    """
+    import json
+
+    from conftest import make_run
+    from harness import runs, util
+
+    run = make_run(cfg, model="对账模型")
+    run["status"] = "graded"
+    run["last_score"] = 66.7
+    run["last_passed"] = False
+    runs.save_run(cfg, run)
+
+    doc = {
+        "batch_id": "batch-recon", "created_at": "x", "updated_at": "x", "status": "running",
+        "concurrency": 1, "problems": [], "auto_release": True,
+        "items": [{"index": 0, "task": run["task"], "model": run["model"], "attempt": 1,
+                   "status": "ready", "run_id": run["run_id"], "sandbox": "sandboxes/在用",
+                   "events": []}],
+    }
+    path = os.path.join(batch._batch_dir(cfg, "batch-recon"), "batch.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    util.write_json_atomic(path, doc)
+
+    out = batch.get(cfg, "batch-recon")
+
+    assert out["items"][0]["status"] == "graded"
+    assert out["items"][0]["score"] == 66.7
+    assert out["status"] == "finished"
+    assert json.load(open(path, encoding="utf-8"))["items"][0]["status"] == "graded"
 
 
 def test_concurrency_defaults_to_configured_limit(cfg):

@@ -437,6 +437,8 @@ def build_router() -> Router:
     r.add("POST", r"/api/batches", lambda ctx: (_create_batch(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/batches/(?P<batch_id>[^/]+)", lambda ctx: (batch_mod.get(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/cancel", lambda ctx: (batch_mod.cancel(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/release",
+          lambda ctx: (batch_mod.release(ctx["cfg"], ctx["batch_id"], _as_int(ctx["body"].get("index"), -1)), "application/json; charset=utf-8"))
     r.add("POST", r"/api/selfcheck", lambda ctx: (selfcheck.scan(ctx["cfg"]), "application/json; charset=utf-8"))
     return r
 

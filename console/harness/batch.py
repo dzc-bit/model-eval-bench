@@ -214,6 +214,105 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
     return payload
 
 
+def _run_snapshot(cfg: dict, run_id: str) -> dict:
+    """轻量读一条 run 记录（不扫全树）：批次读侧对账用。"""
+    if not run_id:
+        return {}
+    doc = util.read_json(os.path.join(runs.dir_of_run_id(cfg, run_id), "run.json"), default=None)
+    return doc if isinstance(doc, dict) else {}
+
+
+def _write_doc(cfg: dict, doc: dict) -> None:
+    try:
+        util.write_json_atomic(
+            os.path.join(_batch_dir(cfg, str(doc.get("batch_id") or "")), "batch.json"), doc)
+    except OSError:
+        pass
+
+
+def _reconcile(cfg: dict, doc: dict) -> dict:
+    """按 run 的真实状态补齐批次条目。
+
+    服务一重启就会带走批次里的监控线程，条目于是永远停在「工作区就绪，等待评分」，
+    而工作台里那一轮早就校验完了——人还会照着旧状态再点一次启动评分。
+    读的时候对一次账并落盘，批次总状态也跟着收敛。
+    """
+    changed = False
+    for item in doc.get("items") or []:
+        run_id = str(item.get("run_id") or "")
+        if not run_id or item.get("status") not in {"pending", "preparing", "ready"}:
+            continue
+        snap = _run_snapshot(cfg, run_id)
+        status = str(snap.get("status") or "")
+        if status not in {"graded", "error", "cancelled"}:
+            continue
+        item["status"] = status
+        if snap.get("last_score") is not None:
+            item["score"] = snap.get("last_score")
+            item["passed"] = bool(snap.get("last_passed"))
+        _add_event(item, "批次监控已中断，按运行记录补齐状态", "ready")
+        changed = True
+    items = doc.get("items") or []
+    # 计数是落盘时快照下来的，补齐状态后必须一起重算，否则「1/3 完成」会一直骗人
+    done = [i for i in items if i.get("status") in {"graded", "error", "cancelled"}]
+    counters = {
+        "done": len(done),
+        "passed": sum(1 for i in done if i.get("passed")),
+        "running": sum(1 for i in items if i.get("status") in {"preparing", "ready", "grading"}),
+        "queued": sum(1 for i in items if i.get("status") == "pending"),
+    }
+    if items and all(i.get("status") in {"graded", "error", "cancelled"} for i in items):
+        counters["status"] = "finished"
+    stale = any(doc.get(key) != value for key, value in counters.items())
+    if not changed and not stale:
+        return doc
+    doc.update(counters)
+    doc["updated_at"] = _now()
+    _write_doc(cfg, doc)
+    return doc
+
+
+def release(cfg: dict, batch_id: str, index: int) -> dict:
+    """手动回收某一条的沙箱工作区。
+
+    批次自动释放只发生在监控线程看到评分结束的那一刻；线程一死（服务重启）
+    就没人释放磁盘，校验完的沙箱一直躺在 sandboxes/ 下。这个入口让人主动关掉。
+    只删沙箱目录，`runs/` 里的记录、报告、diff 全部保留。
+    """
+    try:
+        pos = int(index)
+    except (TypeError, ValueError):
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "批次条目序号必须是整数。")
+    with _LOCK:
+        batch = _BATCHES.get(batch_id)
+    doc = batch if batch is not None else get(cfg, batch_id)
+    doc = _reconcile(cfg, doc)
+    items = doc.get("items") or []
+    if not 0 <= pos < len(items):
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "没有这个批次条目。")
+    item = items[pos]
+    run = _run_snapshot(cfg, str(item.get("run_id") or ""))
+    if str(run.get("status") or "") in {"preparing", "grading"}:
+        raise errors.HarnessError(
+            errors.E_RUN_BUSY, "这一条正在准备或校验中，先等它结束再回收沙箱。")
+    if not str(item.get("sandbox") or ""):
+        return {"released": False, "message": "这一条已经没有可回收的沙箱工作区。"}
+    if run:
+        sandbox.destroy(cfg, run, log=lambda m: None)
+        run["sandbox"] = ""
+        run["drive"] = ""
+        runs.save_run(cfg, run)
+    item["sandbox"] = ""
+    _add_event(item, "沙箱工作区已手动回收（运行记录与报告保留）", "ready")
+    doc["updated_at"] = _now()
+    if batch is None:
+        _write_doc(cfg, doc)
+    else:
+        _save_batch(cfg, batch)
+    return {"released": True, "batch_id": batch_id, "index": pos,
+            "message": "沙箱工作区已回收；成绩与报告仍在 runs/ 里。"}
+
+
 def get(cfg: dict, batch_id: str) -> dict:
     """取批次状态（优先内存态，其次落盘快照）。"""
     with _LOCK:
@@ -225,7 +324,7 @@ def get(cfg: dict, batch_id: str) -> dict:
     path = os.path.join(_batch_dir(cfg, batch_id), "batch.json")
     doc = util.read_json(path, default=None)
     if isinstance(doc, dict):
-        return doc
+        return _reconcile(cfg, doc)
     raise errors.HarnessError(
         errors.E_NOT_FOUND, "找不到这个批次（可能已被清理）。", batch_id)
 
@@ -239,7 +338,7 @@ def list_batches(cfg: dict) -> dict:
             path = os.path.join(root, name, "batch.json")
             doc = util.read_json(path, default=None)
             if isinstance(doc, dict) and doc.get("batch_id"):
-                out[doc["batch_id"]] = doc
+                out[doc["batch_id"]] = _reconcile(cfg, doc)
     with _LOCK:
         for batch_id, batch in _BATCHES.items():
             payload = _public_batch(batch)

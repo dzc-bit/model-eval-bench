@@ -406,6 +406,9 @@ export const S = {
   BATCH_AUTO_SEND_HINT: '沙箱就绪后直接把题目发给模型并开始作答，无需逐条进工作台；校验仍由你手动启动。',
   BATCH_DRIVE_NOTE: '每条会话使用 sandbox_root 下的独立文件夹。',
   BATCH_ITEM_MODEL_GONE: '档案已删除',
+  BATCH_RELEASE_SANDBOX: '回收沙箱',
+  BATCH_RELEASING: '正在回收',
+  BATCH_RELEASED: '沙箱工作区已回收',
   BATCH_ITEM_MODEL_GONE_HINT:
     '这个模型档案已经被删掉了，下面这条是它当时跑出来的历史记录，成绩仍可在记分板按档案查看。',
   BATCH_LEGACY_MECHANISM_NOTE: '（历史记录：盘符池机制已移除，现为文件夹沙箱）',
