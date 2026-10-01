@@ -1029,8 +1029,11 @@ def _normalize_api_mode(protocol: str, value: object, *, strict: bool = False) -
 
 #: API 回传给浏览器的模型档案字段白名单。config.json 是手工可编辑的，
 #: 有人把真实密钥直接写进档案字段时，不能原样回显。
-_MODEL_VIEW_FIELDS = ("id", "protocol", "api_mode", "base_url", "model",
-                      "key_masked", "key_env", "note")
+#: 2026-10-01 重构：去掉 key_env（密钥改按供应商存，不再有自定义变量名字段），
+#: 加入 provider / 容量字段。
+_MODEL_VIEW_FIELDS = ("id", "name", "provider_id", "provider_name", "qualified_id",
+                      "protocol", "api_mode", "base_url", "model",
+                      "context_window", "max_tokens", "key_masked", "note")
 
 
 def _model_record(item: dict) -> dict:
@@ -1077,12 +1080,56 @@ def _model_records(cfg: dict) -> List[dict]:
     return [_model_record(m) for m in cfg.get("models", []) if isinstance(m, dict)]
 
 
-def upsert_model(cfg: dict, payload: dict) -> dict:
-    """新增或更新模型档案；明文密钥只进本机密钥文件，config.json 只存脱敏值。"""
-    model_id = util.sanitize_id(payload.get("id"))
-    if not model_id:
-        raise errors.HarnessError(errors.E_MODEL_INVALID, "模型档案需要一个 id（英文标识即可）。")
-    protocol = str(payload.get("protocol") or "custom").lower()
+def _provider_view(provider: dict, cfg: dict) -> dict:
+    """供应商条目的对外视图：原始字段 + 只读诊断（密钥是否存在、能否使用）。
+
+    诊断只回传**是否存在**与候选变量名，取值永不离开服务端。
+    """
+    out = {k: provider.get(k) for k in config.PROVIDER_FIELDS if k in provider}
+    out["models"] = [
+        {k: m.get(k) for k in config.PROVIDER_MODEL_FIELDS if k in m}
+        for m in (provider.get("models") or [])
+    ]
+    # 密钥状态按供应商算：本机密钥文件 + 环境变量候选
+    probe = {"provider_id": provider.get("id"), "protocol": provider.get("protocol")}
+    stored = bool(keyring.get_key(str(provider.get("id") or "")))
+    status = chat.key_status(probe)
+    out["key_present"] = stored or status["present"]
+    out["key_stored"] = stored
+    out["key_candidates"] = status["candidates"]
+    out["key_masked"] = str(provider.get("key_masked") or "")
+    # ready = 协议接得住 + 有端点 + 有模型 + 服务端确实读到了密钥。
+    # 只代表「可以开始检测」，不代表服务商那边一定通（那要 doctor 的 reach 档）。
+    first = (provider.get("models") or [{}])[0]
+    out["ready"] = bool(
+        str(provider.get("base_url") or "").strip()
+        and (provider.get("models") or [])
+        and chat.has_usable_base_url(first)
+        and out["key_present"]
+    )
+    return out
+
+
+def list_providers(cfg: dict) -> dict:
+    """供应商列表（嵌套结构，供「模型档案」页编辑）。"""
+    providers = [_provider_view(p, cfg) for p in cfg.get("providers", []) if isinstance(p, dict)]
+    return {
+        "providers": providers,
+        # 老配置被读时迁移过：界面据此提示「已按端点合并，保存后生效」
+        "migrated": bool(cfg.get("providers_migrated")),
+    }
+
+
+def _normalize_provider_payload(payload: dict) -> dict:
+    """校验并归一一个供应商条目（含它的模型清单）。
+
+    逐模型容量与输出上限留空就继承供应商的 default_*，与 DSH 的
+    「exact model capacity wins, otherwise adapter default」同一条兜底链。
+    """
+    pid = util.sanitize_id(payload.get("id"))
+    if not pid:
+        raise errors.HarnessError(errors.E_MODEL_INVALID, "供应商需要一个 id（英文标识即可）。")
+    protocol = str(payload.get("protocol") or "openai").lower()
     if protocol not in config.MODEL_PROTOCOLS:
         raise errors.HarnessError(
             errors.E_MODEL_INVALID,
@@ -1090,41 +1137,175 @@ def upsert_model(cfg: dict, payload: dict) -> dict:
             str(payload.get("protocol")),
         )
     api_mode = _normalize_api_mode(protocol, payload.get("api_mode"), strict=True)
-    key_env = str(payload.get("key_env") or "").strip()
-    if key_env and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key_env):
+    base_url = str(payload.get("base_url") or "").strip()
+    if not base_url:
         raise errors.HarnessError(
-            errors.E_MODEL_INVALID,
-            "key_env 必须是合法的服务端环境变量名。",
-            key_env,
-        )
-    api_key = str(payload.get("api_key") or "").strip()
-    previous_id = util.sanitize_id(payload.get("previous_id"))
-    # 写回的必须是原始档案，不能把只读诊断字段一起落盘
-    models = _model_records(cfg)
-    if previous_id and previous_id != model_id:
-        # 改编号：旧档案连同它的密钥一起搬走，而不是留下重复档案
-        models = [m for m in models if str(m.get("id")) != previous_id]
-        keyring.rename_key(previous_id, model_id)
-    entry = {
-        "id": model_id,
+            errors.E_MODEL_INVALID, "供应商需要填写接口地址（base_url）。", pid)
+
+    def _positive_int(value, field):
+        if value in (None, ""):
+            return None
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            raise errors.HarnessError(
+                errors.E_MODEL_INVALID, "%s 必须是正整数。" % field, str(value))
+        if n <= 0:
+            raise errors.HarnessError(
+                errors.E_MODEL_INVALID, "%s 必须是正整数。" % field, str(value))
+        return n
+
+    default_ctx = _positive_int(payload.get("default_context_window"), "默认上下文窗口")         or config.DEFAULT_CONTEXT_WINDOW
+    default_max = _positive_int(payload.get("default_max_tokens"), "默认输出上限")         or config.DEFAULT_MAX_TOKENS
+
+    models = []
+    seen = set()
+    for raw in payload.get("models") or []:
+        if not isinstance(raw, dict):
+            continue
+        mid = str(raw.get("id") or "").strip()
+        if not mid:
+            continue
+        if mid in seen:
+            raise errors.HarnessError(
+                errors.E_MODEL_INVALID, "同一个供应商下模型 id 不能重复：%s。" % mid, mid)
+        seen.add(mid)
+        models.append({
+            "id": mid,
+            "name": str(raw.get("name") or mid).strip() or mid,
+            "context_window": _positive_int(raw.get("context_window"), "上下文窗口") or default_ctx,
+            "max_tokens": _positive_int(raw.get("max_tokens"), "输出上限") or default_max,
+            "note": str(raw.get("note") or "")[:500],
+        })
+    if not models:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID, "供应商至少要有一个模型。", pid)
+
+    return {
+        "id": pid,
+        "display_name": str(payload.get("display_name") or pid).strip() or pid,
         "protocol": protocol,
         "api_mode": api_mode,
-        "base_url": str(payload.get("base_url") or ""),
-        "model": str(payload.get("model") or ""),
-        "key_masked": str(payload.get("key_masked") or ""),
-        "key_env": key_env,
+        "base_url": base_url,
+        "default_context_window": default_ctx,
+        "default_max_tokens": default_max,
         "note": str(payload.get("note") or "")[:500],
+        "models": models,
     }
+
+
+def upsert_provider(cfg: dict, payload: dict) -> dict:
+    """新增或更新供应商（连同它的模型清单）。
+
+    明文密钥只进本机密钥文件（按供应商 id 存），config.json 只存脱敏值。
+    """
+    entry = _normalize_provider_payload(payload)
+    pid = entry["id"]
+    api_key = str(payload.get("api_key") or "").strip()
+    previous_id = util.sanitize_id(payload.get("previous_id"))
+
+    providers = [dict(p) for p in cfg.get("providers", [])]
+    if previous_id and previous_id != pid:
+        # 改编号：旧供应商连同它的密钥一起搬走，不留重复
+        providers = [p for p in providers if str(p.get("id")) != previous_id]
+        keyring.rename_key(previous_id, pid)
     if api_key:
-        entry["key_masked"] = keyring.set_key(model_id, api_key)
-    for index, item in enumerate(models):
-        if str(item.get("id")) == model_id:
-            models[index] = entry
+        entry["key_masked"] = keyring.set_key(pid, api_key)
+    else:
+        # 留空表示「不改已存密钥」：把原有的脱敏值带过去，否则界面上会显示成没配。
+        old = next((p for p in providers if str(p.get("id")) == pid), None)
+        if old and old.get("key_masked"):
+            entry["key_masked"] = old["key_masked"]
+
+    for index, item in enumerate(providers):
+        if str(item.get("id")) == pid:
+            providers[index] = entry
             break
     else:
-        models.append(entry)
-    config.update_models(models)
+        providers.append(entry)
+
+    config.update_providers(providers)
     return entry
+
+
+def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dict:
+    """删除供应商（连同已存密钥与其下所有模型）；with_runs=True 时一并隔离运行记录。
+
+    记分板的档案芯片随「供应商 + 名下记录」一起消失；正被对话/校验占用的
+    运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    """
+    providers = [dict(p) for p in cfg.get("providers", [])]
+    target = next((p for p in providers if str(p.get("id")) == str(provider_id)), None)
+    if target is None:
+        raise errors.HarnessError(
+            errors.E_MODEL_NOT_FOUND, "找不到供应商 %s，删除失败。" % provider_id, str(provider_id))
+    remaining = [p for p in providers if str(p.get("id")) != str(provider_id)]
+    config.update_providers(remaining)
+    keyring.remove_key(provider_id)
+
+    # 名下运行记录按「限定名前缀」或「老裸 id」两种形态匹配：
+    # 老记录里 model 字段是档案 id，重构后是 provider::model。
+    owned_prefix = "%s::" % provider_id
+    legacy_ids = {str(m.get("id")) for m in (target.get("models") or [])}
+    legacy_ids.add(str(provider_id))
+
+    removed_runs: List[str] = []
+    skipped_busy: List[str] = []
+    if with_runs:
+        for run in list_runs(cfg):
+            model = str(run.get("model") or "")
+            if not (model.startswith(owned_prefix) or model in legacy_ids):
+                continue
+            rid = str(run.get("run_id") or "")
+            if not rid or chat.send_active(rid):
+                if rid:
+                    skipped_busy.append(rid)
+                continue
+            with chat.exclusive(rid, blocking=False) as acquired:
+                if not acquired:
+                    skipped_busy.append(rid)
+                    continue
+                try:
+                    removed_runs.append(_archive_run_record(cfg, run))
+                except errors.HarnessError as exc:
+                    if exc.code == errors.E_RUN_NOT_FOUND:
+                        continue  # 记录目录已不在，视为已处理
+                    raise
+    return {
+        "id": provider_id,
+        "deleted": True,
+        "remaining": len(remaining),
+        "removed_runs": removed_runs,
+        "skipped_busy": skipped_busy,
+    }
+
+
+def discover_models(cfg: dict, payload: dict) -> dict:
+    """问端点「你能提供哪些模型」，返回候选清单（不落盘）。
+
+    对齐 DSH 的 discovery：候选只是**可采纳的建议**，什么被服务始终由配置决定。
+    已在本供应商清单里的模型标 ``configured``，界面据此只显示可新增的。
+    """
+    provider_id = util.sanitize_id(payload.get("id"))
+    provider = next(
+        (p for p in cfg.get("providers", []) if str(p.get("id")) == str(provider_id)), None)
+    # 支持"还没保存就试拉"：表单里现填的 base_url / api_key 优先
+    base_url = str(payload.get("base_url") or (provider or {}).get("base_url") or "").strip()
+    if not base_url:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID, "先填接口地址，再拉取模型列表。", provider_id)
+    protocol = str(payload.get("protocol") or (provider or {}).get("protocol") or "openai").lower()
+    typed_key = str(payload.get("api_key") or "").strip()
+
+    candidates = chat.list_remote_models(
+        base_url=base_url, protocol=protocol, provider_id=provider_id, api_key=typed_key)
+
+    configured = {str(m.get("id")) for m in ((provider or {}).get("models") or [])}
+    for item in candidates:
+        item["configured"] = str(item.get("id")) in configured
+    return {"provider_id": provider_id, "models": candidates}
+
+
 
 
 def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:

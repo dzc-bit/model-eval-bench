@@ -115,3 +115,189 @@
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-xs);
 }
+
+/* ---------- 卡内模型清单 ---------- */
+.models .model-card__models-head {
+  margin-top: var(--space-1);
+}
+.models .model-card__models {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* 清单与卡头之间一条 hairline，不套第二层边框（禁卡中卡） */
+  border-top: var(--border-width) solid var(--color-border);
+}
+.models .model-card__model {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.models .model-card__model:last-child {
+  border-bottom: none;
+}
+.models .model-card__model-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-code);
+  color: var(--color-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.models .model-card__model-name {
+  font-size: var(--font-size-sm);
+}
+.models .model-card__model-cap {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+/* 旧配置迁移提示 */
+.models .models__migrated {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- 表单：默认值两列 ---------- */
+.models .models-form__defaults {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-3);
+}
+
+/* ---------- 表单：模型清单编辑区 ---------- */
+.models .models-form__models {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+.models .models-form__models-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.models .models-form__subtitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+.models .models-form__grid-head,
+.models .models-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.models .models-form__grid-head {
+  padding: 0 var(--space-1);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+}
+.models .models-form__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.models .models-form__cell-input {
+  width: 100%;
+  min-height: var(--control-height-sm, 32px);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+.models .models-form__cell-input:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+.models .models-form__cell-input::placeholder {
+  color: var(--color-text-faint);
+  font-family: var(--font-sans);
+}
+
+/* ---------- 表单：从端点拉取的候选 ---------- */
+.models .models-form__discover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.models .models-form__discover-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.models .models-form__discover-head h4 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.models .models-form__discover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.models .models-form__discover-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--color-border);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+.models .models-form__discover-row:last-child {
+  border-bottom: none;
+}
+.models .models-form__discover-row:hover {
+  background: var(--color-surface-2);
+}
+.models .models-form__discover-row.is-configured {
+  cursor: default;
+  opacity: 0.7;
+}
+.models .models-form__discover-id {
+  font-family: var(--font-mono);
+  letter-spacing: var(--letter-spacing-code);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.models .models-form__discover-check {
+  flex-shrink: 0;
+}
+
+/* 窄屏：模型行改成纵向堆叠，每格带自己的标签 */
+@media (max-width: 720px) {
+  .models .models-form__grid-head {
+    display: none;
+  }
+  .models .models-form__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-sm);
+  }
+}

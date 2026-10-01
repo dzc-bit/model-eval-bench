@@ -188,21 +188,25 @@ def messages(run: dict) -> List[dict]:
 def key_candidates(model: dict) -> List[str]:
     """按优先级返回服务端会依次查询的密钥**环境变量名**（不含任何取值）。
 
-    优先级（与历史行为完全一致）：档案的 ``key_env`` →
-    ``MODEL_<档案 ID 大写>_API_KEY`` → ``OPENAI_API_KEY``（仅 openai 协议）。
-    这是唯一的口径出处：UI 与诊断接口都必须读这份结果，不能自己复刻顺序，
-    否则「界面上说没配密钥、服务端却能用」这类矛盾会再次出现。
+    优先级：``<供应商 ID 大写>_API_KEY`` → ``MODEL_<模型 ID 大写>_API_KEY``
+    → ``OPENAI_API_KEY``（仅 openai 协议）。
+
+    2026-10-01 重构：去掉了档案自带的 ``key_env`` 字段。密钥现在有两条路——
+    本机密钥文件（页面粘贴，按供应商存）与环境变量；再多一个"自定义变量名"
+    字段只会让人不知道该填哪个。这是唯一的口径出处，UI 与诊断接口都读它。
     """
-    configured = str(model.get("key_env") or model.get("api_key_env") or "").strip()
+    provider_id = str(model.get("provider_id") or "").strip()
     candidates: List[str] = []
-    if configured and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", configured):
-        candidates.append(configured)
+    if provider_id:
+        safe_provider = re.sub(r"[^A-Za-z0-9]+", "_", provider_id).strip("_").upper()
+        if safe_provider:
+            candidates.append("%s_API_KEY" % safe_provider)
     safe_id = re.sub(r"[^A-Za-z0-9]+", "_", str(model.get("id") or "MODEL")).strip("_").upper()
     if safe_id:
         candidates.append("MODEL_%s_API_KEY" % safe_id)
     if str(model.get("protocol") or "").lower() == "openai":
         candidates.append("OPENAI_API_KEY")
-    # key_env 直接写 OPENAI_API_KEY 这类情况会重复，保留首次出现的顺序去重
+    # 供应商 id 与模型 id 可能推成同一个变量名，保留首次出现的顺序去重
     unique: List[str] = []
     for name in candidates:
         if name not in unique:
@@ -228,9 +232,14 @@ def resolve_key(model: dict) -> tuple:
     )
 
 
+def _key_owner(model: dict) -> str:
+    """密钥挂在谁名下：优先供应商（同一中转站多个模型共用一把密钥）。"""
+    return str(model.get("provider_id") or model.get("id") or "")
+
+
 def _model_key(model: dict) -> str:
-    """按本机密钥文件（页面粘贴）→ key_candidates 口径的环境变量优先级读取密钥。"""
-    stored = keyring.get_key(str(model.get("id") or ""))
+    """按本机密钥文件（页面粘贴，按供应商存）→ 环境变量优先级读取密钥。"""
+    stored = keyring.get_key(_key_owner(model))
     if stored:
         return stored
     return resolve_key(model)[1]
@@ -368,6 +377,94 @@ def _post_json(url: str, payload: dict, key: str, timeout: float) -> dict:
     if not isinstance(value, dict):
         raise errors.HarnessError(errors.E_CHAT_FAILED, "模型接口返回格式不受支持。")
     return value
+
+
+def list_remote_models(base_url: str, protocol: str = "openai",
+                       provider_id: str = "", api_key: str = "") -> List[dict]:
+    """问端点「你能提供哪些模型」，返回候选清单。
+
+    对齐 DSH 的 discovery 语义：**候选只是可采纳的建议**，不落盘——
+    什么被服务始终由配置决定。OpenAI 兼容端点走 ``GET {base}/models``；
+    返回值兼容 ``{"data": [...]}`` 与 ``{"models": {...}}`` 两种形态
+    （中转站常见后者），逐条归一出 id / 展示名 / 上下文 / 输出上限。
+
+    容量字段按各家习惯多路兜底：``context_window`` / ``context_length`` /
+    ``max_input_tokens`` 都认，输出上限认 ``max_tokens`` / ``max_output_tokens``。
+    取不到的留空，由界面按供应商默认值填。
+    """
+    base = str(base_url or "").strip().rstrip("/")
+    if not re.match(r"^https?://", base, re.I):
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID, "接口地址必须是 http 或 https 地址。", base)
+    key = str(api_key or "").strip()
+    if not key and provider_id:
+        key = keyring.get_key(str(provider_id))
+    if not key:
+        for name in key_candidates({"provider_id": provider_id, "protocol": protocol}):
+            value = os.environ.get(name, "").strip()
+            if value:
+                key = value
+                break
+
+    url = base + "/models"
+    result = _get_json(url, key=key)
+    if result.get("status") is None:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID,
+            "连不上这个端点，拉不到模型列表。检查接口地址与网络后重试。",
+            _sanitize_text(str(result.get("error") or ""), key))
+    if result.get("status") != 200:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID,
+            "端点返回 HTTP %s，拉不到模型列表。确认接口地址与密钥是否正确。"
+            % result.get("status"),
+            _sanitize_text(str(result.get("value"))[:200], key))
+
+    payload = result.get("value")
+    raw_items: List[dict] = []
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list):
+            raw_items = [x for x in data if isinstance(x, dict)]
+        elif isinstance(payload.get("models"), dict):
+            # 中转站常见形态：{ "models": { "<id>": {..}, ... } }
+            raw_items = []
+            for mid, meta in (payload.get("models") or {}).items():
+                entry = dict(meta) if isinstance(meta, dict) else {}
+                entry.setdefault("id", mid)
+                raw_items.append(entry)
+    elif isinstance(payload, list):
+        raw_items = [x for x in payload if isinstance(x, dict)]
+
+    def _first_int(*values) -> Optional[int]:
+        for v in values:
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                continue
+            if n > 0:
+                return n
+        return None
+
+    out: List[dict] = []
+    seen = set()
+    for item in raw_items:
+        mid = str(item.get("id") or item.get("name") or "").strip()
+        if not mid or mid in seen:
+            continue
+        seen.add(mid)
+        out.append({
+            "id": mid,
+            "name": str(item.get("name") or item.get("display_name") or mid).strip() or mid,
+            "context_window": _first_int(
+                item.get("context_window"), item.get("context_length"),
+                item.get("max_input_tokens"), item.get("input_token_limit")),
+            "max_tokens": _first_int(
+                item.get("max_tokens"), item.get("max_output_tokens"),
+                item.get("output_token_limit")),
+        })
+    out.sort(key=lambda m: m["id"])
+    return out
 
 
 def _get_json(url: str, key: str = "", timeout: float = DOCTOR_TIMEOUT_S) -> dict:

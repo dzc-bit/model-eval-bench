@@ -160,22 +160,30 @@ def test_run_cmd_terminates_process_when_output_limit_is_reached(tmp_path):
 # ---------------------------------------------------------------- 密钥优先级
 
 def test_key_candidates_is_the_single_source_of_env_var_precedence():
-    """key → MODEL_<ID>_API_KEY → OPENAI_API_KEY，且只回变量名。
+    """<供应商 ID>_API_KEY → MODEL_<模型 ID>_API_KEY → OPENAI_API_KEY，且只回变量名。
 
     前端与 doctor 都从这里取顺序，不再各自复刻一遍。
+    2026-10-01 重构：档案自带的 key_env 字段已去掉——密钥现在有两条路
+    （本机密钥文件按供应商存 / 环境变量），再多一个自定义变量名字段
+    只会让人不知道该填哪个。供应商在前，因为同一中转站的多个模型共用一把密钥。
     """
-    assert chat.key_candidates({"id": "gpt-5", "protocol": "openai", "key_env": "TEAM_KEY"}) == [
-        "TEAM_KEY", "MODEL_GPT_5_API_KEY", "OPENAI_API_KEY"]
+    assert chat.key_candidates(
+        {"id": "hy4-preview", "provider_id": "cbcn", "protocol": "openai"}) == [
+        "CBCN_API_KEY", "MODEL_HY4_PREVIEW_API_KEY", "OPENAI_API_KEY"]
     # 非 openai 协议不该建议去读 OPENAI_API_KEY
-    assert chat.key_candidates({"id": "claude", "protocol": "anthropic"}) == ["MODEL_CLAUDE_API_KEY"]
-    # 非法变量名（有空格/以数字开头）直接丢弃，不会变成「查一个不存在的环境变量」
-    assert chat.key_candidates({"id": "claude-opus", "protocol": "openai", "key_env": "bad name"}) == [
-        "MODEL_CLAUDE_OPUS_API_KEY", "OPENAI_API_KEY"]
-    # key_env 与 OPENAI_API_KEY 重合时去重，保持首次出现顺序
-    assert chat.key_candidates({"id": "x", "protocol": "openai", "key_env": "OPENAI_API_KEY"}) == [
-        "OPENAI_API_KEY", "MODEL_X_API_KEY"]
-    # 旧字段名 api_key_env 仍然认（历史档案）
-    assert chat.key_candidates({"id": "y", "protocol": "openai", "api_key_env": "LEGACY_KEY"})[0] == "LEGACY_KEY"
+    assert chat.key_candidates(
+        {"id": "claude", "provider_id": "anthropic", "protocol": "anthropic"}) == [
+        "ANTHROPIC_API_KEY", "MODEL_CLAUDE_API_KEY"]
+    # 没有供应商时退化成只按模型 id 推（历史档案形态）
+    assert chat.key_candidates({"id": "legacy", "protocol": "anthropic"}) == ["MODEL_LEGACY_API_KEY"]
+    # 供应商 id 与模型 id 推成同一个变量名时去重，保持首次出现顺序
+    assert chat.key_candidates(
+        {"id": "same", "provider_id": "same", "protocol": "openai"}) == [
+        "SAME_API_KEY", "MODEL_SAME_API_KEY", "OPENAI_API_KEY"]
+    # 非法字符会被折成下划线，不会变成「查一个不存在的环境变量」
+    assert chat.key_candidates(
+        {"id": "x", "provider_id": "my relay", "protocol": "openai"}) == [
+        "MY_RELAY_API_KEY", "MODEL_X_API_KEY", "OPENAI_API_KEY"]
 
 
 def test_model_key_returns_first_candidate_with_a_value(monkeypatch):
@@ -183,27 +191,27 @@ def test_model_key_returns_first_candidate_with_a_value(monkeypatch):
     monkeypatch.setenv("TEAM_KEY", "   ")          # 只有空白视同没配
     monkeypatch.setenv("MODEL_DOC_API_KEY", DOCTOR_SECRET)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-lower-priority")
-    model = {"id": DOCTOR_ID, "protocol": "openai", "key_env": "TEAM_KEY"}
+    model = {"id": DOCTOR_ID, "provider_id": "TEAM", "protocol": "openai"}
 
     assert chat._model_key(model) == DOCTOR_SECRET
     assert chat.resolve_key(model) == ("MODEL_DOC_API_KEY", DOCTOR_SECRET)
     status = chat.key_status(model)
-    assert status == {"candidates": ["TEAM_KEY", "MODEL_DOC_API_KEY", "OPENAI_API_KEY"],
+    assert status == {"candidates": ["TEAM_API_KEY", "MODEL_DOC_API_KEY", "OPENAI_API_KEY"],
                       "effective": "MODEL_DOC_API_KEY", "present": True}
     # 只读诊断里绝不出现取值本身
     assert DOCTOR_SECRET not in json.dumps(status, ensure_ascii=False)
 
 
 def test_model_key_failure_names_variables_but_never_values(monkeypatch):
-    for name in ("TEAM_KEY", "MODEL_DOC_API_KEY", "OPENAI_API_KEY"):
+    for name in ("TEAM_API_KEY", "MODEL_DOC_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
-    model = {"id": DOCTOR_ID, "protocol": "openai", "key_env": "TEAM_KEY"}
+    model = {"id": DOCTOR_ID, "provider_id": "TEAM", "protocol": "openai"}
 
     with pytest.raises(errors.HarnessError) as caught:
         chat._model_key(model)
     assert caught.value.code == errors.E_MODEL_INVALID
     dumped = json.dumps([caught.value.message, caught.value.detail], ensure_ascii=False)
-    assert "TEAM_KEY" in dumped and "OPENAI_API_KEY" in dumped
+    assert "TEAM_API_KEY" in dumped and "OPENAI_API_KEY" in dumped
     assert "sk-" not in dumped
 
 

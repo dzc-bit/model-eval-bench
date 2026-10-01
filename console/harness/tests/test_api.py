@@ -344,23 +344,30 @@ def test_model_crud_roundtrip(cfg, monkeypatch, tmp_path):
     shadow = tmp_path / "config.json"
     shadow.write_bytes(original)
     isolated_config = util.read_json(str(shadow), default={})
+    # 两套结构都要清空：providers 是编辑用的嵌套结构，models 是展开后的扁平视图。
+    # 只清一个的话，影子配置里还留着真实环境的供应商，用例就测不到「从零新建」。
     isolated_config["models"] = []
+    isolated_config["providers"] = []
     util.write_json_atomic(str(shadow), isolated_config)
     monkeypatch.setattr(server.config, "CONFIG_PATH", str(shadow))
 
     def loader():
         fresh = server.config.load()          # 读影子 config.json
         for key, value in cfg.items():        # 路径仍指临时工作区
-            if key not in ("models",):
+            if key not in ("models", "providers"):
                 fresh[key] = value
         return fresh
 
     httpd, port, thread = _serve(monkeypatch, loader)
     live = _client(port)
     try:
-        status, body, _ = live("/api/models", method="POST",
+        # 2026-10-01 起模型配置是「供应商 → 模型清单」两层结构。
+        # /api/models 仍保留为展开后的扁平视图（工作台下拉用它），
+        # 写接口走 /api/providers。
+        status, body, _ = live("/api/providers", method="POST",
                                body={"id": "gpt-x", "protocol": "openai",
-                                     "base_url": "http://127.0.0.1:1/v1", "model": "gpt-x",
+                                     "base_url": "http://127.0.0.1:1/v1",
+                                     "models": [{"id": "gpt-x", "context_window": 128000}],
                                      "key_masked": "sk-****1234",
                                      "api_key": "sk-test-secret-1234567890",
                                      "api_mode": "responses"})
@@ -370,28 +377,33 @@ def test_model_crud_roundtrip(cfg, monkeypatch, tmp_path):
         # 粘贴密钥 → 返回脱敏值；明文只进密钥文件，config.json 不落明文
         assert as_json(body)["key_masked"] == "sk-t****7890"
         saved = util.read_json(str(shadow))
-        assert saved["models"][0]["key_masked"] == "sk-t****7890"
+        assert saved["providers"][0]["key_masked"] == "sk-t****7890"
         assert "sk-test-secret-1234567890" not in json.dumps(saved, ensure_ascii=False)
         keys_file = tmp_path / "keys.local.json"
         assert "sk-test-secret-1234567890" in keys_file.read_text(encoding="utf-8")
         assert keyring.path() == str(keys_file)
 
+        # 扁平视图：模型带上了所属供应商与容量
         _status, body, _ = live("/api/models")
-        assert [m["id"] for m in as_json(body)["models"]] == ["gpt-x"]
-        assert as_json(body)["models"][0]["api_mode"] == "responses"
+        flat = as_json(body)["models"]
+        assert [m["id"] for m in flat] == ["gpt-x"]
+        assert flat[0]["provider_id"] == "gpt-x"
+        assert flat[0]["context_window"] == 128000
+        # 没填输出上限 → 继承供应商兜底
+        assert flat[0]["max_tokens"] == 32768
         assert "sk-test-secret-1234567890" not in json.dumps(as_json(body), ensure_ascii=False)
 
-        status, _body, _ = live("/api/models?id=gpt-x", method="DELETE")
+        status, _body, _ = live("/api/providers?id=gpt-x", method="DELETE")
         assert status == 200
         _status, body, _ = live("/api/models")
         assert as_json(body)["models"] == []
-        # 删除档案时密钥一并清掉
+        # 删除供应商时密钥一并清掉
         assert "gpt-x" not in keyring.load()
 
         # 真实配置一个字节都没动
         with open(real_config, "rb") as fh:
             assert fh.read() == original, "接口不该写真实的 config.json"
-        assert util.read_json(str(shadow))["models"] == []
+        assert util.read_json(str(shadow))["providers"] == []
     finally:
         _stop(httpd, thread)
 
@@ -445,13 +457,16 @@ def test_legacy_model_gets_chat_completions_default(cfg, monkeypatch, tmp_path):
     shadow.write_bytes(original)
     monkeypatch.setattr(server.config, "CONFIG_PATH", str(shadow))
     raw = util.read_json(str(shadow), default={})
+    # 用老的平铺 models 结构（这是本用例要验的东西），并清掉 providers——
+    # 两者并存时 resolve_providers 优先读 providers，用例就测不到迁移路径了。
     raw["models"] = [{"id": "old", "protocol": "openai", "base_url": "", "model": "old"}]
+    raw.pop("providers", None)
     util.write_json_atomic(str(shadow), raw)
 
     def loader():
         fresh = server.config.load()
         for key, value in cfg.items():
-            if key != "models":
+            if key not in ("models", "providers"):
                 fresh[key] = value
         return fresh
 
