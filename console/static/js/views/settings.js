@@ -24,7 +24,6 @@ import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { createDetailsCard } from '../components/details-card.js';
 import { createButton } from '../components/button.js';
-import { createField } from '../components/field.js';
 import { createStatusDot } from '../components/status-dot.js';
 import { confirmDialog } from '../components/confirm-dialog.js';
 import { showToast } from '../components/toast.js';
@@ -53,29 +52,60 @@ export function createSettings(props = {}) {
   // ---- 偏好区 ----
   // 主题：跟随系统 / 浅色 / 深色。写入 localStorage('theme') 并即时切 data-theme。
   const savedTheme = (() => { try { return localStorage.getItem('theme') || ''; } catch { return ''; } })();
-  const themeField = createField({
-    label: S.SETTINGS_PREF_THEME,
-    name: 'settings-theme',
-    type: 'select',
-    hint: S.SETTINGS_PREF_THEME_HINT,
-    options: [
-      { value: '', label: S.SETTINGS_THEME_SYSTEM },
-      { value: 'light', label: S.SETTINGS_THEME_LIGHT },
-      { value: 'dark', label: S.SETTINGS_THEME_DARK },
-    ],
-    onChange: (value) => {
-      try {
-        if (value) localStorage.setItem('theme', value);
-        else localStorage.removeItem('theme');
-      } catch { /* 存储不可用：仅本次生效 */ }
-      // 「跟随系统」= 没有显式偏好：解析成具体主题，而不是删掉属性指望 CSS 媒体查询
-      const resolved = value
-        || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
-      document.documentElement.dataset.theme = resolved;
-      announce(value ? S.SETTINGS_PREF_THEME + '：' + value : S.SETTINGS_THEME_SYSTEM);
-    },
+  // 主题用分段控件（三选一），不用下拉：选项少、互斥、且"当前是哪个"
+  // 必须一眼看见——原生 select 在深色主题下是系统绘制的浅色面板，
+  // 突兀且看不出当前值。
+  const THEME_OPTIONS = [
+    { value: '', label: S.SETTINGS_THEME_SYSTEM, hint: '跟随系统' },
+    { value: 'light', label: S.SETTINGS_THEME_LIGHT, hint: '印纸' },
+    { value: 'dark', label: S.SETTINGS_THEME_DARK, hint: '夜纸' },
+  ];
+  const themeChips = el('div', { class: 'settings__chips', role: 'radiogroup', 'aria-label': S.SETTINGS_PREF_THEME });
+  const themeInputs = new Map();
+
+  function applyTheme(value) {
+    try {
+      if (value) localStorage.setItem('theme', value);
+      else localStorage.removeItem('theme');
+    } catch { /* 存储不可用：仅本次生效 */ }
+    // 「跟随系统」= 没有显式偏好：解析成具体主题，而不是删掉属性指望 CSS 媒体查询
+    const resolved = value
+      || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+    document.documentElement.dataset.theme = resolved;
+    themeInputs.forEach((input, v) => { input.checked = v === value; });
+    announce(value ? `${S.SETTINGS_PREF_THEME}：${value}` : S.SETTINGS_THEME_SYSTEM);
+  }
+
+  THEME_OPTIONS.forEach((opt) => {
+    const id = `theme-${opt.value || 'system'}`;
+    const input = el('input', {
+      type: 'radio',
+      id,
+      name: 'settings-theme',
+      class: 'settings__chip-input',
+      value: opt.value,
+      checked: opt.value === savedTheme,
+    });
+    input.addEventListener('change', () => { if (input.checked) applyTheme(opt.value); });
+    themeInputs.set(opt.value, input);
+    themeChips.appendChild(
+      el('label', { class: 'settings__chip', for: id },
+        input,
+        el('span', { class: 'settings__chip-face' }, opt.label),
+      ),
+    );
   });
-  themeField.setValue(savedTheme);
+
+  // 主题这一行的容器：标签 + 人话说明 + 分段控件
+  const themeRow = el(
+    'div',
+    { class: 'settings__row' },
+    el('div', { class: 'settings__row-main' },
+      el('span', { class: 'settings__row-label' }, S.SETTINGS_PREF_THEME),
+      el('span', { class: 'settings__row-hint' }, '改完立即生效，只影响这台机器的这个浏览器。'),
+    ),
+    themeChips,
+  );
 
   const logToggle = makeToggle(S.SETTINGS_PREF_LOG, S.SETTINGS_PREF_LOG_HINT, 'autoExpandLog');
   const confirmToggle = makeToggle(S.SETTINGS_PREF_CONFIRM, S.SETTINGS_PREF_CONFIRM_HINT, 'confirmDestructive');
@@ -106,7 +136,9 @@ export function createSettings(props = {}) {
     'section',
     { class: 'panel' },
     el('h2', { class: 'panel__title' }, S.SETTINGS_PREF_TITLE),
-    el('div', { class: 'panel__body' }, themeField.el, guideToggle.el, logToggle.el, confirmToggle.el, statsToggle.el),
+    el('p', { class: 'panel__desc' }, '这些偏好只保存在这台机器的浏览器里，换台电脑或清掉浏览器数据就回到默认。'),
+    el('div', { class: 'panel__body settings__rows' },
+      themeRow, guideToggle.el, logToggle.el, confirmToggle.el, statsToggle.el),
   );
 
   // ---- 本机数据区 ----
@@ -121,18 +153,30 @@ export function createSettings(props = {}) {
   });
   const selfcheckHost = el('div', { class: 'u-stack' });
 
+  // 本机数据：两个独立动作，各自说清「动了什么、不动什么」。
+  // 旧版把它们塞进同一张卡、说明文字串在一起，读起来不知道哪个按钮对应哪段话。
   const dataPanel = el(
     'section',
-    { class: 'panel' },
+    { class: 'panel settings__panel--data' },
     el('h2', { class: 'panel__title' }, S.SETTINGS_DATA_TITLE),
-    el('p', { class: 'u-faint' }, S.SETTINGS_DATA_DESC),
-    el('div', { class: 'panel__body' },
-      el('div', { class: 'u-row' }, clearBtn.el),
-      el('div', { class: 'u-stack' },
-        el('p', { class: 'u-faint' }, S.SETTINGS_SELFTEST_HINT),
-        el('div', { class: 'u-row' }, selfcheckBtn.el),
-        selfcheckHost,
+    el('p', { class: 'panel__desc' }, S.SETTINGS_DATA_DESC),
+    el('div', { class: 'panel__body settings__actions' },
+      el('div', { class: 'settings__action' },
+        el('div', { class: 'settings__action-head' },
+          el('h3', { class: 'settings__action-title' }, S.SETTINGS_CLEAR),
+          el('p', { class: 'settings__action-hint' },
+            '清掉上次停留的任务、轮次与各面板滚动位置，回到初始状态。'),
+        ),
+        clearBtn.el,
       ),
+      el('div', { class: 'settings__action' },
+        el('div', { class: 'settings__action-head' },
+          el('h3', { class: 'settings__action-title' }, S.SETTINGS_SELFTEST),
+          el('p', { class: 'settings__action-hint' }, S.SETTINGS_SELFTEST_HINT),
+        ),
+        selfcheckBtn.el,
+      ),
+      selfcheckHost,
     ),
   );
 
@@ -159,12 +203,23 @@ export function createSettings(props = {}) {
    * @param {string} key
    * @returns {{el: HTMLElement, update: Function}}
    */
+  /**
+   * 造一个偏好开关。
+   *
+   * 布局：左边「标签 + 说明」两行，右边开关——说明是给"不知道这是什么意思"的人
+   * 看的，必须贴着标签；写成一行小字挤在勾选框后面，读起来像附注而不是解释。
+   * 开关本身用视觉化的 track + knob，不用原生 checkbox：原生方框在深色主题下
+   * 是系统绘制的浅色块，和周围控件不是一套语言。
+   *
+   * @param {string} label 这一项叫什么（一行话）
+   * @param {string} hint 它到底做什么（人话，不出现术语）
+   * @param {string} key prefs 里的键
+   * @returns {{el: HTMLElement, update: Function}}
+   */
   function makeToggle(label, hint, key) {
     const id = `pref-${key}`;
-    const input = el('input', { type: 'checkbox', id, class: 'field__control' });
+    const input = el('input', { type: 'checkbox', id, class: 'settings__switch-input' });
     input.checked = Boolean(prefs[key]);
-    input.style.minHeight = 'auto';
-    input.style.width = 'auto';
     input.addEventListener('change', () => {
       prefs = { ...prefs, [key]: input.checked };
       storage.set('prefs', prefs);
@@ -172,9 +227,13 @@ export function createSettings(props = {}) {
     });
     const wrap = el(
       'div',
-      { class: 'field' },
-      el('label', { class: 'field__label', for: id }, label),
-      el('div', { class: 'u-row-tight' }, input, el('span', { class: 'u-faint' }, hint)),
+      { class: 'settings__row' },
+      el('label', { class: 'settings__row-main', for: id },
+        el('span', { class: 'settings__row-label' }, label),
+        hint ? el('span', { class: 'settings__row-hint' }, hint) : null,
+      ),
+      el('span', { class: 'settings__switch' }, input,
+        el('span', { class: 'settings__switch-track', 'aria-hidden': 'true' })),
     );
     return {
       el: wrap,
@@ -281,9 +340,13 @@ export function createSettings(props = {}) {
    * 拉环境自检。
    */
   async function loadHealth() {
-    healthLoading = true;
+    // 已经有数据时静默刷新：先清空再画骨架屏会让每次进设置页都闪一下白块，
+    // 而 /health 在服务端有 10 秒缓存、通常毫秒级返回——骨架屏比数据活得还短，
+    // 读起来就是「页面抽了一下」。只有首次加载（还没有数据）才显示骨架屏。
+    const firstLoad = !health;
+    healthLoading = firstLoad;
     healthError = null;
-    renderHealth();
+    if (firstLoad) renderHealth();
     try {
       health = await api.get('/health', { scope });
       healthLoading = false;

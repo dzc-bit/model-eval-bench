@@ -6,6 +6,16 @@
    ========================================================================== */
 
 /* ============================ 外壳与导航 ============================ */
+/* 侧栏的对齐栅格：所有"内容左缘"落在同一条竖线上。
+   之前品牌图标在 24、分组标题在 12、导航图标在 24、底部文字在 38——
+   四条线各走各的，读起来就是"没对齐、怪怪的"。
+   基准取 24px：品牌图标与导航图标都在这条线上，分组标题也归到它。 */
+.app-shell,
+.app-header {
+  --sidebar-gutter: 12px;          /* 容器内边距 */
+  --sidebar-inset: 24px;           /* 内容左缘（含导航项自身 padding） */
+}
+
 /* 侧栏骨架照 claude.ai 的分区：品牌 → 主操作 → 可滚动导航 → 贴底信息。
    四段各自独立，靠留白与一条 hairline 分层，不用卡片框、不用阴影。 */
 .app-header {
@@ -118,7 +128,11 @@
 
 /* 分组标题：小字号疏排、弱色，与链接文字左对齐 */
 .app-nav__group {
-  padding: var(--space-0) var(--space-3);
+  /* 左内边距只补到 --sidebar-inset 与容器 gutter 的差值：
+     导航容器已经留了 12，这里再补 12 → 文字落在 24，
+     与下面的导航图标、品牌图标、底部图标同一条竖线。 */
+  padding: var(--space-0) var(--space-3)
+           var(--space-0) calc(var(--sidebar-inset) - var(--sidebar-gutter));
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
@@ -190,7 +204,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  /* 左内边距 = --sidebar-inset：底部图标与上面的导航图标对齐 */
+  padding: var(--space-3) var(--sidebar-gutter) var(--space-4) var(--sidebar-inset);
   border-top: var(--border-width) solid var(--color-border);
   color: var(--color-text-faint);
 }
@@ -199,6 +214,7 @@
   opacity: 0.8;
 }
 .app-header__foot-text {
+  line-height: var(--line-height-snug);
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
@@ -712,6 +728,194 @@ html.keyboard-nav .view__head h1:focus {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--space-4);
   align-items: start;
+}
+
+/* 面板说明：与标题同组（不再是裸的 u-faint），字号小一档、色弱一档 */
+.settings__grid .panel__desc,
+.settings__panel--data .panel__desc {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- 偏好项：左边「标签 + 说明」两行，右边控件 ---------- */
+.settings__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.settings__row:last-child {
+  border-bottom: none;
+}
+.settings__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  cursor: pointer;
+}
+.settings__row-label {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  line-height: var(--line-height-snug);
+}
+.settings__row-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  max-width: 46ch;
+}
+
+/* ---------- 开关：自绘 track + knob，不用原生 checkbox ---------- */
+.settings__switch {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+/* 真 input 保留在 DOM 里（键盘可达、可读屏），视觉上藏起来由 track 代表 */
+.settings__switch-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.settings__switch-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-surface-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  transition: var(--transition-base);
+}
+.settings__switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-text-faint);
+  transition: var(--transition-base);
+}
+.settings__switch-input:checked + .settings__switch-track {
+  background: var(--color-accent-fill);
+  border-color: var(--color-accent-fill);
+}
+.settings__switch-input:checked + .settings__switch-track::after {
+  left: calc(100% - 18px);
+  background: var(--color-accent-fill-text);
+}
+/* 焦点环画在 track 上（input 是透明的，画了也看不见） */
+.settings__switch-input:focus-visible + .settings__switch-track {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ---------- 主题分段控件 ---------- */
+.settings__chips {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+.settings__chip {
+  position: relative;
+  cursor: pointer;
+}
+.settings__chip-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.settings__chip-face {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  transition: var(--transition-base);
+  white-space: nowrap;
+}
+.settings__chip:hover .settings__chip-face {
+  color: var(--color-text);
+}
+.settings__chip-input:checked + .settings__chip-face {
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-xs);
+}
+.settings__chip-input:focus-visible + .settings__chip-face {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* ---------- 本机数据：一个动作一行，各自带说明 ---------- */
+.settings__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.settings__action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.settings__action:last-of-type {
+  border-bottom: none;
+}
+.settings__action-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.settings__action-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+.settings__action-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  max-width: 52ch;
+}
+
+@media (max-width: 640px) {
+  .settings__row,
+  .settings__action {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .kv {
