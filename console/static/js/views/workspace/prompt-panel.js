@@ -30,9 +30,13 @@ import { createDetailsCard } from '../../components/details-card.js';
 /** 本轮改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
   CARD_TITLE: '任务与提示词',
+  // 说明行：说清"这一步你要做什么"（规格 §2.1）
+  DESC: '题目背景与分级提示词。不知道从哪下手就用第 1 级。',
   SEND_TO_CHAT: '发送到对话',
   EXPAND_BODY: '展开查看',
   COLLAPSE_BODY: '收起正文',
+  // 卡头摘要：只有动态事实（第几级 + 多少字），不复述卡内的提示词小标题。
+  ASIDE_LEVEL: '第 {n} 级 · {chars} 字',
   CHARS: '· {n} 字',
   EXTERNAL_HINT: '复制提示词，到模型官网的对话里粘贴使用；回来后把改动同步进沙箱即可。',
   NO_PROMPT: '这一轮还没有可用的提示词。',
@@ -171,6 +175,8 @@ export function createPromptPanel(handlers) {
   });
 
   // ---- 卡片骨架：details/summary，卡头即折叠开关 ----
+  // 卡头（规格 §3.4）第 1 行 = 标题 …… 第 n 级 · 953 字 ›，
+  //                 第 2 行 = 说明行（整行铺开，收起时也读得到这张卡在做什么）。
   const title = el('h2', { class: 'ws-card__title' }, T.CARD_TITLE);
   const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' });
   const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
@@ -178,7 +184,15 @@ export function createPromptPanel(handlers) {
   const root = el(
     'details',
     { class: 'ws-card ws-region', id: 'ws-region-prompt' },
-    el('summary', { class: 'ws-card__summary' }, title, cardAside, el('span', { class: 'u-spacer' }), chevron),
+    el(
+      'summary',
+      { class: 'ws-card__summary' },
+      title,
+      el('span', { class: 'u-spacer' }),
+      cardAside,
+      chevron,
+      el('p', { class: 'ws-card__desc' }, T.DESC),
+    ),
     cardBody,
   );
 
@@ -279,13 +293,15 @@ export function createPromptPanel(handlers) {
       externalCopyBtn.update({ getText: composeAll });
     }
 
-    // 卡头摘要行：收起时也能读到当前轮与字数
-    if (current.error) setText(cardAside, S.ERR_LOAD);
-    else if (current.loading) setText(cardAside, S.STATE_LOADING);
+    // 卡头摘要（收起时也读得到）：只放**动态事实** —— 当前第几级、多少字。
+    // 不再重复"第 n 级提示词（症状级）"这个本卡内小标题（那属于卡内 .ws-prompt-row__title），
+    // 同一句话在卡头与卡身各说一遍正是用户说的"信息重复"（规格 §2.2）。
+    if (current.error) setText(cardAside, '');
+    else if (current.loading) setText(cardAside, '');
     else if (!current.run || !current.task) setText(cardAside, T.NO_SANDBOX_ASIDE);
     else {
       const text = bodyText();
-      setText(cardAside, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_PROMPT);
+      setText(cardAside, text ? t(T.ASIDE_LEVEL, { n: current.round, chars: text.length }) : T.NO_PROMPT);
     }
 
     clear(cardBody);

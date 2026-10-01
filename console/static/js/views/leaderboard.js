@@ -96,34 +96,28 @@ export function createLeaderboard(props = {}) {
       return;
     }
 
+    // 题目选择做成紧凑的选择行，而不是 12 张大卡：排行榜的主角是**排名**，
+    // 题目只是前置条件。之前把任务卡铺满首屏，主次颠倒了——用户反馈
+    // 「排行榜跟首页一样」，就是这个原因。
     const list = el('ul', { class: 'leaderboard__task-list' });
     tasks.forEach((task) => {
       const meta = taskMeta(task);
-      const openBtn = createButton({
-        label: S.LEADERBOARD_OPEN,
-        variant: 'primary',
-        size: 'sm',
-        onClick: () => navigate && navigate('leaderboard', { taskId: task.id }),
-      });
-      pickerButtons.push(openBtn);
-      list.appendChild(
-        el(
-          'li',
-          { class: 'leaderboard__task-row' },
-          el(
-            'div',
-            { class: 'leaderboard__task-main' },
-            el('span', { class: 'leaderboard__task-id' }, task.id),
-            tierBadge(task.tier, {}).el,
-            el('h3', {}, task.title || task.id),
-            el('p', { class: 'leaderboard__task-symptom' }, task.symptom || task.summary || ''),
-            meta
-              ? el('span', { class: 'u-faint' }, t(S.LEADERBOARD_TASK_META, meta))
-              : null,
-          ),
-          openBtn.el,
-        ),
+      const row = el(
+        'button',
+        {
+          type: 'button',
+          class: 'leaderboard__task-chip',
+          'aria-label': `${task.id}　${task.title || task.id}`,
+        },
+        el('span', { class: 'leaderboard__task-chip-id' }, task.id),
+        tierBadge(task.tier, {}).el,
+        el('span', { class: 'leaderboard__task-chip-title' }, task.title || task.id),
+        meta ? el('span', { class: 'leaderboard__task-chip-meta u-faint' }, t(S.LEADERBOARD_TASK_META, meta)) : null,
+        el('span', { class: 'leaderboard__task-chip-go', 'aria-hidden': 'true' }, '→'),
       );
+      row.addEventListener('click', () => navigate && navigate('leaderboard', { taskId: task.id }));
+      pickerButtons.push({ el: row, destroy: () => {} });
+      list.appendChild(el('li', {}, row));
     });
     pickerHost.appendChild(list);
   }

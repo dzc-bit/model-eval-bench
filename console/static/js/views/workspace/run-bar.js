@@ -19,9 +19,12 @@ import { S } from '../../core/strings.js';
 import { createField } from '../../components/field.js';
 import { createButton } from '../../components/button.js';
 
-/** 本卡新增文案。 */
+/** 本卡新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
-  ASIDE: '只保存在本机',
+  // 说明行：说清"这一步你要做什么"（规格 §2.1）。
+  // 旧摘要写「只保存在本机」，与说明行同义——同一句在标题旁说两遍（规格 §2.2），
+  // 现在只保留说明行一处。
+  DESC: '给这一轮记句话，只存在本机。',
 };
 
 /**
@@ -63,12 +66,20 @@ export function createRunBar(handlers) {
   );
 
   const title = el('h2', { class: 'ws-card__title', id: 'ws-run-title' }, S.RUN_NOTES_LABEL);
-  const cardAside = el('span', { class: 'ws-card__aside u-faint' }, T.ASIDE);
   const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
+  // 卡头两行（规格 §2.1）：标题 …… ›，下面是说明行。
+  // 「只存在本机」由说明行说一次即可，卡头摘要留空（规格 §2.2）。
   const root = el(
     'details',
     { class: 'ws-card ws-region ws-region--run', id: 'ws-region-run' },
-    el('summary', { class: 'ws-card__summary' }, title, el('span', { class: 'u-spacer' }), cardAside, chevron),
+    el(
+      'summary',
+      { class: 'ws-card__summary' },
+      title,
+      el('span', { class: 'u-spacer' }),
+      chevron,
+      el('p', { class: 'ws-card__desc' }, T.DESC),
+    ),
     body,
   );
 

@@ -236,12 +236,24 @@ export function restoreFocus(fallback) {
 export function focusHeading(heading) {
   if (!(heading instanceof HTMLElement)) return;
   if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+  // 打一个「这是程序移焦」的标记，让 CSS 知道这次不该画焦点环。
+  //
+  // 为什么不能只靠 :focus-visible：浏览器对脚本 focus() 的判定不一致——
+  // Chromium 对 h1[tabindex="-1"] 这类「不可编辑的聚焦元素」会判成
+  // :focus-visible，于是切页那一刻画出一圈蓝框。键盘导航标记（html.keyboard-nav）
+  // 也挡不住：用户只要按过一次键盘，之后每次切页都会画。
+  // 显式标记 + 下一帧移除，是唯一与浏览器实现无关的做法。
+  heading.setAttribute('data-focus-programmatic', '');
+  const clear = () => heading.removeAttribute('data-focus-programmatic');
   try {
     // preventScroll 已经挡住浏览器为聚焦而做的自动滚动；这里不再主动滚。
     heading.focus({ preventScroll: true });
   } catch {
     heading.focus();
   }
+  // 下一帧就摘掉：真键盘焦点进来时（Tab）仍会正常画环。
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(clear);
+  else setTimeout(clear, 0);
 }
 
 /** 可能钉在视口顶部、挡住滚动目标的条状节点（选择器，按出现顺序找）。 */

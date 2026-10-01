@@ -37,6 +37,22 @@ import { percent } from '../../core/format.js';
 /** 沙箱可校验的服务端状态。 */
 const SANDBOX_OK = new Set(['ready', 'graded']);
 
+/** 本卡新增文案（strings.js 冻结，新增一律走本地常量）。 */
+const T = {
+  // 说明行（规格 §2.1 / §3.2）：说清"这步做什么 + 耗时 + 可重复"。
+  // 旧文案只说"校验只看沙箱里当前的代码"，用户看完仍不知道这步产出什么。
+  DESC: '跑一遍隐藏测试，给这一轮打分。约 1-5 分钟，可反复跑。',
+  // 空态补一句"从哪开始"（规格 §3.2）：旧空态只说"还没有跑过校验"，
+  // 等于把"这步做什么"的问题原样丢回给用户。这里说清入口与产出。
+  EMPTY_DESC: '在对话里让模型改完代码后点上面的按钮。跑完这里会给出通过几组、得分与失败明细。',
+  // 结果区编号化（规格 §3.2）：通过几组/共几组、得分、失败明细。
+  RESULT_PASSED: '✓ 通过 {pass}/{total} 组',
+  RESULT_SCORE: '得分 {score}',
+  RESULT_FAILED: '失败 {n} 组（点击展开看失败用例）',
+  RESULT_ALL_PASSED: '全部通过，没有失败用例',
+  RESULT_FORM: '得分组成',
+};
+
 /**
  * 创建校验卡。
  * @param {{
@@ -59,9 +75,12 @@ export function createGradePanel(handlers) {
   let lastRunning = null;
 
   // ---- 卡片骨架：默认展开（结果是工作台的主出口） ----
+  // 卡头两行（规格 §3.2）：第 1 行 = 校验 …… [上次 85 分] ›，
+  //                        第 2 行 = 说明行（整行铺开："这步做什么 + 多久 + 可重复"）。
   const title = el('h2', { class: 'ws-card__title', id: 'ws-grade-title' }, S.GRADE_TITLE);
-  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' }, S.GRADE_EMPTY);
+  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' });
   const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
+  const gradeDesc = el('p', { class: 'ws-card__desc ws-grade-desc' }, T.DESC);
   const summary = el(
     'summary',
     { class: 'ws-card__summary' },
@@ -69,6 +88,7 @@ export function createGradePanel(handlers) {
     el('span', { class: 'u-spacer' }),
     cardAside,
     chevron,
+    gradeDesc,
   );
   const bodyHost = el('div', { class: 'ws-card__body' });
   const root = el(
@@ -77,8 +97,6 @@ export function createGradePanel(handlers) {
     summary,
     bodyHost,
   );
-
-  const gradeDesc = el('p', { class: 'u-faint ws-grade-desc' }, S.GRADE_DESC);
 
   // ---- 动作 ----
   const gradeBtn = createButton({
@@ -112,7 +130,7 @@ export function createGradePanel(handlers) {
     reason: S.GRADE_EMPTY,
     onClick: () => handlers.onExport(),
   });
-  const actionRow = el('div', { class: 'u-row ws-grade__actions' }, gradeBtn.el, el('span', { class: 'u-spacer' }), revealBtn.el, exportBtn.el);
+  const actionRow = el('div', { class: 'u-row ws-grade__actions' }, gradeBtn.el, revealBtn.el, exportBtn.el);
 
   // ---- 进度与日志 ----
   const progress = createProgress({ label: S.PROGRESS_IDLE, state: 'idle' });
@@ -128,10 +146,16 @@ export function createGradePanel(handlers) {
   const groupList = el('ul', { class: 'grade__groups' });
   const newFlag = el('span', { class: 'grade__new-flag' }, `● ${S.GRADE_NEW_RESULT}`);
 
+  // 结果区顶部的「编号化」一行（规格 §3.2）：通过几组/共几组 · 得分 · 失败几组。
+  // 旧版把这三个数字摊在横幅三个角上，读者要自己拼；这里合成一句可扫读的结论。
+  const countLine = el('p', { class: 'grade__count' });
+  const failLine = el('p', { class: 'grade__fail-line' });
+
   const emptyState = createEmptyState({
     icon: 'chart',
     title: S.GRADE_EMPTY,
-    desc: S.GRADE_EMPTY_DESC,
+    // 空态不再只写"还没有跑过校验"，补一句"从哪开始 + 跑完给什么"（规格 §3.2）。
+    desc: T.EMPTY_DESC,
     // 原先标签写「沙箱」而动作跳提示词区，标签和动作对不上；改版后主流程在对话卡，
     // 空态直接引导去内置对话，且用 ghost 不与 [运行校验] 抢强调位。
     actions: [createButton({ label: S.GRADE_EMPTY_ACTION, variant: 'ghost', onClick: () => handlers.onGoChat() }).el],
@@ -407,7 +431,11 @@ export function createGradePanel(handlers) {
   }
 
   /**
-   * 渲染结果区：横幅（总分 + 概要 + 进入下一轮）→ 分组明细 → 其余诊断折叠块。
+   * 渲染结果区（规格 §3.2 的结构）：
+   *   横幅（结果标记 + 编号化结论：通过几组/共几组 · 得分）
+   *   → 失败几组（引导展开明细）
+   *   → [进入下一轮]
+   *   → 分组明细 + 其余诊断折叠块
    * @param {object} report
    * @param {{canPromote: boolean, next: number, exhausted: boolean}} promote
    * @param {boolean} running
@@ -418,6 +446,8 @@ export function createGradePanel(handlers) {
     const groups = report.groups || [];
     const sum = report.summary || {};
     const green = typeof sum.green === 'number' ? sum.green : groups.filter((g) => g.passed).length;
+    const total = groups.length;
+    const redCount = Math.max(0, total - green);
 
     // 一句话结论（部分分 / 作废 / 全过）
     const summaryText = report.invalidated
@@ -426,7 +456,7 @@ export function createGradePanel(handlers) {
         ? S.GRADE_DONE_VOID
         : report.passed
           ? S.GRADE_DONE_PASS
-          : t(S.GRADE_DONE_PARTIAL, { n: report.score || 0, m: groups.length - green });
+          : t(S.GRADE_DONE_PARTIAL, { n: report.score || 0, m: redCount });
 
     // 结果标记：对勾 / 叉 / 半环，带描边动画（形状 + 文字，颜色不是唯一信号）
     const mark = createResultMark({
@@ -437,6 +467,13 @@ export function createGradePanel(handlers) {
       title: `${S.GRADE_SCORE_LABEL}：${percent((report.score || 0) / 100)}`,
     });
 
+    // 编号化结论：通过几组/共几组 · 得分（规格 §3.2）。
+    // 旧版把这两个数字摊在横幅三个角落里，读者要自己拼；这里合成一句可扫读的结论。
+    setText(countLine, `${t(T.RESULT_PASSED, { pass: green, total })} · ${t(T.RESULT_SCORE, { score: percent((report.score || 0) / 100) })}`);
+    // 失败明细的入口说明：全过时说"没有失败用例"，有红组时指路下面的展开区。
+    setText(failLine, redCount ? t(T.RESULT_FAILED, { n: redCount }) : T.RESULT_ALL_PASSED);
+    failLine.dataset.tone = redCount ? 'fail' : 'pass';
+
     // 结果横幅：通过=绿 tint，未过/作废=红 tint（第一眼必须是它，§一.③）
     const banner = el(
       'div',
@@ -444,15 +481,9 @@ export function createGradePanel(handlers) {
       mark.el,
       el(
         'div',
-        { class: 'u-stack ws-grade-banner__score-wrap' },
-        el('span', { class: 'u-faint' }, S.GRADE_SCORE_LABEL),
-        el('span', { class: 'ws-grade-banner__score' }, percent((report.score || 0) / 100)),
-      ),
-      el(
-        'div',
         { class: 'u-stack ws-grade-banner__summary' },
-        el('span', { class: 'u-faint' }, S.GRADE_RESULT_TITLE),
-        el('span', {}, t(S.GRADE_GROUP_SUMMARY, { pass: green, total: groups.length })),
+        countLine,
+        failLine,
       ),
       el('span', { class: 'u-spacer' }),
       current.newResult ? newFlag : null,
@@ -474,7 +505,14 @@ export function createGradePanel(handlers) {
     // 分组明细（key 化复用；refreshGroup 让重跑后从红转绿的组当场改结论，
     // 只建不刷会让分数已更新、卡片还写着失败）
     patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), refreshGroup);
-    resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
+    resultHost.appendChild(
+      el(
+        'div',
+        { class: 'grade__section' },
+        el('h3', { class: 'section-title' }, `${S.GRADE_RESULT_TITLE}（${t(T.RESULT_PASSED, { pass: green, total })}）`),
+        groupList,
+      ),
+    );
 
     // 回归
     const p2pOk = !report.p2p_broken;
@@ -605,7 +643,7 @@ export function createGradePanel(handlers) {
     }
     if (current.error) {
       root.open = true; // 错误不能藏在收起的卡里
-      setText(cardAside, S.ERR_LOAD);
+      cardAside.textContent = ''; // "读取失败"由卡内错误态说，卡头不复述
       bodyHost.appendChild(
         createEmptyState({
           title: S.ERR_LOAD,
@@ -627,18 +665,19 @@ export function createGradePanel(handlers) {
     const sandboxOk = hasRun && SANDBOX_OK.has(run.status);
     const hasReport = Boolean(report);
 
-    // 卡头摘要行：跑完显示分数，进行中显示状态；空态留空——空态说明就在卡里，
-    // 卡头再重复一遍只会让折叠标题变吵。
+    // 卡头摘要只放**动态变化的事实**（规格 §2.2）：跑完报得分，正在跑报"正在校验"，
+    // 空态留空——"还没有跑过校验"由卡内空态说明，"校验"两个字标题里已经有了。
     setText(
       cardAside,
       running
         ? S.GRADE_RUNNING
         : hasReport
-          ? percent((report.score || 0) / 100)
+          ? `${S.GRADE_SCORE_LABEL} ${percent((report.score || 0) / 100)}`
           : '',
     );
 
-    // 动作区
+    // 动作区（规格 §3.2）：一条动作行 —— [运行校验 G](primary) [查看参考解](ghost) [导出报告]。
+    // 「进入下一轮」不放这里：它是"看完结果之后的下一步"，归结果区底部。
     // 运行校验的可用性：必须沙箱就绪、服务端没有还在跑的对话线程，
     // 而且模型真的动过手——刚建好沙箱就点校验，只会按「未改动」判 0，白烧一次机会。
     const chatBusy = Boolean(run && run.chat_busy);
@@ -652,28 +691,22 @@ export function createGradePanel(handlers) {
     const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
     const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
     const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
-    if (canPromote) {
-      promoteBtn.update({
-        label: t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
-        disabled: running || Boolean(busy),
-      });
-      actionRow.appendChild(promoteBtn.el);
-    }
     if (hasReport && !run.revealed && !current.revealed) {
       revealBtn.update({ label: S.GRADE_REVEAL, disabled: running });
       actionRow.appendChild(revealBtn.el);
-    }
-    // 误校验的补救口：本轮分数作废、退回可对话状态，模型改完再重新校验。
-    // 已揭晓参考解的轮次不给这个口（后端同样拒绝）。
-    if (hasReport && run && run.status === 'graded' && !run.revealed) {
-      reopenBtn.update({ disabled: running || Boolean(busy) || chatBusy });
-      actionRow.appendChild(reopenBtn.el);
     }
     if (hasReport) {
       exportBtn.update({ disabled: false });
       actionRow.appendChild(exportBtn.el);
     } else {
       exportBtn.update({ disabled: true, reason: S.GRADE_EMPTY });
+    }
+    // 误校验的补救口：本轮分数作废、退回可对话状态，模型改完再重新校验。
+    // 已揭晓参考解的轮次不给这个口（后端同样拒绝）。
+    // 它是"重来一次"的次要出口，排在导出报告之后，不与主按钮抢位置。
+    if (hasReport && run && run.status === 'graded' && !run.revealed) {
+      reopenBtn.update({ disabled: running || Boolean(busy) || chatBusy });
+      actionRow.appendChild(reopenBtn.el);
     }
 
     gradeBtn.update({
@@ -696,7 +729,7 @@ export function createGradePanel(handlers) {
     revealBtn.update({ disabled: running || Boolean(busy) || !hasReport || Boolean(run && run.revealed) || Boolean(current.revealed) });
     exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
 
-    bodyHost.appendChild(gradeDesc);
+    // 说明行已在卡头（summary）里，卡身不再重复一遍。
     bodyHost.appendChild(actionRow);
 
     if (!hasRun) {

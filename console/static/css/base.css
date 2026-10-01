@@ -23,8 +23,12 @@ html {
   font-size: 100%;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  scroll-behavior: smooth;
   color-scheme: light dark;
+  /* 根元素不滚动：滚动发生在 .app-main 里（外壳锁在视口内）。
+     留一条滚动通道会让文档层面也能被拉动，出现"能往下拉出空白"。
+     另外 scroll-behavior: smooth 已去掉——它会让任何一处滚动都变成动画，
+     切页时旧容器的滚动位置平滑过渡会和新视图的渲染抢帧，观感就是卡。 */
+  overflow: hidden;
 }
 
 body {
@@ -149,6 +153,14 @@ hr {
   outline: none;
 }
 
+/* 程序移焦（路由切换把焦点搬到 h1）明确不画环。
+   这条必须放在上面 :focus-visible 之后，且用属性选择器保证优先级——
+   浏览器对脚本 focus() 的 :focus-visible 判定不一致，只靠伪类挡不住。 */
+[data-focus-programmatic]:focus,
+[data-focus-programmatic]:focus-visible {
+  outline: none !important;
+}
+
 ::selection {
   background: var(--color-selection);
   color: var(--color-text);
@@ -182,16 +194,22 @@ hr {
    grid 用命名区域直接表达这份意图，不依赖元素顺序与宽度博弈。 */
 .app-shell {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto minmax(0, 1fr);
   grid-template-areas:
     "status"
     "header"
     "main";
   /* 高度锁在视口内：外壳自身不产生滚动，滚动只发生在 .app-main 里。
      以前用 min-height: 100vh 且带页脚行，页面总高比视口多出几十像素，
-     于是每一页都能往下拉出一段空白。 */
+     于是每一页都能往下拉出一段空白。
+     grid-template-rows 的第三行必须写成 minmax(0, 1fr)：写 1fr 时
+     行高下限是 min-content，长内容会把这一行顶开、进而撑高整个文档——
+     帮助页那种几千像素的长文尤其明显。 */
   height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
+  /* 把布局与绘制收在这个子树里，长内容不再影响外层文档高度 */
+  contain: layout paint;
 }
 
 #status-host {

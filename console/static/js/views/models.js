@@ -80,6 +80,9 @@ const T = {
   DISCOVER_HINT: '勾选要加进清单的。已在清单里的不会再列一遍。',
   DISCOVER_ADD: '加入清单（{n}）',
   DISCOVER_CONFIGURED: '已在清单',
+  DISCOVER_SEARCH_PLACEHOLDER: '搜索模型名…',
+  DISCOVER_SELECT_ALL: '全选当前结果',
+  DISCOVER_NO_MATCH: '没有匹配的模型。',
   DISCOVER_FAIL: '拉取失败：{reason}',
   DISCOVER_NEED_KEY: '先填 API 密钥再拉取；填完不再改动的话，保存前也能拉到。',
 
@@ -488,33 +491,9 @@ export function createModels(props = {}) {
       return;
     }
     const picked = new Set();
+    const rows = [];
     const list = el('div', { class: 'models-form__discover-list' });
-    candidates.forEach((m) => {
-      const already = Boolean(m.configured) || modelRows.some((r) => r.id === m.id);
-      const box = el('input', {
-        type: 'checkbox',
-        class: 'models-form__discover-check',
-        'aria-label': m.id,
-        disabled: already,
-      });
-      if (!already) {
-        box.addEventListener('change', () => {
-          if (box.checked) picked.add(m.id);
-          else picked.delete(m.id);
-          addPickedBtn.update({ label: t(T.DISCOVER_ADD, { n: picked.size }) });
-        });
-      }
-      list.appendChild(
-        el('label', { class: 'models-form__discover-row' + (already ? ' is-configured' : '') },
-          box,
-          el('span', { class: 'models-form__discover-id' }, m.id),
-          el('span', { class: 'u-faint' },
-            [m.context_window ? `上下文 ${fmtTokens(m.context_window)}` : '',
-             m.max_tokens ? `输出 ${fmtTokens(m.max_tokens)}` : ''].filter(Boolean).join(' · ')),
-          already ? createBadge({ label: T.DISCOVER_CONFIGURED, variant: 'neutral' }).el : null,
-        ),
-      );
-    });
+
     const addPickedBtn = createButton({
       label: t(T.DISCOVER_ADD, { n: 0 }),
       variant: 'primary',
@@ -535,16 +514,106 @@ export function createModels(props = {}) {
       },
     });
     addPickedBtn.update({ disabled: true });
-    // 勾选后按钮可用：在 change 里同步
-    list.addEventListener('change', () => addPickedBtn.update({ disabled: picked.size === 0 }));
+
+    /** 勾选状态变化后统一刷新按钮与全选态。 */
+    const syncPicked = () => {
+      addPickedBtn.update({ label: t(T.DISCOVER_ADD, { n: picked.size }), disabled: picked.size === 0 });
+      const selectable = rows.filter((r) => !r.already);
+      const allOn = selectable.length > 0 && selectable.every((r) => r.box.checked);
+      selectAllBox.checked = allOn;
+      selectAllBox.indeterminate = !allOn && picked.size > 0;
+    };
+
+    // 搜索：端点返回几十上百个模型时，逐个找太慢
+    const searchInput = el('input', {
+      class: 'models-form__discover-search',
+      type: 'search',
+      placeholder: T.DISCOVER_SEARCH_PLACEHOLDER,
+      'aria-label': T.DISCOVER_SEARCH_PLACEHOLDER,
+    });
+
+    // 全选：只作用于当前**筛选后可见**的行。筛了 "claude" 再点全选，
+    // 用户要的是"这批 claude 都要"，不是把没显示出来的也选上。
+    const selectAllBox = el('input', {
+      type: 'checkbox',
+      class: 'models-form__discover-check',
+      'aria-label': T.DISCOVER_SELECT_ALL,
+    });
+    const selectAllLabel = el(
+      'label',
+      { class: 'models-form__discover-selectall' },
+      selectAllBox,
+      el('span', {}, T.DISCOVER_SELECT_ALL),
+    );
+
+    candidates.forEach((m) => {
+      const already = Boolean(m.configured) || modelRows.some((r) => r.id === m.id);
+      const box = el('input', {
+        type: 'checkbox',
+        class: 'models-form__discover-check',
+        'aria-label': m.id,
+        disabled: already,
+      });
+      if (!already) {
+        box.addEventListener('change', () => {
+          if (box.checked) picked.add(m.id);
+          else picked.delete(m.id);
+          syncPicked();
+        });
+      }
+      const row = el(
+        'label',
+        { class: 'models-form__discover-row' + (already ? ' is-configured' : '') },
+        box,
+        el('span', { class: 'models-form__discover-id' }, m.id),
+        el('span', { class: 'u-faint' },
+          [m.context_window ? `上下文 ${fmtTokens(m.context_window)}` : '',
+           m.max_tokens ? `输出 ${fmtTokens(m.max_tokens)}` : ''].filter(Boolean).join(' · ')),
+        already ? createBadge({ label: T.DISCOVER_CONFIGURED, variant: 'neutral' }).el : null,
+      );
+      rows.push({ id: m.id, lower: m.id.toLowerCase(), box, node: row, already });
+      list.appendChild(row);
+    });
+
+    /** 按关键词筛行：只改显隐，不重建节点（重建会丢掉已勾选状态）。 */
+    const applyFilter = () => {
+      const q = searchInput.value.trim().toLowerCase();
+      let visible = 0;
+      rows.forEach((r) => {
+        const hit = !q || r.lower.includes(q);
+        r.node.hidden = !hit;
+        if (hit) visible += 1;
+      });
+      emptyHint.hidden = visible > 0;
+      syncPicked();
+    };
+    searchInput.addEventListener('input', applyFilter);
+
+    // 全选：切换当前可见且未在清单里的行
+    selectAllBox.addEventListener('change', () => {
+      const on = selectAllBox.checked;
+      rows.forEach((r) => {
+        if (r.already || r.node.hidden) return;
+        r.box.checked = on;
+        if (on) picked.add(r.id);
+        else picked.delete(r.id);
+      });
+      syncPicked();
+    });
+
+    const emptyHint = el('p', { class: 'u-faint', hidden: true }, T.DISCOVER_NO_MATCH);
+
     discoverHost.append(
       el('div', { class: 'models-form__discover-head' },
         el('h4', {}, T.DISCOVER_TITLE),
         el('span', { class: 'u-faint' }, T.DISCOVER_HINT),
       ),
+      el('div', { class: 'models-form__discover-bar' }, searchInput, selectAllLabel),
       list,
+      emptyHint,
       el('div', { class: 'u-row' }, addPickedBtn.el),
     );
+    syncPicked();
   }
 
   /** 大数字可读化：262144 → 256k。 */

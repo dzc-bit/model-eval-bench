@@ -494,13 +494,19 @@ function mountView(route) {
   clear(rootEl);
   rootEl.appendChild(view.el);
 
-  // 视图淡入：幅度刻意做小（只动透明度 + 4px 位移，200ms）。
-  // 切页时内容整体换掉，硬切会像闪了一下；幅度大的动画又会让人等它演完。
-  // reduced-motion 用户在 CSS 里被收敛（见 views.css 的 .view-enter）。
+  // 视图淡入：只动透明度，200ms。切页时内容整体换掉，硬切会像闪一下；
+  // 幅度大的动画（位移/缩放）又会对整棵视图树每帧重绘 —— 用户反馈的
+  // 「切换卡顿生硬」就是那个。
+  //
+  // 重启动画不用 `void offsetWidth`：那会强制同步布局，而此刻刚插进一整棵
+  // 视图 DOM，读取布局等于让浏览器立刻重排一次（这正是卡顿的来源之一）。
+  // 改用下一帧加类：rAF 回调时样式已经算完，不会触发额外重排。
   rootEl.classList.remove('view-enter');
-  // 读一次布局强制重启动画，否则连续切页时第二次不播
-  void rootEl.offsetWidth;
-  rootEl.classList.add('view-enter');
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => rootEl.classList.add('view-enter'));
+  } else {
+    rootEl.classList.add('view-enter');
+  }
 
   // 焦点移到本视图 h1；工作台优先回到上次区域与滚动位置（§13.5）
   if (route.name === 'workspace' && route.params.region && typeof view.focusRegion === 'function') {

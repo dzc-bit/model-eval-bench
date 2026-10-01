@@ -323,54 +323,84 @@ html.keyboard-nav .view__head h1:focus {
   max-width: var(--prose-max);
 }
 
+/* 题目选择：一行一个的紧凑选择行。
+   排行榜的主角是「排名」，题目只是前置条件——之前把 12 张任务大卡铺满首屏，
+   主次颠倒，用户读到的第一印象是「这跟首页一样」。 */
 .leaderboard__task-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: var(--space-3);
-  list-style: none;
-}
-
-.leaderboard__task-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-  min-width: 0;
-  padding: var(--space-4);
-  border: var(--border-width-thick) solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  transition: var(--transition-base);
-}
-
-.leaderboard__task-row:hover,
-.leaderboard__task-row:focus-within {
-  border-color: var(--color-primary-border);
-}
-
-.leaderboard__task-main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  min-width: 0;
+  gap: 0;
+  list-style: none;
+  border-top: var(--border-width) solid var(--color-border);
 }
 
-.leaderboard__task-main h3,
-.leaderboard__task-symptom {
-  min-width: 0;
-  overflow-wrap: anywhere;
+.leaderboard__task-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height-lg);
+  padding: var(--space-3) var(--space-3);
+  border: none;
+  border-bottom: var(--border-width) solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+.leaderboard__task-chip:hover {
+  background: var(--color-surface);
+}
+.leaderboard__task-chip:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
+/* 详情页头部那行题目编号 */
 .leaderboard__task-id {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
 }
 
-.leaderboard__task-symptom {
+.leaderboard__task-chip-id {
+  flex-shrink: 0;
   color: var(--color-text-muted);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
+}
+.leaderboard__task-chip-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 元信息推到右侧；窄屏时由下面的媒体查询隐藏 */
+.leaderboard__task-chip-meta {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+}
+.leaderboard__task-chip-go {
+  flex-shrink: 0;
+  color: var(--color-text-faint);
+  transition: var(--transition-base);
+}
+.leaderboard__task-chip:hover .leaderboard__task-chip-go {
+  color: var(--color-accent-text);
+  transform: translateX(2px);
+}
+
+@media (max-width: 900px) {
+  .leaderboard__task-chip-meta {
+    display: none;
+  }
+  .leaderboard__task-chip-title {
+    white-space: normal;
+  }
 }
 
 .leaderboard__body {
@@ -536,15 +566,9 @@ html.keyboard-nav .view__head h1:focus {
 }
 
 @media (max-width: 640px) {
-  .leaderboard__task-row,
   .leaderboard__detail-head {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .leaderboard__task-row .btn {
-    align-self: flex-start;
-    white-space: nowrap;
   }
 
   .leaderboard__podium-list {
@@ -1270,26 +1294,28 @@ kbd.key {
 }
 
 /* ============================ 视图切换过渡 ============================ */
-/* 切页时主内容整体换掉，硬切像闪一下。幅度刻意做小：只动透明度 + 4px 位移，
-   200ms 收束——大到需要"等它演完"就变成负担了。 */
-@keyframes view-enter {
+/* 只做透明度淡入，**不动 transform**：动画跑在 #app-root 上，它装着整个视图
+   （任务库 12 张卡、工作台十几个面板），对这么大一棵子树做位移会让浏览器
+   每帧重绘整棵树——用户反馈的「卡顿生硬」就是这么来的。
+   纯 opacity 能走合成层，代价极低；will-change 让它在动画开始前就提升为
+   独立层，避免首帧抖动。 */
+@keyframes view-fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
-/* rootEl 就是 #app-root 本身，动画加在它身上 */
 .view-enter {
-  animation: view-enter var(--motion-base) var(--ease-out) both;
+  animation: view-fade-in var(--motion-base) var(--ease-out) both;
+  will-change: opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .view-enter {
     animation: none;
+    will-change: auto;
   }
 }
