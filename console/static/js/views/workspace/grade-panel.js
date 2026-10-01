@@ -23,7 +23,7 @@
  * 导出：createGradePanel(handlers) → { el, update, destroy, setOpen, focusResult, doGrade }
  */
 
-import { el, setText, patchList, clear } from '../../core/dom.js';
+import { el, setText, patchList } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
 import { createButton } from '../../components/button.js';
 import { createProgress } from '../../components/progress.js';
@@ -148,6 +148,18 @@ export function createGradePanel(handlers) {
       : { cls: 'group-card group-card--fail', glyph: '✕', text: S.GRADE_GROUP_FAIL, kind: 'error' };
   }
 
+  /** 决定这一行要不要重画：结论、计数或失败清单变了才算变。 */
+  function groupSignature(group) {
+    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
+    return [
+      group.passed,
+      group.passed_count,
+      group.total,
+      group.weight,
+      failed.map((c) => `${c.node_id}=${c.message || ''}`).join('|'),
+    ].join('#');
+  }
+
   /**
    * 渲染一个分组（按行，不套框——分组是列表行不是容器卡）。
    * @param {object} group 报告里的一个 group
@@ -220,44 +232,19 @@ export function createGradePanel(handlers) {
       });
     }
 
+    let signature = groupSignature(group);
     build(group);
-    return { el: node, update: (g) => build(g) };
-  }
-
-  /** 决定这张卡片要不要重画：结论、计数或失败清单变了才算变。 */
-  function groupSignature(group) {
-    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
-    return [
-      group.passed,
-      group.passed_count,
-      group.total,
-      group.weight,
-      failed.map((c) => `${c.node_id}=${c.message || ''}`).join('|'),
-    ].join('#');
-  }
-
-  /**
-   * 组卡片：节点上记一份内容签名。
-   * patchList 按组 id 复用节点，重跑校验后同一组会从红转绿；只在建卡那一刻画一次
-   * 就会让旧结论永远挂在页面上（分数已更新、卡片还写着失败）。
-   */
-  const groupSignatures = new WeakMap();
-
-  function renderGroup(group) {
-    const node = buildGroupCard(group);
-    groupSignatures.set(node, groupSignature(group));
-    return node;
-  }
-
-  /** 原地震换成新结论：签名没变就不动，保住用户展开的失败清单。 */
-  function refreshGroup(node, group) {
-    const signature = groupSignature(group);
-    if (groupSignatures.get(node) === signature) return;
-    groupSignatures.set(node, signature);
-    const rebuilt = buildGroupCard(group);
-    node.className = rebuilt.className;
-    clear(node);
-    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
+    return {
+      el: node,
+      // 每次轮询都会调到这里：结论没变就不重建，否则用户刚展开的失败清单会被
+      // 轮询吞掉、焦点也会跟着丢。
+      update: (g) => {
+        const next = groupSignature(g);
+        if (next === signature) return;
+        signature = next;
+        build(g);
+      },
+    };
   }
 
   /**
@@ -471,9 +458,10 @@ export function createGradePanel(handlers) {
       resultHost.appendChild(el('p', { class: 'u-faint ws-grade-exhausted' }, S.GRADE_PROMOTE_EXHAUSTED));
     }
 
-    // 分组明细（key 化复用；refreshGroup 让重跑后从红转绿的组当场改结论，
-    // 只建不刷会让分数已更新、卡片还写着失败）
-    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), refreshGroup);
+    // 分组明细按组 id 复用节点。renderGroup 交回的是 {el, update}，patchList 会优先走
+    // api.update，重跑校验后从红转绿的组当场改结论——不再传第 5 个参数，否则读起来
+    // 像是「只建不刷」的旧形状。
+    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group));
     resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
 
     // 回归
