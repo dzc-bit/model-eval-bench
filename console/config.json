@@ -88,40 +88,56 @@
     ],
     "max_file_bytes": 4194304
   },
-  "models": [
-    {
-      "id": "hunyuan4preview",
-      "protocol": "openai",
-      "api_mode": "chat_completions",
-      "base_url": "http://127.0.0.1:20128/v1",
-      "model": "cbcn/hy4-preview",
-      "key_masked": "sk-1****8551",
-      "key_env": "",
-      "note": ""
-    },
-    {
-      "id": "01",
-      "protocol": "openai",
-      "api_mode": "chat_completions",
-      "base_url": "https://api.a6api.com/v1",
-      "model": "gpt-6-luna",
-      "key_masked": "sk-H****aj7o",
-      "key_env": "",
-      "note": ""
-    },
-    {
-      "id": "cbcn-deepseek-v4-1-flash",
-      "protocol": "openai",
-      "api_mode": "chat_completions",
-      "base_url": "http://127.0.0.1:20128/v1",
-      "model": "cbcn/deepseek-v4.1-flash",
-      "key_masked": "sk-1****8551",
-      "key_env": "",
-      "note": ""
-    }
-  ],
   "repos": {
     "core": "D:/my own project/模型测试/ai-invest-workbench",
     "demo": "sandboxes/_demo-target"
-  }
+  },
+  "providers": [
+    {
+      "id": "hunyuan4preview",
+      "display_name": "hunyuan4preview",
+      "protocol": "openai",
+      "api_mode": "chat_completions",
+      "base_url": "http://127.0.0.1:20128/v1",
+      "default_context_window": 262144,
+      "default_max_tokens": 32768,
+      "note": "",
+      "models": [
+        {
+          "id": "cbcn/hy4-preview",
+          "name": "testname",
+          "context_window": 100000,
+          "max_tokens": 32768,
+          "note": ""
+        },
+        {
+          "id": "cbcn/deepseek-v4.1-flash",
+          "name": "cbcn-deepseek-v4-1-flash",
+          "context_window": 262144,
+          "max_tokens": 32768,
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": "a6api",
+      "display_name": "a6api",
+      "protocol": "openai",
+      "api_mode": "chat_completions",
+      "base_url": "https://api.a6api.com/v1",
+      "default_context_window": 262144,
+      "default_max_tokens": 32768,
+      "note": "",
+      "models": [
+        {
+          "id": "gpt-6-luna",
+          "name": "01",
+          "context_window": 262144,
+          "max_tokens": 32768,
+          "note": ""
+        }
+      ],
+      "key_masked": "sk-V****rjKC"
+    }
+  ]
 }

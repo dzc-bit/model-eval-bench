@@ -1268,3 +1268,28 @@ kbd.key {
   font-size: var(--font-size-sm);
   color: var(--color-warn);
 }
+
+/* ============================ 视图切换过渡 ============================ */
+/* 切页时主内容整体换掉，硬切像闪一下。幅度刻意做小：只动透明度 + 4px 位移，
+   200ms 收束——大到需要"等它演完"就变成负担了。 */
+@keyframes view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* rootEl 就是 #app-root 本身，动画加在它身上 */
+.view-enter {
+  animation: view-enter var(--motion-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-enter {
+    animation: none;
+  }
+}

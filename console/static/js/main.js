@@ -494,6 +494,14 @@ function mountView(route) {
   clear(rootEl);
   rootEl.appendChild(view.el);
 
+  // 视图淡入：幅度刻意做小（只动透明度 + 4px 位移，200ms）。
+  // 切页时内容整体换掉，硬切会像闪了一下；幅度大的动画又会让人等它演完。
+  // reduced-motion 用户在 CSS 里被收敛（见 views.css 的 .view-enter）。
+  rootEl.classList.remove('view-enter');
+  // 读一次布局强制重启动画，否则连续切页时第二次不播
+  void rootEl.offsetWidth;
+  rootEl.classList.add('view-enter');
+
   // 焦点移到本视图 h1；工作台优先回到上次区域与滚动位置（§13.5）
   if (route.name === 'workspace' && route.params.region && typeof view.focusRegion === 'function') {
     view.focusRegion(route.params.region);

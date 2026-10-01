@@ -237,9 +237,24 @@ def _key_owner(model: dict) -> str:
     return str(model.get("provider_id") or model.get("id") or "")
 
 
+def _stored_key(model: dict) -> str:
+    """从本机密钥文件里取这个模型的密钥（供应商 id 优先，回退到老档案 id）。
+
+    keyring 的 key 在 2026-10-01 重构时从 model_id 换成 provider_id；
+    老配置迁移出的供应商其密钥仍挂在老档案名下。两处都查，
+    避免「页面上明明保存过密钥，体检却说没配」。
+    """
+    for candidate in _key_owner_candidates(
+            _key_owner(model), model.get("legacy_ids") or []):
+        value = keyring.get_key(candidate)
+        if value:
+            return value
+    return ""
+
+
 def _model_key(model: dict) -> str:
     """按本机密钥文件（页面粘贴，按供应商存）→ 环境变量优先级读取密钥。"""
-    stored = keyring.get_key(_key_owner(model))
+    stored = _stored_key(model)
     if stored:
         return stored
     return resolve_key(model)[1]
@@ -586,21 +601,29 @@ def doctor(cfg: dict, model_id: str) -> dict:
     model = config.find_model(cfg, str(model_id or ""))
     stages: List[dict] = []
 
-    # ---- 1. key：只看环境变量名，取值只在服务端用于发请求 ----------------
+    # ---- 1. key：本机密钥文件优先，其次环境变量。取值只在服务端用于发请求 ----
+    # 这里必须和 _model_key 同一口径：以前只查环境变量，于是「在页面上粘贴了密钥
+    # 并保存」之后，体检仍然报「没配密钥」并让人去设环境变量——两条路只看一条。
     candidates = key_candidates(model)
     key_name = ""
     secret = ""
-    try:
-        key_name, secret = resolve_key(model)
-    except errors.HarnessError:
-        pass
+    stored = _stored_key(model)
+    if stored:
+        # 本机密钥文件里的那把：对外只说「本机密钥文件」，不回显 key 名以外的信息
+        key_name = "本机密钥"
+        secret = stored
+    else:
+        try:
+            key_name, secret = resolve_key(model)
+        except errors.HarnessError:
+            pass
     if key_name:
         stages.append(_stage("key", True, key_name))
     else:
         stages.append(_stage(
             "key", False, candidates[0] if candidates else "",
-            hint="在服务端（启动评测台的那台机器）设置环境变量 %s 后重启服务；"
-                 "密钥不经过浏览器，也不写进 config.json。"
+            hint="到这个供应商的「编辑」里粘贴 API 密钥并保存，"
+                 "或在服务端设置环境变量 %s。"
                  % (candidates[0] if candidates else "对应变量")))
 
     # ---- 2. base_url：必须是显式填写的 http(s) 地址 -----------------------

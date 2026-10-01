@@ -182,13 +182,16 @@ hr {
    grid 用命名区域直接表达这份意图，不依赖元素顺序与宽度博弈。 */
 .app-shell {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr;
   grid-template-areas:
     "status"
     "header"
-    "main"
-    "footer";
-  min-height: 100vh;
+    "main";
+  /* 高度锁在视口内：外壳自身不产生滚动，滚动只发生在 .app-main 里。
+     以前用 min-height: 100vh 且带页脚行，页面总高比视口多出几十像素，
+     于是每一页都能往下拉出一段空白。 */
+  height: 100vh;
+  overflow: hidden;
 }
 
 #status-host {
@@ -203,26 +206,37 @@ hr {
   max-width: var(--content-max);
   margin: 0 auto;
   padding: var(--space-6) var(--space-5) var(--space-9);
+  /* 主栏自己滚：外壳已锁在视口高度内（上面 height: 100vh + overflow: hidden），
+     内容超出时在这里滚，而不是把整个页面撑高——后者会让每一页都能往下
+     拉出一段空白。min-height: 0 是 grid 子项能收缩出滚动条的前提。 */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .app-main:focus {
   outline: none;
 }
-.app-footer {
-  grid-area: footer;
-  max-width: var(--content-max);
-  margin: 0 auto;
-  width: 100%;
+
+/* 窄屏：侧栏横置成顶栏，高度随内容，外壳不能锁高（锁了会把内容裁掉） */
+@media (max-width: 900px) {
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .app-main {
+    overflow-y: visible;
+  }
 }
 
 @media (min-width: 901px) {
   /* 桌面：状态条仍通栏，侧栏与主栏并排，页脚回到主栏下方通栏 */
   .app-shell {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       "status status"
-      "header main"
-      "header footer";
+      "header main";
   }
   .app-header {
     height: 100vh;

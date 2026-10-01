@@ -147,13 +147,17 @@ export function createHelp(props = {}) {
     };
     // rAF 节流：滚动事件每帧最多算一次，布局读取不叠加
     const onScroll = () => { if (raf === null) raf = requestAnimationFrame(paint); };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // 真正在滚的是主栏（.app-main 内部滚动），不是 window——
+    // 只挂 window 的话切页后高亮会一直不动。
+    const scroller = root.closest('.app-main') || document.querySelector('.app-main');
+    const scrollTarget = scroller || window;
+    scrollTarget.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
     paint();
     return {
       disconnect() {
         if (raf !== null) cancelAnimationFrame(raf);
-        window.removeEventListener('scroll', onScroll);
+        scrollTarget.removeEventListener('scroll', onScroll);
         window.removeEventListener('resize', onScroll);
       },
     };
@@ -167,11 +171,18 @@ export function createHelp(props = {}) {
     if (!target) return;
     ev.preventDefault();
     focusHeading(target);
-    // 用绝对定位滚动，不用 scrollIntoView：本页是文档滚动，
-    // scrollIntoView 在滚动容器判定上依赖浏览器启发式，实测不稳定。
-    // 减去阅读线高度，让标题落在目录高亮所认定的位置上。
-    const y = target.getBoundingClientRect().top + window.scrollY - 120;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
+    // 滚到目标：主栏是滚动容器（.app-main），用它的 scrollTop 算绝对位置。
+    // 不用 scrollIntoView——它在滚动容器判定上依赖浏览器启发式，实测不稳定。
+    const scroller = root.closest('.app-main') || document.querySelector('.app-main');
+    const line = Math.max(120, Math.round(window.innerHeight * 0.25));
+    if (scroller) {
+      const y = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+        + scroller.scrollTop - line;
+      scroller.scrollTop = Math.max(0, y);
+    } else {
+      const y = target.getBoundingClientRect().top + window.scrollY - line;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
+    }
   });
 
   /**

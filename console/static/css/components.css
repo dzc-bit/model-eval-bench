@@ -809,44 +809,74 @@
 }
 
 /* ============================ skeleton ============================ */
-/* 孔版印刷机不懂渐变：骨架屏用纯色块 + 透明度阶闪（像网点深浅交替） */
+/* 微光扫过，而不是整块忽明忽暗：后者像"在闪"，读起来是故障；
+   扫光更像"正在填充"，也不抢注意力。 */
 .skeleton {
+  position: relative;
   display: block;
+  overflow: hidden;
   border-radius: var(--radius-sm);
   background: var(--color-surface-3);
-  animation: skeleton-blink 1.4s steps(2, jump-none) infinite;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-text) 7%, transparent),
+    transparent
+  );
+  animation: skeleton-sweep 1.6s var(--ease-out) infinite;
 }
 
-@keyframes skeleton-blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
   }
 }
 
+/* 各变体按它要顶替的真实内容给形状：占位与落地内容尺寸接近，加载完才不会"跳一下" */
 .skeleton--text {
   height: 0.85em;
   margin: 0.25em 0;
 }
 .skeleton--title {
-  height: 1.4em;
-  width: 40%;
+  height: 1.6em;
+  width: 38%;
+  border-radius: var(--radius-xs);
 }
 .skeleton--row {
-  height: 2.4em;
-  margin-bottom: var(--space-2);
+  height: 2.6em;
 }
 .skeleton--card {
-  height: 84px;
-  margin-bottom: var(--space-3);
+  height: 96px;
+  border-radius: var(--radius-lg);
+}
+/* 卡片骨架加一条内衬：大块纯色显得空洞，一条"标题"让形状更像内容 */
+.skeleton--card::before {
+  content: '';
+  position: absolute;
+  left: var(--space-4);
+  right: 45%;
+  top: var(--space-4);
+  height: 1em;
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--color-text) 5%, transparent);
 }
 
 .skeleton-stack {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
 }
 
 /* ============================ empty-state ============================
