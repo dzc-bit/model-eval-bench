@@ -22,12 +22,6 @@ import { S, errorTitle, errorBody, normalizeCode } from './strings.js';
 const DEFAULT_TIMEOUT = 30_000;
 /** 校验类请求超时（毫秒）：§5.4 每题 grade_timeout_s 默认 240s。 */
 const GRADE_TIMEOUT = 300_000;
-/**
- * 内置对话发送超时（毫秒）：一轮请求会驱动完整工具闭环，
- * 模型连续调用几十次工具、中途跑测试都可能发生，实测单轮可超过 15 分钟。
- * 不能复用校验那一档——前端先到期中止，只会留下一个像失败的假报错。
- */
-const CHAT_TIMEOUT = 1_800_000;
 
 /** API 根路径；只打本机。 */
 const API_BASE = '/api';
@@ -370,17 +364,6 @@ export const api = {
   },
 
   /**
-   * 内置对话发送：服务端要跑完整个工具闭环才返回，超时走对话那一档。
-   * @param {string} path
-   * @param {object} body
-   * @param {{scope?: object}} [opts]
-   * @returns {Promise<any>}
-   */
-  chatPost(path, body, opts = {}) {
-    return request({ method: 'POST', path, body, timeout: CHAT_TIMEOUT, ...opts });
-  },
-
-  /**
    * 下载文本/CSV（记分板导出用），返回 Blob 前的字符串。
    * @param {string} path
    * @param {object} [opts]
@@ -427,7 +410,7 @@ export const api = {
   isMock: isMockEnabled,
 
   /** 超时常量，供进度条显示预计时间。 */
-  TIMEOUTS: { DEFAULT: DEFAULT_TIMEOUT, GRADE: GRADE_TIMEOUT, CHAT: CHAT_TIMEOUT },
+  TIMEOUTS: { DEFAULT: DEFAULT_TIMEOUT, GRADE: GRADE_TIMEOUT },
 };
 
 /**

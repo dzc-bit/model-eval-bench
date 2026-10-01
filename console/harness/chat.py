@@ -28,8 +28,10 @@ MAX_COMMAND_OUTPUT = 24_000
 MAX_COMMAND_SECONDS = 120
 _CHAT_LOCKS: Dict[str, threading.RLock] = {}
 _CHAT_LOCKS_GUARD = threading.Lock()
-#: 正在执行 send 的运行（浏览器关掉/刷新后服务端线程还在跑，前端靠这个感知）
-_ACTIVE_SENDS: set = set()
+#: 每个运行当前「已收下或正在执行」的发送条数（浏览器关掉/刷新后服务端线程
+#: 还在跑，前端靠这个感知）。计数而不是集合：一条消息在锁里排队时，前一条的
+#: 收尾不能把整体状态误报成空闲。
+_ACTIVE_SENDS: Dict[str, int] = {}
 _ACTIVE_SENDS_GUARD = threading.Lock()
 _CHAT_ENV_KEYS = {
     "COMSPEC", "PATH", "PATHEXT", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "TMP", "WINDIR",
@@ -704,9 +706,81 @@ def _history_for_api(history: List[dict]) -> List[dict]:
     return out
 
 
+def _enter_active(run_id: str) -> None:
+    with _ACTIVE_SENDS_GUARD:
+        _ACTIVE_SENDS[run_id] = _ACTIVE_SENDS.get(run_id, 0) + 1
+
+
+def _exit_active(run_id: str) -> None:
+    with _ACTIVE_SENDS_GUARD:
+        left = _ACTIVE_SENDS.get(run_id, 0) - 1
+        if left > 0:
+            _ACTIVE_SENDS[run_id] = left
+        else:
+            _ACTIVE_SENDS.pop(run_id, None)
+
+
 def send_active(run_id: str) -> bool:
-    """该运行的模型发送线程是否仍在服务端执行；run_view / 对话记录用它告知前端。"""
-    return str(run_id or "") in _ACTIVE_SENDS
+    """该运行是否还有已收下或正在执行的发送；run_view / 对话记录用它告知前端。"""
+    key = str(run_id or "")
+    with _ACTIVE_SENDS_GUARD:
+        return _ACTIVE_SENDS.get(key, 0) > 0
+
+
+def _record_failure(run: dict, code: str, message: str) -> None:
+    """把一次失败的发送写进对话记录，前提是它还没被记过。
+
+    `_send_locked` 只在进入会话锁之后才自带错误记录；预检阶段（沙箱未就绪、
+    这一轮已取消、档案不支持）抛出的错误在那之前就走掉了。同步接口时代它
+    至少能作为 HTTP 错误到达前端，改成回执 + 轮询后必须落盘，否则界面只会
+    停在「模型处理中」再也没下文。
+    """
+    try:
+        tail = _read_records(run)[-3:]
+    except errors.HarnessError:
+        tail = []
+    if any(item.get("status") == "error" and str(item.get("content") or "") == message
+           for item in tail):
+        return
+    try:
+        _append_message(run, {"role": "assistant", "content": message,
+                              "status": "error", "error_code": code})
+    except errors.HarnessError:
+        pass
+
+
+def start_send(cfg: dict, run: dict, text: str) -> dict:
+    """收下一次发送并交给后台线程，立刻返回。
+
+    为什么不再同步等完：一轮对话要驱动完整工具闭环，实测十几分钟起步，
+    而请求总有到期的一刻（浏览器、代理、任何一层）。同步等待时那次到期
+    只会留下一个像失败的错，服务端的线程其实照旧在跑。改成先回执、
+    再由前端轮询 ``GET /api/runs/{id}/chat``（``chat_busy`` + 消息增量），
+    就没有任何一层需要为模型留超时。
+
+    登记发送计数在线程启动之前完成，避免回执与线程之间存在
+    「看起来已经空闲」的空窗。
+    """
+    text = str(text or "").strip()
+    if not text:
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
+    run_id = str(run.get("run_id") or "")
+    if not run_id:
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "运行记录缺少 run_id。")
+    _enter_active(run_id)
+
+    def worker() -> None:
+        try:
+            send(cfg, run, text)
+        except errors.HarnessError as exc:
+            _record_failure(run, exc.code, exc.message)
+        except Exception as exc:  # noqa: BLE001 - 意外绝不能让线程静默消失
+            _record_failure(run, errors.E_CHAT_FAILED, "对话线程意外中断：%s" % exc)
+        finally:
+            _exit_active(run_id)
+
+    threading.Thread(target=worker, daemon=True, name="chat-send-%s" % run_id).start()
+    return {"accepted": True, "run_id": run_id, "chat_busy": True}
 
 
 def send(cfg: dict, run: dict, text: str) -> dict:
@@ -721,13 +795,11 @@ def send(cfg: dict, run: dict, text: str) -> dict:
     if not text:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
     run_id = str(run.get("run_id") or "")
-    with _ACTIVE_SENDS_GUARD:
-        _ACTIVE_SENDS.add(run_id)
+    _enter_active(run_id)
     try:
         return _send_locked(cfg, run, text, run_id)
     finally:
-        with _ACTIVE_SENDS_GUARD:
-            _ACTIVE_SENDS.discard(run_id)
+        _exit_active(run_id)
 
 
 def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:

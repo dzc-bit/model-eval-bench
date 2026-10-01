@@ -447,10 +447,19 @@ export function createChatPanel(handlers = {}) {
     }
     progressTimer = setTimeout(refreshProgress, 1200);
     try {
-      const data = await api.chatPost(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
+      const data = await api.post(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
       if (seq !== requestSeq || runId !== currentRunId) return;
       if (data && Array.isArray(data.messages)) messages = normalizeMessages(data.messages);
       else if (data && data.message) mergeMessages([data.message]);
+      if (data && data.chat_busy) {
+        // 服务端已经收下这条消息、在后台线程里跑完整工具闭环：交回轮询接回结果。
+        // 这条路径上没有任何一层需要为模型留超时，所以也不会再出现「请求超时」假错。
+        remoteBusy = true;
+        setStatus('busy', S.CHAT_SENDING || '模型处理中');
+        renderMessages();
+        watchRemoteSend(runId, requestSeq);
+        return true;
+      }
       remoteBusy = false;
       setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
       renderMessages();

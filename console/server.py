@@ -311,12 +311,17 @@ def api_chat_history(cfg: dict, run_id: str) -> dict:
 
 
 def api_chat_send(cfg: dict, run_id: str, body: dict) -> dict:
-    """向当前 run 的模型发送一条消息，并驱动受限工具调用闭环。"""
+    """收下这条消息并驱动受限工具闭环：立刻回执，实际跑在后台线程里。
+
+    设计文档 §15 把这条接口写成同步的；一轮对话要连跑几十次工具与模型调用，
+    同步等待时任何一层先到期都会留下一个像失败的错（详见 NOTES.md 第一节）。
+    前端拿到回执后改为轮询 GET /api/runs/{id}/chat 的 ``chat_busy`` 与消息增量。
+    """
     run = runs.get_run(cfg, run_id)
     text = body.get("message")
     if not isinstance(text, str) or not text.strip():
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
-    return chat_mod.send(cfg, run, text)
+    return chat_mod.start_send(cfg, run, text)
 
 
 def api_run_view(cfg: dict, run_id: str) -> dict:

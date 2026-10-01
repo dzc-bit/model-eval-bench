@@ -40,6 +40,16 @@ _WRITE_LOCK = threading.RLock()
 
 def _defaults(overrides: dict) -> dict:
     """配置缺项时用的默认值；path 相对评测台根解析。"""
+    default_timeouts = {
+        "prepare_s": 180,
+        "grade_default_s": 240,
+        "grade_max_s": 1800,
+        "api_grade_s": 300,
+        # 内置对话里「单次模型调用」的网络超时，不是整轮对话的超时：
+        # 一轮可以连跑几十次调用，整轮不受任何时限约束。
+        "chat_s": 600,
+    }
+    default_grade = {"diff_line_cap": 4000, "similarity_threshold": 0.6, "log_tail_lines": 400}
     base = {
         "port": 8899,
         "host": "127.0.0.1",
@@ -51,17 +61,8 @@ def _defaults(overrides: dict) -> dict:
         "snapshot_cache": os.path.join("sandboxes", ".snapshots"),
         # 批量并发只受进程内工作线程和配置限制，不创建任何盘符映射。
         "max_concurrency": max(1, (os.cpu_count() or 2) // 2),
-        "timeouts": {
-            "prepare_s": 180,
-            "grade_default_s": 240,
-            "grade_max_s": 1800,
-            "api_grade_s": 300,
-        },
-        "grade": {
-            "diff_line_cap": 4000,
-            "similarity_threshold": 0.6,
-            "log_tail_lines": 400,
-        },
+        "timeouts": default_timeouts,
+        "grade": default_grade,
         # 内置对话送给模型的上下文窗口与压缩参数，逐项含义见 DEFAULT_CHAT 上方说明。
         # 只影响发给模型的上下文；前端展示与 chat.jsonl 落盘都是完整记录。
         "chat": dict(DEFAULT_CHAT),
@@ -86,10 +87,17 @@ def _defaults(overrides: dict) -> dict:
         "models": [],
     }
     base.update(overrides)
-    # chat 节按字段合并：config.json 里只写一项窗口参数时，其余仍取默认值。
-    chat = dict(DEFAULT_CHAT)
-    chat.update(overrides.get("chat") or {})
-    base["chat"] = chat
+    # timeouts / grade / chat 三节按字段合并：config.json 里只写其中一项时，
+    # 其余仍取默认值；整节替换会让「新增一个默认项」把已有配置直接判成无效。
+    for section, defaults in (("timeouts", default_timeouts),
+                              ("grade", default_grade),
+                              ("chat", DEFAULT_CHAT)):
+        override = overrides.get(section)
+        if override is not None and not isinstance(override, dict):
+            continue            # 类型不对就交给下面的校验报错，这里不悄悄兜底
+        merged = dict(defaults)
+        merged.update(override)
+        base[section] = merged
     return base
 
 
@@ -129,7 +137,7 @@ def load() -> dict:
     except (TypeError, ValueError):
         raise errors.HarnessError(errors.E_CONFIG_INVALID, "配置项 max_concurrency 必须是正整数。")
 
-    for section, keys in (("timeouts", ("prepare_s", "grade_default_s", "grade_max_s", "api_grade_s")),
+    for section, keys in (("timeouts", ("prepare_s", "grade_default_s", "grade_max_s", "api_grade_s", "chat_s")),
                           ("grade", ("diff_line_cap", "similarity_threshold", "log_tail_lines"))):
         if not isinstance(cfg.get(section), dict):
             raise errors.HarnessError(errors.E_CONFIG_INVALID, "配置节 %s 必须是对象。" % section)

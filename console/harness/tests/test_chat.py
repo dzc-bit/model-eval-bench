@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
+import time
 
 import pytest
 
 from conftest import make_run
-from harness import chat, util
+from harness import chat, errors, runs, util
 
 
 def _ready_run(cfg, tmp_path):
@@ -304,3 +306,62 @@ def test_run_command_blocks_git_network_operations(cfg, tmp_path):
     for command in (["git", "push", "origin"], ["git", "fetch", "origin"], ["git", "pull"]):
         with pytest.raises(ValueError, match="网络"):
             chat._tool_run_command(sandbox_root, {"command": command})
+
+
+def test_start_send_acks_at_once_and_finishes_in_background(cfg, tmp_path, monkeypatch):
+    """一轮对话不再占用请求：先回执，前端靠轮询接回结果。"""
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    release = threading.Event()
+
+    def slow_post(url, payload, key, timeout):
+        assert release.wait(10), "回执之后模型调用才该发生"
+        return {"choices": [{"message": {"role": "assistant", "content": "后台这一轮跑完了。"}}]}
+
+    monkeypatch.setattr(chat, "_post_json", slow_post)
+    ack = chat.start_send(cfg, run, "继续处理")
+
+    assert ack == {"accepted": True, "run_id": run["run_id"], "chat_busy": True}
+    # 回执与后台线程之间不能有「看起来已空闲」的空窗，否则前端会立刻解锁输入。
+    assert chat.send_active(run["run_id"]) is True
+
+    release.set()
+    deadline = time.time() + 10
+    while chat.send_active(run["run_id"]) and time.time() < deadline:
+        time.sleep(0.02)
+
+    assert chat.send_active(run["run_id"]) is False
+    assert [message["role"] for message in chat.messages(run)] == ["user", "assistant"]
+
+
+def test_start_send_records_preflight_failure(cfg, tmp_path):
+    """预检阶段就失败的发送必须留下记录。
+
+    回执之后前端不再拿到任何 HTTP 错误，这类错误只在后台线程里抛出；
+    不落盘的话界面会停在「模型处理中」然后再也没有下文。
+    """
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    run["status"] = "grading"
+    runs.save_run(cfg, run)
+
+    chat.start_send(cfg, run, "继续处理")
+    deadline = time.time() + 5
+    while chat.send_active(run["run_id"]) and time.time() < deadline:
+        time.sleep(0.02)
+
+    rows = chat.messages(run)
+    assert [row.get("status") for row in rows] == ["error"]
+    assert rows[0]["error_code"] == errors.E_RUN_BUSY
+    assert chat.send_active(run["run_id"]) is False
+
+
+def test_send_active_keeps_busy_while_a_send_is_queued():
+    """前一条收尾不能把仍在排队的后一条误报成空闲。"""
+    chat._enter_active("QUEUED-RUN")
+    chat._enter_active("QUEUED-RUN")
+    try:
+        chat._exit_active("QUEUED-RUN")
+        assert chat.send_active("QUEUED-RUN") is True
+    finally:
+        chat._exit_active("QUEUED-RUN")
+    assert chat.send_active("QUEUED-RUN") is False
