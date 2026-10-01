@@ -1,5 +1,10 @@
 # Design System Inspired by Claude (Anthropic)
 
+> **来源与许可**：本文件转抄自 https://github.com/nexu-io/open-design （Apache-2.0）
+> 的 `plugins/_official/design-systems/claude/DESIGN.md`，作为本项目的视觉系统基线留在库内。
+> 按 Apache-2.0 的要求保留本出处说明；在此基础上做的增改请就近标注，不要覆盖这段。
+> 描述对象是 Anthropic Claude 的公开界面风格，不构成任何形式的官方授权。
+
 > Category: AI & LLM
 > Anthropic's AI assistant. Warm terracotta accent, clean editorial layout.
 

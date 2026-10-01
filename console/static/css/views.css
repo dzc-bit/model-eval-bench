@@ -47,11 +47,11 @@
 /* 徽标：SVG 刻度条直接继承赤陶主色——形状本身就是标识，不需要底板 */
 .brand__mark {
   flex-shrink: 0;
-  color: var(--color-accent);
-  transition: color var(--motion-base) var(--ease-out);
-}
-.brand:hover .brand__mark {
-  color: var(--color-accent-text);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-fill);
+  color: var(--color-accent-fill-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
 /* ---------- 主操作区（全站唯一实心按钮，Claude 的「New chat」位）---------- */
@@ -67,8 +67,8 @@
   min-height: var(--control-height-md);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-accent-fill);
+  color: var(--color-accent-fill-text);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   text-decoration: none;
@@ -80,11 +80,12 @@
 .side-cta:active {
   filter: brightness(0.96);
 }
+/* 主操作按钮的焦点环用「实心底上的文字色」画，而不是硬编码白——
+   深色主题下 accent-fill 是浅色，白环会完全看不见。 */
 .side-cta:focus-visible {
-  outline: var(--focus-ring-width) var(--focus-ring-style) #fff;
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-accent-fill-text);
   outline-offset: var(--focus-ring-offset);
 }
-/* 加号图标：描边 SVG，比文字「+」的字形更稳（不受字体 fallback 影响） */
 .side-cta__glyph {
   flex-shrink: 0;
   display: inline-flex;
@@ -1088,6 +1089,67 @@ kbd.key {
 }
 .batch__pick-row:hover {
   background: var(--color-surface);
+}
+
+/* 选中态：以前整行只有 :hover 有变化，勾完模型页面像没反应。 */
+.batch__pick-row--on,
+.batch__pick-row--on:hover {
+  background: var(--color-accent-soft);
+  box-shadow: var(--ring-accent);
+}
+
+/* 勾选变化后实时列出「题 × 模型」组合，并标出与上一批的差异 */
+.batch__combos {
+  margin-top: var(--space-3);
+}
+
+.batch__combos-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.batch__combo-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batch__combo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--color-surface-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.batch__combo-task {
+  font-family: var(--font-mono);
+}
+
+.batch__combo-x {
+  color: var(--color-text-faint);
+}
+
+.batch__combo--new {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+}
+
+.batch__combo-flag {
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.batch__combo-delta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
 }
 
 /* 原生复选框只有 13×13，点击区太小 */

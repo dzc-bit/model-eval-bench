@@ -31,11 +31,17 @@ import { createField } from '../components/field.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
 import { createStatusDot } from '../components/status-dot.js';
+import { confirmDialog } from '../components/confirm-dialog.js';
 import { createResultMark } from '../components/result-mark.js';
 import { showToast } from '../components/toast.js';
 
 /** 轮询间隔（毫秒）。 */
 const POLL_MS = 2000;
+/** 改版新增文案（strings.js 冻结，新增走本地常量）。 */
+const T = {
+  RELEASE_TITLE: '回收这一条的工作区？',
+  RELEASE_BODY: '只删沙箱目录；成绩、报告与对话记录都留在 runs/ 里，需要再看随时能打开。',
+};
 /** 单条状态 → 中文标签与状态点种类。 */
 const ITEM_STATE = {
   pending: { text: '排队中', kind: 'idle' },
@@ -172,6 +178,8 @@ export function createBatch(props = {}) {
     onClick: () => load(),
   });
 
+  const comboEl = el('div', { class: 'batch__combos' });
+
   const controls = el(
     'div',
     { class: 'batch__controls' },
@@ -192,16 +200,66 @@ export function createBatch(props = {}) {
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_MODELS), modelListEl),
       ),
       summaryEl,
+      comboEl,
       controls,
     ),
   );
 
+  /** 上一次点「开始跑批」真正提交的组合，用来标出这一批改了什么。 */
+  let lastStarted = null;
+
+  function comboKey(task, model) {
+    return `${task}\u0000${model}`;
+  }
+
+  function comboParts(key) {
+    const at = key.indexOf('\u0000');
+    return [key.slice(0, at), key.slice(at + 1)];
+  }
+
+  /** 勾选变化后立刻列出这一批会排哪些「题 × 模型」，并标出与上一批的差异。 */
+  function renderCombos(n) {
+    clear(comboEl);
+    comboEl.hidden = !n;
+    if (!n) return;
+    const taskIds = tasks.filter((t) => selectedTasks.has(t.id)).map((t) => t.id);
+    const modelIds = models.filter((m) => selectedModels.has(m.id)).map((m) => m.id);
+    const keys = [];
+    taskIds.forEach((tid) => modelIds.forEach((mid) => keys.push(comboKey(tid, mid))));
+    const added = lastStarted ? keys.filter((k) => !lastStarted.has(k)) : [];
+
+    comboEl.appendChild(el('h3', { class: 'batch__combos-title' },
+      `本批排 ${n} 个独立会话：${taskIds.join('、')} × ${modelIds.join('、')}`));
+
+    const list = el('ul', { class: 'batch__combo-list' });
+    keys.slice(0, 12).forEach((k) => {
+      const [tid, mid] = comboParts(k);
+      const isNew = added.includes(k);
+      list.appendChild(el('li', { class: `batch__combo${isNew ? ' batch__combo--new' : ''}` },
+        el('span', { class: 'batch__combo-task' }, tid),
+        el('span', { class: 'batch__combo-x', 'aria-hidden': 'true' }, '×'),
+        el('span', { class: 'batch__combo-model' }, mid),
+        isNew ? el('span', { class: 'batch__combo-flag' }, '新增') : null));
+    });
+    if (keys.length > 12) {
+      list.appendChild(el('li', { class: 'u-faint' }, `…另有 ${keys.length - 12} 条`));
+    }
+    comboEl.appendChild(list);
+
+    if (lastStarted) {
+      const removed = [...lastStarted].filter((k) => !keys.includes(k)).length;
+      comboEl.appendChild(el('p', { class: 'batch__combo-delta u-faint' },
+        `与上一批相比：新增 ${added.length} 条 · 移除 ${removed} 条`));
+    }
+  }
+
   /**
-   * 选中项 → 文字摘要。
+   * 选中项 → 文字摘要 + 组合清单。
    */
   function refreshSummary() {
     const n = selectedTasks.size * selectedModels.size;
     setText(summaryEl, `${selectedTasks.size} 题 × ${selectedModels.size} 模型 = ${n} 个独立会话；同一题可同时分配给多个模型。${S.BATCH_DRIVE_NOTE}`);
+    renderCombos(n);
     const active = batch && (batch.status === 'running' || batch.status === 'cancelling');
     const ok = n > 0 && !active;
     startBtn.update({ disabled: !ok, reason: ok ? '' : S.BATCH_NEED_PICK });
@@ -215,6 +273,7 @@ export function createBatch(props = {}) {
    */
   function pickRow(item, set) {
     const id = `batch-pick-${item.id}`;
+    const row = el('label', { class: 'batch__pick-row', for: id });
     const box = el('input', {
       type: 'checkbox',
       id,
@@ -222,17 +281,17 @@ export function createBatch(props = {}) {
       onChange: (event) => {
         if (event.target.checked) set.add(item.id);
         else set.delete(item.id);
+        row.classList.toggle('batch__pick-row--on', event.target.checked);
         refreshSummary();
       },
     });
-    return el(
-      'label',
-      { class: 'batch__pick-row', for: id },
-      box,
-      el('span', { class: 'batch__pick-id' }, item.id),
-      el('span', { class: 'batch__pick-label' }, item.label),
-      item.sub ? el('span', { class: 'u-faint' }, item.sub) : null,
-    );
+    // 选中态必须看得出来：以前整行只有 :hover 有变化，勾完模型页面像没反应。
+    row.classList.toggle('batch__pick-row--on', set.has(item.id));
+    row.appendChild(box);
+    row.appendChild(el('span', { class: 'batch__pick-id' }, item.id));
+    row.appendChild(el('span', { class: 'batch__pick-label' }, item.label));
+    if (item.sub) row.appendChild(el('span', { class: 'u-faint' }, item.sub));
+    return row;
   }
 
   /** 渲染题与模型的勾选列表。 */
@@ -311,6 +370,15 @@ export function createBatch(props = {}) {
       onClick: async () => {
         const batchId = progressView && progressView.batchId;
         if (!batchId || current.index === undefined) return;
+        // 删的是磁盘上的工作区，虽然成绩还在，也该问一句
+        const ok = await confirmDialog({
+          title: T.RELEASE_TITLE,
+          messages: [T.RELEASE_BODY],
+          confirmLabel: S.BATCH_RELEASE_SANDBOX,
+          cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+          danger: true,
+        });
+        if (!ok) return;
         releaseBtn.update({ loading: true, busyLabel: S.BATCH_RELEASING });
         try {
           const res = await api.post(`/batches/${encodeURIComponent(batchId)}/release`,
@@ -582,6 +650,8 @@ export function createBatch(props = {}) {
     try {
       const res = await api.post('/batches', { items, concurrency, auto_send: autoSend }, { scope });
       batch = res;
+      lastStarted = new Set(items.map((i) => comboKey(i.task, i.model)));
+      renderCombos(items.length);
       announce(`${S.BATCH_STARTED}：${batch.total} 条`);
       showToast({ message: S.BATCH_STARTED, detail: `${batch.total} 条，并发 ${batch.concurrency}`, kind: 'success' });
       renderProgress();

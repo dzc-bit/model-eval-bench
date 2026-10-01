@@ -31,7 +31,7 @@
  * ──────────────────────────────────────────────────────────────────────
  */
 
-import { el, setText, on } from '../core/dom.js';
+import { el, setText, on, clear } from '../core/dom.js';
 import { S, t } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { createPoller } from '../core/poller.js';
@@ -85,6 +85,32 @@ const T = {
   STEP_NEXT: '结果与下一轮',
   SHOW_DIFF: '查看改动',
   GRADE_DONE_TOAST: '校验完成：通过 {pass}/{total}',
+  RELEASE_TITLE: '回收这一轮的工作区？',
+  RELEASE_BODY: '只删沙箱目录，成绩、报告、对话记录都留在 runs/ 里；要再跑一轮就点「重建沙箱」。',
+  RESTART_TITLE: '用现存档案重开一轮？',
+  RESTART_BODY: '这一轮绑定的档案已删除，改不了它的归属：会用你选的档案为这道题新建一轮记录，'
+    + '旧记录留在记分板里，可以先点「作废本轮成绩」把它从统计里摘掉。',
+  RESTART_DONE: '新一轮已就绪，可以在对话里发提示词了',
+  // 「下一步」行动条：把散在四张卡里、按状态才渲染的出口收成一个常驻位置
+  NEXT_GROUP: '下一步',
+  NEXT_PREPARE: '准备沙箱',
+  NEXT_PREPARING: '正在准备沙箱…',
+  NEXT_SEND_PROMPT: '发送当前提示词',
+  NEXT_ASK: '去对话里追问',
+  NEXT_GRADE: '运行校验',
+  NEXT_REGRADE: '重新校验',
+  NEXT_GRADING: '校验进行中',
+  NEXT_GRADING_REASON: '服务端正在跑隐藏用例，跑完自动出分。',
+  NEXT_PROMOTE: '进入第 {n} 轮',
+  NEXT_REVEAL: '查看参考解',
+  NEXT_VOID: '作废本轮成绩',  NEXT_RELEASE: '回收沙箱',
+  NEXT_FINISH: '结束本轮并回收沙箱',
+  NEXT_REMOTE_BUSY: '模型仍在处理上一条消息：等它停下再校验，否则评的是写了一半的沙箱。',
+  NEXT_REBUILD: '重建沙箱',
+  NEXT_BACK_TASKS: '换一题',
+  NEXT_NEED_MODEL: '先在对话卡头选一个现存档案。',
+  NEXT_NO_SANDBOX: '这一轮的工作区已经回收了。',
+  NEXT_BUSY: '有操作正在进行，稍等。',
 };
 
 /**
@@ -138,6 +164,22 @@ export function createWorkspace(props = {}) {
   });
 
   const wsStore = storage.scoped('ws', taskId);
+  /**
+   * 「这道题的当前 run」必须按档案分键。
+   * 共用一个键的话，换一个（尤其是新建的）模型档案进同一道题，接上的还是上一个
+   * 档案跑出来的那条记录 —— 分数、分组、校验横幅全是别人的结果。
+   */
+  function runKey(modelId) {
+    return 'run_id:' + String(modelId || '');
+  }
+
+  function rememberModelRun(modelId, runId) {
+    if (modelId) wsStore.set(runKey(modelId), runId);
+  }
+
+  function recallModelRun(modelId) {
+    return String(wsStore.get(runKey(modelId), '') || '');
+  }
   const offHandlers = [];
   /** 心跳句柄：有长操作时才存在 */
   let tickTimer = null;
@@ -207,6 +249,131 @@ export function createWorkspace(props = {}) {
   const stepsNav = el('nav', { class: 'ws-steps', 'aria-label': T.STEPS_LABEL }, stepBtns.map((s) => s.btn));
 
   /**
+   * 「下一步」行动条：按当前状态给出唯一主行动 + 最多两个次行动。
+   *
+   * 面板里的动作大多是「按状态才渲染」而不是「禁用」，于是要把四张卡挨个展开
+   * 才找得到出口（一条 run 的页面里 26 个按钮只有 20 个可见）。这里常驻一行，
+   * 两处指向同一批 handler，卡内按钮保持原样不动。
+   */
+  const nextHost = el('div', { class: 'ws-next', role: 'group', 'aria-label': T.NEXT_GROUP });
+  const stepsRow = el('div', { class: 'ws-steps-row' }, stepsNav, el('span', { class: 'u-spacer' }), nextHost);
+  let nextSignature = '';
+
+  /**
+   * @param {object} s store 快照
+   * @returns {Array<{label: string, kind: string, onClick?: Function, disabled?: boolean, reason?: string}>}
+   */
+  function nextActions(s) {
+    const run = s.run;
+    if (!run) return [{ label: T.NEXT_PREPARE, kind: 'primary', onClick: () => doPrepare() }];
+    const grading = s.busy === 'grade' || run.status === 'grading';
+    const preparing = s.busy === 'prepare' || run.status === 'preparing';
+    const acted = run.model_acted !== false;
+    const attempt = Number(run.attempt) || 1;
+    const allowed = Number(run.attempts_allowed) || attempt;
+    // 服务端还有发送线程在跑：这一步什么都别做，并说清为什么点不动
+    const busyReason = run.chat_busy
+      ? T.NEXT_REMOTE_BUSY
+      : grading ? T.NEXT_GRADING_REASON : preparing ? T.NEXT_PREPARING : '';
+    const finish = {
+      label: T.NEXT_FINISH,
+      kind: 'ghost',
+      onClick: () => doRelease(),
+      disabled: !run.sandbox,
+      reason: run.sandbox ? '' : T.NEXT_NO_SANDBOX,
+    };
+    if (run.status === 'error' || run.status === 'cancelled') {
+      return [
+        { label: T.NEXT_REBUILD, kind: 'primary', onClick: () => doRebuild() },
+        finish,
+      ];
+    }
+    if (preparing) return [{ label: T.NEXT_PREPARING, kind: 'primary', disabled: true, reason: T.NEXT_BUSY }];
+    if (grading) return [{ label: T.NEXT_GRADING, kind: 'primary', disabled: true, reason: T.NEXT_GRADING_REASON }];
+    if (run.revealed) {
+      return [
+        { label: T.NEXT_BACK_TASKS, kind: 'primary', onClick: () => navigate('tasks') },
+        finish,
+      ];
+    }
+    if (run.report) {
+      const out = [];
+      if (!acted) {
+        // 报告在、模型却没动手：那份 0 分是误点出来的，第一步是让它真的开工
+        out.push({
+          label: T.NEXT_SEND_PROMPT,
+          kind: 'primary',
+          onClick: () => chatPanel.sendText(promptPanel.getPrompt()),
+          disabled: !s.modelId || Boolean(busyReason),
+          reason: busyReason || (s.modelId ? '' : T.NEXT_NEED_MODEL),
+        });
+      } else if (attempt < allowed) {
+        out.push({
+          label: t(T.NEXT_PROMOTE, { n: attempt + 1 }),
+          kind: 'primary',
+          onClick: () => doPromote(),
+          disabled: Boolean(busyReason),
+          reason: busyReason,
+        });
+      } else {
+        out.push({ label: T.NEXT_REVEAL, kind: 'primary', onClick: () => doReveal() });
+      }
+      out.push({
+        label: T.NEXT_REGRADE,
+        kind: 'ghost',
+        onClick: () => doGrade(),
+        disabled: !acted || Boolean(busyReason),
+        reason: busyReason || (acted ? '' : S.GRADE_NEED_MODEL_FIRST),
+      });
+      out.push({ label: T.NEXT_VOID, kind: 'ghost', onClick: () => doReopen() });
+      out.push(finish);
+      return out;
+    }
+    if (!acted) {
+      return [
+        {
+          label: T.NEXT_SEND_PROMPT,
+          kind: 'primary',
+          onClick: () => chatPanel.sendText(promptPanel.getPrompt()),
+          disabled: !s.modelId,
+          reason: s.modelId ? '' : T.NEXT_NEED_MODEL,
+        },
+        { label: T.NEXT_GRADE, kind: 'ghost', disabled: true, reason: S.GRADE_NEED_MODEL_FIRST },
+        finish,
+      ];
+    }
+    return [
+      {
+        label: T.NEXT_GRADE,
+        kind: 'primary',
+        onClick: () => doGrade(),
+        disabled: Boolean(s.busy) || Boolean(busyReason),
+        reason: busyReason || (s.busy ? T.NEXT_BUSY : ''),
+      },
+      { label: T.NEXT_ASK, kind: 'ghost', onClick: () => focusRegion('chat') },
+      finish,
+    ];
+  }
+
+  /** 只在「这一步该做什么」真的变了时才重建，避免每次轮询都吞掉按钮焦点。 */
+  function renderNextAction(next) {
+    const actions = nextActions(next);
+    const sig = actions.map((a) => `${a.label}|${a.kind}|${a.disabled ? 1 : 0}|${a.reason || ''}`).join('#');
+    if (sig === nextSignature) return;
+    nextSignature = sig;
+    clear(nextHost);
+    actions.forEach((a) => {
+      const btn = createButton({
+        label: a.label,
+        variant: a.kind === 'primary' ? 'primary' : 'ghost',
+        onClick: a.onClick || (() => {}),
+      });
+      btn.update({ disabled: Boolean(a.disabled), reason: a.reason || '' });
+      nextHost.appendChild(btn.el);
+    });
+  }
+
+  /**
    * 轮询驱动的每一步推进都反映到这里：②在跑、③出了结果。
    * @param {object} next store 快照
    */
@@ -241,6 +408,7 @@ export function createWorkspace(props = {}) {
     onPrepare: () => doPrepare(),
     onReset: () => doReset(),
     onRebuild: () => doRebuild(),
+    onRelease: () => doRelease(),
     onOpenDir: () => doOpenDir(),
     onReload: () => reloadState(),
   };
@@ -272,9 +440,12 @@ export function createWorkspace(props = {}) {
     onModelChange: (id) => {
       store.setState({ modelId: id });
       storage.set('last-model', id);
+      adoptModelRun(id);
     },
     // 档案读取失败后由对话卡头给一个重读按钮：只 GET /api/models，不写任何东西
     onReloadModels: () => (typeof reloadModels === 'function' ? reloadModels() : reloadState()),
+    // 本轮档案已被删除：用当前选中的现存档案重开一轮（对话卡空态的唯一出口）
+    onRestartWithModel: (preferredId) => doRestartWithModel(preferredId),
     onGoSandbox: () => focusRegion('sandbox'),
   };
 
@@ -298,7 +469,7 @@ export function createWorkspace(props = {}) {
       notesCard.el,
     ),
   );
-  const root = el('div', { class: 'view ws' }, head, diffWrap, stepsNav, layout);
+  const root = el('div', { class: 'view ws' }, head, diffWrap, stepsRow, layout);
 
   /** 收起状态的折叠卡 ↔ focusRegion：跳过去之前先展开，别把人滚到一张关着的卡上。 */
   const REGION_CARDS = { prompt: promptPanel, sandbox: sandboxPanel, grade: gradePanel, run: notesCard };
@@ -359,6 +530,7 @@ export function createWorkspace(props = {}) {
     diffBtn.update({ disabled: !run });
 
     renderSteps(next);
+    renderNextAction(next);
   }
 
   // ==================== 轮询 ====================
@@ -418,7 +590,7 @@ export function createWorkspace(props = {}) {
 
       if (tickOnly) {
         sandboxPanel.update({ elapsed: next.elapsed, busy: next.busy });
-        gradePanel.update({ elapsed: next.elapsed, busy: next.busy, run: next.run });
+        gradePanel.update({ elapsed: next.elapsed, busy: next.busy, run: next.run, modelMismatch: next.modelMismatch });
         return;
       }
 
@@ -447,6 +619,7 @@ export function createWorkspace(props = {}) {
         busy: next.busy,
         elapsed: next.elapsed,
         revealed: next.revealed,
+        modelMismatch: next.modelMismatch,
       };
       if (next.newResult) gradeState.newResult = true;
       gradePanel.update(gradeState);
@@ -504,12 +677,44 @@ export function createWorkspace(props = {}) {
       const res = await api.longPost('/runs', { task: taskId, model: s.modelId, attempt: 1 }, { scope });
       const runId = res.run_id;
       storage.set('last-task', taskId);
-      wsStore.set('run_id', runId);
+      rememberModelRun(s.modelId, runId);
       logOp(t(S.SANDBOX_PREPARE_DONE, { path: res.sandbox || '' }));
       await loadRun(runId);
       patch({ busy: '', elapsed: 0 });
     } catch (err) {
       reportError(err, '准备沙箱');
+    }
+  }
+
+  /**
+   * 换档案 = 换一条时间线：接上这个档案在这道题上的最新记录，没有就回到空态。
+   *
+   * 不做这件事的话，新建一个档案进同一道题，面板会原样显示上一个档案的分数、
+   * 分组和校验横幅——用户读到的是"这个模型已经考过了"。
+   * @param {string} modelId
+   * @returns {Promise<void>}
+   */
+  async function adoptModelRun(modelId) {
+    if (!modelId) return;
+    const s = store.getState();
+    if (s.run && String(s.run.model || '') === modelId) return;
+    try {
+      const res = await api.get(
+        `/runs?task=${encodeURIComponent(taskId)}&model=${encodeURIComponent(modelId)}`,
+        { scope });
+      const items = res.runs || [];
+      const remembered = recallModelRun(modelId);
+      const target = items.some((r) => r.run_id === remembered) ? remembered : (items[0] ? items[0].run_id : '');
+      if (target) {
+        await loadRun(target);
+        ensureTicker();
+        if (BUSY_STATUS.has((store.getState().run || {}).status)) poller.start();
+        return;
+      }
+      patch({ run: null, revealed: null, modelMismatch: false });
+      poller.stop();
+    } catch (err) {
+      reportError(err, '切换档案');
     }
   }
 
@@ -538,8 +743,14 @@ export function createWorkspace(props = {}) {
   function applyRun(run) {
     const prev = store.getState();
     const prevStatus = prev.run ? prev.run.status : '';
+    // 换 run 或进下一轮：上一轮的改动正文当场作废（在途响应由 diffToken 比对丢掉）
+    if (diffTokenOf(prev.run) !== diffTokenOf(run)) invalidateDiff();
     const serverBusy = BUSY_STATUS.has(run.status);
     const next = { run, newResult: false };
+    // 这条记录是不是"当前选的档案"跑出来的：不是的话面板上的分数就是别人的成绩，
+    // 只能看不能写（校验、进下一轮、揭晓、导出都会写进这条不属于它的记录）。
+    const wanted = String(prev.modelId || '');
+    next.modelMismatch = Boolean(wanted) && String(run.model || '') !== wanted;
 
     // 校验是异步的：busy 只在本机点下「运行校验」到服务端接手之间成立
     if (serverBusy) {
@@ -576,7 +787,7 @@ export function createWorkspace(props = {}) {
     }
 
     patch(next);
-    wsStore.set('run_id', run.run_id);
+    rememberModelRun(run.model, run.run_id);
   }
 
   /**
@@ -736,12 +947,16 @@ export function createWorkspace(props = {}) {
       await promoteNow(nextLevel);
       return;
     }
+    // 进入下一轮不清分、不删改动，不是破坏性操作，不该套 danger 红框；
+    // 「最后一次机会」也只在真的是最后一次时才说。
+    const isLast = nextLevel >= Number(s.run.attempts_allowed || 0);
     const ok = await confirmDialog({
       title: t(S.CONFIRM_PROMOTE_TITLE, { n: nextLevel }),
-      messages: [t(S.CONFIRM_PROMOTE_BODY_1, { n: nextLevel }), S.CONFIRM_PROMOTE_BODY_2],
+      messages: isLast
+        ? [t(S.CONFIRM_PROMOTE_BODY_1, { n: nextLevel }), S.CONFIRM_PROMOTE_BODY_2]
+        : [t(S.CONFIRM_PROMOTE_BODY_1, { n: nextLevel })],
       confirmLabel: t(S.GRADE_PROMOTE, { n: nextLevel }),
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
-      danger: true,
     });
     if (ok) await promoteNow(nextLevel);
   }
@@ -802,6 +1017,74 @@ export function createWorkspace(props = {}) {
       patch({ busy: '', elapsed: 0 });
     } catch (err) {
       reportError(err, '继续对话');
+    }
+  }
+
+  /**
+   * 回收这一轮的工作区目录：只删沙箱，runs/ 记录与报告保留（带二次确认）。
+   * 批次跑完会自动释放，但服务重启会带走监控线程；单轮 run 更是从来没有出口，
+   * 交完卷的目录就一直占着磁盘，而「清空改动 / 重建沙箱」都会再写一遍。
+   */
+  async function doRelease() {
+    const s = store.getState();
+    if (!s.run || s.busy) return;
+    if (!s.run.sandbox) {
+      showToast({ message: S.ERR_NO_SANDBOX, detail: S.ERR_NO_SANDBOX_BODY, kind: 'warn', duration: 6000 });
+      return;
+    }
+    const ok = await confirmDialog({
+      title: T.RELEASE_TITLE,
+      messages: [T.RELEASE_BODY],
+      confirmLabel: S.BATCH_RELEASE_SANDBOX,
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+      danger: true,
+    });
+    if (!ok) return;
+    patch({ busy: 'release', elapsed: 0 });
+    try {
+      const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/release`, {}, { scope });
+      logOp(res.message || S.BATCH_RELEASED);
+      await loadRun(s.run.run_id);
+      patch({ busy: '', elapsed: 0 });
+      showToast({ message: S.BATCH_RELEASED, detail: res.message || '', kind: 'success', duration: 8000 });
+    } catch (err) {
+      reportError(err, '回收沙箱');
+    }
+  }
+
+  /**
+   * 用现存档案为这道题重开一轮（对话卡在「档案已删除」时给出的出口）。
+   *
+   * 不改写旧记录的 model 归属：run_id 与 runs/<任务>/<档案>/ 目录名里都带着档案名，
+   * 改了就会让记录躺在死档案下却被算成活档案的成绩。旧记录交给「作废本轮成绩」处理。
+   */
+  async function doRestartWithModel(preferredId) {
+    const s = store.getState();
+    const modelId = String(preferredId || s.modelId || '');
+    if (!modelId) {
+      showToast({ message: S.RUN_MODEL_REQUIRED, kind: 'warn', duration: 5000 });
+      focusRegion('chat');
+      return;
+    }
+    if (s.busy) return;
+    const ok = await confirmDialog({
+      title: T.RESTART_TITLE,
+      messages: [T.RESTART_BODY],
+      confirmLabel: S.SANDBOX_PREPARE,
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+    });
+    if (!ok) return;
+    patch({ busy: 'prepare', error: null, elapsed: 0 });
+    announce(S.ANNOUNCE_SANDBOX_PREPARING);
+    try {
+      const res = await api.longPost('/runs', { task: taskId, model: modelId, attempt: 1 }, { scope });
+      storage.set('last-task', taskId);
+      rememberModelRun(modelId, res.run_id);
+      await loadRun(res.run_id);
+      patch({ busy: '', elapsed: 0 });
+      showToast({ message: T.RESTART_DONE, detail: res.sandbox || '', kind: 'success', duration: 8000 });
+    } catch (err) {
+      reportError(err, '重开一轮');
     }
   }
 
@@ -871,6 +1154,27 @@ export function createWorkspace(props = {}) {
   }
 
   /**
+   * 改动正文归属的「运行 × 轮次」。diff.patch 是评分产物，进下一轮后服务端给的是
+   * 新一轮的改动，旧正文留在面板上就会被读成「模型这一轮什么也没改 / 又改了同样的东西」。
+   */
+  let diffToken = '';
+
+  /** @param {object|null} run @returns {string} */
+  function diffTokenOf(run) {
+    return run ? `${run.run_id}#${run.attempt}` : '';
+  }
+
+  /** 换轮或换 run 时作废已显示的改动正文与在途请求。 */
+  function invalidateDiff() {
+    diffToken = '';
+    setText(diffText, '');
+    diffCard.update({ hint: '' });
+    diffCard.setOpen(false);
+    diffWrap.hidden = true;
+    diffBtn.getButton().setAttribute('aria-expanded', 'false');
+  }
+
+  /**
    * 题头 [查看改动]：开合改动正文。展开时按需拉取一次（不轮询）。
    */
   function toggleDiff() {
@@ -888,10 +1192,14 @@ export function createWorkspace(props = {}) {
   async function doShowDiff() {
     const s = store.getState();
     if (!s.run) return;
+    const token = diffTokenOf(s.run);
+    diffToken = token;
     setText(diffText, S.RUN_DIFF_LOADING);
     diffCard.update({ hint: S.STATE_LOADING });
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/diff`, {}, { scope });
+      // 换轮 / 换 run 之后这份正文不再属于当前视图，迟到的响应必须丢掉
+      if (diffToken !== token) return;
       // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
       if (typeof res.diff !== 'string') {
         setText(diffText, S.RUN_DIFF_BAD_PAYLOAD);
@@ -901,6 +1209,7 @@ export function createWorkspace(props = {}) {
       setText(diffText, res.diff || S.RUN_DIFF_EMPTY);
       diffCard.update({ hint: diffStats(s.run) });
     } catch (err) {
+      if (diffToken !== token) return;
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
       setText(diffText, errorBody(code));
       diffCard.update({ hint: errorTitle(code) });
@@ -1061,7 +1370,7 @@ export function createWorkspace(props = {}) {
    */
   async function load() {
     patch({ loading: true, error: null });
-    const lastRunId = routeRunId || wsStore.get('run_id', '');
+    const lastRunId = routeRunId || recallModelRun(store.getState().modelId);
     try {
       const task = await loadTask(lastRunId);
       const taskRound = task.run && Number(task.run.attempt);
@@ -1082,7 +1391,7 @@ export function createWorkspace(props = {}) {
         ensureTicker();
         if (store.getState().run && BUSY_STATUS.has(store.getState().run.status)) poller.start();
       } catch {
-        wsStore.remove('run_id');
+        wsStore.remove(runKey(store.getState().modelId));
       }
     }
   }
@@ -1096,9 +1405,10 @@ export function createWorkspace(props = {}) {
     el_h1: h1,
     /** 跳到指定区域。 */
     focusRegion,
-    /** 记住这一轮 run_id，刷新后能接上。 */
+    /** 记住这一轮 run_id（按档案分键），刷新后能接上同一条时间线。 */
     rememberRun(runId) {
-      if (runId) wsStore.set('run_id', runId);
+      const s = store.getState();
+      if (runId) rememberModelRun(s.modelId, runId);
     },
     /**
      * 恢复上次的滚动位置（§13.5）。

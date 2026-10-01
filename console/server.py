@@ -319,6 +319,30 @@ def api_chat_history(cfg: dict, run_id: str) -> dict:
     }
 
 
+def _require_live_profile(cfg: dict, run: dict, action: str) -> None:
+    """绑定的档案已被删除时，拒绝"再产生成绩"的操作。
+
+    没有档案就没有调用目标；放行的话会写出一条无主成绩，排行榜与记分板只能
+    凭 run_id 里的名字猜它是谁。作废与回收不受限——那正是清理死记录要用的口子。
+    """
+    try:
+        config.find_model(cfg, str(run.get("model") or ""))
+    except errors.HarnessError as exc:
+        raise errors.HarnessError(
+            exc.code,
+            "这一轮绑定的模型档案「%s」已被删除，不能%s。请换现存档案重开一轮，"
+            "或先点「作废本轮成绩」清理这条记录。" % (run.get("model") or '（空）', action),
+            str(run.get("run_id") or ""),
+        )
+
+
+def _guard_then(ctx: dict, action: str, func) -> dict:
+    """先确认档案还在，再执行会写成绩的操作（promote / reveal 用）。"""
+    run = runs.get_run(ctx["cfg"], ctx["run_id"])
+    _require_live_profile(ctx["cfg"], run, action)
+    return func(ctx["cfg"], ctx["run_id"])
+
+
 def api_grade(cfg: dict, run_id: str) -> dict:
     """启动校验；模型还没回复过时拒绝。
 
@@ -327,6 +351,7 @@ def api_grade(cfg: dict, run_id: str) -> dict:
     沙箱写文件"的方式模拟模型改动，它们不经过对话，引擎不该替它们下判断。
     """
     run = runs.get_run(cfg, run_id)
+    _require_live_profile(cfg, run, "产生新的校验结果")
     if not chat_mod.has_model_reply(run):
         raise errors.HarnessError(
             errors.E_BAD_REQUEST,
@@ -435,8 +460,12 @@ def build_router() -> Router:
     r.add("GET", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (api_run_view(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/grade", lambda ctx: (api_grade(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reopen", lambda ctx: (runs.reopen(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
-    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/promote", lambda ctx: (runs.promote(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
-    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (runs.reveal(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/release",
+          lambda ctx: (runs.release_sandbox(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/promote", lambda ctx: (
+          _guard_then(ctx, "进入下一轮", runs.promote), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (
+          _guard_then(ctx, "揭晓参考解并计入这一轮", runs.reveal), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/note", lambda ctx: (runs.set_note(ctx["cfg"], ctx["run_id"], str(ctx["body"].get("note") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/diff", lambda ctx: ({"diff": runs.load_diff(ctx["cfg"], runs.get_run(ctx["cfg"], ctx["run_id"]))}, "application/json; charset=utf-8"))
     r.add("DELETE", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (runs.delete_run(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))

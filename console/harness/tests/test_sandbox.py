@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
 
 from conftest import BACKEND_TASK, FRONTEND_TASK, make_run
-from harness import packs, sandbox, util
+from harness import chat, packs, runs, sandbox, util
 
 
 def read(path):
@@ -35,6 +36,49 @@ def prepared_front(cfg, log):
     sandbox.prepare(cfg, run, meta, log=log)
     yield cfg, run, meta
     sandbox.destroy(cfg, run, log=lambda _message: None)
+
+
+def test_reset_and_rebuild_isolate_the_previous_epoch(prepared):
+    """回基线（清空改动 / 重建沙箱）必须把上一个模型的对话与成绩一起隔离掉。
+
+    两条硬理由：①`chat._model_history()` 全量回放 chat.jsonl，不归档就等于把
+    上一个模型的提示词、回答、工具结果和思考喂给下一个模型；②旧报告留在原地，
+    面板会挂着别人的 0 分，`model_acted` 也会被旧对话满足而放行一次空校验。
+    """
+    cfg, run, meta = prepared
+    run["status"] = "graded"
+    run["last_score"] = 0.0
+    run["last_passed"] = False
+    runs.save_run(cfg, run)
+    stored = runs.get_run(cfg, run["run_id"])
+    run_dir = stored["run_dir"]
+    # 报告要写进落盘后的那个目录：save_run 会按 run_id 重算 run_dir
+    util.write_json_atomic(os.path.join(run_dir, "report.json"),
+                           {"score": 0.0, "passed": False, "groups": []})
+    util.write_json_atomic(os.path.join(run_dir, "round-1.json"),
+                           {"score": 100.0, "passed": True, "groups": []})
+    util.write_text_atomic(os.path.join(run_dir, "chat.jsonl"),
+                           json.dumps({"role": "assistant", "content": "上一个模型做完了"},
+                                      ensure_ascii=False) + "\n")
+    stored["rounds"] = [{"attempt": 1, "score": 0.0, "passed": False}]
+    runs.save_run(cfg, stored)
+    assert chat.has_model_reply(runs.get_run(cfg, stored["run_id"])) is True
+
+    runs.reset_sandbox(cfg, stored["run_id"])
+
+    after = runs.get_run(cfg, stored["run_id"])
+    assert runs.load_report(cfg, after) is None, "报告还在，面板会继续显示那个 0 分"
+    assert after["last_score"] is None and after["last_passed"] is None
+    assert after["status"] == "ready"
+    assert chat.has_model_reply(after) is False, "旧对话还在回放，新模型一上来就抄上一个模型"
+    assert not os.path.exists(os.path.join(after["run_dir"], "round-1.json")), \
+        "旧轮次记录留在原地，同 attempt 再校验会静默覆盖真证据"
+    assert all(r.get("voided") for r in (after["rounds"] or [])), "旧轮次没作废，记分板还会算它"
+    assert after["round_started_at"], "本轮起点要重新起算，否则用时跨模型累计"
+    archived = os.listdir(os.path.join(after["run_dir"], "epochs"))
+    assert archived, "旧纪元的证据必须挪档留存，不能直接删"
+    epoch_dir = os.path.join(after["run_dir"], "epochs", sorted(archived)[0])
+    assert sorted(os.listdir(epoch_dir)) == ["chat.jsonl", "report.json", "round-1.json"]
 
 
 def test_prepare_produces_isolated_tree(prepared):

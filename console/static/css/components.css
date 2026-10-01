@@ -1143,7 +1143,8 @@
   gap: var(--space-3);
   flex-wrap: wrap;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-danger-soft);
+  /* sticky 的错误条必须垫实色，否则页面滚过去时文字会和红条叠在一起 */
+  background: var(--color-danger-tint-solid);
   border-bottom: var(--border-width) solid var(--color-danger-border);
   color: var(--color-danger);
   font-size: var(--font-size-sm);

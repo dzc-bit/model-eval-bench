@@ -16,7 +16,7 @@ import shutil
 from typing import Dict, List, Optional
 
 from .. import util
-from . import CaseResult, CheckContext, CheckResult, register
+from . import CaseResult, CheckContext, CheckResult, mark_unexecuted, register
 
 #: 评分树内的临时配置：继承原配置，只把缓存目录挪进评分树
 _GRADING_CONFIG = """// 评测台生成的临时配置（只存在于评分树内，不属于受测仓库）
@@ -73,10 +73,12 @@ def run_vitest(ctx: CheckContext) -> CheckResult:
     node_exe = ctx.env.get("GRADE_NODE") or shutil.which("node")
     if not node_exe:
         result.notes.append("找不到 node 可执行文件，前端题无法校验")
+        mark_unexecuted(result, ctx.node_ids, "本机找不到 node，前端用例一条都没跑")
         return result
     entry = vitest_entry(ctx.workdir)
     if not entry:
         result.notes.append("评分树里找不到 vitest（node_modules 联接可能已丢失）")
+        mark_unexecuted(result, ctx.node_ids, "评分树里没有 vitest 入口（依赖基线可能丢失）")
         return result
 
     files = sorted({_file_of(node_id) for node_id in ctx.node_ids if _file_of(node_id)})
@@ -130,18 +132,20 @@ def run_vitest(ctx: CheckContext) -> CheckResult:
             result.notes.append("vitest 超过 %d 秒被中止" % ctx.timeout_s)
         else:
             result.notes.append("没有产出 vitest JSON 报告，详见日志")
-        for node_id in ctx.node_ids:
-            result.cases.setdefault(node_id, CaseResult(
-                node_id=node_id, outcome="error", message="用例未运行（详见日志）"))
+        mark_unexecuted(result, ctx.node_ids, "用例未运行（vitest 没产出报告，详见日志）")
         return result
 
     try:
         result.cases.update(parse_vitest_json(report_json, ctx.workdir))
     except (ValueError, OSError) as exc:
         result.notes.append("vitest 报告解析失败：%s" % exc)
-        for node_id in ctx.node_ids:
-            result.cases.setdefault(node_id, CaseResult(
-                node_id=node_id, outcome="error", message="报告解析失败"))
+        mark_unexecuted(result, ctx.node_ids, "vitest 报告解析失败，用例未运行")
+        return result
+    # 报告能产出却一条都没有：vitest 收不到文件时就是这么安静（No test files
+    # found），把它当成「模型没修好」会给评测台造出一个假的 0 分。
+    if not result.cases:
+        result.notes.append("vitest 报告里没有任何用例（多半是没收集到测试文件）")
+        mark_unexecuted(result, ctx.node_ids, "vitest 没有收集到任何用例")
     return result
 
 

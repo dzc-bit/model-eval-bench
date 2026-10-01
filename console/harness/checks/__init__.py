@@ -65,6 +65,10 @@ class CheckResult:
     cases: Dict[str, CaseResult] = field(default_factory=dict)
     command: list = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    # 用例到底有没有跑起来。收集阶段就失败（没产出报告、报告解析不了、vitest
+    # 报 No test files found）时置 False：那种情况下把每条塞成 error 只会让分组
+    # 变红，和「模型真的没修好」长得一模一样，评分台必须能把两件事分开。
+    executed: bool = True
 
     def summary_line(self) -> str:
         if self.timed_out:
@@ -74,6 +78,18 @@ class CheckResult:
         passed = sum(1 for c in unique.values() if c.passed)
         return "%s：%d/%d 通过，退出码 %d，用时 %.1fs" % (
             self.kind, passed, len(unique), self.returncode, self.duration_s)
+
+
+def mark_unexecuted(result: CheckResult, node_ids: list, message: str) -> CheckResult:
+    """声明的用例一条都没真跑起来：标 executed=False，并给每条留一句原因。
+
+    调用方（grade._run_checks）据此把这一轮判成「校验出错」而不是 0 分——
+    0 分是模型的成绩，校验没跑起来是评测台自己的故障，不能混在一张报告里。
+    """
+    result.executed = False
+    for node_id in node_ids:
+        result.cases.setdefault(node_id, CaseResult(node_id=node_id, outcome="error", message=message))
+    return result
 
 
 def register(kind: str) -> Callable:

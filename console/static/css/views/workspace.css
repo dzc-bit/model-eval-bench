@@ -52,6 +52,21 @@
 }
 
 /* ============================ 步骤条 ============================ */
+/* 步骤条 + 「下一步」行动条同一行：主行动永远在视野里，不用翻四张卡 */
+.ws .ws-steps-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ws .ws-next {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .ws .ws-steps {
   display: flex;
   align-items: center;
@@ -108,7 +123,9 @@
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--space-5);
-  align-items: start;
+  /* stretch：左栏以前贴着内容高度，右侧一长（校验报告展开时）左卡下面就是
+     一整片纸面底色，看起来像页面坏了。改成等高后空态由卡片自己居中。 */
+  align-items: stretch;
 }
 
 .ws .ws-main,
@@ -559,16 +576,43 @@
 
 .ws .chat__body {
   padding-bottom: 0; /* 留给粘性输入区（自身带底边距） */
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-/* 消息流：内部滚动，卡不无限拉长。
-   gap 16px（规格 §2.4）：消息之间必须有肉眼可见的空档，
-   12px 在 CJK 正文下读起来就是"文字黏在一起"。 */
+/* 空态吃掉剩余高度，图形与文案居中；输入区仍按自身内容贴在卡底。
+   .empty-state 本体只按交叉轴居中（水平），长高之后要靠 justify-content 才会在
+   卡片里垂直居中，否则内容顶在上面、下面照样一大片空白。 */
+.ws .chat__body > .empty-state {
+  flex: 1 1 0;
+  min-height: var(--space-9);
+  justify-content: center;
+}
+
+.ws .ws-region--chat {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* 对话卡是一块固定高度的"聊天窗口"：历史在里面滚，输入区贴在卡底。
+     以前靠消息区自己限高，卡被右栏撑高时多出来的空间会落在输入区**下面**，
+     变成一条对话都没有的巨型空白；而只给 max-height 又会让整卡在内容驱动
+     的高度下塌成两像素。 */
+  height: min(78vh, 860px);
+  min-height: 360px;
+}
+
+/* 消息流：唯一可伸缩的那一块（basis 0 才能拿到"输入区之外的全部高度"，
+   用 auto 会被 240 条历史撑出的基准值压成几像素高）。 */
 .ws .chat__messages {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-height: min(62vh, 640px);
+  gap: var(--space-4);   /* 规格 §2.4：CJK 正文下 12px 读起来是"黏在一起" */
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-1);
@@ -585,18 +629,6 @@
 .ws .chat__messages:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
   outline-offset: calc(-1 * var(--focus-ring-offset));
-}
-
-.ws .chat__empty {
-  margin: 0;
-  padding: var(--space-7) 0 var(--space-4);
-  text-align: center;
-}
-
-.ws .chat__empty-action {
-  display: flex;
-  justify-content: center;
-  padding-bottom: var(--space-6);
 }
 
 .ws .chat__error {
@@ -628,22 +660,14 @@
   border: var(--border-width) dashed var(--color-border-strong);
 }
 
-/* 置顶那条：滚动时也留在列表顶部，收尾结论不被历史淹没。
-   必须限高并整幅占满：一条长总结若高过对话区，sticky 永不释放，
-   会把整段历史盖住、只从两侧露出半截气泡，看起来像一列空壳。
-   背景必须**不透明**：字体底下的历史消息会透过半透明底显出来，
-   读起来就是"文字叠在一起"（用户点名的症状）。用 color-mix 把 tint 实心化。 */
-.ws .chat__message--pinned {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+/* 收尾总结：留在时间线末尾，只加强调不做 sticky。
+   曾经它是 position:sticky 钉在列表顶部的一块半透明板，底下的工具轮滚过去
+   会直接透上来，看起来像总结和工具调用叠在了一起。 */
+.ws .chat__message--final {
   align-self: stretch;
-  max-width: none;
   min-width: 0;
-  max-height: min(40vh, 16rem);
-  overflow-y: auto;
   border: var(--border-width) solid var(--color-accent-border);
-  background: color-mix(in oklab, var(--color-surface) 88%, var(--color-accent));
+  background: var(--color-accent-tint-solid);
 }
 
 .ws .chat__message-meta {
@@ -776,13 +800,12 @@
    与消息流之间由这条 hairline 分隔（规格 §3.1）：输入区是"另一件事"，
    没有分隔线时它看起来像消息流的一部分。 */
 .ws .chat__composer {
-  position: sticky;
-  bottom: calc(-1 * var(--space-5));
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin: var(--space-4) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  flex: 0 0 auto; /* 输入区不参与伸缩，剩下的全部高度都给消息流 */
+  gap: var(--space-2);
+  margin: var(--space-3) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+  padding: var(--space-3) var(--space-5) var(--space-5);
   background: var(--color-surface);
   border-top: var(--border-width) solid var(--color-border-strong);
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
@@ -851,10 +874,6 @@
 }
 
 .ws .ws-region {
-  min-width: 0;
-}
-
-.ws .ws-region--chat {
   min-width: 0;
 }
 

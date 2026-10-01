@@ -449,7 +449,17 @@ def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
         if node_id in seen_regressions:
             return
         info = resolver(node_id)
-        if info is not None and not info.passed:
+        if info is None:
+            # 白名单里的既有用例解析不到 = 它压根没被验证过，不能记成「没有回归」。
+            # 旧实现把它静默丢掉，题包写错一条 ID 就永久少守一个回归面。
+            seen_regressions.add(node_id)
+            regression.append({
+                "node_id": node_id,
+                "outcome": "missing",
+                "message": "回归白名单里的这条用例没有被收集到，无法确认既有用例未被破坏",
+            })
+            return
+        if not info.passed:
             seen_regressions.add(node_id)
             regression.append({
                 "node_id": node_id,
@@ -473,16 +483,13 @@ def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
 def compute_score(graded: dict) -> dict:
     """score = 100 × Σ通过组权重 / Σ总权重（设计文档 §5.1）。
 
-    全部 scored 组权重为 0（或组表为空）时旧实现恒 0 分——全绿也判不过。
-    这种形态本身说明题包坏了，但语义上"没有要求"应记满分而不是 0。
+    权重合计为 0（含没有任何 scored 组）一律记 0 分而不是满分：这种形态说明题包
+    本身是坏的，而评分台唯一能保证的底线是「坏题包不会批量制造假通过」。
     """
     groups = graded["groups"]
     total_weight = sum(g["weight"] for g in groups) or 0.0
     passed_weight = sum(g["weight"] for g in groups if g["passed"])
-    if total_weight > 0:
-        ratio = passed_weight / total_weight
-    else:
-        ratio = 1.0 if groups and all(g["passed"] for g in groups) else 0.0
+    ratio = (passed_weight / total_weight) if total_weight > 0 else 0.0
     score = round(100.0 * ratio, 1)
     p2p_broken = bool(graded["regressions"])
     return {
@@ -660,6 +667,14 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
         if outcome.timed_out:
             run_error = "checker %s 超过 %d 秒被中止" % (kind, timeout_s)
             log(run_error)
+
+        if node_ids and not getattr(outcome, "executed", True):
+            # 声明了用例却一条都没跑起来：这不是模型考砸了，是评测台自己坏了。
+            # 记 0 分等于把故障写成一个成绩，pass@k 与排行榜都会照单全收。
+            run_error = "checker %s 没有执行任何用例（声明 %d 条）：%s" % (
+                kind, len(node_ids), outcome.notes[-1] if outcome.notes else "详见日志")
+            log(run_error)
+            break
 
         check_reports.append({
             "kind": outcome.kind,
