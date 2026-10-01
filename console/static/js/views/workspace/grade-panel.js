@@ -32,6 +32,12 @@ import { createEmptyState } from '../../components/empty-state.js';
 import { createStatusDot } from '../../components/status-dot.js';
 import { createBadge } from '../../components/badge.js';
 import { createResultMark, kindForReport } from '../../components/result-mark.js';
+
+/** 改版新增文案（strings.js 冻结，新增走本地常量）。 */
+const T = {
+  PROMOTE_PLAIN: '进入下一轮',
+  FOREIGN: '这条记录属于档案「{model}」，不是当前选中的那个',
+};
 import { percent } from '../../core/format.js';
 
 /** 沙箱可校验的服务端状态。 */
@@ -447,14 +453,10 @@ export function createGradePanel(handlers) {
     resultHost.appendChild(banner);
     resultHost.appendChild(el('p', { class: 'u-muted ws-grade-banner__note' }, summaryText));
 
-    // 「进入下一轮」只信当前轮实时状态（逐轮校验过 + 还有剩余机会），不信旧报告里的 next_hint
-    if (promote.canPromote) {
-      promoteBtn.update({
-        label: t(S.GRADE_PROMOTE, { n: promote.next }),
-        disabled: running || Boolean(busy),
-      });
-      resultHost.appendChild(el('div', { class: 'u-row' }, promoteBtn.el));
-    } else if (promote.exhausted) {
+    // 「进入下一轮」只信当前轮实时状态（逐轮校验过 + 还有剩余机会），不信旧报告里的
+    // next_hint。按钮只有一个宿主（下面的动作区）：以前横幅里也 append 同一个节点，
+    // 谁后跑谁把它搬走，看起来就像按钮随机消失。
+    if (promote.exhausted && !promote.canPromote) {
       resultHost.appendChild(el('p', { class: 'u-faint ws-grade-exhausted' }, S.GRADE_PROMOTE_EXHAUSTED));
     }
 
@@ -631,45 +633,55 @@ export function createGradePanel(handlers) {
     // 而且模型真的动过手——刚建好沙箱就点校验，只会按「未改动」判 0，白烧一次机会。
     const chatBusy = Boolean(run && run.chat_busy);
     const modelActed = !run || run.model_acted !== false;
+    // 记录不属于当前档案：只许看成绩，不许再往这条不属于它的时间线上写东西
+    const foreign = Boolean(current.modelMismatch);
+    const foreignReason = foreign ? t(T.FOREIGN, { model: (run && run.model) || '（空）' }) : '';
     actionRow.textContent = '';
     actionRow.appendChild(gradeBtn.el);
-    // 「进入下一轮」按当前轮次的实时状态判断，不信旧报告里的 next_hint：
-    // 必须当前轮已经评分（逐轮校验）且还有剩余机会，按钮才会出现——
-    // 否则进入第 2 轮后，旧报告会把按钮重新标成「进入第 3 轮」
+    // 四个出口一律常显，不该出现时禁用并写出原因。以前它们是「条件不渲染」，
+    // 第 2 轮一开局揭晓/作废/导出集体消失，用户只能把四张卡挨个展开找出口。
     const currentAttempt = Number(run && run.attempt) || 1;
     const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
     const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
     const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
-    if (canPromote) {
-      promoteBtn.update({
-        label: t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
-        disabled: running || Boolean(busy),
-      });
-      actionRow.appendChild(promoteBtn.el);
-    }
-    if (hasReport && !run.revealed && !current.revealed) {
-      revealBtn.update({ label: S.GRADE_REVEAL, disabled: running });
-      actionRow.appendChild(revealBtn.el);
-    }
-    // 误校验的补救口：本轮分数作废、退回可对话状态，模型改完再重新校验。
-    // 已揭晓参考解的轮次不给这个口（后端同样拒绝）。
-    if (hasReport && run && run.status === 'graded' && !run.revealed) {
-      reopenBtn.update({ disabled: running || Boolean(busy) || chatBusy });
-      actionRow.appendChild(reopenBtn.el);
-    }
-    if (hasReport) {
-      exportBtn.update({ disabled: false });
-      actionRow.appendChild(exportBtn.el);
-    } else {
-      exportBtn.update({ disabled: true, reason: S.GRADE_EMPTY });
-    }
+    const exhausted = currentAttempt >= attemptsAllowed;
+    const revealed = Boolean(run && run.revealed) || Boolean(current.revealed);
+    const promoteReason = foreign
+      ? foreignReason
+      : !hasReport
+        ? S.GRADE_EMPTY
+        : exhausted
+          ? S.GRADE_PROMOTE_EXHAUSTED
+          : revealed
+            ? S.WS_REVEALED_NOTE
+            : '';
+    promoteBtn.update({
+      // 机会用尽时别写「进入第 3 轮」——本题一共只有 2 次，数字本身就是误导
+      label: exhausted ? T.PROMOTE_PLAIN : t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
+      disabled: foreign || !canPromote || running || Boolean(busy),
+      reason: promoteReason,
+    });
+    actionRow.appendChild(promoteBtn.el);
+    revealBtn.update({
+      label: S.GRADE_REVEAL,
+      disabled: foreign || !hasReport || revealed || running,
+      reason: foreignReason || (!hasReport ? S.GRADE_EMPTY : revealed ? S.WS_REVEALED_NOTE : ''),
+    });
+    actionRow.appendChild(revealBtn.el);
+    // 误校验的补救口：本轮成绩作废、退回可对话状态，模型改完再重新校验。
+    // 条件只看「有没有报告」而不是「状态是不是 graded」：轮次记账是后补的，
+    // 老 run 的状态早已退回 ready，报告却一直挂在面板上，卡着状态反而作废不掉。
+    reopenBtn.update({
+      disabled: foreign || !hasReport || revealed || running || Boolean(busy) || chatBusy,
+      reason: foreignReason || (!hasReport ? S.GRADE_EMPTY : revealed ? S.WS_REVEALED_NOTE : ''),
+    });
+    actionRow.appendChild(reopenBtn.el);
+    exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
+    actionRow.appendChild(exportBtn.el);
 
-    gradeBtn.update({
-      label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
-      loading: running,
-      busyLabel: S.GRADE_RUNNING,
-      disabled: !sandboxOk || running || Boolean(busy) || chatBusy || !modelActed,
-      reason: !hasRun
+    const gradeReason = foreign
+      ? foreignReason
+      : !hasRun
         ? S.ERR_NO_SANDBOX
         : running
           ? S.GRADE_RUNNING
@@ -679,9 +691,16 @@ export function createGradePanel(handlers) {
               ? S.GRADE_NEED_MODEL_FIRST
               : !sandboxOk
                 ? S.SANDBOX_PREPARING
-                : '',
+                : '';
+    gradeBtn.update({
+      label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
+      loading: running,
+      busyLabel: S.GRADE_RUNNING,
+      disabled: foreign || !sandboxOk || running || Boolean(busy) || chatBusy || !modelActed,
+      reason: gradeReason,
     });
-    revealBtn.update({ disabled: running || Boolean(busy) || !hasReport || Boolean(run && run.revealed) || Boolean(current.revealed) });
+    // 不再在这里重复 update revealBtn：上面已经按「串档 / 无报告 / 已揭晓」设过
+    // disabled 与 reason，这里再来一次会把可见原因冲掉。
     exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
 
     bodyHost.appendChild(gradeDesc);

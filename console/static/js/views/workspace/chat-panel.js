@@ -13,6 +13,7 @@ import { api, ApiError, errorBody, errorTitle } from '../../core/api.js';
 import { createButton } from '../../components/button.js';
 import { createField } from '../../components/field.js';
 import { createStatusDot } from '../../components/status-dot.js';
+import { createEmptyState } from '../../components/empty-state.js';
 import { showToast } from '../../components/toast.js';
 
 /** 改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
@@ -24,7 +25,19 @@ const T = {
   MODEL_NONE: '还没有模型档案。先到「模型档案」页新增一个，再回来选。',
   MODEL_LOAD_FAILED: '模型档案读取失败：{reason}。可以点「重试」再读一次。',
   DISABLED_NO_SANDBOX: '还没有沙箱，先去沙箱卡准备。',
-  DISABLED_STATUS: '沙箱还没就绪，等状态变为「就绪」再继续对话。',
+  DISABLED_STATUS: '这一轮还不能对话：沙箱没就绪或已经收束，等状态变成「就绪」。',
+  STATUS_GRADED: '本轮已校验，仍可追问让模型接着改',
+  // 空态三选一：为什么空 + 下一步做什么（§13.1），每个只带一个动作
+  EMPTY_NO_RUN_TITLE: '这一轮还没有开始',
+  EMPTY_NO_RUN_DESC: '先准备沙箱，模型才有一个只属于它自己的工作目录可改。',
+  EMPTY_NO_MESSAGES_TITLE: '还没有消息',
+  EMPTY_NO_MESSAGES_DESC: '把左侧的第 1 级提示词发给模型，它就会动手改沙箱；没动手时校验只会按「未改动」判 0 分。',
+  EMPTY_SEND_PROMPT: '发送当前提示词',
+  EMPTY_GONE_TITLE: '这一轮的档案已被删除',
+  EMPTY_GONE_DESC: '历史可以回看，但这条档案已经发不出去。在上方改选一个现存档案，再重开一轮；'
+    + '旧记录的成绩可以在右侧「作废本轮成绩」摘掉。',
+  EMPTY_RESTART: '用现存档案重开一轮',
+  EMPTY_RESTART_NEEDS_PICK: '先在上方选一个现存档案',
 };
 
 const ROLE_LABELS = {
@@ -94,6 +107,8 @@ export function createChatPanel(handlers = {}) {
     options: [{ value: '', label: S.RUN_MODEL_EMPTY }],
     onChange: (value) => {
       if (handlers.onModelChange) handlers.onModelChange(value);
+      // 选了档案之后空态里那个「重开一轮」才该能点
+      renderEmpty();
     },
   });
   modelField.el.classList.add('chat__model');
@@ -122,9 +137,9 @@ export function createChatPanel(handlers = {}) {
     'aria-relevant': 'additions text',
     tabindex: '0',
   });
-  const emptyMessage = el('p', { class: 'u-faint chat__empty' }, S.CHAT_EMPTY || '准备沙箱后开始对话。');
-  // 空态直接给主 CTA：还没有沙箱时一键跳去沙箱卡（规格 §一「每个空态直接给主 CTA」）
-  const emptyActionBtn = createButton({
+  // 空态用统一的 createEmptyState：以前这里只有一行灰字，卡片被右栏撑到很高，
+  // 中间一大片空白，用户读成「页面坏了」（§.empty-state 要求图形+原因+一个动作）。
+  const emptyPrepareBtn = createButton({
     label: T.EMPTY_ACTION,
     variant: 'ghost',
     size: 'sm',
@@ -132,8 +147,25 @@ export function createChatPanel(handlers = {}) {
       if (handlers.onGoSandbox) handlers.onGoSandbox();
     },
   });
-  const emptyAction = el('div', { class: 'chat__empty-action' }, emptyActionBtn.el);
-  emptyAction.hidden = true;
+  const emptyPromptBtn = createButton({
+    label: T.EMPTY_SEND_PROMPT,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      if (handlers.onUsePrompt) handlers.onUsePrompt();
+    },
+  });
+  const emptyRestartBtn = createButton({
+    label: T.EMPTY_RESTART,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => {
+      // 把下拉里当前显示的档案一起带过去：档案被删的 run 打开时 store 里是空的，
+      // 只读 store 会让人「明明看到了一个现存档案，点了却说没选」。
+      if (handlers.onRestartWithModel) handlers.onRestartWithModel(modelField.getValue());
+    },
+  });
+  const chatEmpty = createEmptyState({ icon: 'inbox', title: T.EMPTY_NO_RUN_TITLE, desc: T.EMPTY_NO_RUN_DESC });
   const errorMessage = el('p', { class: 'chat__error', role: 'alert', hidden: true });
   const draft = el('textarea', {
     id: 'workspace-chat-message',
@@ -182,8 +214,7 @@ export function createChatPanel(handlers = {}) {
       statusText,
     ),
     el('div', { class: 'ws-card__body chat__body' },
-      emptyMessage,
-      emptyAction,
+      chatEmpty.el,
       errorMessage,
       messageList,
       composer,
@@ -265,12 +296,42 @@ export function createChatPanel(handlers = {}) {
     return String(last.content || '').trim() ? list.length - 1 : -1;
   }
 
-  /** 空态一句话 + 主 CTA 的可见性：没有沙箱给「去准备」，有沙箱没消息给「发一条」。 */
+  /**
+   * 空态：说清「为什么空」并只给一个下一步动作。
+   * 三种局面以前共用一行灰字（有 run 时连动作都不给），用户只能看到大片空白。
+   */
   function renderEmpty() {
     const show = !currentRunId || !messages.length;
-    emptyMessage.hidden = !show;
-    emptyAction.hidden = Boolean(currentRunId) || !show;
-    if (show) setText(emptyMessage, currentRunId ? T.NO_MESSAGES : (S.CHAT_EMPTY || '准备沙箱后开始对话。'));
+    chatEmpty.el.hidden = !show;
+    if (!show) return;
+    if (profileGone) {
+      // 死档案的 run 打开时下拉是空的（选项里没有它），不先选就点不动——
+      // 那就把按钮标成禁用并说清缺什么，而不是让人点一下只弹一句「先选一个」。
+      const picked = String(modelField.getValue() || '');
+      emptyRestartBtn.update({ disabled: !picked, reason: picked ? '' : T.EMPTY_RESTART_NEEDS_PICK });
+      chatEmpty.update({
+        icon: 'alert',
+        title: T.EMPTY_GONE_TITLE,
+        desc: T.EMPTY_GONE_DESC,
+        actions: [emptyRestartBtn.el],
+      });
+      return;
+    }
+    if (currentRunId) {
+      chatEmpty.update({
+        icon: 'clock',
+        title: T.EMPTY_NO_MESSAGES_TITLE,
+        desc: T.EMPTY_NO_MESSAGES_DESC,
+        actions: [emptyPromptBtn.el],
+      });
+      return;
+    }
+    chatEmpty.update({
+      icon: 'inbox',
+      title: T.EMPTY_NO_RUN_TITLE,
+      desc: T.EMPTY_NO_RUN_DESC,
+      actions: [emptyPrepareBtn.el],
+    });
   }
 
   function renderMessages() {
@@ -280,20 +341,11 @@ export function createChatPanel(handlers = {}) {
       renderEmpty();
       return;
     }
-    emptyMessage.hidden = true;
-    emptyAction.hidden = true;
+    chatEmpty.el.hidden = true;
     messageList.hidden = false;
     const summaryIndex = finalSummaryIndex(messages);
-    if (summaryIndex >= 0) {
-      // 置顶展示收尾总结：列表刚渲染时可能还在 hidden，靠滚动定位不可靠，
-      // 而「对话结束了什么」不能藏在 43 个折叠块下面。
-      const pinned = textMessageNode(messages[summaryIndex], true);
-      pinned.classList.add('chat__message--pinned');
-      messageList.appendChild(pinned);
-    }
     let roundNumber = 0;
     for (let index = 0; index < messages.length; index += 1) {
-      if (index === summaryIndex) continue;
       const message = messages[index];
       if (message.role === 'tool') {
         // 理论上工具返回都跟在自己的调用轮里；落单时兜底折叠显示
@@ -314,9 +366,16 @@ export function createChatPanel(handlers = {}) {
         messageList.appendChild(toolRoundNode(message, grouped, roundNumber));
         continue;
       }
-      messageList.appendChild(textMessageNode(message, index === summaryIndex));
+      const node = textMessageNode(message, index === summaryIndex);
+      if (index === summaryIndex) {
+        // 收尾总结按时间顺序留在对话末尾，只做视觉强调。以前它被 position:sticky
+        // 钉在列表顶部：底下的工具轮会从它半透明的底下滑过去叠上来，而读者当时
+        // 想看的是正在发生的事，不是被钉住的那一句。
+        node.classList.add('chat__message--final');
+      }
+      messageList.appendChild(node);
     }
-    // 时间线滚到底（辅助定位最新回合）；总结本身已置顶，不依赖这一步。
+    // 时间线滚到底：结尾就是最新一回合与收尾总结。
     window.requestAnimationFrame(() => {
       messageList.scrollTop = messageList.scrollHeight;
     });
@@ -447,8 +506,14 @@ export function createChatPanel(handlers = {}) {
       setStatus('idle', S.CHAT_MODEL_GONE);
       return;
     }
-    const status = currentRun && currentRun.status;
-    if (status && status !== 'ready') {
+    const status = currentRun && currentRun.status ? String(currentRun.status) : '';
+    // 状态点必须和输入框用同一套判断（CHAT_OK）：已校验的这一轮输入框是可用的，
+    // 却曾被写成「本轮已交卷，不再接收新消息」，看起来就像对话框坏了。
+    if (status === 'graded') {
+      setStatus('ok', T.STATUS_GRADED);
+      return;
+    }
+    if (status && !CHAT_OK.has(status)) {
       setStatus('idle', CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
       return;
     }
@@ -539,7 +604,9 @@ export function createChatPanel(handlers = {}) {
       remoteBusy = Boolean(data && data.chat_busy);
       profileGone = Boolean(data && data.model && data.model.gone);
       // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
-      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE_DETAIL : S.CHAT_TOOL_HINT);
+      // 长指引交给空态那一段（有它自己的动作按钮），输入框下面只留一句原因，
+      // 同一屏三份「档案已删除」的长文案会把人绕晕。
+      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE : S.CHAT_TOOL_HINT);
       if (remoteBusy) {
         setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
@@ -795,7 +862,9 @@ export function createChatPanel(handlers = {}) {
       statusDot.destroy();
       modelField.destroy();
       modelRetryBtn.destroy();
-      emptyActionBtn.destroy();
+      emptyPrepareBtn.destroy();
+      emptyPromptBtn.destroy();
+      emptyRestartBtn.destroy();
       usePromptBtn.destroy();
       sendBtn.destroy();
     },

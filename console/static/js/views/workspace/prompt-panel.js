@@ -313,7 +313,8 @@ export function createPromptPanel(handlers) {
 
     const text = bodyText();
     setText(promptTitle, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_PROMPT);
-    sendBtn.update({ disabled: !text });
+    // 禁用必须带原因：只把按钮变灰，用户读到的是「这个按钮坏了」
+    sendBtn.update({ disabled: !text, reason: text ? '' : T.NO_PROMPT });
     renderPromptBody();
     cardBody.appendChild(promptRow);
     cardBody.appendChild(promptBody);

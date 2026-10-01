@@ -28,6 +28,22 @@ import { createBadge } from '../../components/badge.js';
 import { createSkeleton } from '../../components/skeleton.js';
 import { relativeTime, fullTime } from '../../core/format.js';
 
+/** 秒数 → 「12 分 34 秒」；够短就说秒，够长就说小时，别让人自己换算。 */
+function humanSeconds(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  if (total < 60) return `${total} 秒`;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  const parts = [];
+  if (hours) parts.push(`${hours} 小时`);
+  if (minutes) parts.push(`${minutes} 分`);
+  if (rest && !hours) parts.push(`${rest} 秒`);
+  return parts.join(' ') || '不到 1 分钟';
+}
+
+
+
 /** 沙箱可用（模型可以动手 / 可以校验）的服务端状态。 */
 const SANDBOX_OK = new Set(['ready', 'graded']);
 
@@ -35,6 +51,8 @@ const SANDBOX_OK = new Set(['ready', 'graded']);
 const T = {
   CHANGED: '已改动 {n} 个文件',
   DETAILS: '详情',
+  FACT_ROUND_STARTED: '本轮开始于',
+  FACT_MODEL_WORK: '模型工作时长',
 };
 
 /**
@@ -91,7 +109,22 @@ export function createSandboxPanel(handlers) {
     busyLabel: S.SANDBOX_REBUILDING,
     onClick: () => handlers.onRebuild(),
   });
-  const actionRow = el('div', { class: 'u-row ws-sandbox__actions' }, openDirBtn.el, resetBtn.el, rebuildBtn.el);
+  // 回收沙箱：交完卷后把占着磁盘的工作区关掉（记录与报告留在 runs/）。
+  // 校验完的单轮 run 以前只有「清空改动 / 重建沙箱」，两者都会再占一遍磁盘。
+  const releaseBtn = createButton({
+    label: S.BATCH_RELEASE_SANDBOX,
+    variant: 'ghost',
+    busyLabel: S.BATCH_RELEASING,
+    onClick: () => handlers.onRelease(),
+  });
+  const actionRow = el(
+    'div',
+    { class: 'u-row ws-sandbox__actions' },
+    openDirBtn.el,
+    resetBtn.el,
+    rebuildBtn.el,
+    releaseBtn.el,
+  );
 
   // 空态里的「准备沙箱」必须是**另一个**按钮实例：同一 DOM 节点没法同时挂在
   // 空态和长操作流程里，appendChild 会把它搬走，沙箱建好后就找不到了。
@@ -130,6 +163,7 @@ export function createSandboxPanel(handlers) {
   const driveValue = el('span', { class: 'ws-fact__value u-mono' }, '—');
   const hashValue = el('span', { class: 'ws-fact__value u-mono' }, '—');
   const startedValue = el('span', { class: 'ws-fact__value' }, '—');
+  const workValue = el('span', { class: 'ws-fact__value' }, '—');
   const attemptValue = el('span', { class: 'ws-fact__value' }, '—');
   const runIdValue = el('span', { class: 'ws-fact__value u-mono' }, '—');
 
@@ -148,7 +182,8 @@ export function createSandboxPanel(handlers) {
     { class: 'ws-facts' },
     fact(S.SANDBOX_PATH_LABEL, el('span', { class: 'u-row u-row-tight' }, pathValue, copyPathBtn.el)),
     fact(S.SANDBOX_DRIVE_LABEL, driveValue),
-    fact(S.RUN_STARTED_LABEL, startedValue),
+    fact(T.FACT_ROUND_STARTED, startedValue),
+    fact(T.FACT_MODEL_WORK, workValue),
     fact(S.RUN_ATTEMPT_LABEL, attemptValue),
     fact(S.RUN_RUN_ID_LABEL, runIdValue),
     fact(S.SANDBOX_BASELINE_LABEL, hashValue),
@@ -285,12 +320,22 @@ export function createSandboxPanel(handlers) {
     setText(driveValue, run.drive || '—');
     setText(hashValue, run.baseline_digest || '—');
     setText(runIdValue, run.run_id || '—');
-    if (run.created_at) {
-      setText(startedValue, relativeTime(run.created_at));
-      startedValue.title = fullTime(run.created_at);
+    // 「本轮开始于」而不是「记录建号于」：重建/清空之后 created_at 仍是几个月前，
+    // 用它显示出来的时间会把上一个模型和所有挂机时间累计进来。
+    const roundStart = run.round_started_at || run.created_at;
+    if (roundStart) {
+      setText(startedValue, relativeTime(roundStart));
+      startedValue.title = fullTime(roundStart);
     } else {
       setText(startedValue, '—');
       startedValue.removeAttribute('title');
+    }
+    if (typeof run.model_work_seconds === 'number') {
+      setText(workValue, humanSeconds(run.model_work_seconds));
+      workValue.title = '只算模型被叫起来干活的时长（含工具轮），不含你思考与挂机的时间';
+    } else {
+      setText(workValue, '—');
+      workValue.removeAttribute('title');
     }
     setText(attemptValue, `${run.attempt} / ${run.attempts_allowed}`);
     copyPathBtn.update({ getText: () => run.sandbox || '' });
@@ -304,11 +349,12 @@ export function createSandboxPanel(handlers) {
     current = { ...current, ...state };
     bodyHost.textContent = '';
 
-    // 整卡自动开合只跟「有没有沙箱」翻转走：没沙箱时展开露出准备 CTA，建好就收起
+    // 整卡自动开合只在「还没有 run」时展开露出准备 CTA；以前沙箱建好就自动收起，
+    // 把清空/重建/回收这一卡的主内容一起藏掉，用户要找出口就得手动展开。
     const hadRun = Boolean(current.run);
     if (lastHadRun !== hadRun) {
       lastHadRun = hadRun;
-      root.open = !hadRun;
+      if (!hadRun) root.open = true;
     }
 
     if (current.loading) {
@@ -383,11 +429,18 @@ export function createSandboxPanel(handlers) {
 
     // 按钮状态：任何长操作期间统一禁用并说明原因
     const preparing = busy === 'prepare';
-    const mutating = busy === 'reset' || busy === 'rebuild';
+    const mutating = busy === 'reset' || busy === 'rebuild' || busy === 'release';
     const grading = busy === 'grade' || run.status === 'grading';
     openDirBtn.update({
-      disabled: mutating || grading || preparing,
-      reason: mutating || grading ? S.SANDBOX_GRADING : preparing ? S.SANDBOX_PREPARING : '',
+      // 回收之后 run.sandbox 是空的：以前按钮照样可点，点了静默 return（像坏了）
+      disabled: !run.sandbox || mutating || grading || preparing,
+      reason: mutating || grading
+        ? S.SANDBOX_GRADING
+        : preparing
+          ? S.SANDBOX_PREPARING
+          : !run.sandbox
+            ? S.ERR_NO_SANDBOX
+            : '',
     });
     resetBtn.update({
       loading: busy === 'reset',
@@ -406,6 +459,18 @@ export function createSandboxPanel(handlers) {
       busyLabel: S.SANDBOX_REBUILDING,
       disabled: mutating || grading || preparing,
       reason: grading ? S.SANDBOX_GRADING : '',
+    });
+    releaseBtn.update({
+      loading: busy === 'release',
+      busyLabel: S.BATCH_RELEASING,
+      disabled: !run.sandbox || mutating || grading || preparing,
+      reason: !run.sandbox
+        ? S.ERR_NO_SANDBOX
+        : grading
+          ? S.SANDBOX_GRADING
+          : preparing
+            ? S.SANDBOX_PREPARING
+            : '',
     });
 
     // 进度：长操作期间显示已用时间（§13.2）
