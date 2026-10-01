@@ -1043,7 +1043,21 @@
 }
 .field select {
   cursor: pointer;
-  padding-right: var(--space-7);
+  /* 去掉原生外观，改用自画箭头：原生箭头在 Windows / macOS / Linux 上
+     长得都不一样，深色主题下还会出现"浅色系统控件"的违和感。 */
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: calc(var(--space-5) + 14px);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23807a70' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  background-size: 12px 12px;
+}
+/* 展开后的选项列表：原生下拉面板由系统绘制，无法完全自定义，
+   但设了底色与文字色至少能保证深色主题下不是刺眼的纯白。 */
+.field select option {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 /* 规范：输入焦点用全站唯一冷色 #3898ec 的环，不用主色（暖色）表达焦点 */
 .field__control:focus,

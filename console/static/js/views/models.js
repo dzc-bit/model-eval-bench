@@ -29,7 +29,8 @@ import { confirmDialog } from '../components/confirm-dialog.js';
 
 /** 本视图文案（strings.js 本轮冻结，新增一律走本地常量）。 */
 const T = {
-  DESC: '一个供应商下可以放多个模型，它们共用接口地址与密钥。模型可单独配上下文窗口与输出上限，留空则跟随供应商默认值。',
+  DESC: '一个供应商下可以放多个模型，它们共用接口地址与密钥。',
+
   TEST: '测试连接',
   TESTING: '正在测试连接…',
   TEST_OK: '✓ {n} 项检查全过 · {time}',
@@ -39,49 +40,48 @@ const T = {
   TEST_ANNOUNCE_OK: '连接测试通过。',
   TEST_ANNOUNCE_FAIL: '连接测试未通过。',
   TEST_ANNOUNCE_START: '正在测试连接。',
+
   KEY_PRESENT: '已存密钥',
   KEY_MISSING: '未配置密钥',
   MODEL_COUNT: '{n} 个模型',
-  NO_MODELS: '这个供应商下还没有模型。',
+  NO_MODELS: '还没有模型，点「从端点拉取」或「添加一行」。',
 
   FIELD_ID: '供应商编号',
   FIELD_ID_HINT: '英文标识，用作 run 记录里模型名的前缀。',
-  FIELD_ID_READONLY_HINT: '供应商编号保存后不可修改。',
+  FIELD_ID_READONLY_HINT: '保存后不可修改。',
   FIELD_DISPLAY: '供应商名称',
-  FIELD_DISPLAY_HINT: '界面上显示的名字，随便填。',
   FIELD_DISPLAY_REQUIRED: '请填写供应商名称。',
   FIELD_URL: '接口地址',
-  FIELD_URL_HINT: '一般以 /v1 结尾。该供应商下所有模型共用这个地址。',
+  FIELD_URL_HINT: '该供应商下所有模型共用。',
   FIELD_URL_REQUIRED: '请填写接口地址。',
-  FIELD_URL_INVALID: '接口地址要以 http:// 或 https:// 开头。',
-  FIELD_KEY_HINT: '只保存在这台电脑上，不会进 git；编辑时留空表示保留已存密钥。该供应商下的模型共用这一把。',
-  FIELD_DEFAULT_CTX: '默认上下文窗口',
-  FIELD_DEFAULT_CTX_HINT: '模型没单独填时用它。留空按 262144。',
-  FIELD_DEFAULT_MAX: '默认输出上限',
-  FIELD_DEFAULT_MAX_HINT: '模型没单独填时用它。留空按 32768。',
-  FIELD_MODELS: '模型清单',
-  FIELD_MODELS_HINT: '填「请求时发给服务商的模型名」。显示名与容量都在每行的展开项里，留空即用默认。',
+  FIELD_URL_INVALID: '要以 http:// 或 https:// 开头。',
+  FIELD_KEY_PLACEHOLDER_NEW: '粘贴 API 密钥',
+  FIELD_KEY_PLACEHOLDER_KEEP: '留空则保持已存密钥',
+  FIELD_KEY_HINT: '只保存在本机，不会进 git。该供应商下的模型共用这一把。',
+  FIELD_KEY_MISSING_HINT: '这个供应商还没有可用密钥。填一把再拉取模型。',
 
+  FIELD_MODELS: '模型清单',
+  FIELD_MODELS_HINT: '模型名填「请求时发给服务商的名称」。显示名与容量在每行的展开项里，留空就用默认。',
   MODEL_ID: '模型名',
   MODEL_NAME: '显示名',
-  MODEL_CTX: '上下文',
+  MODEL_CTX: '上下文窗口',
   MODEL_MAX: '输出上限',
   MODEL_ADD: '添加一行',
   MODEL_REMOVE: '删除这一行',
   MODEL_ID_REQUIRED: '模型名不能为空。',
   MODEL_ID_DUP: '同一个供应商下模型名不能重复。',
   MODEL_INHERIT: '默认',
-  MODEL_ADVANCED: '显示名与容量（可选）',
-  MODEL_NAME_PLACEHOLDER: '留空就用模型名',
+  MODEL_ADVANCED: '显示名与容量',
 
   DISCOVER: '从端点拉取',
   DISCOVERING: '正在拉取…',
-  DISCOVER_TITLE: '从端点拉到的模型',
+  DISCOVER_TITLE: '端点返回的模型',
   DISCOVER_EMPTY: '端点没有返回任何模型。',
-  DISCOVER_HINT: '勾选要加入清单的模型。已存在的会标出来，不会重复添加。',
+  DISCOVER_HINT: '勾选要加进清单的。已在清单里的不会再列一遍。',
   DISCOVER_ADD: '加入清单（{n}）',
   DISCOVER_CONFIGURED: '已在清单',
   DISCOVER_FAIL: '拉取失败：{reason}',
+  DISCOVER_NEED_KEY: '先填 API 密钥再拉取；填完不再改动的话，保存前也能拉到。',
 
   FORM_INVALID: '表单还有错误，请看标红的字段。',
   TIME_JUST_NOW: '刚刚',
@@ -89,12 +89,11 @@ const T = {
   TIME_HOURS: '{n} 小时前',
   DELETE_TITLE: '删除供应商「{id}」？',
   DELETE_BODY_1: '它下面的 {n} 个模型会一起消失，已粘贴的密钥也会清除。',
-  DELETE_BODY_2: '用这些模型跑过的历史记录仍然保留，但记分板会把它当作未知档案。这不能撤销。',
+  DELETE_BODY_2: '历史记录仍然保留，但记分板会把它当作未知档案。这不能撤销。',
   FORM_NEW: '新增供应商',
   FORM_EDIT: '编辑供应商',
-  MIGRATED: '检测到旧版按模型平铺的配置，已按接口地址自动合并成供应商。保存任意一项后新结构生效。',
-  ADVANCED: '高级',
-  PRIVACY: '密钥只保存在本机密钥文件里，config.json 只存脱敏值，都不会进 git。',
+  MIGRATED: '旧版按模型平铺的配置已按接口地址合并成供应商，保存后新结构生效。',
+  PRIVACY: '密钥只存在本机，不入 git。',
 };
 
 /** doctor 档位 → 中文（POST /api/models/test 返回的 stages[].id）。 */
@@ -217,7 +216,7 @@ export function createModels(props = {}) {
     label: S.MODELS_FIELD_KEY,
     name: 'provider-key',
     type: 'password',
-    placeholder: S.MODELS_FIELD_KEY_PLACEHOLDER,
+    placeholder: T.FIELD_KEY_PLACEHOLDER_NEW,
     hint: T.FIELD_KEY_HINT,
   });
 
@@ -386,7 +385,16 @@ export function createModels(props = {}) {
 
     displayField.update({ value: p ? (p.display_name || '') : '', error: '' });
     urlField.update({ value: p ? (p.base_url || '') : '', error: '' });
-    apiKeyField.update({ value: '', error: '' }); // 留空 = 保留已保存的密钥
+    // 留空 = 保留已存密钥。有已存密钥时才用「留空则保持」的占位符；
+    // 没有的话说清楚要填——之前两种情况共用同一句占位符，
+    // 用户以为不用填，结果拉取时发的是无密钥/旧密钥请求。
+    const hasStoredKey = Boolean(p && p.key_present);
+    apiKeyField.update({
+      value: '',
+      error: '',
+      placeholder: hasStoredKey ? T.FIELD_KEY_PLACEHOLDER_KEEP : T.FIELD_KEY_PLACEHOLDER_NEW,
+      hint: hasStoredKey ? T.FIELD_KEY_HINT : T.FIELD_KEY_MISSING_HINT,
+    });
     idField.update({
       value: p ? p.id : '',
       error: '',
@@ -435,6 +443,17 @@ export function createModels(props = {}) {
       return;
     }
     urlField.update({ error: '' });
+    // 拉取要用密钥。本机没存过、表单里也没填时先说清楚——
+    // 否则请求会带着空密钥出去，回一个 401 让人以为是地址写错了。
+    const typedKey = apiKeyField.getValue().trim();
+    const editingProvider = providers.find((x) => x.id === editingId);
+    const hasKey = Boolean(typedKey) || Boolean(editingProvider && editingProvider.key_present);
+    if (!hasKey) {
+      discoverHost.textContent = '';
+      discoverHost.appendChild(el('p', { class: 'field__error', role: 'alert' }, T.DISCOVER_NEED_KEY));
+      apiKeyField.update({ error: T.DISCOVER_NEED_KEY });
+      return;
+    }
     discoverHost.textContent = '';
     discoverBtn.update({ loading: true, busyLabel: T.DISCOVERING });
     try {
@@ -442,7 +461,7 @@ export function createModels(props = {}) {
         id: idField.getValue().trim(),
         base_url: baseUrl,
         protocol: protocolField.getValue(),
-        api_key: apiKeyField.getValue().trim(),
+        api_key: typedKey,
       }, { scope });
       renderDiscover(res && res.models ? res.models : []);
     } catch (err) {

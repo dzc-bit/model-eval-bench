@@ -1289,6 +1289,10 @@ def discover_models(cfg: dict, payload: dict) -> dict:
     provider_id = util.sanitize_id(payload.get("id"))
     provider = next(
         (p for p in cfg.get("providers", []) if str(p.get("id")) == str(provider_id)), None)
+    # 用户的实际工作流是「填地址 → 填密钥 → 点拉取 → 勾模型 → 保存」——
+    # 拉取时那份表单**还没保存**，所以这里必须能用请求体里现填的 base_url / api_key。
+    # 这也是为什么「换了几个供应商都不行」：每次都回退到本机存的旧密钥（已失效），
+    # 新填的那把根本没参与请求。
     # 支持"还没保存就试拉"：表单里现填的 base_url / api_key 优先
     base_url = str(payload.get("base_url") or (provider or {}).get("base_url") or "").strip()
     if not base_url:
@@ -1298,7 +1302,8 @@ def discover_models(cfg: dict, payload: dict) -> dict:
     typed_key = str(payload.get("api_key") or "").strip()
 
     candidates = chat.list_remote_models(
-        base_url=base_url, protocol=protocol, provider_id=provider_id, api_key=typed_key)
+        base_url=base_url, protocol=protocol, provider_id=provider_id, api_key=typed_key,
+        legacy_ids=(provider or {}).get("legacy_ids") or [])
 
     configured = {str(m.get("id")) for m in ((provider or {}).get("models") or [])}
     for item in candidates:

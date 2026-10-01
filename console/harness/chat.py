@@ -379,8 +379,28 @@ def _post_json(url: str, payload: dict, key: str, timeout: float) -> dict:
     return value
 
 
+def _key_owner_candidates(provider_id: str, legacy_ids: Optional[List[str]] = None) -> List[str]:
+    """本机密钥文件里，这个供应商的密钥可能挂在哪些 key 下。
+
+    模型配置重构把 keyring 的 key 从 model_id 换成了 provider_id；老配置
+    读时迁移出的供应商，其密钥仍挂在**老档案 id** 名下（迁移时记进了
+    ``legacy_ids``）。按「新 id → 老 id」顺序都试一遍，避免
+    「明明存过密钥却发无密钥请求 → 401」。
+    """
+    pid = str(provider_id or "").strip()
+    out: List[str] = []
+    if pid:
+        out.append(pid)
+    for item in (legacy_ids or []):
+        value = str(item or "").strip()
+        if value and value not in out:
+            out.append(value)
+    return out
+
+
 def list_remote_models(base_url: str, protocol: str = "openai",
-                       provider_id: str = "", api_key: str = "") -> List[dict]:
+                       provider_id: str = "", api_key: str = "",
+                       legacy_ids: Optional[List[str]] = None) -> List[dict]:
     """问端点「你能提供哪些模型」，返回候选清单。
 
     对齐 DSH 的 discovery 语义：**候选只是可采纳的建议**，不落盘——
@@ -396,9 +416,16 @@ def list_remote_models(base_url: str, protocol: str = "openai",
     if not re.match(r"^https?://", base, re.I):
         raise errors.HarnessError(
             errors.E_MODEL_INVALID, "接口地址必须是 http 或 https 地址。", base)
+    # 找密钥：显式传入 > 本机密钥文件（按供应商）> 环境变量。
+    # 本机文件要按「供应商 id 的几种可能写法」都试一遍：模型配置重构后
+    # keyring 的 key 从 model_id 换成了 provider_id，老配置迁移过来的供应商
+    # 其密钥还挂在老档案名下（如 "01"），只按新 id 查会取不到 → 发无密钥请求 → 401。
     key = str(api_key or "").strip()
     if not key and provider_id:
-        key = keyring.get_key(str(provider_id))
+        for candidate in _key_owner_candidates(provider_id, legacy_ids):
+            key = keyring.get_key(candidate)
+            if key:
+                break
     if not key:
         for name in key_candidates({"provider_id": provider_id, "protocol": protocol}):
             value = os.environ.get(name, "").strip()

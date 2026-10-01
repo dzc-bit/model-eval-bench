@@ -31,7 +31,8 @@ DEFAULT_OPENAI_API_MODE = "chat_completions"
 #: 端点、协议、密钥属于供应商；容量与输出上限属于模型——同一供应商下加模型
 #: 不必重复填 base_url。密钥只存"引用"（keyring 按 provider_id 存），配置里不含秘密。
 PROVIDER_FIELDS = ("id", "display_name", "protocol", "api_mode", "base_url",
-                   "default_context_window", "default_max_tokens", "note", "models")
+                   "default_context_window", "default_max_tokens", "key_masked",
+                   "legacy_ids", "note", "models")
 #: 模型条目字段。context_window / max_tokens 留空则继承供应商的 default_*。
 PROVIDER_MODEL_FIELDS = ("id", "name", "context_window", "max_tokens", "note")
 #: 容量兜底默认值，取自 DSH 的 defaultContextWindow / defaultMaxTokens。
@@ -161,6 +162,9 @@ def _normalize_provider(raw: dict, index: int) -> dict:
     }
     if raw.get("key_masked"):
         provider["key_masked"] = str(raw["key_masked"])
+    legacy = raw.get("legacy_ids")
+    if isinstance(legacy, list) and legacy:
+        provider["legacy_ids"] = [str(x) for x in legacy if x]
 
     for m_index, m in enumerate(raw.get("models") or []):
         if not isinstance(m, dict):
@@ -204,13 +208,17 @@ def _providers_from_legacy_models(models: list) -> list:
                 "api_mode": item.get("api_mode") or "",
                 "base_url": base_url,
                 # 老档案的脱敏密钥带到新供应商上：不带的话界面上会显示
-                # 「未配置密钥」，用户以为密钥丢了要重填（其实本机密钥文件里还在，
-                # 只是 keyring 的 key 从 model_id 换成了 provider_id，需要重新绑定）
+                # 「未配置密钥」，用户以为密钥丢了要重填
                 "key_masked": str(item.get("key_masked") or ""),
+                # 老档案 id 一并记下：本机密钥文件里那把密钥还挂在它们名下
+                # （keyring 的 key 重构前是 model_id），查密钥时要能回退过去
+                "legacy_ids": [],
                 "note": "",
                 "models": [],
             }
             order.append(key)
+        if mid not in grouped[key]["legacy_ids"]:
+            grouped[key]["legacy_ids"].append(mid)
         # 老结构里 model 字段才是「请求时填的模型名」；老 id 是档案名。
         # 迁移后模型 id 用 model 字段（那才是真正发给服务商的名字），
         # 老档案 id 记进 name，保证界面上还认得出原来叫啥。
