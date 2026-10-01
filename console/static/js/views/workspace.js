@@ -256,6 +256,7 @@ export function createWorkspace(props = {}) {
     onGrade: () => doGrade(),
     onPromote: () => doPromote(),
     onReveal: () => doReveal(),
+    onReopen: () => doReopen(),
     onExport: () => doExport(),
     onGoChat: () => focusRegion('chat'),
     onReload: () => reloadState(),
@@ -776,6 +777,34 @@ export function createWorkspace(props = {}) {
   /**
    * 查看参考解（必须写明「已揭晓、不计入通过率统计」，§13.3）。
    */
+  /**
+   * 误校验的补救：作废本轮分数，退回可继续对话的状态。
+   * 沙箱与模型已做的改动都保留，改完重新校验会记作新一轮结果。
+   */
+  async function doReopen() {
+    const s = store.getState();
+    if (!s.run || s.busy) return;
+    const report = s.run.report || {};
+    const shownScore = report.score === undefined || report.score === null ? '—' : report.score;
+    const ok = await confirmDialog({
+      title: S.GRADE_REOPEN_TITLE,
+      messages: [t(S.GRADE_REOPEN_BODY, { n: shownScore })],
+      confirmLabel: S.GRADE_REOPEN,
+      cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+      danger: true,
+    });
+    if (!ok) return;
+    patch({ busy: 'grade', elapsed: 0 });
+    try {
+      const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/reopen`, {}, { scope });
+      showToast({ message: S.GRADE_REOPEN_TITLE, detail: res.notice || '', kind: 'ok', duration: 7000 });
+      await loadRun(s.run.run_id);
+      patch({ busy: '', elapsed: 0 });
+    } catch (err) {
+      reportError(err, '继续对话');
+    }
+  }
+
   async function doReveal() {
     const s = store.getState();
     if (!s.run) return;
@@ -863,8 +892,13 @@ export function createWorkspace(props = {}) {
     diffCard.update({ hint: S.STATE_LOADING });
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/diff`, {}, { scope });
-      const text = typeof res.diff === 'string' ? res.diff : '';
-      setText(diffText, text || S.RUN_DIFF_EMPTY);
+      // 取不到正文和「真的没有改动」是两件事，混在一起就会把故障说成模型没动手
+      if (typeof res.diff !== 'string') {
+        setText(diffText, S.RUN_DIFF_BAD_PAYLOAD);
+        diffCard.update({ hint: '' });
+        return;
+      }
+      setText(diffText, res.diff || S.RUN_DIFF_EMPTY);
       diffCard.update({ hint: diffStats(s.run) });
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'INTERNAL';

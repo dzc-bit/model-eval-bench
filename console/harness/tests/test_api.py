@@ -85,6 +85,38 @@ def as_json(text):
 
 # ------------------------------------------------------------------ health
 
+def test_grade_refuses_before_the_model_has_replied(live, cfg):
+    """新沙箱上点校验只会按「未改动」判 0，白烧一次机会——接口先拦下。"""
+    run = make_run(cfg, model="校验门槛")
+    runs.save_run(cfg, run)
+    assert chat.has_model_reply(run) is False
+
+    status, body, _ = live("/api/runs/%s/grade" % run["run_id"], method="POST", body={})
+    assert status == 400
+    assert "还没有回复过" in as_json(body)["message"]
+
+    chat._append_message(run, {"role": "assistant", "content": "我改完了。"})
+    assert chat.has_model_reply(run) is True
+
+
+def test_chat_history_survives_a_deleted_model_profile(live, cfg):
+    """档案被删也要能回看历史；只有继续发送才需要档案。"""
+    run = make_run(cfg, model="已删档案")
+    runs.save_run(cfg, run)
+    chat._append_message(run, {"role": "user", "content": "上一轮问过的问题"})
+
+    status, body, _ = live("/api/runs/%s/chat" % run["run_id"])
+    assert status == 200, "读历史不该因为档案没了就 404"
+    doc = as_json(body)
+    assert doc["model"]["gone"] is True
+    assert [m["role"] for m in doc["messages"]] == ["user"]
+
+    status, body, _ = live("/api/runs/%s/chat" % run["run_id"], method="POST",
+                           body={"message": "继续"})
+    assert status == 404
+    assert "已被删除" in as_json(body)["message"]
+
+
 def test_health_reports_environment(live, cfg):
     """health 要把版本、路径、盘符、磁盘一次说全（设计文档 §15 末段）。"""
     status, body, _ = live("/api/health")

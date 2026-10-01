@@ -74,12 +74,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002AD47A444A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002AD47A444"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001969700AF00>('admission')\n +    where <built-in method get of dict object at 0x000001969700AF00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002AD4B8B2940>('admission')\n +    where <built-in method get of dict object at 0x000002AD4B8B2940> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -168,12 +168,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000025EEE9044A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000025EEE9044"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000020814155980>('admission')\n +    where <built-in method get of dict object at 0x0000020814155980> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000025E8475C840>('admission')\n +    where <built-in method get of dict object at 0x0000025E8475C840> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -262,12 +262,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000015F96B944A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000015F96B944"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BB2FD6DB80>('admission')\n +    where <built-in method get of dict object at 0x000001BB2FD6DB80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000015F9A9F8F00>('admission')\n +    where <built-in method get of dict object at 0x0000015F9A9F8F00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -356,12 +356,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000025A297E44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000025A297E44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BD328BA140>('admission')\n +    where <built-in method get of dict object at 0x000001BD328BA140> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000025A3F5ACC80>('admission')\n +    where <built-in method get of dict object at 0x0000025A3F5ACC80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -450,12 +450,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000025969AD44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000025969AD44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000260FC411EC0>('admission')\n +    where <built-in method get of dict object at 0x00000260FC411EC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000025900C09D00>('admission')\n +    where <built-in method get of dict object at 0x0000025900C09D00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -544,12 +544,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001D2609944A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001D2609944"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000018D6A172D00>('admission')\n +    where <built-in method get of dict object at 0x0000018D6A172D00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001D27662CF80>('admission')\n +    where <built-in method get of dict object at 0x000001D27662CF80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -638,12 +638,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000220103544A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000220103544"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001CE62B2DAC0>('admission')\n +    where <built-in method get of dict object at 0x000001CE62B2DAC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000022014206640>('admission')\n +    where <built-in method get of dict object at 0x0000022014206640> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -732,12 +732,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001BE242344A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001BE242344"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001E47D0F4080>('admission')\n +    where <built-in method get of dict object at 0x000001E47D0F4080> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BE3A31D300>('admission')\n +    where <built-in method get of dict object at 0x000001BE3A31D300> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -826,12 +826,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001CEAB1D44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001CEAB1D44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002839E746CC0>('admission')\n +    where <built-in method get of dict object at 0x000002839E746CC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001CEC0E2D100>('admission')\n +    where <built-in method get of dict object at 0x000001CEC0E2D100> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -920,12 +920,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000188648644A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000188648644"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001DBC897FE80>('admission')\n +    where <built-in method get of dict object at 0x000001DBC897FE80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000188686E9880>('admission')\n +    where <built-in method get of dict object at 0x00000188686E9880> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1014,12 +1014,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000021F3DD444A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000021F3DD444"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001C25BDC1040>('admission')\n +    where <built-in method get of dict object at 0x000001C25BDC1040> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000021F53DFC040>('admission')\n +    where <built-in method get of dict object at 0x0000021F53DFC040> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1108,12 +1108,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001EAA57044A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001EAA57044"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000278F664D2C0>('admission')\n +    where <built-in method get of dict object at 0x00000278F664D2C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001EABB74EA80>('admission')\n +    where <built-in method get of dict object at 0x000001EABB74EA80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1202,12 +1202,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001F8C26444A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001F8C26444"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002863F2332C0>('admission')\n +    where <built-in method get of dict object at 0x000002863F2332C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001F8D96BB600>('admission')\n +    where <built-in method get of dict object at 0x000001F8D96BB600> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1296,12 +1296,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001E636B444A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001E636B444"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000026312A8D740>('admission')\n +    where <built-in method get of dict object at 0x0000026312A8D740> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001E63AA26A00>('admission')\n +    where <built-in method get of dict object at 0x000001E63AA26A00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1390,12 +1390,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002B20BB644A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002B20BB644"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001FD7FCD3080>('admission')\n +    where <built-in method get of dict object at 0x000001FD7FCD3080> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002B210A06E80>('admission')\n +    where <built-in method get of dict object at 0x000002B210A06E80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1484,12 +1484,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000020FAF3F44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000020FAF3F44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002DDB3C37580>('admission')\n +    where <built-in method get of dict object at 0x000002DDB3C37580> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000020FC5146140>('admission')\n +    where <built-in method get of dict object at 0x0000020FC5146140> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1578,12 +1578,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000022E612C44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000022E612C44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001452137BDC0>('admission')\n +    where <built-in method get of dict object at 0x000001452137BDC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000022E65118B00>('admission')\n +    where <built-in method get of dict object at 0x0000022E65118B00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1672,12 +1672,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001BA2DCA44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001BA2DCA44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000014A22552A80>('admission')\n +    where <built-in method get of dict object at 0x0000014A22552A80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BA43995480>('admission')\n +    where <built-in method get of dict object at 0x000001BA43995480> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1731,8 +1731,8 @@
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_recent_read_protects_job_from_stale_reap",
-              "outcome": "failed",
-              "message": "AssertionError: assert (SyncJobStatus(job_id='job-a', mode='full_market_bootstrap', status='failed', admission='started', total_symbols=1, com...te(2015, 1, 5), errors=['作业失活：超过 0.0 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 0.0 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "outcome": "passed",
+              "message": ""
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1766,12 +1766,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001B909D144A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001B909D144"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002404704B780>('admission')\n +    where <built-in method get of dict object at 0x000002404704B780> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001B920CD1AC0>('admission')\n +    where <built-in method get of dict object at 0x000001B920CD1AC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1860,12 +1860,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: assert 'running_jobs' in {'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000027E82F544A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000027E82F544"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002AE7FD6F4C0>('admission')\n +    where <built-in method get of dict object at 0x000002AE7FD6F4C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000027E9900ED80>('admission')\n +    where <built-in method get of dict object at 0x0000027E9900ED80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -1891,5 +1891,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T02:02:37"
+  "finished_at": "2026-10-01T14:02:40"
 }

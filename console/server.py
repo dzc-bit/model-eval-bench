@@ -297,26 +297,66 @@ def api_create_run(cfg: dict, body: dict) -> dict:
 
 
 def api_chat_history(cfg: dict, run_id: str) -> dict:
-    """读取当前 run 的服务端对话记录。"""
+    """读取当前 run 的服务端对话记录。
+
+    模型档案被删掉也必须能回看：查档案只是为了在响应里附带一段展示信息，
+    不能因为它把整段历史变成 404。真正需要档案的是继续发送（见 api_chat_send）。
+    """
     run = runs.get_run(cfg, run_id)
-    model = config.find_model(cfg, str(run.get("model") or ""))
+    model_id = str(run.get("model") or "")
+    try:
+        model = config.find_model(cfg, model_id)
+        info = {"id": model.get("id"), "model": model.get("model"),
+                "protocol": model.get("protocol"), "api_mode": model.get("api_mode")}
+    except errors.HarnessError:
+        info = {"id": model_id, "model": "", "protocol": "", "api_mode": "", "gone": True}
     return {
         "run_id": run_id,
         "messages": chat_mod.messages(run),
         "chat_busy": chat_mod.send_active(run_id),
-        "model": {"id": model.get("id"), "model": model.get("model"),
-                   "protocol": model.get("protocol"), "api_mode": model.get("api_mode")},
+        "model": info,
         "tools": chat_mod.TOOLS,
     }
 
 
+def api_grade(cfg: dict, run_id: str) -> dict:
+    """启动校验；模型还没回复过时拒绝。
+
+    刚建好的沙箱上点校验，只会按「未改动」判 0，白烧掉一次尝试机会——
+    而这条路是误操作最常撞上的。门槛放在接口层：出题侧与引擎测试用"直接往
+    沙箱写文件"的方式模拟模型改动，它们不经过对话，引擎不该替它们下判断。
+    """
+    run = runs.get_run(cfg, run_id)
+    if not chat_mod.has_model_reply(run):
+        raise errors.HarnessError(
+            errors.E_BAD_REQUEST,
+            "模型还没有回复过任何一条消息：现在校验只会按「未改动」计分，白烧一次尝试机会。"
+            "请先在内置对话里发送提示词，让模型动手。",
+        )
+    return runs.start_grade(cfg, run_id)
+
+
 def api_chat_send(cfg: dict, run_id: str, body: dict) -> dict:
-    """向当前 run 的模型发送一条消息，并驱动受限工具调用闭环。"""
+    """收下这条消息并驱动受限工具闭环：立刻回执，实际跑在后台线程里。
+
+    设计文档 §15 把这条接口写成同步的；一轮对话要连跑几十次工具与模型调用，
+    同步等待时任何一层先到期都会留下一个像失败的错（详见 NOTES.md 第一节）。
+    前端拿到回执后改为轮询 GET /api/runs/{id}/chat 的 ``chat_busy`` 与消息增量。
+    """
     run = runs.get_run(cfg, run_id)
     text = body.get("message")
     if not isinstance(text, str) or not text.strip():
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
-    return chat_mod.send(cfg, run, text)
+    try:
+        config.find_model(cfg, str(run.get("model") or ""))
+    except errors.HarnessError:
+        # 这一轮绑定的档案已经不存在：让他新建一个叫旧 id 的档案是荒谬的建议
+        raise errors.HarnessError(
+            errors.E_MODEL_NOT_FOUND,
+            "这一轮绑定的模型档案 %s 已被删除，无法继续对话。请在运行区改选一个现存档案，"
+            "再准备新一轮。" % run.get("model"),
+        )
+    return chat_mod.start_send(cfg, run, text)
 
 
 def api_model_doctor(cfg: dict, body: dict) -> dict:
@@ -393,7 +433,8 @@ def build_router() -> Router:
     r.add("GET", r"/api/runs/(?P<run_id>[^/]+)/chat", lambda ctx: (api_chat_history(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/chat", lambda ctx: (api_chat_send(ctx["cfg"], ctx["run_id"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/runs/(?P<run_id>[^/]+)", lambda ctx: (api_run_view(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
-    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/grade", lambda ctx: (runs.start_grade(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/grade", lambda ctx: (api_grade(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reopen", lambda ctx: (runs.reopen(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/promote", lambda ctx: (runs.promote(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (runs.reveal(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/note", lambda ctx: (runs.set_note(ctx["cfg"], ctx["run_id"], str(ctx["body"].get("note") or "")), "application/json; charset=utf-8"))
@@ -416,6 +457,8 @@ def build_router() -> Router:
     r.add("POST", r"/api/batches", lambda ctx: (_create_batch(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/batches/(?P<batch_id>[^/]+)", lambda ctx: (batch_mod.get(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/cancel", lambda ctx: (batch_mod.cancel(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/release",
+          lambda ctx: (batch_mod.release(ctx["cfg"], ctx["batch_id"], _as_int(ctx["body"].get("index"), -1)), "application/json; charset=utf-8"))
     r.add("POST", r"/api/selfcheck", lambda ctx: (selfcheck.scan(ctx["cfg"]), "application/json; charset=utf-8"))
     return r
 
@@ -442,7 +485,8 @@ def _create_batch(cfg: dict, body: dict) -> dict:
     concurrency = body.get("concurrency")
     if concurrency is not None:
         concurrency = _as_int(concurrency, batch_mod.max_concurrency(cfg))
-    return batch_mod.start(cfg, items, concurrency=concurrency)
+    return batch_mod.start(cfg, items, concurrency=concurrency,
+                           auto_send=bool(body.get("auto_send")))
 
 
 def _list_runs(cfg: dict, query: dict) -> dict:
@@ -556,9 +600,13 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_static(path)
             return
         try:
-            handler, params = ROUTER.match(method, path)
+            # 写操作先过跨站防护，再解码路由：前端按 encodeURIComponent 发 run_id，
+            # 而模型档案名允许中文（runs/ 记录里就有中文档案名）。不解码的话这类
+            # run 的接口全部 404。静态分支不这么做——_serve_static 自己解码，这里
+            # 再解一次就成了双重解码，%252e%252e 这类绕过手段正好会因此失效。
             if method in {"POST", "PATCH", "DELETE"}:
                 self._guard_state_change()
+            handler, params = ROUTER.match(method, unquote(path))
             body = self._read_body() if method in {"POST", "PATCH", "DELETE"} else {}
             cfg = _load_config()
             # 路径参数（task_id / run_id）直接摊到 ctx 上，

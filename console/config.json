@@ -108,6 +108,16 @@
       "key_masked": "sk-H****aj7o",
       "key_env": "",
       "note": ""
+    },
+    {
+      "id": "cbcn-deepseek-v4-1-flash",
+      "protocol": "openai",
+      "api_mode": "chat_completions",
+      "base_url": "http://127.0.0.1:20128/v1",
+      "model": "cbcn/deepseek-v4.1-flash",
+      "key_masked": "sk-1****8551",
+      "key_env": "",
+      "note": ""
     }
   ],
   "repos": {

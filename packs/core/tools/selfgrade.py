@@ -327,7 +327,9 @@ def grade(task_dir: Path, meta: dict, outcomes: dict[str, str]) -> dict:
         weight_total += weight
         missing = [node for node in tests if _match_outcome(node, outcomes) is None]
         failures = [node for node in tests if _match_outcome(node, outcomes) == "failed"]
-        passed = not missing and not failures
+        # 一个用例都没声明/都没收集到的组不能算通过：那正是「checker 压根没跑」的形状，
+        # 曾经让前端隐藏用例从未执行过的题拿到 100。
+        passed = bool(tests) and not missing and not failures
         weight_passed += weight if passed else 0
         group_reports.append(
             {

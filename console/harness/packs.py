@@ -244,6 +244,9 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
         # 但 pytest 的 cwd 是评分树根，路径必须补上 overlay 前缀（`hidden/tests_hidden/...`）
         # 才找得到。这里统一归一成"相对评分树根"的形态，两种写法都能跑。
         prefix = "" if overlay_rel in ("", ".") else overlay_rel.replace("\\", "/").strip("/")
+    # 搬运目的地与上面算出的 overlay_rel 一致：vitest 分支已经把它指到
+    # frontend/src/<目录名>（vitest 的 root 之内），其余走题包原样布局。
+    overlay_dest = overlay_rel
     for group in groups:
         group["tests"] = [_qualify_node_id(t, prefix) for t in group["tests"]]
     p2p_tests = [_qualify_node_id(t, "") for t in p2p_tests]
@@ -252,6 +255,7 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
         "hidden_rel": hidden_rel,
         "overlay_src": overlay_src,
         "overlay_rel": overlay_rel,
+        "overlay_dest_rel": overlay_dest,
         "groups": groups,
         "p2p_tests": p2p_tests,
         "groups_path": groups_path,

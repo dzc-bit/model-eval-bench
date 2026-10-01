@@ -73,20 +73,20 @@ export function createRunBar(handlers) {
   );
 
   /**
-   * 差异更新：只在换轮时同步服务端备注，平时绝不覆盖草稿。
+
    * @param {object} state
    */
   function update(state) {
     current = { ...current, ...state };
     const run = current.run;
 
-    // 备注：只有切换到另一轮时才从服务端同步，平时绝不覆盖用户草稿（§11.2 #14）
     const serverNote = run ? run.note || '' : '';
     const runId = run ? run.run_id : null;
     if (runId !== draftRunId) {
       draftRunId = runId;
       noteDraft = serverNote;
       noteField.setValue(serverNote);
+
     }
 
     saveBtn.update({
@@ -104,9 +104,7 @@ export function createRunBar(handlers) {
     update,
     /** 读备注草稿（工作台编排层暂不需要，保留给快捷键与测试）。 */
     getNote: () => noteDraft,
-    /** 展开/收起卡片。 */
-    setOpen(open) {
-      root.open = Boolean(open);
+
     },
     /** 解绑（§10.4）。 */
     destroy() {

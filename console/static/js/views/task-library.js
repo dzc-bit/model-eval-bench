@@ -15,7 +15,7 @@
  * 导出：createTaskLibrary(props) → { el, destroy, el_h1 }
  */
 
-import { el, setText, patchList } from '../core/dom.js';
+import { el, setText, patchList, clear } from '../core/dom.js';
 import { S, t, normalizeTier, TIER_NAMES } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { storage, STORAGE_KEYS } from '../core/storage.js';
@@ -319,6 +319,29 @@ export function createTaskLibrary(props = {}) {
   }
 
   /**
+   * 卡片必须能被原地刷新。
+   * patchList 按题目 id 复用节点，跑完一轮回到任务库时成绩、校准标记、档位都变了；
+   * 只在建卡那一刻画一次，页面就会永远停在旧数字上。
+   */
+  const cardSignatures = new WeakMap();
+
+  function createCard(task) {
+    const node = renderCard(task);
+    cardSignatures.set(node, JSON.stringify(task));
+    return node;
+  }
+
+  function refreshCard(node, task) {
+    const signature = JSON.stringify(task);
+    if (cardSignatures.get(node) === signature) return;
+    cardSignatures.set(node, signature);
+    const rebuilt = renderCard(task);
+    node.className = rebuilt.className;
+    clear(node);
+    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
+  }
+
+  /**
    * 目标通过率区间：后端可能给 0.3~0.6（比例）或 30~60（百分数），两种都归一成百分数文案。
    * @param {unknown} raw
    * @returns {{low: string, high: string}|null}
@@ -380,7 +403,7 @@ export function createTaskLibrary(props = {}) {
     }
     listEl.hidden = false;
     bodyHost.textContent = '';
-    patchList(listEl, list, (task) => task.id, renderCard, () => {});
+    patchList(listEl, list, (task) => task.id, createCard, refreshCard);
   }
 
   /**

@@ -45,6 +45,38 @@ def store_run(cfg, run_id, task, model, passed, score, attempts=1, revealed=Fals
 
 # ------------------------------------------------------------------ 归档
 
+def test_reopen_voids_the_round_and_unlocks_the_chat(cfg):
+    """误校验的补救：本轮分数作废、退回可对话，记分板不再计入它。"""
+    run = make_run(cfg, model="重开模型")
+    runs.save_run(cfg, run)
+    stored = runs.get_run(cfg, run["run_id"])
+    stored["status"] = "graded"
+    stored["last_score"] = 83.3
+    stored["last_passed"] = False
+    stored["rounds"] = [{"attempt": 1, "score": 83.3, "passed": False}]
+    runs.save_run(cfg, stored)
+
+    out = runs.reopen(cfg, stored["run_id"])
+    assert out["status"] == "ready"
+    assert out["voided_rounds"] == 1
+
+    after = runs.get_run(cfg, stored["run_id"])
+    assert after["rounds"][0]["voided"] is True
+    assert after["last_score"] is None
+    cell = runs._cell_stats([after])
+    assert cell["avg_score"] == 0.0 and cell["pass_any"] == 0
+
+    # 没校验过的轮次不需要重开；已揭晓参考解的不允许重开
+    with pytest.raises(errors.HarnessError):
+        runs.reopen(cfg, after["run_id"])
+    after["status"] = "graded"
+    after["revealed"] = True
+    runs.save_run(cfg, after)
+    with pytest.raises(errors.HarnessError) as exc:
+        runs.reopen(cfg, after["run_id"])
+    assert "参考解" in exc.value.message
+
+
 def test_run_directory_holds_full_archive(cfg, log):
     """一轮跑完，记录目录里该有的都在。"""
     meta = __import__("harness.packs", fromlist=["packs"]).load_meta(cfg, BACKEND_TASK)

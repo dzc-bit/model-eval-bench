@@ -185,8 +185,10 @@ export function createPromptPanel(handlers) {
   const emptyState = createEmptyState({
     title: S.PROMPT_EMPTY,
     desc: S.PROMPT_EMPTY_DESC,
-    // 这是「跳去沙箱卡」的导航，不是执行准备动作；primary 留给沙箱卡里真正的按钮
-    actions: [createButton({ label: S.SANDBOX_PREPARE, variant: 'ghost', onClick: () => handlers.onGoSandbox() }).el],
+    // 这颗按钮只负责跳到沙箱区，不准备任何东西：标签必须和沙箱区那颗
+    // 真「准备沙箱」区分开，否则点了以后界面毫无反应。样式保持幽灵态——
+    // 全页的实心强调留给沙箱卡里真正的「准备沙箱」。
+    actions: [createButton({ label: S.PROMPT_GO_SANDBOX, variant: 'ghost', onClick: () => handlers.onGoSandbox() }).el],
   });
   const skeleton = createSkeleton({ rows: 2, variant: 'card', label: S.STATE_LOADING });
   const errorState = createEmptyState({

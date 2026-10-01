@@ -94,6 +94,7 @@ export function createBatch(props = {}) {
   let selectedTasks = new Set();
   let selectedModels = new Set();
   let concurrency = 3;
+  let autoSend = false;
   let batch = null;
   let pollTimer = null;
   let pollInFlight = false;
@@ -140,6 +141,20 @@ export function createBatch(props = {}) {
   });
   concurrencyField.setValue('3');
 
+  // 无人值守开关：默认关，跑批照旧只准备沙箱、由人发送与校验
+  const autoSendBox = el('input', {
+    type: 'checkbox',
+    id: 'batch-auto-send',
+    onChange: (event) => { autoSend = event.target.checked; },
+  });
+  const autoSendRow = el(
+    'label',
+    { class: 'batch__pick-row', for: 'batch-auto-send' },
+    autoSendBox,
+    el('span', { class: 'batch__pick-label' }, S.BATCH_AUTO_SEND),
+    el('span', { class: 'u-faint' }, S.BATCH_AUTO_SEND_HINT),
+  );
+
   const startBtn = createButton({
     label: S.BATCH_START,
     variant: 'primary',
@@ -161,6 +176,7 @@ export function createBatch(props = {}) {
     'div',
     { class: 'batch__controls' },
     concurrencyField.el,
+    autoSendRow,
     el('span', { class: 'u-spacer' }),
     refreshBtn.el,
     cancelBtn.el,
@@ -287,6 +303,28 @@ export function createBatch(props = {}) {
         }
       },
     });
+    const releaseBtn = createButton({
+      label: S.BATCH_RELEASE_SANDBOX,
+      size: 'sm',
+      variant: 'ghost',
+      disabled: true,
+      onClick: async () => {
+        const batchId = progressView && progressView.batchId;
+        if (!batchId || current.index === undefined) return;
+        releaseBtn.update({ loading: true, busyLabel: S.BATCH_RELEASING });
+        try {
+          const res = await api.post(`/batches/${encodeURIComponent(batchId)}/release`,
+            { index: current.index }, { scope });
+          showToast({ message: S.BATCH_RELEASED, detail: res.message || '', kind: 'success' });
+          await load();
+        } catch (err) {
+          const code = err instanceof ApiError ? err.code : 'INTERNAL';
+          showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+        } finally {
+          releaseBtn.update({ loading: false });
+        }
+      },
+    });
     const promptPre = el('pre', { class: 'code-block__pre', tabindex: '0' });
     const promptCopy = createCopyButton({
       label: '复制当前轮提示词',
@@ -317,7 +355,7 @@ export function createBatch(props = {}) {
     const head = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
       mark.el, main, el('span', { class: 'u-spacer' }), score, statusDot.el);
     const actions = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
-      openLink, gradeBtn.el, runId, path);
+      openLink, gradeBtn.el, releaseBtn.el, runId, path);
     const card = el('li', {
       class: `batch__item batch__item--${initialItem.status}`,
       style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '0' },
@@ -354,6 +392,10 @@ export function createBatch(props = {}) {
         } else {
           gradeBtn.update({ disabled: true });
         }
+        // 评分结束后沙箱还占着磁盘：批次监控线程一死（服务重启）就没人自动回收，
+        // 所以只要这一条已经收束又还有工作区，就给一个手动关掉的入口。
+        const terminal = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
+        releaseBtn.el.hidden = !(terminal && item.sandbox);
         promptPre.textContent = item.prompt || '这道题没有配置当前轮提示词。';
         promptCopy.update({ getText: () => String(current.prompt || '') });
         const nextEvents = item.events || [];
@@ -380,6 +422,7 @@ export function createBatch(props = {}) {
         mark.destroy();
         statusDot.destroy();
         gradeBtn.destroy();
+        releaseBtn.destroy();
         promptCopy.destroy();
       },
     };
@@ -537,7 +580,7 @@ export function createBatch(props = {}) {
     }
     startBtn.update({ loading: true });
     try {
-      const res = await api.post('/batches', { items, concurrency }, { scope });
+      const res = await api.post('/batches', { items, concurrency, auto_send: autoSend }, { scope });
       batch = res;
       announce(`${S.BATCH_STARTED}：${batch.total} 条`);
       showToast({ message: S.BATCH_STARTED, detail: `${batch.total} 条，并发 ${batch.concurrency}`, kind: 'success' });

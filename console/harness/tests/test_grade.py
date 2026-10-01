@@ -168,6 +168,28 @@ def test_tampering_with_tests_is_inert_and_recorded(bench):
                                              "test_pricing_hidden.py"))
 
 
+def test_out_of_bounds_comment_only_is_downgraded():
+    """越界文件只改注释 → 记提示不作废；碰了一行代码就还是硬违规。"""
+    changes = {"added": [], "modified": ["backend/miniapp/models.py"], "removed": [],
+               "changed": ["backend/miniapp/models.py"]}
+    allowed = ["backend/miniapp/pricing.py"]
+    comment_diff = (
+        "--- a/backend/miniapp/models.py\n+++ b/backend/miniapp/models.py\n"
+        "@@ -1,2 +1,3 @@\n # 原说明\n-# 旧措辞\n+# 新措辞\n+# 再补一行说明\n"
+    )
+    hard, soft = grade._classify_violations({}, changes, allowed, [], comment_diff)
+    assert hard == [], hard
+    assert len(soft) == 1 and soft[0]["reason"].startswith("越界但只改了注释")
+
+    code_diff = (
+        "--- a/backend/miniapp/models.py\n+++ b/backend/miniapp/models.py\n"
+        "@@ -1,2 +1,3 @@\n # 原说明\n-# 旧措辞\n+limit = 2\n"
+    )
+    hard2, soft2 = grade._classify_violations({}, changes, allowed, [], code_diff)
+    assert [v["path"] for v in hard2] == ["backend/miniapp/models.py"]
+    assert soft2 == []
+
+
 def test_cheating_visible_tests_does_not_help(bench):
     """把可见测试改成永远通过，隐藏测试照样判红。"""
     _cfg, _run, _meta, grade_with = bench

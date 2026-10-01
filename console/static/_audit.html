@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AUDIT_PENDING</title>
+<style>
+  html,body{margin:0;background:#fff;color:#000;font:12px monospace}
+  #out{white-space:pre-wrap;word-break:break-all;padding:4px}
+  iframe{border:0;display:block}
+</style>
+</head>
+<body>
+<iframe id="f"></iframe>
+<pre id="out">AUDIT_JSON_START<!--AUDIT_JSON_END--></pre>
+<script>
+/*
+ * 一次性视觉缺陷测量台（审计用完即删，不属于产品代码）。
+ * 用法：/_audit.html?view=settings&theme=light&w=1440&h=900
+ * 同源 iframe 承载真实应用 + 真实后端数据（严禁 ?mock=1）。
+ * 原则：解析不出来就标 unresolved，绝不把"量不到"当成"没问题"。
+ */
+(function () {
+  var q = new URLSearchParams(location.search);
+  var view = q.get('view') || 'tasks';
+  var theme = q.get('theme') || '';
+  var W = parseInt(q.get('w') || '1440', 10);
+  var H = parseInt(q.get('h') || '900', 10);
+
+  try { if (theme) localStorage.setItem('theme', theme); else localStorage.removeItem('theme'); } catch (e) {}
+
+  var f = document.getElementById('f');
+  f.style.width = W + 'px';
+  f.style.height = H + 'px';
+  f.src = '/index.html#/' + view;
+
+  function settle() {
+    return new Promise(function (resolve, reject) {
+      var waited = 0, last = -1, stable = 0;
+      var t = setInterval(function () {
+        waited += 250;
+        var d = null;
+        try { d = f.contentDocument; } catch (e) { clearInterval(t); reject('cross-origin'); return; }
+        if (!d || !d.body) { if (waited > 25000) { clearInterval(t); reject('never-loaded'); } return; }
+        var n = d.querySelectorAll('body *').length;
+        var busy = d.querySelector('.skeleton, [aria-busy="true"]');
+        if (n === last && n > 40 && !busy) stable += 1; else stable = 0;
+        last = n;
+        if (stable >= 3) { clearInterval(t); resolve(d); }
+        else if (waited > 25000) { clearInterval(t); reject('timeout:last-count=' + n); }
+      }, 250);
+    });
+  }
+
+  function path(el) {
+    var parts = [], cur = el;
+    while (cur && cur.tagName && cur !== document) {
+      var seg = cur.tagName.toLowerCase();
+      if (cur.id) { seg += '#' + cur.id; parts.unshift(seg); break; }
+      var cls = (cur.className || '').toString().trim().split(/\s+/)
+        .filter(function (c) { return c && c.length < 30 && !/^[A-Z]/.test(c); }).slice(0, 2).join('.');
+      if (cls) seg += '.' + cls;
+      var p = cur.parentElement;
+      if (p) {
+        var same = Array.prototype.filter.call(p.children, function (c) { return c.tagName === cur.tagName; });
+        if (same.length > 1) seg += ':nth(' + (same.indexOf(cur) + 1) + ')';
+      }
+      parts.unshift(seg);
+      cur = p;
+      if (parts.length > 5) break;
+    }
+    return parts.join(' > ');
+  }
+
+  function visible(el, win) {
+    var cs = win.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return false;
+    var r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+
+  function ownText(el) {
+    var t = '';
+    for (var n = 0; n < el.childNodes.length; n += 1) {
+      if (el.childNodes[n].nodeType === 3) t += el.childNodes[n].nodeValue;
+    }
+    return t.trim();
+  }
+
+  function parseColor(c) {
+    var v = (c || '').match(/rgba?\(([^)]+)\)|(#[0-9a-f]{3,8})/i);
+    if (!v) return null;
+    var p;
+    if (v[1]) {
+      p = v[1].split(/[\s,\/]+/).filter(function (x) { return x !== ''; }).map(parseFloat);
+    } else {
+      var h = v[2].slice(1);
+      if (h.length === 3 || h.length === 4) h = h.split('').map(function (x) { return x + x; }).join('');
+      p = [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+      if (h.length === 8) p.push(parseInt(h.slice(6, 8), 16) / 255);
+    }
+    if (p.some(isNaN)) return null;
+    var a = p.length > 3 ? p[3] : 1;
+    var L = function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    return { l: 0.2126 * L(p[0]) + 0.7152 * L(p[1]) + 0.0722 * L(p[2]), a: a, css: 'rgb(' + p.slice(0, 3).map(Math.round).join(',') + ')' };
+  }
+
+  /** 解析真实底色：background-color 或渐变里的第一个不透明色；量不到返回 null。 */
+  function resolveBg(el, win) {
+    var cur = el, blended = [];
+    while (cur && cur.tagName) {
+      var cs = win.getComputedStyle(cur);
+      var m = parseColor(cs.backgroundColor);
+      if (m && m.a >= 0.85) return { l: m.l, css: m.css, from: path(cur).split(' > ').pop() };
+      if (m && m.a > 0.01) blended.push(m);
+      var bi = cs.backgroundImage;
+      if (bi && bi !== 'none' && /gradient/.test(bi)) {
+        var g = bi.match(/rgba?\([^)]+\)|#[0-9a-f]{3,8}/i);
+        if (g) {
+          var gm = parseColor(g[0]);
+          if (gm && gm.a >= 0.85) return { l: gm.l, css: gm.css, from: 'gradient@' + path(cur).split(' > ').pop() };
+        }
+      }
+      cur = cur.parentElement;
+    }
+    if (blended.length) {
+      var last = blended[blended.length - 1];
+      return { l: last.l, css: last.css + '(半透明叠加)', from: 'blend' };
+    }
+    return null;
+  }
+
+  function lineBoxes(el, win) {
+    var rng = win.document.createRange();
+    rng.selectNodeContents(el);
+    var rects = Array.prototype.slice.call(rng.getClientRects()).filter(function (r) { return r.width > 0 && r.height > 0; });
+    var groups = [];
+    rects.sort(function (a, b) { return a.top - b.top; });
+    rects.forEach(function (r) {
+      var g = groups.filter(function (x) { return Math.abs(x.top - r.top) < Math.max(3, r.height * 0.4); })[0];
+      if (g) { g.right = Math.max(g.right, r.right); g.left = Math.min(g.left, r.left); }
+      else groups.push({ top: r.top, left: r.left, right: r.right, height: r.height });
+    });
+    return groups;
+  }
+
+  function measure(d, win) {
+    var out = [], unresolved = { contrast: 0 };
+    function add(rule, sev, el, detail) {
+      out.push({ rule: rule, severity: sev, sel: path(el), text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60), detail: detail });
+    }
+    var els = Array.prototype.filter.call(d.querySelectorAll('body *'), function (e) { return visible(e, win); });
+    var docW = d.documentElement.clientWidth;
+
+    if (d.documentElement.scrollWidth > docW + 1) {
+      add('page-h-overflow', 'high', d.body, 'scrollWidth=' + d.documentElement.scrollWidth + ' clientWidth=' + docW);
+    }
+
+    els.forEach(function (el) {
+      var cs = win.getComputedStyle(el);
+      var r = el.getBoundingClientRect();
+      var isHiddenA11y = /visually-hidden|sr-only|skip-link/.test((el.className || '').toString());
+
+      if (!isHiddenA11y && (r.right > docW + 1 || r.left < -1)) {
+        add('box-out-of-viewport', 'high', el, 'left=' + Math.round(r.left) + ' right=' + Math.round(r.right) + ' 视口宽=' + docW);
+      }
+
+      var ox = cs.overflowX;
+      if (!isHiddenA11y && el.scrollWidth > el.clientWidth + 1 && (ox === 'hidden' || ox === 'clip')) {
+        add('clipped-by-overflow', 'high', el, '内容宽=' + el.scrollWidth + ' 可见宽=' + el.clientWidth + ' overflow-x=' + ox);
+      }
+
+      var t = ownText(el);
+      if (t && cs.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) {
+        add('ellipsis-truncation', 'medium', el, '内容宽=' + el.scrollWidth + ' 可见宽=' + el.clientWidth + '（文字被吃掉）');
+      }
+
+      if (t && /[\u3400-\u9fff]/.test(t)) {
+        var fs = parseFloat(cs.fontSize);
+        var lines = lineBoxes(el, win);
+        if (lines.length > 1 && t.length <= 8) {
+          var perLine = t.length / lines.length;
+          add('cjk-label-wrapped', perLine < 1.8 ? 'high' : 'medium', el,
+            '字号=' + fs + 'px 字数=' + t.length + ' 行数=' + lines.length + ' 每行≈' + perLine.toFixed(1) + '字 盒宽=' + Math.round(r.width) + 'px');
+        }
+        var lh = cs.lineHeight === 'normal' ? fs * 1.2 : parseFloat(cs.lineHeight);
+        if (lh < fs * 1.45 - 0.5) {
+          add('cjk-line-height-tight', lines.length > 1 ? 'medium' : 'low', el,
+            '行高=' + lh.toFixed(1) + 'px 字号=' + fs + 'px 倍率=' + (lh / fs).toFixed(2) + '（CJK 需 ≥1.5）行数=' + lines.length);
+        }
+      }
+
+      var tag = el.tagName.toLowerCase();
+      if (tag === 'button' || tag === 'a' || tag === 'input' || tag === 'select' || tag === 'textarea' || el.getAttribute('role') === 'button') {
+        if (r.height < 28 || r.width < 28) add('small-hit-area', 'medium', el, '高=' + Math.round(r.height) + 'px 宽=' + Math.round(r.width) + 'px');
+      }
+
+      if (t) {
+        var fg = parseColor(cs.color);
+        var bg = resolveBg(el, win);
+        if (!bg) { unresolved.contrast += 1; }
+        else if (fg) {
+          var l1 = Math.max(fg.l, bg.l) + 0.05, l2 = Math.min(fg.l, bg.l) + 0.05;
+          var ratio = l1 / l2;
+          var big = parseFloat(cs.fontSize) >= 24 || parseFloat(cs.fontWeight) >= 700;
+          if (ratio < (big ? 3 : 4.5)) {
+            add('low-contrast', ratio < 2.5 ? 'high' : ratio < 3.5 ? 'medium' : 'low', el,
+              '对比度=' + ratio.toFixed(2) + ':1 需≥' + (big ? 3 : 4.5) + ' 字=' + fg.css + ' 底=' + bg.css + ' 字号=' + cs.fontSize);
+          }
+        }
+      }
+    });
+
+    // 图标 / kbd 角标 / 状态点 与文字的挤压碰撞
+    Array.prototype.forEach.call(
+      d.querySelectorAll('svg, [class*="icon"], [class*="glyph"], [class*="dot"], [class*="kbd"], kbd, [class*="mark"]'),
+      function (el) {
+        var r = el.getBoundingClientRect();
+        if (!r.width || !visible(el, win)) return;
+        var nx = el.nextElementSibling || (el.parentElement && el.parentElement.nextElementSibling);
+        if (!nx || !visible(nx, win)) return;
+        var nr = nx.getBoundingClientRect();
+        var overlapY = Math.min(r.bottom, nr.bottom) - Math.max(r.top, nr.top);
+        if (overlapY <= 1) return;
+        var gap = Math.max(nr.left - r.right, r.left - nr.right);
+        var who = (nx.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 14);
+        if (gap < 0) add('icon-text-collision', 'high', el, '与「' + who + '」重叠 ' + Math.round(-gap) + 'px');
+        else if (gap < 4) add('icon-text-collision', 'medium', el, '与「' + who + '」间距仅 ' + gap.toFixed(1) + 'px');
+      });
+
+    var counts = {};
+    out.forEach(function (x) { counts[x.rule] = (counts[x.rule] || 0) + 1; });
+    return { elements: els.length, counts: counts, unresolved: unresolved, findings: out.slice(0, 160), total: out.length };
+  }
+
+  function done(payload) {
+    document.title = 'AUDIT_' + (payload.status === 'ok' ? 'OK' : 'ERR');
+    document.getElementById('out').textContent =
+      'AUDIT_JSON_START' + JSON.stringify(payload) + 'AUDIT_JSON_END';
+  }
+
+  settle().then(function (d) {
+    var win = f.contentWindow, res;
+    try { res = measure(d, win); } catch (e) { res = { error: String((e && e.stack) || e) }; }
+    var mainNodes = d.querySelectorAll('#main-content *').length;
+    var empty = d.querySelector('.empty-state, [class*="error-bar"]');
+    done({
+      status: mainNodes > 30 && !res.error ? 'ok' : 'error',
+      view: view, theme: theme || 'system', w: W, h: H, mainNodes: mainNodes,
+      notice: empty ? (empty.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 120) : null,
+      result: res,
+    });
+  }).catch(function (err) {
+    done({ status: 'error', view: view, theme: theme || 'system', w: W, h: H, error: String(err) });
+  });
+}());
+</script>
+</body>
+</html>

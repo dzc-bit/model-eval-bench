@@ -23,7 +23,7 @@
  * 导出：createGradePanel(handlers) → { el, update, destroy, setOpen, focusResult, doGrade }
  */
 
-import { el, setText, patchList } from '../../core/dom.js';
+import { el, setText, patchList, clear } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
 import { createButton } from '../../components/button.js';
 import { createProgress } from '../../components/progress.js';
@@ -98,6 +98,11 @@ export function createGradePanel(handlers) {
     label: S.GRADE_REVEAL,
     variant: 'ghost',
     onClick: () => handlers.onReveal(),
+  });
+  const reopenBtn = createButton({
+    label: S.GRADE_REOPEN,
+    variant: 'ghost',
+    onClick: () => handlers.onReopen(),
   });
   const exportBtn = createButton({
     label: S.GRADE_EXPORT,
@@ -217,6 +222,42 @@ export function createGradePanel(handlers) {
 
     build(group);
     return { el: node, update: (g) => build(g) };
+  }
+
+  /** 决定这张卡片要不要重画：结论、计数或失败清单变了才算变。 */
+  function groupSignature(group) {
+    const failed = (group.cases || []).filter((c) => c.outcome !== 'passed');
+    return [
+      group.passed,
+      group.passed_count,
+      group.total,
+      group.weight,
+      failed.map((c) => `${c.node_id}=${c.message || ''}`).join('|'),
+    ].join('#');
+  }
+
+  /**
+   * 组卡片：节点上记一份内容签名。
+   * patchList 按组 id 复用节点，重跑校验后同一组会从红转绿；只在建卡那一刻画一次
+   * 就会让旧结论永远挂在页面上（分数已更新、卡片还写着失败）。
+   */
+  const groupSignatures = new WeakMap();
+
+  function renderGroup(group) {
+    const node = buildGroupCard(group);
+    groupSignatures.set(node, groupSignature(group));
+    return node;
+  }
+
+  /** 原地震换成新结论：签名没变就不动，保住用户展开的失败清单。 */
+  function refreshGroup(node, group) {
+    const signature = groupSignature(group);
+    if (groupSignatures.get(node) === signature) return;
+    groupSignatures.set(node, signature);
+    const rebuilt = buildGroupCard(group);
+    node.className = rebuilt.className;
+    clear(node);
+    while (rebuilt.firstChild) node.appendChild(rebuilt.firstChild);
   }
 
   /**
@@ -430,8 +471,9 @@ export function createGradePanel(handlers) {
       resultHost.appendChild(el('p', { class: 'u-faint ws-grade-exhausted' }, S.GRADE_PROMOTE_EXHAUSTED));
     }
 
-    // 分组明细（key 化复用：同一组重渲染不丢展开状态）
-    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), () => {});
+    // 分组明细（key 化复用；refreshGroup 让重跑后从红转绿的组当场改结论，
+    // 只建不刷会让分数已更新、卡片还写着失败）
+    patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group), refreshGroup);
     resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
 
     // 回归
@@ -597,20 +639,60 @@ export function createGradePanel(handlers) {
     );
 
     // 动作区
+    // 运行校验的可用性：必须沙箱就绪、服务端没有还在跑的对话线程，
+    // 而且模型真的动过手——刚建好沙箱就点校验，只会按「未改动」判 0，白烧一次机会。
+    const chatBusy = Boolean(run && run.chat_busy);
+    const modelActed = !run || run.model_acted !== false;
+    actionRow.textContent = '';
+    actionRow.appendChild(gradeBtn.el);
+    // 「进入下一轮」按当前轮次的实时状态判断，不信旧报告里的 next_hint：
+    // 必须当前轮已经评分（逐轮校验）且还有剩余机会，按钮才会出现——
+    // 否则进入第 2 轮后，旧报告会把按钮重新标成「进入第 3 轮」
+    const currentAttempt = Number(run && run.attempt) || 1;
+    const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
+    const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
+    const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
+    if (canPromote) {
+      promoteBtn.update({
+        label: t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
+        disabled: running || Boolean(busy),
+      });
+      actionRow.appendChild(promoteBtn.el);
+    }
+    if (hasReport && !run.revealed && !current.revealed) {
+      revealBtn.update({ label: S.GRADE_REVEAL, disabled: running });
+      actionRow.appendChild(revealBtn.el);
+    }
+    // 误校验的补救口：本轮分数作废、退回可对话状态，模型改完再重新校验。
+    // 已揭晓参考解的轮次不给这个口（后端同样拒绝）。
+    if (hasReport && run && run.status === 'graded' && !run.revealed) {
+      reopenBtn.update({ disabled: running || Boolean(busy) || chatBusy });
+      actionRow.appendChild(reopenBtn.el);
+    }
+    if (hasReport) {
+      exportBtn.update({ disabled: false });
+      actionRow.appendChild(exportBtn.el);
+    } else {
+      exportBtn.update({ disabled: true, reason: S.GRADE_EMPTY });
+    }
+    body.appendChild(actionRow);
+
     gradeBtn.update({
       label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
       loading: running,
       busyLabel: S.GRADE_RUNNING,
-      disabled: !sandboxOk || running || Boolean(busy) || Boolean(run && run.chat_busy),
+      disabled: !sandboxOk || running || Boolean(busy) || chatBusy || !modelActed,
       reason: !hasRun
         ? S.ERR_NO_SANDBOX
         : running
           ? S.GRADE_RUNNING
-          : run && run.chat_busy
+          : chatBusy
             ? S.CHAT_REMOTE_BUSY
-            : !sandboxOk
-              ? S.SANDBOX_PREPARING
-              : '',
+            : !modelActed
+              ? S.GRADE_NEED_MODEL_FIRST
+              : !sandboxOk
+                ? S.SANDBOX_PREPARING
+                : '',
     });
     revealBtn.update({ disabled: running || Boolean(busy) || !hasReport || Boolean(run && run.revealed) || Boolean(current.revealed) });
     exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
@@ -679,7 +761,7 @@ export function createGradePanel(handlers) {
     doGrade: () => handlers.onGrade(),
     /** 解绑（§10.4）。 */
     destroy() {
-      [gradeBtn, promoteBtn, revealBtn, exportBtn].forEach((b) => b.destroy());
+      [gradeBtn, promoteBtn, revealBtn, reopenBtn, exportBtn].forEach((b) => b.destroy());
       progress.destroy();
       logCard.destroy();
       emptyState.destroy();

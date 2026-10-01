@@ -444,6 +444,58 @@ def _reveal_locked(cfg: dict, run_id: str) -> dict:
     }
 
 
+def reopen(cfg: dict, run_id: str) -> dict:
+    """把已校验的一轮退回「可继续对话」，并作废本轮分数。
+
+    误点一次校验不该毁掉一次尝试：本轮分数标成 voided（不进 pass@k 与均分），
+    报告文件留在原地当证据；模型改完再校验会追加新的一轮。
+    已揭晓参考解的轮次不允许重开——那等于给了无限次看答案后重试。
+    """
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "这一轮正在被其它操作使用，等它结束再继续对话。",
+                run_id,
+            )
+        run = get_run(cfg, run_id)
+        if run.get("cancel_requested") or run.get("status") == "cancelled":
+            raise errors.HarnessError(
+                errors.E_RUN_CANCELLED,
+                "这一轮已被批次取消，不能重开。",
+                run_id,
+            )
+        if run.get("revealed"):
+            raise errors.HarnessError(
+                errors.E_BAD_REQUEST,
+                "这一轮已经揭晓过参考解，不能再继续对话重算成绩。",
+                run_id,
+            )
+        if run.get("status") != "graded":
+            raise errors.HarnessError(
+                errors.E_BAD_REQUEST,
+                "这一轮还没有校验结果，不需要重开；直接在内置对话里发送即可。",
+                run_id,
+            )
+        voided = 0
+        for rnd in reversed(run.get("rounds") or []):
+            if not rnd.get("voided"):
+                rnd["voided"] = True
+                rnd["voided_at"] = util.iso_now()
+                voided += 1
+                break
+        run["status"] = "ready"
+        run["last_score"] = None
+        run["last_passed"] = None
+        save_run(cfg, run)
+    return {
+        "run_id": run_id,
+        "status": run["status"],
+        "voided_rounds": voided,
+        "notice": "本轮分数已作废，不计入通过率与均分；模型改完后重新校验会记作新一轮结果。",
+    }
+
+
 def set_note(cfg: dict, run_id: str, note: str) -> dict:
     with chat.exclusive(run_id, blocking=False) as acquired:
         if not acquired:
@@ -629,6 +681,8 @@ def run_view(cfg: dict, run: dict, log_tail: int = 200) -> dict:
         "rounds": run.get("rounds") or [],
         "grading": is_grading(run["run_id"]),
         "chat_busy": chat.send_active(run["run_id"]),
+        # 模型是否已经回复过：校验按钮的前置条件，没动手时点了只会判 0
+        "model_acted": chat.has_model_reply(run),
         "last_error": run.get("last_error"),
         "report": doc,
         "log": [],
@@ -769,6 +823,11 @@ def delete_run(cfg: dict, run_id: str) -> dict:
     return {"run_id": run_id, "deleted": True, "archived_to": archived_to}
 
 
+def _live_rounds(run: dict) -> List[dict]:
+    """计入统计的轮次：被「继续对话」作废掉的那些不算成绩，也不进均分。"""
+    return [rnd for rnd in (run.get("rounds") or []) if isinstance(rnd, dict) and not rnd.get("voided")]
+
+
 def _cell_stats(pair: List[dict]) -> dict:
     """一个 (任务 × 模型) 单元格的统计。
 
@@ -787,7 +846,7 @@ def _cell_stats(pair: List[dict]) -> dict:
     trials = len(scored)
     first_round_passes = 0
     for run in scored:
-        for rnd in run.get("rounds") or []:
+        for rnd in _live_rounds(run):
             if int(rnd.get("attempt") or 0) == 1:
                 if rnd.get("passed") and not rnd.get("invalidated"):
                     first_round_passes += 1
@@ -796,7 +855,9 @@ def _cell_stats(pair: List[dict]) -> dict:
     scores: List[float] = []
     for run in scored:
         best = False
-        for rnd in run.get("rounds") or []:
+        # 作废轮（voided，用户点「继续对话」放弃的）与越界轮（invalidated，
+        # 改了测试/配置被拦下的）都不计分、不算通过——两套语义都要排掉。
+        for rnd in _live_rounds(run):
             if rnd.get("invalidated"):
                 continue
             scores.append(_score(rnd))

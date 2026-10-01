@@ -37,6 +37,9 @@ const ROLE_LABELS = {
 /** 展开的工具轮（按消息 id 记住，轮询重渲染时不塌回去）。 */
 const expandedRounds = new Set();
 
+/** 已经收束、不再接收新消息的运行状态。 */
+const CLOSED_STATUS = new Set(['graded', 'cancelled', 'error']);
+
 /**
  * 可以继续对话的服务端状态。
  * 与 sandbox-panel.js 的 SANDBOX_OK / workspace.js 的同名集对齐：
@@ -66,6 +69,8 @@ export function createChatPanel(handlers = {}) {
   let sending = false;
   /** 服务端还有一轮发送在跑（浏览器刷新/离开后线程不会断），此时对话显示“模型仍在处理”。 */
   let remoteBusy = false;
+  /** 这一轮绑定的模型档案已被删除：历史可以回看，但不能再发。 */
+  let profileGone = false;
   let requestSeq = 0;
   let progressTimer = null;
   let remoteTimer = null;
@@ -247,13 +252,17 @@ export function createChatPanel(handlers = {}) {
   }
 
   /** 最后一条「有正文、不带工具调用、不是错误」的助手消息就是本轮总结。 */
+  /**
+   * 该不该钉住收尾总结：只有当对话**确实以这条结尾**时才钉。
+   * 一旦后面又出现新消息（进入下一轮、模型又在调工具、报错行），它就是历史，
+   * 继续顶在列表上方会挡住正在发生的事，而读者要看的恰恰是正在发生的事。
+   * @param {Array} list
+   * @returns {number}
+   */
   function finalSummaryIndex(list) {
-    for (let index = list.length - 1; index >= 0; index -= 1) {
-      const item = list[index];
-      if (item.role !== 'assistant' || item.status || item.toolCalls.length) continue;
-      if (String(item.content || '').trim()) return index;
-    }
-    return -1;
+    const last = list[list.length - 1];
+    if (!last || last.role !== 'assistant' || last.status || last.toolCalls.length) return -1;
+    return String(last.content || '').trim() ? list.length - 1 : -1;
   }
 
   /** 空态一句话 + 主 CTA 的可见性：没有沙箱给「去准备」，有沙箱没消息给「发一条」。 */
@@ -421,6 +430,34 @@ export function createChatPanel(handlers = {}) {
   }
 
   /**
+   * 状态点说清「输入框为什么锁着」。
+   * 输入框按 run 状态与远端忙碌锁定，状态点却一律写「对话就绪」时，
+   * 人只能靠猜——已交卷的那一轮就是这么被当成卡住的。
+   */
+  function syncStatus() {
+    if (sending) {
+      setStatus('busy', S.CHAT_SENDING || '模型处理中');
+      return;
+    }
+    if (remoteBusy) {
+      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      return;
+    }
+    if (profileGone) {
+      setStatus('idle', S.CHAT_MODEL_GONE);
+      return;
+    }
+    const status = currentRun && currentRun.status;
+    if (status && status !== 'ready') {
+      setStatus('idle', CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
+      return;
+    }
+    setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+  }
+
+  }
+
+  /**
    * 输入框 / 发送按钮的可用性与「不可用的原因」。
    *
    * 可用 = 有运行记录 + 沙箱状态在 CHAT_OK（ready / graded）+ 没有请求在途。
@@ -477,7 +514,9 @@ export function createChatPanel(handlers = {}) {
         }
       } catch { /* 网络抖动就下一轮再试 */ }
       remoteBusy = false;
-      setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+      errorMessage.hidden = true;
+      setText(errorMessage, '');
+      syncStatus();
       setEnabled(true);
       renderMessages();
     }
@@ -497,11 +536,14 @@ export function createChatPanel(handlers = {}) {
       messages = normalizeMessages(data && data.messages);
       loading = false;
       remoteBusy = Boolean(data && data.chat_busy);
+      profileGone = Boolean(data && data.model && data.model.gone);
+      // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
+      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE_DETAIL : S.CHAT_TOOL_HINT);
       if (remoteBusy) {
         setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
       } else {
-        setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+        syncStatus();
       }
       renderMessages();
     } catch (err) {
@@ -519,7 +561,23 @@ export function createChatPanel(handlers = {}) {
 
   async function send() {
     const text = draft.value.trim();
-    if (!currentRunId || !text || loading || sending) return false;
+    if (!currentRunId || !text || loading) return false;
+    if (profileGone) {
+      showToast({ message: S.CHAT_MODEL_GONE, detail: S.CHAT_MODEL_GONE_DETAIL, kind: 'warn', duration: 8000 });
+      return false;
+    }
+    if (sending || remoteBusy) {
+      // 上一条还在服务端跑（一轮可能几十次工具调用）。必须当场说明并留住草稿：
+      // 只在界面上留一个气泡、消息永远发不出去，看起来就像对话死了。
+      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      showToast({
+        message: S.CHAT_SEND_BLOCKED,
+        detail: S.CHAT_SEND_BLOCKED_DESC,
+        kind: 'warn',
+        duration: 8000,
+      });
+      return false;
+    }
     const runId = currentRunId;
     const seq = requestSeq;
     let finished = false;
@@ -538,6 +596,8 @@ export function createChatPanel(handlers = {}) {
       try {
         const data = await api.get(`/runs/${encodeURIComponent(runId)}/chat`, { scope });
         if (finished || seq !== requestSeq) return;
+        // 服务端仍在这一轮里：即使本条请求中途到期，对话也没死，据此锁定输入。
+        remoteBusy = Boolean(data?.chat_busy);
         const next = normalizeMessages(data?.messages);
         if (next.length && next.map(messageKey).join('\n') !== messages.map(messageKey).join('\n')) {
           messages = next;
@@ -548,16 +608,42 @@ export function createChatPanel(handlers = {}) {
     }
     progressTimer = setTimeout(refreshProgress, 1200);
     try {
-      const data = await api.longPost(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
+      const data = await api.post(`/runs/${encodeURIComponent(runId)}/chat`, { message: text }, { scope });
       if (seq !== requestSeq || runId !== currentRunId) return;
       if (data && Array.isArray(data.messages)) messages = normalizeMessages(data.messages);
       else if (data && data.message) mergeMessages([data.message]);
-      setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+      if (data && data.chat_busy) {
+        // 服务端已经收下这条消息、在后台线程里跑完整工具闭环：交回轮询接回结果。
+        // 这条路径上没有任何一层需要为模型留超时，所以也不会再出现「请求超时」假错。
+        remoteBusy = true;
+        setStatus('busy', S.CHAT_SENDING || '模型处理中');
+        renderMessages();
+        watchRemoteSend(runId, requestSeq);
+        return true;
+      }
+      remoteBusy = false;
       renderMessages();
       return true;
     } catch (err) {
       if (seq !== requestSeq || runId !== currentRunId) return;
       const code = err instanceof ApiError ? err.code : 'INTERNAL';
+      if (code === 'TIMEOUT' || code === 'ABORTED') {
+        // 这条请求到期或被取消，不等于模型那一轮失败：服务端按契约继续跑完，
+        // 所以交回远端轮询，而不是报一个看起来像失败的错。
+        remoteBusy = true;
+        setText(errorMessage, S.CHAT_DETACHED_HINT);
+        errorMessage.hidden = false;
+        setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+        showToast({
+          message: S.CHAT_DETACHED_TITLE,
+          detail: S.CHAT_REMOTE_BUSY_DETAIL,
+          kind: 'warn',
+          duration: 9000,
+        });
+        renderMessages();
+        watchRemoteSend(runId, requestSeq);
+        return false;
+      }
       const detail = formatError(err);
       setText(errorMessage, detail);
       errorMessage.hidden = false;
@@ -570,6 +656,8 @@ export function createChatPanel(handlers = {}) {
       if (seq === requestSeq && runId === currentRunId) {
         clearTimeout(progressTimer);
         sending = false;
+        // 错误提示还挂着就不要覆盖它；否则按当前 run 状态与远端忙碌重说一遍。
+        if (errorMessage.hidden) syncStatus();
         setEnabled(Boolean(currentRunId));
         if (currentRunId) draft.focus();
       }
@@ -647,6 +735,8 @@ export function createChatPanel(handlers = {}) {
       sending = false;
       loading = false;
       remoteBusy = false;
+      profileGone = false;
+      setText(composerHint, S.CHAT_TOOL_HINT);
       currentRunId = nextRunId;
       messages = [];
       requestSeq += 1;
@@ -659,6 +749,9 @@ export function createChatPanel(handlers = {}) {
       if (currentRunId) loadHistory(currentRunId);
     }
     syncModelOptions(models, modelId);
+    // 模型档案是准备沙箱的前提，没选就常驻写在字段上：以前只在点准备沙箱时
+    // 闪一条 toast，用户回头找不到自己漏了什么。
+    modelField.update({ error: modelId ? '' : S.RUN_MODEL_REQUIRED });
     renderModelNote();
     const ready = Boolean(currentRunId) && !loading;
     messageList.hidden = !ready || !messages.length;

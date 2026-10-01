@@ -4,7 +4,7 @@
 1. 准入原子性：同一签名在途任务在并发下只能起一个 worker，重复提交返回 admission="reused"；
 2. 心跳与防失活：进度推进与查询均续期心跳，无活动僵尸任务按失活超时回收；
 3. 终态回收：终态记录过期后其签名与取消标记一并清理，失活回收后名额即时释放；
-4. 消费方出口：409 响应必须携带在途任务列表，GET /sync/jobs/{id} 必须保留 admission 快照。
+4. 消费方出口：409 响应必须能查出占用名额的任务编号（字段名不约束），GET /sync/jobs/{id} 必须保留 admission 快照。
 """
 
 from __future__ import annotations
@@ -267,8 +267,11 @@ def test_http_capacity_conflict_reports_running_jobs(tmp_path):
         status, body = _request_json_allow_error("POST", url, payload)
         assert status == HTTPStatus.CONFLICT
         assert body["code"] == "sync_capacity"
-        assert "running_jobs" in body
-        assert body["running_jobs"] == ["job-1"]
+        # 契约只要求「占用名额的任务编号可查」，不规定字段名：断言 body["running_jobs"]
+        # 等于把锚解自己起的名字当成题目要求，模型换个字段名或写进文案就判错。
+        # 注入态的异常文案只有「已有 N 个在跑（上限 M）」，不含编号，判别力不丢。
+        assert "job-1" in json.dumps(body, ensure_ascii=False), (
+            "409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：%s" % body)
     finally:
         server.shutdown()
         thread.join(timeout=5)

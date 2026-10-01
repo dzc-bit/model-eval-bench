@@ -283,6 +283,14 @@ hr {
   clip-path: inset(50%);
 }
 
+/* ---------- hidden 必须真的隐藏 ---------- */
+/* 组件类普遍自带 display 声明（.badge、.panel、.card…），作者样式会盖掉浏览器
+   默认的 `[hidden]{display:none}`，于是 JS 里 `el.hidden = true` 完全无效：
+   「档案已删除」这类标记会永久显示。统一在这里让 hidden 赢回来。 */
+[hidden] {
+  display: none !important;
+}
+
 /* ---------- 滚动条（低干扰，不影响键盘可达性） ---------- */
 * {
   scrollbar-color: var(--color-border-strong) transparent;

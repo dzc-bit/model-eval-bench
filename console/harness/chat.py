@@ -19,7 +19,7 @@ from typing import Callable, Dict, Iterator, List, Optional
 from urllib import error as url_error
 from urllib import request as url_request
 
-from . import config, errors, keyring, util
+from . import config, errors, keyring, packs, util
 
 #: 上下文窗口参数在 config.DEFAULT_CHAT（config.json 的 chat 节能按字段覆盖）。
 #: 下面三个上限是工具执行的安全线，不随配置放松，只能收紧。
@@ -42,8 +42,10 @@ DOCTOR_NO_LIST_HINT = (
 )
 _CHAT_LOCKS: Dict[str, threading.RLock] = {}
 _CHAT_LOCKS_GUARD = threading.Lock()
-#: 正在执行 send 的运行（浏览器关掉/刷新后服务端线程还在跑，前端靠这个感知）
-_ACTIVE_SENDS: set = set()
+#: 每个运行当前「已收下或正在执行」的发送条数（浏览器关掉/刷新后服务端线程
+#: 还在跑，前端靠这个感知）。计数而不是集合：一条消息在锁里排队时，前一条的
+#: 收尾不能把整体状态误报成空闲。
+_ACTIVE_SENDS: Dict[str, int] = {}
 _ACTIVE_SENDS_GUARD = threading.Lock()
 _CHAT_ENV_KEYS = {
     "COMSPEC", "PATH", "PATHEXT", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "TMP", "WINDIR",
@@ -728,7 +730,8 @@ TOOLS = [
 ]
 
 
-def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0) -> str:
+def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0,
+                   allowed: Optional[List[str]] = None) -> str:
     root = util.norm(str(run.get("sandbox") or ""))
     prompt = (
         "你正在一个代码评测 harness 中工作。当前唯一允许读写和运行命令的工作区是：%s。"
@@ -737,6 +740,11 @@ def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0
     )
     if tool_enabled:
         prompt += " 可用工具只能操作该工作区：list_files、read_file、write_file、run_command。"
+    if tool_enabled and allowed:
+        # 边界必须事先说：越界按路径判整轮作废，而题面按脱敏纪律不能出现文件名。
+        # 系统提示词是操作规程不是题目信息量，所以写在这里不违反 §6.5。
+        prompt += (" 本轮只允许修改这些文件：%s。清单之外的文件（含测试、构建配置与依赖锁）"
+                   "可以读，但只要发生改动，本轮就直接判无效。" % "、".join(allowed))
     if omitted_rounds:
         # 上下文窗口放不下时才会走到这里：明确告诉模型更早的轮次被省略了，
         # 别让它以为对话只有这些（历史里的工具返回此时已压成摘要）。
@@ -1041,9 +1049,93 @@ def _history_for_api(history: List[dict]) -> List[dict]:
     return out
 
 
+def _enter_active(run_id: str) -> None:
+    with _ACTIVE_SENDS_GUARD:
+        _ACTIVE_SENDS[run_id] = _ACTIVE_SENDS.get(run_id, 0) + 1
+
+
+def _exit_active(run_id: str) -> None:
+    with _ACTIVE_SENDS_GUARD:
+        left = _ACTIVE_SENDS.get(run_id, 0) - 1
+        if left > 0:
+            _ACTIVE_SENDS[run_id] = left
+        else:
+            _ACTIVE_SENDS.pop(run_id, None)
+
+
+def has_model_reply(run: dict) -> bool:
+    """这一轮模型是否已经回复过（哪怕只回了一条）。
+
+    校验的前置条件：沙箱刚建好、模型还没动手时校验，只会按「未改动」计分，
+    白白烧掉一次尝试机会。后端也拦一道，防止绕过前端按钮。
+    """
+    for item in _read_records(run):
+        if item.get("role") == "assistant" and item.get("status") != "error":
+            return True
+    return False
+
+
 def send_active(run_id: str) -> bool:
-    """该运行的模型发送线程是否仍在服务端执行；run_view / 对话记录用它告知前端。"""
-    return str(run_id or "") in _ACTIVE_SENDS
+    """该运行是否还有已收下或正在执行的发送；run_view / 对话记录用它告知前端。"""
+    key = str(run_id or "")
+    with _ACTIVE_SENDS_GUARD:
+        return _ACTIVE_SENDS.get(key, 0) > 0
+
+
+def _record_failure(run: dict, code: str, message: str) -> None:
+    """把一次失败的发送写进对话记录，前提是它还没被记过。
+
+    `_send_locked` 只在进入会话锁之后才自带错误记录；预检阶段（沙箱未就绪、
+    这一轮已取消、档案不支持）抛出的错误在那之前就走掉了。同步接口时代它
+    至少能作为 HTTP 错误到达前端，改成回执 + 轮询后必须落盘，否则界面只会
+    停在「模型处理中」再也没下文。
+    """
+    try:
+        tail = _read_records(run)[-3:]
+    except errors.HarnessError:
+        tail = []
+    if any(item.get("status") == "error" and str(item.get("content") or "") == message
+           for item in tail):
+        return
+    try:
+        _append_message(run, {"role": "assistant", "content": message,
+                              "status": "error", "error_code": code})
+    except errors.HarnessError:
+        pass
+
+
+def start_send(cfg: dict, run: dict, text: str) -> dict:
+    """收下一次发送并交给后台线程，立刻返回。
+
+    为什么不再同步等完：一轮对话要驱动完整工具闭环，实测十几分钟起步，
+    而请求总有到期的一刻（浏览器、代理、任何一层）。同步等待时那次到期
+    只会留下一个像失败的错，服务端的线程其实照旧在跑。改成先回执、
+    再由前端轮询 ``GET /api/runs/{id}/chat``（``chat_busy`` + 消息增量），
+    就没有任何一层需要为模型留超时。
+
+    登记发送计数在线程启动之前完成，避免回执与线程之间存在
+    「看起来已经空闲」的空窗。
+    """
+    text = str(text or "").strip()
+    if not text:
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
+    run_id = str(run.get("run_id") or "")
+    if not run_id:
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "运行记录缺少 run_id。")
+    _enter_active(run_id)
+
+    def worker() -> None:
+        try:
+            send(cfg, run, text)
+        except errors.HarnessError as exc:
+            _record_failure(run, exc.code, exc.message)
+        except Exception as exc:  # noqa: BLE001 - 意外绝不能让线程静默消失
+            _record_failure(run, errors.E_CHAT_FAILED, "对话线程意外中断：%s" % exc)
+        finally:
+            _exit_active(run_id)
+
+    threading.Thread(target=worker, daemon=True, name="chat-send-%s" % run_id).start()
+    return {"accepted": True, "run_id": run_id, "chat_busy": True}
 
 
 def send(cfg: dict, run: dict, text: str) -> dict:
@@ -1058,13 +1150,11 @@ def send(cfg: dict, run: dict, text: str) -> dict:
     if not text:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "消息不能为空。")
     run_id = str(run.get("run_id") or "")
-    with _ACTIVE_SENDS_GUARD:
-        _ACTIVE_SENDS.add(run_id)
+    _enter_active(run_id)
     try:
         return _send_locked(cfg, run, text, run_id)
     finally:
-        with _ACTIVE_SENDS_GUARD:
-            _ACTIVE_SENDS.discard(run_id)
+        _exit_active(run_id)
 
 
 def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
@@ -1082,6 +1172,8 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
         model = config.find_model(cfg, str(run.get("model") or ""))
         mode, url = _endpoint(model)
         key = _model_key(model)
+        # 每次发送都重新读一遍边界：题目改了，模型看到的规则也要跟着变
+        allowed = list(packs.load_meta(cfg, str(run.get("task") or "")).get("allowed_paths") or [])
         _append_message(run, {"role": "user", "content": text})
         model_history, omitted_rounds = _model_history(cfg, _read_records(run))
         history = model_history
@@ -1089,7 +1181,8 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
 
         try:
             if mode == "chat_completions":
-                api_messages = [{"role": "system", "content": _system_prompt(run, True, omitted_rounds)}] + _history_for_api(history)
+                api_messages = [{"role": "system",
+                                 "content": _system_prompt(run, True, omitted_rounds, allowed)}] + _history_for_api(history)
                 # 不限工具轮数：模型不再发起工具调用时自然收束；单轮请求有超时兜底
                 read_slots: Dict[str, int] = {}
                 while True:

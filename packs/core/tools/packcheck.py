@@ -625,10 +625,12 @@ def check_prompts(task_dir: Path, meta: dict, repo: Path | None, report: Report)
     else:
         report.bad("提示词", "三级提示词信息量未逐级增加", str(sizes))
 
-    wiring = "工作目录就是当前目录"
+    # 附录 A 的接线说明在文件夹沙箱下的固定措辞（旧模板里的「当前目录 / Q:\」已随盘符池退役）
+    wiring_markers = ("你面前有一个独立的代码仓库副本", "唯一允许操作的位置", "不要执行 git commit")
     for level, text in levels.items():
-        if wiring not in text:
-            report.bad("提示词", f"第 {level} 级缺附录 A 的接线说明")
+        missing = [marker for marker in wiring_markers if marker not in text]
+        if missing:
+            report.bad("提示词", f"第 {level} 级缺附录 A 的接线说明", "、".join(missing))
     report.ok("提示词", "接线说明固定出现在三级开头")
 
     if "验收" not in levels[1]:
