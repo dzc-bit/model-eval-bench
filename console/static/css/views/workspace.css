@@ -529,7 +529,9 @@
   max-height: min(40vh, 16rem);
   overflow-y: auto;
   border: var(--border-width) solid var(--color-accent-border);
-  background: var(--color-accent-soft);
+  /* 必须是不透明底：这条是 position:sticky，用 13% 透明的 --color-accent-soft 时，
+     滚过去的工具轮会直接从它底下透上来，看上去像总结和工具调用叠在一起。 */
+  background: var(--color-accent-tint-solid);
 }
 
 .ws .chat__message-meta {

@@ -46,6 +46,10 @@
      填充底色改用深一档陶土色，白字 5.2:1。文字色单独给 token，别在样式里写 #fff。 */
   --color-accent-fill: #a8563c;
   --color-accent-fill-text: #ffffff;
+  /* 置顶气泡用的实色暖底：--color-accent-soft 是 13% 透明色，放在 position:sticky
+     的元素上会让底下的工具轮透出来，看起来像总结和工具调用重叠。
+     这里按同一支陶土色压在本次卡片面 (#faf9f5) 上算出等效实色。 */
+  --color-accent-tint-solid: #f4e8e1;
 
   --color-success: #3f6f4a;
   --color-success-soft: rgba(63, 111, 74, 0.12);
@@ -55,6 +59,9 @@
   --color-danger-hover: #9a2828;
   --color-danger-soft: rgba(181, 51, 51, 0.10);
   --color-danger-border: rgba(181, 51, 51, 0.34);
+  /* 全局错误条是 position:sticky，底色必须是实色：--color-danger-soft 只有 10% 不透明，
+     页面从它底下滚过时字会糊到红条上。取同一支红压在页面画布 #f5f4ed 上的等效实色。 */
+  --color-danger-tint-solid: #efe1da;
 
   --color-warn: #8a5615;
   --color-warn-soft: rgba(168, 107, 31, 0.12);
@@ -238,6 +245,8 @@
   /* 夜纸主题下陶土色更浅，白字只有 2.7:1：填充底色沿用浅陶土，文字换成墨色，5.8:1。 */
   --color-accent-fill: #d98a6d;
   --color-accent-fill-text: #26231f;
+  /* 夜纸主题下的等效实色暖底（18% 陶土压在 #30302e 上）。 */
+  --color-accent-tint-solid: #4e4039;
 
   --color-success: #86b58c;
   --color-success-soft: rgba(134, 181, 140, 0.14);
@@ -246,6 +255,8 @@
   --color-danger: #e08585;
   --color-danger-hover: #ea9c9c;
   --color-danger-soft: rgba(224, 133, 133, 0.14);
+  /* 夜纸主题等效实色（14% 粉赤压 #26231f）。 */
+  --color-danger-tint-solid: #40312d;
   --color-danger-border: rgba(224, 133, 133, 0.38);
 
   --color-warn: #d9a75f;
