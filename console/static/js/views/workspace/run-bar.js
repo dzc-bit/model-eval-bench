@@ -220,10 +220,10 @@ export function createRunBar(handlers) {
 
     syncModelOptions(current.models || [], current.modelId || '');
 
-    // 必填校验：没选档案时给可见错误（§12.12）
-    const needModel = Boolean(run) || current.busy === 'prepare';
+    // 必填校验：模型档案是准备沙箱的前提，没选就一直写在字段上（§12.12）。
+    // 以前只在"已有 run 或正在准备"时才提示，于是第一次点准备沙箱只会闪一条 toast。
     modelField.update({
-      error: needModel && !current.modelId ? S.RUN_MODEL_REQUIRED : '',
+      error: current.modelId ? '' : S.RUN_MODEL_REQUIRED,
     });
 
     // 备注：只有切换到另一轮时才从服务端同步，平时绝不覆盖用户草稿

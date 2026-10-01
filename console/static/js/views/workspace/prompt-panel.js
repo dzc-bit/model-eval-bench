@@ -128,7 +128,9 @@ export function createPromptPanel(handlers) {
   const emptyState = createEmptyState({
     title: S.PROMPT_EMPTY,
     desc: S.PROMPT_EMPTY_DESC,
-    actions: [createButton({ label: S.SANDBOX_PREPARE, variant: 'primary', onClick: () => handlers.onGoSandbox() }).el],
+    // 这颗按钮只负责跳到沙箱区，不准备任何东西：标签必须和沙箱区那颗
+    // 真「准备沙箱」区分开，否则点了以后界面毫无反应。
+    actions: [createButton({ label: S.PROMPT_GO_SANDBOX, variant: 'primary', onClick: () => handlers.onGoSandbox() }).el],
   });
   const skeleton = createSkeleton({ rows: 2, variant: 'card', label: S.STATE_LOADING });
   const errorState = createEmptyState({

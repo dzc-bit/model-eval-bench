@@ -367,7 +367,9 @@ export function createWorkspace(props = {}) {
     setText(hashFact, (next.run && next.run.baseline_digest) || '—');
 
     const run = next.run;
-    if (!run) connDot.update({ kind: 'busy', text: S.STATE_LOADING });
+    // 没有 run 不等于"正在加载"：把空状态说成加载中，会让人以为
+    // 刚才那次「准备沙箱」还卡着，于是一直等下去。
+    if (!run) connDot.update({ kind: next.loading ? 'busy' : 'idle', text: next.loading ? S.STATE_LOADING : S.SANDBOX_NO_RUN });
     else if (BUSY_STATUS.has(run.status)) connDot.update({ kind: 'busy', text: (STATUS_TEXT[run.status] || STATUS_TEXT.preparing)() });
     else if (run.status === 'error') connDot.update({ kind: 'error', text: S.RUN_STATUS_ERROR });
     else connDot.update({ kind: 'ok', text: (STATUS_TEXT[run.status] || STATUS_TEXT.ready)() });
