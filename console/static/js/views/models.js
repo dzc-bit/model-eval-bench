@@ -53,6 +53,11 @@ const T = {
   FIELD_KEY_HINT: '只保存在这台电脑上，不会进 git；编辑时留空表示保留已存密钥。',
   FIELD_ID_READONLY_HINT: '档案编号保存后不可修改。',
   FORM_INVALID: '表单还有错误，请看标红的字段。',
+  DELETE_CASCADE_LABEL: '连同其下运行记录一起删除（真删，不可恢复）',
+  DELETE_CASCADE_COUNT: '它名下有 {n} 条运行记录。默认只删档案与已存密钥，记录保留（记分板会把它当作未知档案）；勾选下方选项后，这些记录连同对话、评分报告、diff 与沙箱一起彻底删除，不可恢复。',
+  DELETE_CASCADE_NONE: '它名下没有运行记录，只需删除档案本身。',
+  DELETE_CASCADE_DONE: '已一并删除 {n} 条运行记录',
+  DELETE_CASCADE_SKIPPED: '{n} 条记录正被对话/校验占用，这次没有删除',
 };
 
 /** doctor 档位 → 中文（POST /api/models/test 返回的 stages[].id）。 */
@@ -421,23 +426,63 @@ export function createModels(props = {}) {
 
   /**
    * 删除档案（二次确认，破坏性操作默认焦点在取消）。
+   *
+   * 级联入口（已拍板）：确认框里给「连同其下运行记录一起删除」勾选项，默认不勾；
+   * 勾选后调 DELETE /api/models?id=…&with_runs=1。确认前必须先查出名下记录数并
+   * 如实列出；查不出数量时不开这个口子（报不出将删多少的确认框不能弹）。
    * @param {object} m
    */
   async function remove(m) {
     const id = m.id;
+    let runCount = 0;
+    try {
+      const res = await api.get('/runs', { scope, params: { model: id } });
+      runCount = Number(res && res.count) || 0;
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
+      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+      return;
+    }
+    const cascadeInput = el('input', { type: 'checkbox', name: `model-delete-cascade-${id}` });
+    const cascadeLabel = el(
+      'label',
+      { class: 'u-row-tight models-delete__cascade' },
+      cascadeInput,
+      el('span', {}, T.DELETE_CASCADE_LABEL),
+    );
     const ok = await confirmDialog({
       title: t(S.MODELS_DELETE_CONFIRM_TITLE, { id }),
-      messages: [S.MODELS_DELETE_CONFIRM_BODY_1, S.MODELS_DELETE_CONFIRM_BODY_2],
+      messages: [
+        runCount
+          ? t(T.DELETE_CASCADE_COUNT, { n: runCount })
+          : T.DELETE_CASCADE_NONE,
+        S.MODELS_DELETE_CONFIRM_BODY_2,
+      ],
+      extras: runCount ? [cascadeLabel] : [],
       confirmLabel: S.ACTION_DELETE,
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
       danger: true,
     });
     if (!ok) return;
+    const withRuns = runCount > 0 && cascadeInput.checked;
     try {
-      // 契约：DELETE /api/models?id=xxx；不带 with_runs，跑分记录保留（确认框里已说明）
-      await api.del('/models', { scope, params: { id } });
+      // 契约：DELETE /api/models?id=xxx；勾选级联时才带 with_runs=1（真删记录，不可恢复）
+      const res = await api.del('/models', {
+        scope,
+        params: withRuns ? { id, with_runs: '1' } : { id },
+      });
       testResults.delete(id);
-      showToast({ message: t(S.MODELS_DELETED, { id }), kind: 'success', duration: 4000 });
+      const removed = withRuns ? ((res && res.removed_runs) || []).length : 0;
+      const skipped = withRuns ? ((res && res.skipped_busy) || []).length : 0;
+      showToast({
+        message: t(S.MODELS_DELETED, { id }),
+        detail: removed ? t(T.DELETE_CASCADE_DONE, { n: removed }) : '',
+        kind: 'success',
+        duration: 4000,
+      });
+      if (skipped) {
+        showToast({ message: t(T.DELETE_CASCADE_SKIPPED, { n: skipped }), kind: 'warn', duration: 6000 });
+      }
       await load();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';

@@ -27,12 +27,14 @@ let seq = 0;
  *   title: string,
  *   messages?: string[],
  *   list?: string[],
+ *   extras?: HTMLElement[],
  *   confirmLabel?: string,
  *   cancelLabel?: string,
  *   danger?: boolean,
  *   onConfirm?: () => void|Promise<void>,
  *   confirmBusyLabel?: string
  * }} options
+ *   `extras`：追加在正文末尾的自定义节点（如级联选项的勾框），事件由调用方自管。
  * @returns {Promise<boolean>} 确认 true；取消 / Esc / 点遮罩 false
  */
 export function confirmDialog(options = {}) {
@@ -40,6 +42,7 @@ export function confirmDialog(options = {}) {
     title,
     messages = [],
     list = [],
+    extras = [],
     confirmLabel = S.CONFIRM_DEFAULT_OK,
     cancelLabel = S.CONFIRM_DEFAULT_CANCEL,
     danger = false,
@@ -59,6 +62,9 @@ export function confirmDialog(options = {}) {
         el('ul', { class: 'modal__list' }, ...list.map((item) => el('li', {}, item))),
       );
     }
+    extras.forEach((node) => {
+      if (node instanceof HTMLElement) body.appendChild(node);
+    });
 
     const cancelBtn = createButton({ label: cancelLabel, variant: 'default' });
     const confirmBtn = createButton({

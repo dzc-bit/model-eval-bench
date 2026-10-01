@@ -1,44 +1,61 @@
 /**
- * chat-panel.js — 工作台内置模型对话。
+ * chat-stream.js — 工作台对话流（2026-10-02 对话流改版；由旧 chat-panel 演进而来）
  *
- * 对话由服务端代理当前运行绑定的模型档案。工具调用按轮折叠成一行摘要，
- * 展开后只列出这一轮调了哪些工具、各几次（参数与返回原文留在 chat.jsonl）；
- * 服务商返回公开思维链就展示，没有则直接突出正文。
- * 前端不保存或接触 API 密钥。
+ * 对话流是工作台的页面主轴，按时间顺序落在同一列里：
+ *   用户消息 → 模型思考（默认折叠成一行，不抢正文视觉权重）→ 工具调用紧凑卡
+ *   （默认折叠，点开看每次调用的入参/返回）→ 模型回复 → 收尾总结（内联，不 sticky）。
+ * 「任务与提示词」节点在 task-node.js；校验结果节点在 report-node.js；
+ * 输入区（composer）由编排层挂在底部操作栏下方，本模块只管它的行为。
+ *
+ * 工具调用展示纪律（任务书）：
+ *   - 一轮工具调用 = 一张紧凑卡：一行摘要（工具名 + 次数 + 失败数），默认折叠；
+ *   - 展开后每次调用一行（工具名 + 关键参数：路径/命令），再点开看完整入参与返回；
+ *   - 成功/失败用「图标 + 文字 + 颜色」三重编码区分。
+ *
+ * 对话由服务端代理当前运行绑定的模型档案；前端不保存或接触 API 密钥。
+ *
+ * 依赖：core/*、components/*
+ * 导出：createChatStream(handlers) → { el, composerEl, update, setDraft, sendText,
+ *         focusComposer, destroy }
  */
 
 import { el, clear, on, setText } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
 import { api, ApiError, errorBody, errorTitle } from '../../core/api.js';
 import { createButton } from '../../components/button.js';
-import { createField } from '../../components/field.js';
-import { createStatusDot } from '../../components/status-dot.js';
 import { createEmptyState } from '../../components/empty-state.js';
 import { showToast } from '../../components/toast.js';
 
 /** 改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
-  EMPTY_ACTION: '去准备沙箱',
-  NO_MESSAGES: '还没有消息，发一条开始这一轮对话。',
-  // 这些文案在 strings.js 里没有对应键（旧 run-bar 引用的是不存在的键，播报一直为空），
-  // strings 本轮冻结，补在本地常量里。
-  MODEL_NONE: '还没有模型档案。先到「模型档案」页新增一个，再回来选。',
-  MODEL_LOAD_FAILED: '模型档案读取失败：{reason}。可以点「重试」再读一次。',
-  DISABLED_NO_SANDBOX: '还没有沙箱，先去沙箱卡准备。',
+  DISABLED_NO_SANDBOX: '还没有沙箱，先在底部操作栏点「准备沙箱」。',
   DISABLED_STATUS: '这一轮还不能对话：沙箱没就绪或已经收束，等状态变成「就绪」。',
   STATUS_GRADED: '本轮已校验，仍可追问让模型接着改',
-  // 空态三选一：为什么空 + 下一步做什么（§13.1），每个只带一个动作
+  // 空态：为什么空 + 下一步做什么（§13.1），每个只带一个动作
   EMPTY_NO_RUN_TITLE: '这一轮还没有开始',
-  EMPTY_NO_RUN_DESC: '先准备沙箱，模型才有一个只属于它自己的工作目录可改。',
+  EMPTY_NO_RUN_DESC: '在底部操作栏点「准备沙箱」，模型才有一个只属于它自己的工作目录可改。',
   EMPTY_NO_MESSAGES_TITLE: '还没有消息',
-  EMPTY_NO_MESSAGES_DESC: '把左侧的第 1 级提示词发给模型，它就会动手改沙箱；没动手时校验只会按「未改动」判 0 分。',
+  EMPTY_NO_MESSAGES_DESC: '把第 1 级提示词发给模型，它就会动手改沙箱；没动手时校验只会按「未改动」判 0 分。',
   EMPTY_SEND_PROMPT: '发送当前提示词',
   EMPTY_GONE_TITLE: '这一轮的档案已被删除',
-  EMPTY_GONE_DESC: '历史可以回看，但这条档案已经发不出去。在上方改选一个现存档案，再重开一轮；'
-    + '旧记录的成绩可以在右侧「作废本轮成绩」摘掉。',
+  EMPTY_GONE_DESC: '历史可以回看，但这条档案已经发不出去。在顶部状态栏改选一个现存档案，再重开一轮；'
+    + '旧记录的成绩可以在「更多操作」里用「继续对话（本轮分数作废）」摘掉。',
   EMPTY_RESTART: '用现存档案重开一轮',
-  EMPTY_RESTART_NEEDS_PICK: '先在上方选一个现存档案',
+  EMPTY_RESTART_NEEDS_PICK: '先在顶部状态栏选一个现存档案',
+  // 思考折叠行
+  REASONING_LINE: '模型思考（{n} 字）',
+  // 工具调用卡
+  TOOL_CALLS_ONE_LINE: '{n} 次调用',
+  TOOL_FAILED_BADGE: '{n} 次失败',
+  TOOL_IN: '入参',
+  TOOL_OUT: '返回',
+  TOOL_TRUNCATED: '……（界面只显示前 {n} 字，完整内容在这一轮运行目录的 chat.jsonl）',
+  TOOL_ROUND_HINT: '展开每次调用可看完整入参与返回；原始记录同时留在本轮运行目录的 chat.jsonl。',
+  TOOL_ORPHAN: '工具返回',
 };
+
+/** 工具返回/入参在界面上的最大展示字符数；完整数据在该轮运行目录的 chat.jsonl。 */
+const TOOL_TEXT_CAP = 8000;
 
 const ROLE_LABELS = {
   user: '你',
@@ -47,32 +64,59 @@ const ROLE_LABELS = {
   system: '系统',
 };
 
-/** 展开的工具轮（按消息 id 记住，轮询重渲染时不塌回去）。 */
-const expandedRounds = new Set();
+/** 用户展开过的工具轮 / 思考行 / 单次调用（按消息 id 记住，轮询重渲染时不塌回去）。 */
+const expandedNodes = new Set();
 
 /** 已经收束、不再接收新消息的运行状态。 */
-const CLOSED_STATUS = new Set(['graded', 'cancelled', 'error']);
+const CLOSED_STATUS = new Set(['cancelled', 'error']);
 
 /**
- * 可以继续对话的服务端状态。
- * 与 sandbox-panel.js 的 SANDBOX_OK / workspace.js 的同名集对齐：
- * 已校验（graded）的这一轮仍然要能追问模型、让它接着改沙箱。
+ * 可以继续对话的服务端状态：已校验（graded）的这一轮仍然要能追问模型、让它接着改沙箱。
  * 原先只认 'ready'，跑完一次校验后输入框和发送按钮就永久变灰且不给原因。
  */
 const CHAT_OK = new Set(['ready', 'graded']);
 
 /**
- * 创建内置对话面板（对话是工作台主栏的视觉主角）。
+ * 从工具调用参数里挑「关键参数」：优先路径，其次命令，再次第一个字符串值。
+ * @param {string} rawArguments JSON 字符串
+ * @returns {string}
+ */
+function keyParamOf(rawArguments) {
+  const raw = String(rawArguments || '');
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      for (const key of ['path', 'file', 'command', 'cmd', 'query', 'pattern']) {
+        if (typeof parsed[key] === 'string' && parsed[key]) return parsed[key];
+      }
+      for (const value of Object.values(parsed)) {
+        if (typeof value === 'string' && value) return value;
+      }
+    }
+  } catch {
+    /* 参数不是 JSON：下面直接截原文 */
+  }
+  return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+}
+
+/** 截断过长的入参/返回正文，并标注完整内容在哪。 */
+function capToolText(text) {
+  const raw = String(text || '');
+  if (raw.length <= TOOL_TEXT_CAP) return raw;
+  return `${raw.slice(0, TOOL_TEXT_CAP)}\n${t(T.TOOL_TRUNCATED, { n: TOOL_TEXT_CAP })}`;
+}
+
+/**
+ * 创建对话流。
  * @param {{
  *   scope?: object,
- *   onUsePrompt?: Function,
- *   onModelChange?: (id: string) => void,
- *   onReloadModels?: () => void,
- *   onGoSandbox?: () => void
+ *   onPrepare?: Function,
+ *   onSendPrompt?: Function,
+ *   onRestartWithModel?: (preferredId: string) => void,
  * }} [handlers]
- * @returns {{el: HTMLElement, update: Function, setDraft: Function, sendText: Function, destroy: Function}}
  */
-export function createChatPanel(handlers = {}) {
+export function createChatStream(handlers = {}) {
   const ownsScope = !handlers.scope;
   const scope = handlers.scope || api.scope();
   let currentRunId = '';
@@ -87,89 +131,55 @@ export function createChatPanel(handlers = {}) {
   let requestSeq = 0;
   let progressTimer = null;
   let remoteTimer = null;
-  /** 模型档案（选择器从「本轮信息」区迁入对话卡头）。 */
-  let models = [];
-  let modelId = '';
-  let modelsError = '';
-  let modelsLoading = true;
+  /** 状态栏档案下拉当前值（空态「重开一轮」按钮的可用性要看它）。 */
+  let pickedModelId = '';
 
-  const runLabel = el('p', { class: 'u-faint chat__run' });
+  // ==================== 消息流 ====================
   const statusText = el('span', { class: 'u-faint', role: 'status', 'aria-live': 'polite' });
-  const statusDot = createStatusDot({ kind: 'idle', text: S.CHAT_STATUS_IDLE || '未连接' });
-
-  // ---- 模型档案下拉（卡头）：选项/空态原因/重试从 run-bar 原样迁入 ----
-  // 这里是「选一个档案开始对话」，不是必填表单字段：不挂必填星号与说明段，
-  // 那一套属于表单页；卡头只需要一个紧凑选择器。
-  const modelField = createField({
-    label: S.RUN_MODEL_LABEL,
-    name: 'chat-model',
-    type: 'select',
-    options: [{ value: '', label: S.RUN_MODEL_EMPTY }],
-    onChange: (value) => {
-      if (handlers.onModelChange) handlers.onModelChange(value);
-      // 选了档案之后空态里那个「重开一轮」才该能点
-      renderEmpty();
-    },
-  });
-  modelField.el.classList.add('chat__model');
-  const modelNote = el('p', { class: 'u-faint chat__model-note', role: 'status' });
-  const modelRetryBtn = createButton({
-    label: S.ACTION_RETRY,
-    size: 'sm',
-    variant: 'ghost',
-    onClick: () => {
-      if (!handlers.onReloadModels) return;
-      // 重读是一次网络请求，按钮自己担一个忙态，免得点完看着没反应又点一次。
-      modelRetryBtn.update({ loading: true, busyLabel: S.ACTION_LOADING });
-      Promise.resolve(handlers.onReloadModels())
-        .catch(() => {})
-        .finally(() => modelRetryBtn.update({ loading: false }));
-    },
-  });
-  // createButton 根节点自带 inline-flex，直接 hidden 藏不掉：套一层容器再整体切
-  const modelRetryHost = el('div', { class: 'chat__model-retry' }, modelRetryBtn.el);
-  modelNote.hidden = true;
-  modelRetryHost.hidden = true;
   const messageList = el('div', {
-    class: 'chat__messages',
+    class: 'ws-stream__msgs',
     role: 'log',
     'aria-live': 'polite',
     'aria-relevant': 'additions text',
     tabindex: '0',
   });
-  // 空态用统一的 createEmptyState：以前这里只有一行灰字，卡片被右栏撑到很高，
-  // 中间一大片空白，用户读成「页面坏了」（§.empty-state 要求图形+原因+一个动作）。
   const emptyPrepareBtn = createButton({
-    label: T.EMPTY_ACTION,
+    label: S.SANDBOX_PREPARE,
     variant: 'ghost',
     size: 'sm',
-    onClick: () => {
-      if (handlers.onGoSandbox) handlers.onGoSandbox();
-    },
+    onClick: () => handlers.onPrepare && handlers.onPrepare(),
   });
   const emptyPromptBtn = createButton({
     label: T.EMPTY_SEND_PROMPT,
     variant: 'ghost',
     size: 'sm',
-    onClick: () => {
-      if (handlers.onUsePrompt) handlers.onUsePrompt();
-    },
+    onClick: () => handlers.onSendPrompt && handlers.onSendPrompt(),
   });
   const emptyRestartBtn = createButton({
     label: T.EMPTY_RESTART,
     variant: 'ghost',
     size: 'sm',
     onClick: () => {
-      // 把下拉里当前显示的档案一起带过去：档案被删的 run 打开时 store 里是空的，
-      // 只读 store 会让人「明明看到了一个现存档案，点了却说没选」。
-      if (handlers.onRestartWithModel) handlers.onRestartWithModel(modelField.getValue());
+      // 状态栏下拉里当前显示的档案一起带过去：档案被删的 run 打开时编排层 store 里
+      // 是空的，只读 store 会让人「明明看到了一个现存档案，点了却说没选」。
+      if (handlers.onRestartWithModel) handlers.onRestartWithModel(pickedModelId);
     },
   });
   const chatEmpty = createEmptyState({ icon: 'inbox', title: T.EMPTY_NO_RUN_TITLE, desc: T.EMPTY_NO_RUN_DESC });
-  const errorMessage = el('p', { class: 'chat__error', role: 'alert', hidden: true });
+  const errorMessage = el('p', { class: 'ws-stream__error', role: 'alert', hidden: true });
+
+  const streamRoot = el(
+    'section',
+    { class: 'ws-stream ws-region', id: 'ws-region-chat', 'aria-label': S.CHAT_TITLE || '内置对话' },
+    chatEmpty.el,
+    errorMessage,
+    messageList,
+  );
+
+  // ==================== 输入区（挂到页面底部，由编排层放置） ====================
   const draft = el('textarea', {
     id: 'workspace-chat-message',
-    class: 'chat__composer-input',
+    class: 'ws-composer__input',
     rows: 4,
     name: 'workspace-chat-message',
     placeholder: S.CHAT_INPUT_PLACEHOLDER || '输入消息，让模型继续处理当前沙箱',
@@ -180,47 +190,24 @@ export function createChatPanel(handlers = {}) {
     label: S.CHAT_USE_PROMPT || '填入当前提示词',
     variant: 'ghost',
     size: 'sm',
-    onClick: () => handlers.onUsePrompt && handlers.onUsePrompt(),
+    onClick: () => handlers.onFillPrompt && handlers.onFillPrompt(),
   });
   const sendBtn = createButton({
     label: S.CHAT_SEND || '发送',
-    variant: 'primary',
+    // 全页唯一实心主按钮在底部操作栏；对话的发送钮保持默认态，不与它抢强调位
+    variant: 'default',
     onClick: () => send(),
   });
-  const composerHint = el('span', { class: 'u-faint chat__composer-hint' }, S.CHAT_TOOL_HINT || '模型可在当前沙箱内读写文件并运行检查。');
+  const composerHint = el('span', { class: 'u-faint ws-composer__hint' }, S.CHAT_TOOL_HINT || '模型可在当前沙箱内读写文件并运行检查。');
   const composer = el(
     'form',
-    { class: 'chat__composer', onSubmit: (event) => { event.preventDefault(); send(); } },
+    { class: 'ws-composer', onSubmit: (event) => { event.preventDefault(); send(); } },
     el('label', { class: 'visually-hidden', for: 'workspace-chat-message' }, S.CHAT_INPUT_LABEL || '发送给模型的消息'),
     draft,
-    // 输入区两个动作：发送当前轮提示词（幽灵）+ 发送（主强调，全屏唯一）
-    el('div', { class: 'chat__composer-foot' }, composerHint, el('span', { class: 'u-spacer' }), usePromptBtn.el, sendBtn.el),
+    el('div', { class: 'ws-composer__foot' }, statusText, composerHint, el('span', { class: 'u-spacer' }), usePromptBtn.el, sendBtn.el),
   );
 
-  const root = el(
-    'section',
-    { class: 'ws-card ws-region ws-region--chat', id: 'ws-region-chat', 'aria-labelledby': 'ws-chat-title' },
-    el('div', { class: 'ws-card__head chat__head' },
-      el('div', { class: 'chat__title-wrap' },
-        el('h2', { class: 'ws-card__title', id: 'ws-chat-title' }, S.CHAT_TITLE || '内置对话'),
-        runLabel,
-      ),
-      // 模型档案选择器从「本轮信息」区迁入对话卡头（规格 §一：卡头=档案下拉+对话状态）
-      modelField.el,
-      modelNote,
-      modelRetryHost,
-      el('span', { class: 'u-spacer' }),
-      statusDot.el,
-      statusText,
-    ),
-    el('div', { class: 'ws-card__body chat__body' },
-      chatEmpty.el,
-      errorMessage,
-      messageList,
-      composer,
-    ),
-  );
-
+  // ==================== 消息归一化 ====================
   function normalizeMessages(next) {
     if (!Array.isArray(next)) return [];
     return next
@@ -282,11 +269,10 @@ export function createChatPanel(handlers = {}) {
     messages = merged;
   }
 
-  /** 最后一条「有正文、不带工具调用、不是错误」的助手消息就是本轮总结。 */
   /**
-   * 该不该钉住收尾总结：只有当对话**确实以这条结尾**时才钉。
+   * 该不该强调收尾总结：只有当对话**确实以这条结尾**时才强调。
    * 一旦后面又出现新消息（进入下一轮、模型又在调工具、报错行），它就是历史，
-   * 继续顶在列表上方会挡住正在发生的事，而读者要看的恰恰是正在发生的事。
+   * 继续强调会抢正在发生的事的视觉权重。
    * @param {Array} list
    * @returns {number}
    */
@@ -298,7 +284,6 @@ export function createChatPanel(handlers = {}) {
 
   /**
    * 空态：说清「为什么空」并只给一个下一步动作。
-   * 三种局面以前共用一行灰字（有 run 时连动作都不给），用户只能看到大片空白。
    */
   function renderEmpty() {
     const show = !currentRunId || !messages.length;
@@ -307,7 +292,7 @@ export function createChatPanel(handlers = {}) {
     if (profileGone) {
       // 死档案的 run 打开时下拉是空的（选项里没有它），不先选就点不动——
       // 那就把按钮标成禁用并说清缺什么，而不是让人点一下只弹一句「先选一个」。
-      const picked = String(modelField.getValue() || '');
+      const picked = String(pickedModelId || '');
       emptyRestartBtn.update({ disabled: !picked, reason: picked ? '' : T.EMPTY_RESTART_NEEDS_PICK });
       chatEmpty.update({
         icon: 'alert',
@@ -334,7 +319,25 @@ export function createChatPanel(handlers = {}) {
     });
   }
 
-  function renderMessages() {
+  /** 页面是否已经接近底部：接近时新内容到了才自动跟滚，翻历史时不拽回去。 */
+  function nearBottom() {
+    const container = streamRoot.closest('.app-main') || document.scrollingElement;
+    if (!container) return true;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+  }
+
+  /** 把对话流末尾滚进视野（发送成功 / 新内容到达且本来就在底部时）。 */
+  function scrollToEnd() {
+    window.requestAnimationFrame(() => {
+      const last = messageList.lastElementChild;
+      if (last && typeof last.scrollIntoView === 'function') {
+        last.scrollIntoView({ block: 'end', behavior: 'auto' });
+      }
+    });
+  }
+
+  function renderMessages({ follow = false } = {}) {
+    const wasNearBottom = nearBottom();
     clear(messageList);
     if (!messages.length) {
       messageList.hidden = true;
@@ -366,42 +369,43 @@ export function createChatPanel(handlers = {}) {
         messageList.appendChild(toolRoundNode(message, grouped, roundNumber));
         continue;
       }
-      const node = textMessageNode(message, index === summaryIndex);
-      if (index === summaryIndex) {
-        // 收尾总结按时间顺序留在对话末尾，只做视觉强调。以前它被 position:sticky
-        // 钉在列表顶部：底下的工具轮会从它半透明的底下滑过去叠上来，而读者当时
-        // 想看的是正在发生的事，不是被钉住的那一句。
-        node.classList.add('chat__message--final');
-      }
-      messageList.appendChild(node);
+      messageList.appendChild(textMessageNode(message, index === summaryIndex));
     }
-    // 时间线滚到底：结尾就是最新一回合与收尾总结。
-    window.requestAnimationFrame(() => {
-      messageList.scrollTop = messageList.scrollHeight;
-    });
+    if (follow || wasNearBottom) scrollToEnd();
   }
 
-  /** 服务商返回的思维链：独立成块、默认展开、可折叠（带工具调用的那一轮也要看得见）。 */
+  /**
+   * 模型思考：默认折叠成一行「模型思考（n 字）」，点开看全文。
+   * 展开状态按消息 id 记住，轮询重渲染不塌回去。
+   */
   function reasoningNode(message) {
     if (!message.reasoning) return null;
-    return el('details', { class: 'chat__reasoning', open: true },
-      el('summary', {}, S.CHAT_REASONING || '模型推理摘要（由服务商提供）'),
-      el('div', { class: 'chat__message-content chat__reasoning-content' }, message.reasoning));
+    const nodeId = `reasoning:${message.id}`;
+    return el('details', {
+      class: 'ws-reasoning',
+      open: expandedNodes.has(nodeId),
+      onToggle: (event) => {
+        if (event.target.open) expandedNodes.add(nodeId);
+        else expandedNodes.delete(nodeId);
+      },
+    },
+      el('summary', {}, t(T.REASONING_LINE, { n: message.reasoning.length })),
+      el('div', { class: 'ws-stream__text ws-reasoning__content' }, message.reasoning));
   }
 
   /** 普通文本消息（用户提问、模型正文、错误提示）。 */
   function textMessageNode(message, isFinal) {
     const role = ROLE_LABELS[message.role] || message.role;
-    const kind = `chat__message--${message.role}`;
+    const kind = `ws-msg--${message.role}`;
     // 服务商没返回思维链时不写空态提示，正文本身就是全部内容。
     const reasoning = reasoningNode(message);
-    return el('article', { class: `chat__message ${kind}${isFinal ? ' chat__message--final' : ''}` },
-      el('div', { class: 'chat__message-meta' },
+    return el('article', { class: `ws-msg ${kind}${isFinal ? ' ws-msg--final' : ''}` },
+      el('div', { class: 'ws-msg__meta' },
         isFinal ? S.CHAT_FINAL_SUMMARY : (message.name ? `${role} · ${message.name}` : role)),
       isFinal ? null : reasoning,
-      el('div', { class: 'chat__message-content' }, message.content || '—'),
+      el('div', { class: 'ws-stream__text' }, message.content || '—'),
       isFinal ? reasoning : null,
-      message.status ? el('div', { class: 'chat__message-status' }, message.status) : null,
+      message.status ? el('div', { class: 'ws-msg__status' }, message.status) : null,
     );
   }
 
@@ -412,7 +416,7 @@ export function createChatPanel(handlers = {}) {
     return [...counts.entries()].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name)).join('、');
   }
 
-  /** 工具返回把失败放进 {"error": ...}，界面只报「几次没成功」，不铺开原文。 */
+  /** 工具返回把失败放进 {"error": ...}；按此给每次调用标成功/失败。 */
   function toolResultFailed(message) {
     if (!message) return false;
     try {
@@ -424,102 +428,124 @@ export function createChatPanel(handlers = {}) {
   }
 
   /**
-   * 本轮工具名 → 调用次数与失败次数，按首次出现顺序。
-   * 落单的工具返回（没有对应调用轮）也计入，名字取记录里的 name。
+   * 一次工具调用的完整卡片：summary = 状态图标 + 工具名 + 关键参数（路径/命令），
+   * 展开看完整入参与返回（超长截断，完整数据在该轮运行目录的 chat.jsonl）。
+   * @param {object|null} call 调用（落单的工具返回时为 null）
+   * @param {object|null} result 对应的工具返回消息
+   * @param {string} nodeId 展开状态记忆键
    */
-  function toolTally(calls, toolMessages) {
-    const rows = [];
-    const indexByName = new Map();
-    const bump = (name, failed) => {
-      let row = indexByName.get(name);
-      if (!row) {
-        row = { name, count: 0, failed: 0 };
-        indexByName.set(name, row);
-        rows.push(row);
-      }
-      row.count += 1;
-      if (failed) row.failed += 1;
-    };
-    calls.forEach((call, position) => bump(call.name || '未知工具', toolResultFailed(toolMessages[position])));
-    toolMessages.slice(calls.length).forEach((extra) => bump(extra.name || '工具', toolResultFailed(extra)));
-    return rows;
+  function toolCallNode(call, result, nodeId) {
+    const name = call ? call.name : (result ? result.name || '工具' : '工具');
+    const failed = toolResultFailed(result);
+    const param = call ? keyParamOf(call.arguments) : '';
+    const body = el('div', { class: 'ws-toolcall__body' });
+    if (call) {
+      body.appendChild(el('h4', { class: 'ws-toolcall__heading' }, T.TOOL_IN));
+      body.appendChild(el('pre', { class: 'ws-toolcall__pre', tabindex: '0' }, capToolText(call.arguments || '—')));
+    }
+    if (result) {
+      body.appendChild(el('h4', { class: 'ws-toolcall__heading' }, T.TOOL_OUT));
+      body.appendChild(el('pre', { class: 'ws-toolcall__pre', tabindex: '0' }, capToolText(result.content || '—')));
+    }
+    if (!call && !result) {
+      body.appendChild(el('p', { class: 'u-faint' }, S.CHAT_TOOL_CALL_EMPTY));
+    }
+    return el('details', {
+      class: `ws-toolcall ${failed ? 'ws-toolcall--fail' : 'ws-toolcall--ok'}`,
+      open: expandedNodes.has(nodeId),
+      onToggle: (event) => {
+        if (event.target.open) expandedNodes.add(nodeId);
+        else expandedNodes.delete(nodeId);
+      },
+    },
+      el('summary', { class: 'ws-toolcall__summary' },
+        el('span', { class: 'ws-toolcall__glyph', 'aria-hidden': 'true' }, failed ? '✕' : '✓'),
+        el('span', { class: 'ws-toolcall__name' }, name),
+        param ? el('span', { class: 'ws-toolcall__param u-mono' }, param) : null,
+        failed ? el('span', { class: 'ws-toolcall__failed' }, S.CHAT_TOOL_ROUND_FAILED) : null),
+      body,
+    );
   }
 
   /**
-   * 一个工具轮：默认折叠成一行摘要，展开后只列这一轮调了哪些工具、各几次。
-   * 参数与返回原文不进界面（完整数据在该轮运行目录的 chat.jsonl）。
+   * 一个工具轮 = 对话流里的一张紧凑卡：一行摘要（次数 + 工具名聚合 + 失败数），
+   * 默认折叠；展开后每次调用一行（可再展开看完整入参/返回）。
    * @param {object|null} assistant 带工具调用的助手消息；null 表示落单的工具返回
    * @param {Array<object>} toolMessages 本轮的工具返回消息
    * @param {number} roundNumber 展示用轮次
    */
   function toolRoundNode(assistant, toolMessages, roundNumber) {
     const calls = assistant ? assistant.toolCalls : [];
-    const roundId = assistant ? assistant.id : `orphan-${toolMessages[0] ? toolMessages[0].id : roundNumber}`;
-    const rows = toolTally(calls, toolMessages);
+    const roundId = assistant ? `round:${assistant.id}` : `orphan:${toolMessages[0] ? toolMessages[0].id : roundNumber}`;
     const pending = Math.max(0, calls.length - toolMessages.length);
-    const body = [
-      el('ul', { class: 'chat__toolround-list' },
-        rows.map((row) => el('li', { class: 'chat__toolrow' },
-          el('span', { class: 'chat__toolrow-name' }, row.name),
-          el('span', { class: 'chat__toolrow-count' }, `×${row.count}`),
-          row.failed ? el('span', { class: 'chat__toolrow-failed' }, `${row.failed} ${S.CHAT_TOOL_ROUND_FAILED}`) : null,
-        ))),
-      pending ? el('p', { class: 'chat__toolrow-pending' }, `${pending} ${S.CHAT_TOOL_ROUND_PENDING}`) : null,
-      el('p', { class: 'chat__toolround-hint' }, S.CHAT_TOOL_ROUND_HINT),
-    ];
+    const failedCount = toolMessages.filter(toolResultFailed).length;
+
+    const items = [];
+    calls.forEach((call, position) => {
+      items.push(toolCallNode(call, toolMessages[position] || null, `${roundId}:${call.id || position}`));
+    });
+    // 多出来的落单返回（没有对应调用记录）也要看得见
+    toolMessages.slice(calls.length).forEach((extra, extraIndex) => {
+      items.push(toolCallNode(null, extra, `${roundId}:extra-${extraIndex}`));
+    });
+
     const summary = assistant
-      ? `${S.CHAT_TOOL_ROUND || '工具轮'} ${roundNumber} · ${S.CHAT_TOOL_CALL || '工具调用'} ×${calls.length}：${toolSummaryLine(calls)}`
-      : `${toolMessages[0] ? toolMessages[0].name || '工具' : '工具'} 返回`;
+      ? `${S.CHAT_TOOL_ROUND || '工具轮'} ${roundNumber} · ${t(T.TOOL_CALLS_ONE_LINE, { n: calls.length })}：${toolSummaryLine(calls)}`
+      : `${toolMessages[0] ? toolMessages[0].name || T.TOOL_ORPHAN : T.TOOL_ORPHAN} ${T.TOOL_ORPHAN}`;
     return el('details', {
-      class: 'chat__toolround',
-      open: expandedRounds.has(roundId),
+      class: 'ws-toolround',
+      open: expandedNodes.has(roundId),
       onToggle: (event) => {
-        if (event.target.open) expandedRounds.add(roundId);
-        else expandedRounds.delete(roundId);
+        if (event.target.open) expandedNodes.add(roundId);
+        else expandedNodes.delete(roundId);
       },
     },
-      el('summary', { class: 'chat__toolround-summary' }, summary),
-      body,
+      el('summary', { class: 'ws-toolround__summary' },
+        el('span', { class: 'ws-toolround__glyph', 'aria-hidden': 'true' }, '⚙'),
+        el('span', { class: 'ws-toolround__line' }, summary),
+        pending ? el('span', { class: 'ws-toolround__pending' }, `${pending} ${S.CHAT_TOOL_ROUND_PENDING}`) : null,
+        failedCount ? el('span', { class: 'ws-toolround__failed' }, t(T.TOOL_FAILED_BADGE, { n: failedCount })) : null),
+      el('div', { class: 'ws-toolround__body' },
+        el('div', { class: 'ws-toolround__calls' }, items),
+        el('p', { class: 'ws-toolround__hint' }, T.TOOL_ROUND_HINT)),
     );
   }
 
-  function setStatus(kind, text) {
-    statusDot.update({ kind, text });
+  // ==================== 状态与可用性 ====================
+  function setStatus(text) {
     setText(statusText, text || '');
+    statusText.hidden = !text;
   }
 
   /**
-   * 状态点说清「输入框为什么锁着」。
-   * 输入框按 run 状态与远端忙碌锁定，状态点却一律写「对话就绪」时，
+   * 状态行说清「输入框为什么锁着」。
+   * 输入框按 run 状态与远端忙碌锁定，状态行却一律写「对话就绪」时，
    * 人只能靠猜——已交卷的那一轮就是这么被当成卡住的。
    */
   function syncStatus() {
     if (sending) {
-      setStatus('busy', S.CHAT_SENDING || '模型处理中');
+      setStatus(S.CHAT_SENDING || '模型处理中');
       return;
     }
     if (remoteBusy) {
-      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      setStatus(S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
       return;
     }
     if (profileGone) {
-      setStatus('idle', S.CHAT_MODEL_GONE);
+      setStatus(S.CHAT_MODEL_GONE);
       return;
     }
     const status = currentRun && currentRun.status ? String(currentRun.status) : '';
-    // 状态点必须和输入框用同一套判断（CHAT_OK）：已校验的这一轮输入框是可用的，
-    // 却曾被写成「本轮已交卷，不再接收新消息」，看起来就像对话框坏了。
     if (status === 'graded') {
-      setStatus('ok', T.STATUS_GRADED);
+      setStatus(T.STATUS_GRADED);
       return;
     }
     if (status && !CHAT_OK.has(status)) {
-      setStatus('idle', CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
+      setStatus(CLOSED_STATUS.has(status) ? S.CHAT_STATUS_CLOSED : S.CHAT_STATUS_NOT_READY);
       return;
     }
-    setStatus('ok', S.CHAT_STATUS_READY || '对话就绪');
+    setStatus('');
   }
-
 
   /**
    * 输入框 / 发送按钮的可用性与「不可用的原因」。
@@ -527,9 +553,6 @@ export function createChatPanel(handlers = {}) {
    * 可用 = 有运行记录 + 沙箱状态在 CHAT_OK（ready / graded）+ 这一轮绑定的模型档案
    * 还在 + 没有请求在途。不可用时必须把原因写在按钮旁边（createButton 的 reason 会
    * 渲染成可见文字并挂 aria-describedby），否则使用者只会读成「对话框坏了」。
-   *
-   * @param {boolean} enabled 调用方希望的可用状态
-   * @returns {void}
    */
   function setEnabled(enabled) {
     const status = currentRun && currentRun.status ? String(currentRun.status) : '';
@@ -592,7 +615,7 @@ export function createChatPanel(handlers = {}) {
   async function loadHistory(runId) {
     const seq = ++requestSeq;
     loading = true;
-    setStatus('busy', S.CHAT_LOADING || '正在加载对话');
+    setStatus(S.CHAT_LOADING || '正在加载对话');
     setText(errorMessage, '');
     errorMessage.hidden = true;
     renderMessages();
@@ -604,11 +627,9 @@ export function createChatPanel(handlers = {}) {
       remoteBusy = Boolean(data && data.chat_busy);
       profileGone = Boolean(data && data.model && data.model.gone);
       // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
-      // 长指引交给空态那一段（有它自己的动作按钮），输入框下面只留一句原因，
-      // 同一屏三份「档案已删除」的长文案会把人绕晕。
       setText(composerHint, profileGone ? S.CHAT_MODEL_GONE : S.CHAT_TOOL_HINT);
       if (remoteBusy) {
-        setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+        setStatus(S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
       } else {
         syncStatus();
@@ -620,7 +641,7 @@ export function createChatPanel(handlers = {}) {
       if (err instanceof ApiError && err.code === 'ABORTED') return;
       setText(errorMessage, formatError(err));
       errorMessage.hidden = false;
-      setStatus('error', S.CHAT_STATUS_ERROR || '对话不可用');
+      setStatus(S.CHAT_STATUS_ERROR || '对话不可用');
       renderMessages();
     } finally {
       if (seq === requestSeq) setEnabled(Boolean(currentRunId) && !loading);
@@ -637,7 +658,7 @@ export function createChatPanel(handlers = {}) {
     if (sending || remoteBusy) {
       // 上一条还在服务端跑（一轮可能几十次工具调用）。必须当场说明并留住草稿：
       // 只在界面上留一个气泡、消息永远发不出去，看起来就像对话死了。
-      setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+      setStatus(S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
       showToast({
         message: S.CHAT_SEND_BLOCKED,
         detail: S.CHAT_SEND_BLOCKED_DESC,
@@ -654,11 +675,10 @@ export function createChatPanel(handlers = {}) {
     mergeMessages([{ id: `local-${Date.now()}`, role: 'user', content: text }]);
     draft.value = '';
     sending = true;
-    setStatus('busy', S.CHAT_SENDING || '模型处理中');
-    renderMessages();
+    setStatus(S.CHAT_SENDING || '模型处理中');
+    renderMessages({ follow: true });
     setEnabled(true);
-    // Show completed provider/tool turns while the next model request runs.
-    // This reads persisted messages; it does not synthesize token streaming.
+    // 长请求期间轮询已落盘的模型/工具消息；当前是逐回合刷新，不是逐 token 流式输出。
     async function refreshProgress() {
       if (finished || seq !== requestSeq) return;
       try {
@@ -671,7 +691,7 @@ export function createChatPanel(handlers = {}) {
           messages = next;
           renderMessages();
         }
-      } catch { /* The send request remains authoritative for error display. */ }
+      } catch { /* 这条发送请求仍是错误展示的唯一权威来源 */ }
       if (!finished && seq === requestSeq) progressTimer = setTimeout(refreshProgress, 1200);
     }
     progressTimer = setTimeout(refreshProgress, 1200);
@@ -684,13 +704,13 @@ export function createChatPanel(handlers = {}) {
         // 服务端已经收下这条消息、在后台线程里跑完整工具闭环：交回轮询接回结果。
         // 这条路径上没有任何一层需要为模型留超时，所以也不会再出现「请求超时」假错。
         remoteBusy = true;
-        setStatus('busy', S.CHAT_SENDING || '模型处理中');
+        setStatus(S.CHAT_SENDING || '模型处理中');
         renderMessages();
         watchRemoteSend(runId, requestSeq);
         return true;
       }
       remoteBusy = false;
-      renderMessages();
+      renderMessages({ follow: true });
       return true;
     } catch (err) {
       if (seq !== requestSeq || runId !== currentRunId) return;
@@ -701,7 +721,7 @@ export function createChatPanel(handlers = {}) {
         remoteBusy = true;
         setText(errorMessage, S.CHAT_DETACHED_HINT);
         errorMessage.hidden = false;
-        setStatus('busy', S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
+        setStatus(S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         showToast({
           message: S.CHAT_DETACHED_TITLE,
           detail: S.CHAT_REMOTE_BUSY_DETAIL,
@@ -715,7 +735,7 @@ export function createChatPanel(handlers = {}) {
       const detail = formatError(err);
       setText(errorMessage, detail);
       errorMessage.hidden = false;
-      setStatus('error', S.CHAT_STATUS_ERROR || '对话不可用');
+      setStatus(S.CHAT_STATUS_ERROR || '对话不可用');
       showToast({ message: errorTitle(code), detail, kind: 'error', duration: 7000 });
       renderMessages();
       return false;
@@ -746,56 +766,14 @@ export function createChatPanel(handlers = {}) {
   const offInput = on(draft, 'input', onDraftInput);
   const offKeydown = on(draft, 'keydown', onDraftKeydown);
 
+  // ==================== 对外 ====================
   /**
-   * 同步模型档案下拉选项。选项集合没变就不动 select，避免打断键盘选择（§11.2 #14）。
-   * @param {Array} list
-   * @param {string} selected
+   * 差异更新。
+   * @param {{run?: object|null, pickedModelId?: string}} state
    */
-  function syncModelOptions(list, selected) {
-    const options = [{ value: '', label: S.RUN_MODEL_EMPTY }].concat(
-      (list || []).map((m) => {
-        // 档案只有一个 id 时（config.json 里 id 和 model 同名），下拉只显示光秃秃的
-        // id 没法辨认，补一行备注或明说未配置。
-        const detail = m.model && m.model !== m.id ? m.model : (m.note || '');
-        return { value: m.id, label: detail ? `${m.id}（${detail}）` : `${m.id}（${S.RUN_MODEL_UNSET}）` };
-      }),
-    );
-    const sig = options.map((o) => o.value).join('|');
-    if (sig === modelField.__sig) {
-      if (selected !== undefined && selected !== modelField.getValue()) modelField.setValue(selected);
-      return;
-    }
-    modelField.__sig = sig;
-    modelField.update({ options, value: selected ?? '' });
-  }
-
-  /**
-   * 档案下拉为空时把原因摊开：读取失败 ≠ 真的没有档案，两种情况给不同的话与出口。
-   * 首屏数据没落定（工作台还在取数）时先别下「没有档案」的结论。
-   */
-  function renderModelNote() {
-    const count = (models || []).length;
-    const failed = Boolean(modelsError);
-    const pending = modelsLoading && !failed;
-    if (count === 0 && !pending) {
-      setText(modelNote, failed
-        ? t(T.MODEL_LOAD_FAILED, { reason: errorTitle(modelsError) })
-        : T.MODEL_NONE);
-      modelNote.hidden = false;
-    } else {
-      setText(modelNote, '');
-      modelNote.hidden = true;
-    }
-    // 只有「读取失败」才值得原地重试；确实一个档案都没有该去模型页新增
-    modelRetryHost.hidden = !(failed && count === 0);
-  }
-
   function update(state = {}) {
+    if (state.pickedModelId !== undefined) pickedModelId = String(state.pickedModelId || '');
     if (state.run !== undefined) currentRun = state.run;
-    if (state.models !== undefined) models = Array.isArray(state.models) ? state.models : [];
-    if (state.modelId !== undefined) modelId = String(state.modelId || '');
-    if (state.modelsError !== undefined) modelsError = state.modelsError || '';
-    if (state.loading !== undefined) modelsLoading = Boolean(state.loading);
     const nextRunId = currentRun && currentRun.run_id ? String(currentRun.run_id) : '';
     if (nextRunId !== currentRunId) {
       clearTimeout(progressTimer);
@@ -809,18 +787,9 @@ export function createChatPanel(handlers = {}) {
       messages = [];
       requestSeq += 1;
       draft.value = '';
-      // 卡头只放模型名；运行编号属于运行元信息，悬停 runLabel 可看（收进 title）
-      setText(runLabel, currentRunId ? (currentRun.model || S.RUN_MODEL_UNSET) : '');
-      runLabel.hidden = !currentRunId;
-      runLabel.title = currentRunId || '';
-      setStatus(currentRunId ? 'busy' : 'idle', currentRunId ? (S.CHAT_LOADING || '正在加载对话') : (S.CHAT_STATUS_IDLE || '未连接'));
+      setStatus(currentRunId ? (S.CHAT_LOADING || '正在加载对话') : '');
       if (currentRunId) loadHistory(currentRunId);
     }
-    syncModelOptions(models, modelId);
-    // 模型档案是准备沙箱的前提，没选就常驻写在字段上：以前只在点准备沙箱时
-    // 闪一条 toast，用户回头找不到自己漏了什么。
-    modelField.update({ error: modelId ? '' : S.RUN_MODEL_REQUIRED });
-    renderModelNote();
     const ready = Boolean(currentRunId) && !loading;
     messageList.hidden = !ready || !messages.length;
     composer.hidden = !Boolean(currentRunId);
@@ -837,7 +806,7 @@ export function createChatPanel(handlers = {}) {
     }
   }
 
-  /** 由提示词区直接提交完整提示词，避免用户在两个区域之间复制粘贴。 */
+  /** 由外部直接提交文本（任务节点/空态/底部主按钮的「发送当前提示词」共用）。 */
   function sendText(value) {
     const text = String(value || '').trim();
     if (!text) return Promise.resolve(false);
@@ -849,19 +818,23 @@ export function createChatPanel(handlers = {}) {
   update({ run: null });
 
   return {
-    el: root,
+    el: streamRoot,
+    composerEl: composer,
     update,
     setDraft,
     sendText,
+    /** 焦点送进输入框（「去对话里追问」等引导用）。 */
+    focusComposer() {
+      draft.focus();
+    },
     destroy() {
       clearTimeout(progressTimer);
+      clearTimeout(remoteTimer);
       requestSeq += 1;
       if (ownsScope) scope.cancelAll();
       offInput();
       offKeydown();
-      statusDot.destroy();
-      modelField.destroy();
-      modelRetryBtn.destroy();
+      chatEmpty.destroy();
       emptyPrepareBtn.destroy();
       emptyPromptBtn.destroy();
       emptyRestartBtn.destroy();

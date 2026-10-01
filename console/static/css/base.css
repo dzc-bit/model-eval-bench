@@ -209,6 +209,9 @@ hr {
     flex: 1 1 0;
     width: auto;
     max-width: none;
+    /* flex 子项默认 min-width:auto：工作台内容的 min-content 会把 main 挤到
+       flex 第二行（左侧栏底下）。main 永不该换行——内容一律在栏右收窄。 */
+    min-width: 0;
   }
   .app-main > #app-root,
   .app-footer {

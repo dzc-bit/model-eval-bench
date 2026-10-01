@@ -1,17 +1,15 @@
 /**
- * grade-panel.js — 工作台「校验」折叠卡（2026-10-01 改版）
+ * report-node.js — 对话流里的校验结果节点（2026-10-02 对话流改版；由旧 grade-panel 迁移而来）
  *
- * 职责：
- *   1. [运行校验]（本卡唯一强调按钮，G 键保留）→ 实时进度（已用时间）→ 可折叠实时日志。
- *   2. 校验完成跳出结果横幅：通过=绿 tint / 未过=红 tint，总分 + 分组概要在第一眼位置；
- *      横幅内直接给 [进入下一轮]，机会用尽则给一句说明。
- *   3. 分组明细按行渲染（绿组一句话，红组可展开失败摘要），其后依次是回归 / 越界 / 噪声 /
- *      相似度 / diff / 与上一轮对比 / 评分执行详情 / 参考解，全部沿用原有渲染器。
- *   4. 校验完成不跳页：结果区出现「新结果」标记并 polite 播报（§13.2）。
+ * 校验报告是对话流里的一个结果节点，内联展示、不做弹窗：
+ *   - 进行中：进度 + 已用时间 + 实时日志（运行中默认展开，结束自动收起）；
+ *   - 完成：结果横幅（总分 + 红绿概要，通过=绿 tint / 未过=红 tint）→ 分组明细
+ *     （绿组一句话，红组可展开失败摘要）→ 回归 / 越界 / 噪声 / 相似度 / diff /
+ *     与上一轮对比 / 评分执行详情 / 参考解 → 「下一步」引导一句话；
+ *   - 动作不在本节点：每个时刻的唯一主按钮在底部操作栏（dock.js），本节点末尾的
+ *     引导文案告诉读者它叫什么。
  *
- * 状态：empty（没跑过）/ running / done / error。
- * 键盘：日志与明细折叠用原生 details；结果区 tabindex="-1" 供播报后跳转。
- * ARIA：progressbar + 中文时间文本；组状态「图标 + 文字 + 颜色」三重编码；失败明细 role="list"。
+ * 状态：hidden（没跑过也不在跑）/ running / done / error。
  *
  * 契约要点（消费的 run.report 结构对照 harness/grade.py + harness/report.py）：
  *   score / passed / invalidated / invalid_reason / p2p_broken / error
@@ -20,105 +18,54 @@
  *   next_hint{} / summary{groups[], green, red} / checks[]
  *
  * 依赖：core/*、components/*
- * 导出：createGradePanel(handlers) → { el, update, destroy, setOpen, focusResult, doGrade }
+ * 导出：createReportNode() → { el, update, destroy, focusResult }
  */
 
 import { el, setText, patchList } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
-import { createButton } from '../../components/button.js';
 import { createProgress } from '../../components/progress.js';
 import { createDetailsCard } from '../../components/details-card.js';
-import { createEmptyState } from '../../components/empty-state.js';
 import { createStatusDot } from '../../components/status-dot.js';
 import { createBadge } from '../../components/badge.js';
 import { createResultMark, kindForReport } from '../../components/result-mark.js';
+import { percent } from '../../core/format.js';
 
 /** 改版新增文案（strings.js 冻结，新增走本地常量）。 */
 const T = {
-  PROMOTE_PLAIN: '进入下一轮',
-  FOREIGN: '这条记录属于档案「{model}」，不是当前选中的那个',
+  RUNNING_TITLE: '校验进行中',
+  // 「下一步」引导：动作本身在底部操作栏（每时刻一个主按钮），这里只指路
+  NEXT_TO_PROMOTE: '下一步：底部操作栏点「进入第 {n} 轮」，继续解下一级提示。',
+  NEXT_TO_FIX: '下一步：在下方对话里把失败组告诉模型让它接着改，改完点底部操作栏的「重新校验」。',
+  NEXT_TO_REVEAL: '机会已用完。下一步：底部操作栏点「查看参考解」对照锚解（看过之后成绩不进排行榜）。',
+  NEXT_TO_GRADE: '下一步：模型改完后，点底部操作栏的「运行校验」。',
+  RESULT_ANCHOR: '校验结果',
 };
-import { percent } from '../../core/format.js';
-
-/** 沙箱可校验的服务端状态。 */
-const SANDBOX_OK = new Set(['ready', 'graded']);
 
 /**
- * 创建校验卡。
- * @param {{
- *   onGrade: Function, onPromote: Function, onReveal: Function,
- *   onExport: Function, onGoChat: Function, onReload: Function
- * }} handlers
- * @returns {{el: HTMLElement, update: Function, destroy: Function, setOpen: Function, focusResult: Function, doGrade: Function}}
+ * 创建校验结果节点。
+ * @returns {{el: HTMLElement, update: Function, destroy: Function, focusResult: Function}}
  */
-export function createGradePanel(handlers) {
+export function createReportNode() {
   let current = {
-    loading: true,
     run: null,
     busy: '',
-    error: null,
     elapsed: 0,
     newResult: false,
     revealed: null,
+    modelMismatch: false,
   };
   /** 上一次是否在跑：只在状态翻转时自动开合日志卡。 */
   let lastRunning = null;
 
-  // ---- 卡片骨架：默认展开（结果是工作台的主出口） ----
-  const title = el('h2', { class: 'ws-card__title', id: 'ws-grade-title' }, S.GRADE_TITLE);
-  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' }, S.GRADE_EMPTY);
-  const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
-  const summary = el(
-    'summary',
-    { class: 'ws-card__summary' },
-    title,
-    el('span', { class: 'u-spacer' }),
-    cardAside,
-    chevron,
-  );
-  const bodyHost = el('div', { class: 'ws-card__body' });
+  const title = el('span', { class: 'ws-node__title' }, T.RESULT_ANCHOR);
+  const aside = el('span', { class: 'ws-node__aside u-faint u-truncate' });
+  const bodyHost = el('div', { class: 'ws-node__body' });
   const root = el(
-    'details',
-    { class: 'ws-card ws-region', id: 'ws-region-grade', open: true },
-    summary,
+    'section',
+    { class: 'ws-node ws-report ws-region', id: 'ws-region-grade', 'aria-label': S.GRADE_TITLE, hidden: true },
+    el('div', { class: 'ws-report__head' }, title, el('span', { class: 'u-spacer' }), aside),
     bodyHost,
   );
-
-  const gradeDesc = el('p', { class: 'u-faint ws-grade-desc' }, S.GRADE_DESC);
-
-  // ---- 动作 ----
-  const gradeBtn = createButton({
-    label: S.GRADE_RUN,
-    variant: 'primary',
-    icon: '▶',
-    kbd: 'G',
-    busyLabel: S.GRADE_RUNNING,
-    onClick: () => handlers.onGrade(),
-  });
-  const promoteBtn = createButton({
-    label: S.GRADE_PROMOTE,
-    icon: '→',
-    onClick: () => handlers.onPromote(),
-  });
-  const revealBtn = createButton({
-    label: S.GRADE_REVEAL,
-    variant: 'ghost',
-    onClick: () => handlers.onReveal(),
-  });
-  const reopenBtn = createButton({
-    label: S.GRADE_REOPEN,
-    variant: 'ghost',
-    onClick: () => handlers.onReopen(),
-  });
-  const exportBtn = createButton({
-    label: S.GRADE_EXPORT,
-    variant: 'ghost',
-    size: 'sm',
-    disabled: true,
-    reason: S.GRADE_EMPTY,
-    onClick: () => handlers.onExport(),
-  });
-  const actionRow = el('div', { class: 'u-row ws-grade__actions' }, gradeBtn.el, el('span', { class: 'u-spacer' }), revealBtn.el, exportBtn.el);
 
   // ---- 进度与日志 ----
   const progress = createProgress({ label: S.PROGRESS_IDLE, state: 'idle' });
@@ -133,15 +80,6 @@ export function createGradePanel(handlers) {
   resultHost.setAttribute('aria-label', S.GRADE_RESULT_TITLE);
   const groupList = el('ul', { class: 'grade__groups' });
   const newFlag = el('span', { class: 'grade__new-flag' }, `● ${S.GRADE_NEW_RESULT}`);
-
-  const emptyState = createEmptyState({
-    icon: 'chart',
-    title: S.GRADE_EMPTY,
-    desc: S.GRADE_EMPTY_DESC,
-    // 原先标签写「沙箱」而动作跳提示词区，标签和动作对不上；改版后主流程在对话卡，
-    // 空态直接引导去内置对话，且用 ghost 不与 [运行校验] 抢强调位。
-    actions: [createButton({ label: S.GRADE_EMPTY_ACTION, variant: 'ghost', onClick: () => handlers.onGoChat() }).el],
-  });
 
   /**
    * 组状态 → 语义（图标 + 文字 + 颜色三重编码）。
@@ -400,13 +338,37 @@ export function createGradePanel(handlers) {
   }
 
   /**
-   * 渲染结果区：横幅（总分 + 概要 + 进入下一轮）→ 分组明细 → 其余诊断折叠块。
+   * 「下一步」引导一句话：动作在底部操作栏（每时刻一个主按钮），这里只指路。
    * @param {object} report
-   * @param {{canPromote: boolean, next: number, exhausted: boolean}} promote
-   * @param {boolean} running
-   * @param {string} busy
+   * @param {object} run
+   * @returns {HTMLElement}
    */
-  function renderResult(report, promote, running, busy) {
+  function renderGuidance(report, run) {
+    const attempt = Number(run && run.attempt) || 1;
+    const allowed = Number(run && run.attempts_allowed) || attempt;
+    const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
+    const canPromote = gradedAttempts.includes(attempt) && attempt < allowed;
+    let text;
+    if (report.invalidated || report.error) {
+      text = T.NEXT_TO_FIX;
+    } else if (report.passed && canPromote) {
+      text = t(T.NEXT_TO_PROMOTE, { n: attempt + 1 });
+    } else if (report.passed && attempt >= allowed) {
+      text = T.NEXT_TO_REVEAL;
+    } else if (report.passed) {
+      text = t(T.NEXT_TO_PROMOTE, { n: attempt + 1 });
+    } else {
+      text = T.NEXT_TO_FIX;
+    }
+    return el('p', { class: 'ws-report__guidance', role: 'note' }, text);
+  }
+
+  /**
+   * 渲染结果区：横幅（总分 + 概要）→ 分组明细 → 其余诊断折叠块 → 下一步引导。
+   * @param {object} report
+   * @param {object} run
+   */
+  function renderResult(report, run) {
     resultHost.textContent = '';
     const groups = report.groups || [];
     const sum = report.summary || {};
@@ -430,7 +392,7 @@ export function createGradePanel(handlers) {
       title: `${S.GRADE_SCORE_LABEL}：${percent((report.score || 0) / 100)}`,
     });
 
-    // 结果横幅：通过=绿 tint，未过/作废=红 tint（第一眼必须是它，§一.③）
+    // 结果横幅：通过=绿 tint，未过/作废=红 tint（第一眼必须是它）
     const banner = el(
       'div',
       { class: 'ws-grade-banner', dataset: { tone: report.passed ? 'pass' : 'fail' } },
@@ -453,16 +415,14 @@ export function createGradePanel(handlers) {
     resultHost.appendChild(banner);
     resultHost.appendChild(el('p', { class: 'u-muted ws-grade-banner__note' }, summaryText));
 
-    // 「进入下一轮」只信当前轮实时状态（逐轮校验过 + 还有剩余机会），不信旧报告里的
-    // next_hint。按钮只有一个宿主（下面的动作区）：以前横幅里也 append 同一个节点，
-    // 谁后跑谁把它搬走，看起来就像按钮随机消失。
-    if (promote.exhausted && !promote.canPromote) {
+    const attempt = Number(run && run.attempt) || 1;
+    const attemptsAllowed = Number(run && run.attempts_allowed) || attempt;
+    if (attempt >= attemptsAllowed && !report.invalidated) {
       resultHost.appendChild(el('p', { class: 'u-faint ws-grade-exhausted' }, S.GRADE_PROMOTE_EXHAUSTED));
     }
 
     // 分组明细按组 id 复用节点。renderGroup 交回的是 {el, update}，patchList 会优先走
-    // api.update，重跑校验后从红转绿的组当场改结论——不再传第 5 个参数，否则读起来
-    // 像是「只建不刷」的旧形状。
+    // api.update，重跑校验后从红转绿的组当场改结论。
     patchList(groupList, groups, (g) => g.id, (group) => renderGroup(group));
     resultHost.appendChild(el('div', {}, el('h3', { class: 'section-title' }, S.GRADE_RESULT_TITLE), groupList));
 
@@ -547,7 +507,7 @@ export function createGradePanel(handlers) {
       );
     }
 
-    // 下一步建议（服务端 hint 作补充说明；主按钮已在横幅里）
+    // 下一步建议（服务端 hint 作补充说明；引导文案在本节点末尾）
     const hint = report.next_hint || {};
     if (hint.label) {
       resultHost.appendChild(
@@ -563,6 +523,9 @@ export function createGradePanel(handlers) {
     // 参考解
     const ref = renderReveal();
     if (ref) resultHost.appendChild(ref);
+
+    // 「下一步」引导（内联在对话流里，不做弹窗、不做 sticky）
+    resultHost.appendChild(renderGuidance(report, run));
   }
 
   /**
@@ -588,132 +551,34 @@ export function createGradePanel(handlers) {
     current = { ...current, ...state };
     bodyHost.textContent = '';
 
-    if (current.loading) {
-      setText(cardAside, '');
-      bodyHost.appendChild(createStatusDot({ kind: 'busy', text: S.STATE_LOADING }).el);
-      return;
-    }
-    if (current.error) {
-      root.open = true; // 错误不能藏在收起的卡里
-      setText(cardAside, S.ERR_LOAD);
-      bodyHost.appendChild(
-        createEmptyState({
-          title: S.ERR_LOAD,
-          desc: S.ERR_LOAD_BODY,
-          alert: true,
-          // 重试 = 只读回读。挂 onGrade 会变成「读取失败 → 点重试」直接提交一次校验。
-          actions: [createButton({ label: S.ACTION_RETRY, onClick: () => handlers.onReload() }).el],
-        }).el,
-      );
-      return;
-    }
-
     const run = current.run;
     const report = run ? run.report : null;
-    const hasRun = Boolean(run);
-    const busy = current.busy || '';
     // 校验是异步的：服务端 status=grading 才是真在跑
-    const running = busy === 'grade' || (hasRun && run.status === 'grading');
-    const sandboxOk = hasRun && SANDBOX_OK.has(run.status);
-    const hasReport = Boolean(report);
+    const running = current.busy === 'grade' || Boolean(run && run.status === 'grading');
 
-    // 卡头摘要行：跑完显示分数，进行中显示状态；空态留空——空态说明就在卡里，
-    // 卡头再重复一遍只会让折叠标题变吵。
+    // 没跑过也不在跑：整个节点隐藏（动作在底部操作栏，空态不需要再占一屏）
+    if (!run || (!report && !running)) {
+      root.hidden = true;
+      return;
+    }
+    root.hidden = false;
+
+    // 节点头：跑完显示分数，进行中显示状态
     setText(
-      cardAside,
+      aside,
       running
         ? S.GRADE_RUNNING
-        : hasReport
+        : report
           ? percent((report.score || 0) / 100)
           : '',
     );
 
-    // 动作区
-    // 运行校验的可用性：必须沙箱就绪、服务端没有还在跑的对话线程，
-    // 而且模型真的动过手——刚建好沙箱就点校验，只会按「未改动」判 0，白烧一次机会。
-    const chatBusy = Boolean(run && run.chat_busy);
-    const modelActed = !run || run.model_acted !== false;
-    // 记录不属于当前档案：只许看成绩，不许再往这条不属于它的时间线上写东西
-    const foreign = Boolean(current.modelMismatch);
-    const foreignReason = foreign ? t(T.FOREIGN, { model: (run && run.model) || '（空）' }) : '';
-    actionRow.textContent = '';
-    actionRow.appendChild(gradeBtn.el);
-    // 四个出口一律常显，不该出现时禁用并写出原因。以前它们是「条件不渲染」，
-    // 第 2 轮一开局揭晓/作废/导出集体消失，用户只能把四张卡挨个展开找出口。
-    const currentAttempt = Number(run && run.attempt) || 1;
-    const attemptsAllowed = Number(run && run.attempts_allowed) || currentAttempt;
-    const gradedAttempts = ((run && run.rounds) || []).map((r) => Number(r.attempt));
-    const canPromote = hasReport && gradedAttempts.includes(currentAttempt) && currentAttempt < attemptsAllowed;
-    const exhausted = currentAttempt >= attemptsAllowed;
-    const revealed = Boolean(run && run.revealed) || Boolean(current.revealed);
-    const promoteReason = foreign
-      ? foreignReason
-      : !hasReport
-        ? S.GRADE_EMPTY
-        : exhausted
-          ? S.GRADE_PROMOTE_EXHAUSTED
-          : revealed
-            ? S.WS_REVEALED_NOTE
-            : '';
-    promoteBtn.update({
-      // 机会用尽时别写「进入第 3 轮」——本题一共只有 2 次，数字本身就是误导
-      label: exhausted ? T.PROMOTE_PLAIN : t(S.GRADE_PROMOTE, { n: currentAttempt + 1 }),
-      disabled: foreign || !canPromote || running || Boolean(busy),
-      reason: promoteReason,
-    });
-    actionRow.appendChild(promoteBtn.el);
-    revealBtn.update({
-      label: S.GRADE_REVEAL,
-      disabled: foreign || !hasReport || revealed || running,
-      reason: foreignReason || (!hasReport ? S.GRADE_EMPTY : revealed ? S.WS_REVEALED_NOTE : ''),
-    });
-    actionRow.appendChild(revealBtn.el);
-    // 误校验的补救口：本轮成绩作废、退回可对话状态，模型改完再重新校验。
-    // 条件只看「有没有报告」而不是「状态是不是 graded」：轮次记账是后补的，
-    // 老 run 的状态早已退回 ready，报告却一直挂在面板上，卡着状态反而作废不掉。
-    reopenBtn.update({
-      disabled: foreign || !hasReport || revealed || running || Boolean(busy) || chatBusy,
-      reason: foreignReason || (!hasReport ? S.GRADE_EMPTY : revealed ? S.WS_REVEALED_NOTE : ''),
-    });
-    actionRow.appendChild(reopenBtn.el);
-    exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
-    actionRow.appendChild(exportBtn.el);
-
-    const gradeReason = foreign
-      ? foreignReason
-      : !hasRun
-        ? S.ERR_NO_SANDBOX
-        : running
-          ? S.GRADE_RUNNING
-          : chatBusy
-            ? S.CHAT_REMOTE_BUSY
-            : !modelActed
-              ? S.GRADE_NEED_MODEL_FIRST
-              : !sandboxOk
-                ? S.SANDBOX_PREPARING
-                : '';
-    gradeBtn.update({
-      label: hasReport ? S.GRADE_RERUN : S.GRADE_RUN,
-      loading: running,
-      busyLabel: S.GRADE_RUNNING,
-      disabled: foreign || !sandboxOk || running || Boolean(busy) || chatBusy || !modelActed,
-      reason: gradeReason,
-    });
-    // 不再在这里重复 update revealBtn：上面已经按「串档 / 无报告 / 已揭晓」设过
-    // disabled 与 reason，这里再来一次会把可见原因冲掉。
-    exportBtn.update({ disabled: !hasReport, reason: hasReport ? '' : S.GRADE_EMPTY });
-
-    bodyHost.appendChild(gradeDesc);
-    bodyHost.appendChild(actionRow);
-
-    if (!hasRun) {
-      emptyState.update({});
-      bodyHost.appendChild(emptyState.el);
-      return;
-    }
-
-    // 进度
     if (running) {
+      bodyHost.appendChild(
+        el('div', { class: 'u-row' },
+          createStatusDot({ kind: 'busy', text: T.RUNNING_TITLE }).el,
+          el('span', { class: 'u-faint' }, S.GRADE_RUNNING)),
+      );
       progress.update({
         state: 'running',
         determinate: false,
@@ -726,17 +591,9 @@ export function createGradePanel(handlers) {
       progress.update({ state: 'idle', label: S.PROGRESS_IDLE });
     }
 
-    if (hasReport) {
-      renderResult(
-        report,
-        { canPromote, next: currentAttempt + 1, exhausted: !canPromote && currentAttempt >= attemptsAllowed },
-        running,
-        busy,
-      );
+    if (report) {
+      renderResult(report, run);
       bodyHost.appendChild(resultHost);
-    } else if (!running) {
-      emptyState.update({});
-      bodyHost.appendChild(emptyState.el);
     }
 
     // 日志：契约里 run.log 是校验日志（status ∈ grading/graded/error 时才有）
@@ -749,22 +606,15 @@ export function createGradePanel(handlers) {
   return {
     el: root,
     update,
-    /** 展开/收起卡片（校验完成的结果提醒会先把卡展开）。 */
-    setOpen(open) {
-      root.open = Boolean(open);
-    },
     /** 结果区拿到焦点（结果提醒用；区域本身 tabindex="-1"，不进 Tab 序）。 */
     focusResult() {
+      root.hidden = false;
       resultHost.focus({ preventScroll: true });
     },
-    /** 供快捷键 G 触发。 */
-    doGrade: () => handlers.onGrade(),
     /** 解绑（§10.4）。 */
     destroy() {
-      [gradeBtn, promoteBtn, revealBtn, reopenBtn, exportBtn].forEach((b) => b.destroy());
       progress.destroy();
       logCard.destroy();
-      emptyState.destroy();
     },
   };
 }
