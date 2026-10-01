@@ -93,6 +93,11 @@
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         }
@@ -106,5 +111,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-10-01T13:54:49"
+  "finished_at": "2026-10-02T02:07:33"
 }

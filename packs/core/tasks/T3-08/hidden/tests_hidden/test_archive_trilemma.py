@@ -461,3 +461,44 @@ def test_long_session_keeps_all_three_promises_at_once(monkeypatch):
     # 整理动作的模型调用 O(1)/轮：压缩调用次数不得超过轮数。
     compactions = [c for c in model.calls if c["tools"] is None and len(c["messages"]) == 1]
     assert len(compactions) <= 3, f"压缩调用 {len(compactions)} 次超过轮数，攒批语义被破坏"
+
+
+def test_interrupted_overflowing_session_keeps_all_promises(monkeypatch):
+    """第二数据场景：中断残留 + 参数体超限——修复前置、安全切点、完整搬运与
+    真实体积口径必须在同一会话里同时成立，任一单端口修法都过不了这条。
+
+    与上一条的差别：上一条是三轮正常会话逐步顶爆；这一条开场就带一条悬空
+    调用（上次运行中断的残留），且超限主要由工具调用参数体（而非正文）贡献——
+    口径只数正文的实现根本看不见这次超限。
+    """
+    monkeypatch.setattr(agent_mod, "SHORT_TERM_WINDOW", 5)
+    monkeypatch.setattr(agent_mod, "SHORT_TERM_MAX_CHARS", 700)
+    model = ScriptedModel([[_final(content="续上后的结论 MARK-F1")]])
+    runner = AgentRunner(model, _make_registry(), ToolResultStore(), ContextBudget())
+    session = _session()
+    session["messages"] = [
+        {"role": "user", "content": "最早的要求 MARK-H0"},
+        {"role": "assistant", "content": None,
+         "tool_calls": [_tool_call("c0", "probe_tool", '{"x": 0, "filter": "%s"}' % ("参" * 260))]},
+        {"role": "tool", "tool_call_id": "c0", "content": "查询结果 MARK-R0 " + "数" * 60},
+        {"role": "user", "content": "中段追问 MARK-H1 " + "问" * 40},
+        # 上次运行中断留下的悬空调用：只有声明、没有结果
+        {"role": "assistant", "content": None,
+         "tool_calls": [_tool_call("c-stale", "probe_tool", '{"x": 9, "filter": "%s"}' % ("参" * 260))]},
+    ]
+    runner.run(session=session, user_message="继续 MARK-Q1", system_prompt="SYS", max_steps=2, on_event=lambda event: None)
+
+    assert model.calls, "模型必须被真实调用过"
+    request_window = model.calls[-1]["messages"][1:]
+    assert request_window[0]["role"] == "user", "归档后的请求窗口必须以 user 开头"
+    problems = _pairing_problems(request_window)
+    assert problems == [], f"悬空调用未先补齐就发出了请求：{problems}"
+    size = _wire_chars(request_window)
+    assert size <= 700, f"整理后真实发送体积 {size} 仍超预算（口径 = 正文 + 调用参数体）"
+
+    kept = "\n".join(
+        [*(str(m.get("content") or "") for m in session["messages"]),
+         *(str(item) for item in (session.get("pending_archive") or []))]
+    )
+    for marker in ("MARK-H0", "MARK-R0", "MARK-H1", "MARK-Q1", "MARK-F1"):
+        assert marker in kept, f"{marker} 从会话里凭空消失了"

@@ -75,6 +75,30 @@
 | 参考解路径合规 | 仅修改 `allowed_paths` 内文件，未触碰 `forbidden_paths` |
 | 沙箱可见红测试 | **0**（6 条变红/点名用例已全部裁剪入 `visible.prune`） |
 
+## 六·补、2026-10-02 体检修复记录（两道 packcheck 红清零）
+
+本轮体检（runs/audit/2026-10-02）发现两道红并修复：
+
+1. **medium 档要求 ≥3 个可改文件，本题只有 2 个**（sync.py + service.py）→
+   `allowed_paths` 增加 `backend/astock_backtester/data/operations.py` 作为
+   **记录在案的诱饵文件**：症状"同一批数据反复起 worker"的自然嫌疑犯就是
+   缺口/覆盖口径（它决定哪些票被反复判成"没补齐"），而该文件在注入态是正确
+   的——改它不会让任何组转绿。注入面与锚解不变（仍只落 sync.py + service.py），
+   与 T1-02 的 operations.py / App.tsx 诱饵先例同款。
+2. **coherence 组只有 1 条断言**（§6.5 每组需第二数据场景）→ 新增
+   `test_cancel_then_prune_then_resubmit_starts_fresh`：取消 → 终态清理 →
+   同签名重提，与既有"完成路径"全周期用例互补；注入态下幽灵签名/取消标记
+   断言必红，锚解下绿，半成品（未修 `_drop_locked` 标记清理）下仍红。
+
+修复后门禁重跑（packgate，2026-10-02，结果已写回 `calibration/`）：
+
+| 门禁 | 结果 |
+|---|---|
+| fixed | **100.0**，5 组全绿（coherence 2/2 用例），p2p 35/35 绿 |
+| partial | **33.33**（不变），reclaim / consumer / coherence 三组红 |
+| injected ×20 | **稳定 0.0**（20/20），5 组全红，p2p 0 破坏 |
+| packcheck | **0 红 0 黄** → 由 regenerate_index 登记为 active |
+
 ## 七、校准状态（§6.4）
 
 `calibration/results.json` 保持空表，`calibrated = false`。出题模型不参与盲测校准。

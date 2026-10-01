@@ -75,12 +75,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
               "outcome": "failed",
-              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000192E17144A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000192E17144"
+              "message": "AssertionError: 409 必须暴露当前占用名额的任务编号（字段名与形态自定，写进提示文案也算）：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}\nassert 'job-1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001A74A2E44A0>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 2），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001A74A2E44"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000192F74BCB00>('admission')\n +    where <built-in method get of dict object at 0x00000192F74BCB00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001A7600A9080>('admission')\n +    where <built-in method get of dict object at 0x000001A7600A9080> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             }
           ]
         },
@@ -93,6 +93,11 @@
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
               "message": "AssertionError: assert {'chain-1': '...01-05|000002'} == {}\n  \n  Left contains 2 more items:\n  {'chain-1': 'full_market_bootstrap|2015-01-01|2015-01-05|000001',\n   'chain-conc-1': 'full_market_bootstrap|2015-01-01|2015-01-05|000002'}\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
+              "outcome": "failed",
+              "message": "AssertionError: 终态清理必须连去重签名一起带走\nassert {'cxl-1': 'fu...03-06|600519'} == {}\n  \n  Left contains 1 more item:\n  {'cxl-1': 'full_market_bootstrap|2015-03-02|2015-03-06|600519'}\n  Use -v to get more diff"
             }
           ]
         }
@@ -106,5 +111,5 @@
   "score_min": 33.33,
   "score_max": 33.33,
   "stable": true,
-  "finished_at": "2026-10-01T13:55:15"
+  "finished_at": "2026-10-02T02:08:14"
 }

@@ -22,7 +22,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000110C6B8CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000021CEAF15BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -73,7 +73,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000110C67D9150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000021CEACDB510>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -146,7 +146,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000110C69622D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000021CEAAF2510>.cached_symbol_count"
             }
           ]
         },
@@ -229,14 +229,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -279,7 +279,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022AE379CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E3753B5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -330,7 +330,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022AE325D150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E3751617D0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -403,7 +403,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000022AE330A2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001E374D02510>.cached_symbol_count"
             }
           ]
         },
@@ -486,14 +486,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -536,7 +536,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024F33BCCFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000271E57E5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -587,7 +587,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024F338F9150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000271E4DFE810>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -660,7 +660,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000024F336EA2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000271E525A510>.cached_symbol_count"
             }
           ]
         },
@@ -743,14 +743,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -793,7 +793,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002188407CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002037AAA5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -844,7 +844,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000021883BF1150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002037A199D80>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -917,7 +917,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000021883B022D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002037A49E510>.cached_symbol_count"
             }
           ]
         },
@@ -1000,14 +1000,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -1050,7 +1050,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000214BDFA0FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000232A4585BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1101,7 +1101,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000214BDA85150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000232A3C952F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1174,7 +1174,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000214BDFDA2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000232A3F16510>.cached_symbol_count"
             }
           ]
         },
@@ -1257,14 +1257,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -1307,7 +1307,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001BD1B11CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002C8E65C5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1358,7 +1358,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001BD1ACED150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002C8E5D098A0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1431,7 +1431,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001BD1AAAE2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002C8E5F56510>.cached_symbol_count"
             }
           ]
         },
@@ -1514,14 +1514,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -1564,7 +1564,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001F8803ACFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001D583375BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1615,7 +1615,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001F8800BD150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001D582A052F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1688,7 +1688,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001F8FFD3A2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001D582D06510>.cached_symbol_count"
             }
           ]
         },
@@ -1771,14 +1771,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -1821,7 +1821,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000018CDB90CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000178B18E9BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1872,7 +1872,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000018CDB639150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000178B0F2C6C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1945,7 +1945,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000018CDB3A22D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000178B12B6510>.cached_symbol_count"
             }
           ]
         },
@@ -2028,14 +2028,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -2078,7 +2078,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001F30C0B0FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000236D7225BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2129,7 +2129,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001F30BC25150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000236D691E670>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2202,7 +2202,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001F30C1762D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000236D6CB2510>.cached_symbol_count"
             }
           ]
         },
@@ -2285,14 +2285,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -2335,7 +2335,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000020A0347CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000020244BD5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2386,7 +2386,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000020A03019150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000202442B9970>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2459,7 +2459,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000020A7FE2A2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000020244586510>.cached_symbol_count"
             }
           ]
         },
@@ -2542,14 +2542,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -2592,7 +2592,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024DB1020FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000245E7F55BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2643,7 +2643,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024DB0B1D150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000245E75E9D80>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2716,7 +2716,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000024DB0B8E2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000245E794E510>.cached_symbol_count"
             }
           ]
         },
@@ -2799,14 +2799,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -2849,7 +2849,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001AC40350FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000017440D35BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2900,7 +2900,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001AC3FF09150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000017440ACD630>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2973,7 +2973,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001AC4010A2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000174406EE510>.cached_symbol_count"
             }
           ]
         },
@@ -3056,14 +3056,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -3106,7 +3106,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000027113AACFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001EEF53C5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -3157,7 +3157,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000027113501150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001EEF4B09D80>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -3230,7 +3230,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000271138362D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001EEF4D26510>.cached_symbol_count"
             }
           ]
         },
@@ -3313,14 +3313,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -3363,7 +3363,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CBD77FCFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000239C2BD9BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -3414,7 +3414,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CBD746D150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000239C21EC6C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -3487,7 +3487,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001CBD71DA2D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000239C25A6510>.cached_symbol_count"
             }
           ]
         },
@@ -3570,14 +3570,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -3620,7 +3620,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001BCFC990FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002BAE01C5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -3671,7 +3671,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001BCFC421150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002BADFF717D0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -3744,7 +3744,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001BCFC3722D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002BADFB12510>.cached_symbol_count"
             }
           ]
         },
@@ -3827,14 +3827,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -3877,7 +3877,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002334FFACFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E6E6F45BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -3928,7 +3928,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002334FBC9150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6E65ED2F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -4001,7 +4001,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002334F9462D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001E6E6A4A510>.cached_symbol_count"
             }
           ]
         },
@@ -4084,14 +4084,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -4134,7 +4134,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001C09E5D0FB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000025E6F655BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -4185,7 +4185,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001C09E10D150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000025E6EC5D2F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -4258,7 +4258,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001C09E4662D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000025E6F0E6510>.cached_symbol_count"
             }
           ]
         },
@@ -4341,14 +4341,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -4391,7 +4391,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000018070F1CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001BD1F735BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -4442,7 +4442,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000018070C49150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001BD1EE5E670>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -4515,7 +4515,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000180708A22D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001BD1F1C2510>.cached_symbol_count"
             }
           ]
         },
@@ -4598,14 +4598,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -4648,7 +4648,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000020F72E8CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000191C72B5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -4699,7 +4699,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000020F72AA9150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000191C690D2F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -4772,7 +4772,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000020F728462D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x00000191C6D46510>.cached_symbol_count"
             }
           ]
         },
@@ -4855,14 +4855,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -4905,7 +4905,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000020F6591CFB0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E576635BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -4956,7 +4956,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000020F65521150>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E5763D98A0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -5029,7 +5029,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000020F652D22D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001E576006510>.cached_symbol_count"
             }
           ]
         },
@@ -5112,14 +5112,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -5155,5 +5155,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T14:34:11"
+  "finished_at": "2026-10-02T03:03:17"
 }

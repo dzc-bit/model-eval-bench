@@ -115,10 +115,10 @@
     {
       "id": "coherence",
       "weight": 3,
-      "port": "cross subsystem consistency",
+      "port": "跨链联合一致性：写入侧的失效协议守卫行情侧宽度校验的事实源；同一次外部写入必须同时穿透健康与行情两个出口（真实相互作用，不是合取记账）",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
-        "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows"
+        "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
+        "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact"
       ]
     },
     {
