@@ -27,8 +27,10 @@ if errorlevel 1 (
     exit /b 1
 )
 echo [警告] 未找到 .venv-gate，本次退回系统 python。
-echo        核心题（T1-01..T4-11）可能因缺少受测仓库依赖而无法校验；
-echo        只有 DEMO-01 不依赖外部包。
+echo        核心题（T1-01..T4-11）的隐藏用例要 import 受测仓库那套依赖（pandas /
+echo        numpy / pyarrow / duckdb / akshare / pydantic / openai …），依赖不在
+echo        这个解释器里时会在收集阶段全灭，分数直接是 0。
+echo        解决办法：把依赖装进 .venv-gate，或改成你平时跑门禁的那个解释器。
 echo.
 
 :run

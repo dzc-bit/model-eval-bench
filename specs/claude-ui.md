@@ -98,8 +98,14 @@
 ## 3. 验收方式
 
 改完必须跑：
-1. `python console/static/../../_ui-audit/run-matrix.sh`（48 次真实渲染实测，真数据非 mock）
-2. `python _ui-audit/aggregate.py` → 缺陷清单，high 必须为 0
+1. `python -m pytest console/harness/tests` —— 干净检出必须 exit 0
+2. 前端语法：`console/static/js/**/*.js` 逐个复制成 `.mjs` 再 `node --check`
+   （直接对 `.js` 跑 `node --check` 会静默放行 ESM 语法错误，等于没测）
+3. 起服务后在浏览器里走一遍五个视图，看 console 有无 ReferenceError/TypeError；
+   对比度按 WCAG AA 实测，量不到的项标 unresolved，不许当成「没问题」
+
+> 原稿这里写的 `_ui-audit/run-matrix.sh`、`_ui-audit/aggregate.py` 测量台没有入库
+> （一次性调试页 `_audit.html` 也已删除），所以验收步骤换成上面这三条可复现的。
 3. 无头 Edge 出图，**浅色和深色各看一遍** 8 个视图
 4. 逐条对照本清单第 2 节，写明"符合/不符合"
 
