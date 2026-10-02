@@ -635,7 +635,7 @@ export function createBatch(props = {}) {
       : batch.queued;
     const pct = total ? Math.round((done / total) * 100) : 0;
     setText(progressView.count, `${done} / ${total}`);
-    setText(progressView.runningValue, `${T.HEADER_ACTIVE} ${active}`);
+    setText(progressView.runningValue, `${T.HEADER_ACTIVE} ${activeNow}`);
     setText(progressView.readyValue, `${T.HEADER_AWAITING} ${awaiting}`);
     setText(progressView.queuedValue, `排队 ${queued}`);
     setText(progressView.passedValue, `${S.BATCH_PASSED} ${passed}`);
