@@ -15,7 +15,7 @@
     "injected_state": "gate_injected_x20.json"
   },
   "blind_runs": {
-    "note": "每一行 = 一次『只给第 1 级提示词』的独立作答（题面 = git HEAD 的原始 1 级题面），由非出题模型 cbcn/deepseek-v4.1-flash 经保真探针（直接复用生产 harness 工具层，模型可自行跑 pytest/vitest）产生，补丁经 packgate --state custom 按生产评分树评分。只计入「补丁非空且产物仍在」的轮次；空补丁、旧探针产物一律剔除。探针仍带三处保守偏差（自设 max_tokens、截断工具输出、不做重复读取省略），故分数为下界；样本量 n≤2，不足以判定 target_band。",
+    "note": "每一行 = 一次『只给第 1 级提示词』的独立作答（题面 = git HEAD 的原始 1 级题面），经保真探针（直接复用生产 harness 工具层，模型可自行跑 pytest/vitest）产生，补丁经 packgate --state custom 按生产评分树评分。只计入「补丁非空且产物仍在」的轮次。不同模型分行记录、不合并统计；探针带三处保守偏差（自设 max_tokens、截断工具输出、不做重复读取省略），故分数为下界。",
     "columns": [
       "run_id",
       "model",
@@ -44,14 +44,25 @@
         ],
         "p2p_broken": 0,
         "notes": "原始 1 级题面（= git HEAD）；保真探针；114 步，只有前端降级一组绿。（探针三处保守偏差使其偏难，此分为下界）"
+      },
+      {
+        "run_id": "blind-2026-10-03-hunyuan-t1",
+        "model": "codebuddy-cn/hy4-preview",
+        "tier": "hard",
+        "prompt_level": 1,
+        "pass@1": true,
+        "score": 100.0,
+        "failed_groups": [],
+        "p2p_broken": 0,
+        "notes": "原始 1 级题面（= git HEAD）；保真探针；77 步 / 76 次工具调用，一轮满分。另一个模型独立复现了「1 级题面一轮满分」——与台账里 deepseek 的 100 分互相印证，说明 T3-09 确实高于 target_band 上沿。（该轮完成后该模型当日配额也用尽，故只有 1 轮。）"
       }
     ]
   },
   "summary": {
-    "runs": 1,
-    "pass_at_1": 0.0,
+    "runs": 2,
+    "pass_at_1": null,
     "confidence_interval": null,
     "in_band": null,
-    "conclusion": "样本量过小（n=1），与生产台账（同模型同题第 1 轮 pass1=True）合并看也只有 n≤3，不足以判定 target_band；探针自带的三处保守偏差还使分数偏低。按 §6.4 纪律不填造、不外推；改写后题面的 pass@1 待模型配额恢复（2026-10-04 00:52 UTC+8）后补测。"
+    "conclusion": "两个模型各自独立地在这道题上用原始 1 级题面拿到一轮满分（deepseek 100.0、hunyuan 100.0），另有 deepseek 一轮 14.29，合计 n=3。样本量仍不足以判定 target_band，但方向明确：1 级题面加固前，T3-09 明显高于 [0.05, 0.25] 上沿。加固后题面的 pass@1 未测——两个模型当日配额均已耗尽（hunyuan 重置 2026-10-03 08:00、deepseek 重置 2026-10-04 00:52 UTC+8），按 §6.4 不填造、不外推，故 pass_at_1 置 null。"
   }
 }
