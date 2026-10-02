@@ -468,12 +468,22 @@ def build_router() -> Router:
     r.add("POST", r"/api/sandbox/reset", lambda ctx: (_reset(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/sandbox/rebuild", lambda ctx: (_rebuild(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("GET", r"/api/scoreboard", lambda ctx: api_scoreboard(ctx["cfg"], ctx["query"]))
+    # 模型配置：2026-10-01 起以「供应商 → 模型清单」两层结构提供。
+    # /api/models 保留为展开后的扁平视图（工作台的下拉、记分板的档案芯片都用它），
+    # /api/providers 是编辑用的嵌套结构。
     r.add("GET", r"/api/models", lambda ctx: ({"models": runs.list_models(ctx["cfg"])}, "application/json; charset=utf-8"))
+    r.add("GET", r"/api/providers", lambda ctx: (runs.list_providers(ctx["cfg"]), "application/json; charset=utf-8"))
     # 分档体检：只接受 {id}，指向已保存的档案（详见 api_model_doctor 的 SSRF 说明）
     r.add("POST", r"/api/models/test", lambda ctx: (api_model_doctor(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("POST", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_model(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_model(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/providers", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    r.add("PATCH", r"/api/providers", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/providers", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
+    # 从端点拉取可用模型（候选，不落盘）：对齐 DSH 的 discovery 语义
+    r.add("POST", r"/api/providers/discover", lambda ctx: (runs.discover_models(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    # 兼容旧前端：/api/models 的写接口转到 provider 粒度（老前端不会传 models 数组）
+    r.add("POST", r"/api/models", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration", lambda ctx: (calibrate.enqueue(ctx["cfg"], str(ctx["body"].get("task") or ""), str(ctx["body"].get("model") or ""), _as_int(ctx["body"].get("trials"), 5)), "application/json; charset=utf-8"))
     r.add("GET", r"/api/calibration", lambda ctx: (calibrate.queue_status(ctx["cfg"], str(ctx["query"].get("task") or ""), str(ctx["query"].get("model") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration/cancel", lambda ctx: (calibrate.cancel(ctx["cfg"], str(ctx["body"].get("run_id") or "")), "application/json; charset=utf-8"))

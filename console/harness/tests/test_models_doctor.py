@@ -20,21 +20,36 @@ if CONSOLE_DIR not in sys.path:
     sys.path.insert(0, CONSOLE_DIR)
 
 import server  # noqa: E402
-from harness import chat, config, errors, runs  # noqa: E402
+from harness import chat, config, errors, keyring, runs  # noqa: E402
 
 from test_api import _client, _serve, _stop  # noqa: E402
 
 SECRET = "sk-viewtest-NEVER-LEAK"
-VIEW_FIELDS = ("id", "protocol", "api_mode", "base_url", "model", "key_masked", "key_env", "note")
+#: 2026-10-01 重构：去掉 key_env（密钥改按供应商存），加入 provider / 容量字段。
+VIEW_FIELDS = ("id", "name", "provider_id", "provider_name", "qualified_id",
+               "protocol", "api_mode", "base_url", "model",
+               "context_window", "max_tokens", "key_masked", "note")
 DIAGNOSTIC_FIELDS = ("key_candidates", "key_env_effective", "key_present", "ready")
 
 
 def _profile(**overrides):
-    model = {"id": "doc", "protocol": "openai", "api_mode": "chat_completions",
+    model = {"id": "doc", "name": "doc-model", "provider_id": "DOC",
+             "provider_name": "DOC", "qualified_id": "DOC::doc",
+             "protocol": "openai", "api_mode": "chat_completions",
              "base_url": "https://doctor.test/v1", "model": "doc-model",
-             "key_masked": "sk-****3f9a", "key_env": "", "note": "主力档案"}
+             "context_window": 262144, "max_tokens": 32768,
+             "key_masked": "sk-****3f9a", "note": "主力档案"}
     model.update(overrides)
     return model
+
+
+def _provider(pid="DOC"):
+    """一个供应商条目（含模型清单），用于写回路径的测试。"""
+    return {"id": pid, "display_name": pid, "protocol": "openai",
+            "api_mode": "chat_completions", "base_url": "https://doctor.test/v1",
+            "default_context_window": 262144, "default_max_tokens": 32768,
+            "note": "", "models": [{"id": "doc-model", "name": "doc-model",
+                                    "context_window": 262144, "max_tokens": 32768, "note": ""}]}
 
 
 @pytest.fixture
@@ -67,7 +82,8 @@ def test_model_view_adds_key_diagnostics_without_the_value(clean_env):
     clean_env.setenv("MODEL_DOC_API_KEY", SECRET)
     view = runs._model_view(_profile())
 
-    assert view["key_candidates"] == ["MODEL_DOC_API_KEY", "OPENAI_API_KEY"]
+    assert view["key_candidates"] == ["DOC_API_KEY", "MODEL_DOC_API_KEY", "OPENAI_API_KEY"]
+    # 本用例只设了模型级变量，供应商级没设 → 生效的是模型级那个
     assert view["key_env_effective"] == "MODEL_DOC_API_KEY"
     assert view["key_present"] is True
     assert view["ready"] is True
@@ -83,16 +99,17 @@ def test_model_view_effective_falls_back_to_the_variable_to_set(clean_env):
     view = runs._model_view(_profile())
 
     assert view["key_present"] is False
-    assert view["key_env_effective"] == "MODEL_DOC_API_KEY"
+    assert view["key_env_effective"] == "DOC_API_KEY"
     assert view["ready"] is False
 
 
-def test_model_view_honours_explicit_key_env(clean_env):
-    clean_env.setenv("DOC_KEY", SECRET)
-    view = runs._model_view(_profile(key_env="DOC_KEY"))
+def test_model_view_honours_the_provider_env_var(clean_env):
+    """供应商级变量名优先于模型级——同一中转站多个模型共用一把密钥。"""
+    clean_env.setenv("DOC_API_KEY", SECRET)
+    view = runs._model_view(_profile())
 
-    assert view["key_candidates"][0] == "DOC_KEY"
-    assert view["key_env_effective"] == "DOC_KEY"
+    assert view["key_candidates"][0] == "DOC_API_KEY"
+    assert view["key_env_effective"] == "DOC_API_KEY"
     assert view["key_present"] is True
 
 
@@ -121,22 +138,27 @@ def test_list_models_covers_every_profile(cfg, clean_env):
     assert SECRET not in json.dumps(views, ensure_ascii=False)
 
 
-def test_diagnostic_fields_are_never_persisted(cfg, clean_env, monkeypatch):
+def test_diagnostic_fields_are_never_persisted(cfg, clean_env, monkeypatch, tmp_path):
     """诊断字段是「服务端此刻的环境」，写进 config.json 就成了过期事实。"""
     clean_env.setenv("MODEL_DOC_API_KEY", SECRET)
-    cfg["models"] = [_profile(), _profile(id="other", base_url="ftp://bad")]
+    cfg["providers"] = [_provider("DOC"), _provider("other")]
     saved = []
-    monkeypatch.setattr(config, "update_models",
-                        lambda models: saved.append(json.loads(json.dumps(models))))
+    monkeypatch.setattr(config, "update_providers",
+                        lambda providers: saved.append(json.loads(json.dumps(providers))))
+    # 密钥写路径也要挡住：本用例会带 api_key，keyring 会写真实密钥文件。
+    # conftest 的保险丝会拦，但用例应该自己指到临时文件，而不是靠兜底报错。
+    monkeypatch.setattr(keyring, "path", lambda: str(tmp_path / "keys.local.json"))
 
-    runs.upsert_model(cfg, {"id": "doc", "protocol": "openai", "api_mode": "chat_completions",
-                            "base_url": "https://doctor.test/v1", "model": "doc-model",
-                            "key_masked": "sk-****3f9a"})
-    runs.delete_model(cfg, "other")
+    runs.upsert_provider(cfg, {"id": "DOC", "protocol": "openai", "api_mode": "chat_completions",
+                               "base_url": "https://doctor.test/v1",
+                               "models": [{"id": "doc-model"}],
+                               "key_masked": "sk-****3f9a"})
+    runs.delete_provider(cfg, "other")
 
     assert len(saved) == 2
+    # 落盘的 provider 记录只含可持久化字段：key_masked 在，诊断字段不在
     for record in saved[0]:
-        assert set(record) <= set(VIEW_FIELDS), "config.json 里混进了只读诊断字段"
+        assert "key_present" not in record and "ready" not in record
     blob = json.dumps(saved, ensure_ascii=False)
     for leaked in DIAGNOSTIC_FIELDS + ("key_present", "ready", SECRET):
         assert leaked not in blob

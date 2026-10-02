@@ -188,21 +188,25 @@ def messages(run: dict) -> List[dict]:
 def key_candidates(model: dict) -> List[str]:
     """按优先级返回服务端会依次查询的密钥**环境变量名**（不含任何取值）。
 
-    优先级（与历史行为完全一致）：档案的 ``key_env`` →
-    ``MODEL_<档案 ID 大写>_API_KEY`` → ``OPENAI_API_KEY``（仅 openai 协议）。
-    这是唯一的口径出处：UI 与诊断接口都必须读这份结果，不能自己复刻顺序，
-    否则「界面上说没配密钥、服务端却能用」这类矛盾会再次出现。
+    优先级：``<供应商 ID 大写>_API_KEY`` → ``MODEL_<模型 ID 大写>_API_KEY``
+    → ``OPENAI_API_KEY``（仅 openai 协议）。
+
+    2026-10-01 重构：去掉了档案自带的 ``key_env`` 字段。密钥现在有两条路——
+    本机密钥文件（页面粘贴，按供应商存）与环境变量；再多一个"自定义变量名"
+    字段只会让人不知道该填哪个。这是唯一的口径出处，UI 与诊断接口都读它。
     """
-    configured = str(model.get("key_env") or model.get("api_key_env") or "").strip()
+    provider_id = str(model.get("provider_id") or "").strip()
     candidates: List[str] = []
-    if configured and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", configured):
-        candidates.append(configured)
+    if provider_id:
+        safe_provider = re.sub(r"[^A-Za-z0-9]+", "_", provider_id).strip("_").upper()
+        if safe_provider:
+            candidates.append("%s_API_KEY" % safe_provider)
     safe_id = re.sub(r"[^A-Za-z0-9]+", "_", str(model.get("id") or "MODEL")).strip("_").upper()
     if safe_id:
         candidates.append("MODEL_%s_API_KEY" % safe_id)
     if str(model.get("protocol") or "").lower() == "openai":
         candidates.append("OPENAI_API_KEY")
-    # key_env 直接写 OPENAI_API_KEY 这类情况会重复，保留首次出现的顺序去重
+    # 供应商 id 与模型 id 可能推成同一个变量名，保留首次出现的顺序去重
     unique: List[str] = []
     for name in candidates:
         if name not in unique:
@@ -228,9 +232,29 @@ def resolve_key(model: dict) -> tuple:
     )
 
 
+def _key_owner(model: dict) -> str:
+    """密钥挂在谁名下：优先供应商（同一中转站多个模型共用一把密钥）。"""
+    return str(model.get("provider_id") or model.get("id") or "")
+
+
+def _stored_key(model: dict) -> str:
+    """从本机密钥文件里取这个模型的密钥（供应商 id 优先，回退到老档案 id）。
+
+    keyring 的 key 在 2026-10-01 重构时从 model_id 换成 provider_id；
+    老配置迁移出的供应商其密钥仍挂在老档案名下。两处都查，
+    避免「页面上明明保存过密钥，体检却说没配」。
+    """
+    for candidate in _key_owner_candidates(
+            _key_owner(model), model.get("legacy_ids") or []):
+        value = keyring.get_key(candidate)
+        if value:
+            return value
+    return ""
+
+
 def _model_key(model: dict) -> str:
-    """按本机密钥文件（页面粘贴）→ key_candidates 口径的环境变量优先级读取密钥。"""
-    stored = keyring.get_key(str(model.get("id") or ""))
+    """按本机密钥文件（页面粘贴，按供应商存）→ 环境变量优先级读取密钥。"""
+    stored = _stored_key(model)
     if stored:
         return stored
     return resolve_key(model)[1]
@@ -370,6 +394,121 @@ def _post_json(url: str, payload: dict, key: str, timeout: float) -> dict:
     return value
 
 
+def _key_owner_candidates(provider_id: str, legacy_ids: Optional[List[str]] = None) -> List[str]:
+    """本机密钥文件里，这个供应商的密钥可能挂在哪些 key 下。
+
+    模型配置重构把 keyring 的 key 从 model_id 换成了 provider_id；老配置
+    读时迁移出的供应商，其密钥仍挂在**老档案 id** 名下（迁移时记进了
+    ``legacy_ids``）。按「新 id → 老 id」顺序都试一遍，避免
+    「明明存过密钥却发无密钥请求 → 401」。
+    """
+    pid = str(provider_id or "").strip()
+    out: List[str] = []
+    if pid:
+        out.append(pid)
+    for item in (legacy_ids or []):
+        value = str(item or "").strip()
+        if value and value not in out:
+            out.append(value)
+    return out
+
+
+def list_remote_models(base_url: str, protocol: str = "openai",
+                       provider_id: str = "", api_key: str = "",
+                       legacy_ids: Optional[List[str]] = None) -> List[dict]:
+    """问端点「你能提供哪些模型」，返回候选清单。
+
+    对齐 DSH 的 discovery 语义：**候选只是可采纳的建议**，不落盘——
+    什么被服务始终由配置决定。OpenAI 兼容端点走 ``GET {base}/models``；
+    返回值兼容 ``{"data": [...]}`` 与 ``{"models": {...}}`` 两种形态
+    （中转站常见后者），逐条归一出 id / 展示名 / 上下文 / 输出上限。
+
+    容量字段按各家习惯多路兜底：``context_window`` / ``context_length`` /
+    ``max_input_tokens`` 都认，输出上限认 ``max_tokens`` / ``max_output_tokens``。
+    取不到的留空，由界面按供应商默认值填。
+    """
+    base = str(base_url or "").strip().rstrip("/")
+    if not re.match(r"^https?://", base, re.I):
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID, "接口地址必须是 http 或 https 地址。", base)
+    # 找密钥：显式传入 > 本机密钥文件（按供应商）> 环境变量。
+    # 本机文件要按「供应商 id 的几种可能写法」都试一遍：模型配置重构后
+    # keyring 的 key 从 model_id 换成了 provider_id，老配置迁移过来的供应商
+    # 其密钥还挂在老档案名下（如 "01"），只按新 id 查会取不到 → 发无密钥请求 → 401。
+    key = str(api_key or "").strip()
+    if not key and provider_id:
+        for candidate in _key_owner_candidates(provider_id, legacy_ids):
+            key = keyring.get_key(candidate)
+            if key:
+                break
+    if not key:
+        for name in key_candidates({"provider_id": provider_id, "protocol": protocol}):
+            value = os.environ.get(name, "").strip()
+            if value:
+                key = value
+                break
+
+    url = base + "/models"
+    result = _get_json(url, key=key)
+    if result.get("status") is None:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID,
+            "连不上这个端点，拉不到模型列表。检查接口地址与网络后重试。",
+            _sanitize_text(str(result.get("error") or ""), key))
+    if result.get("status") != 200:
+        raise errors.HarnessError(
+            errors.E_MODEL_INVALID,
+            "端点返回 HTTP %s，拉不到模型列表。确认接口地址与密钥是否正确。"
+            % result.get("status"),
+            _sanitize_text(str(result.get("value"))[:200], key))
+
+    payload = result.get("value")
+    raw_items: List[dict] = []
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list):
+            raw_items = [x for x in data if isinstance(x, dict)]
+        elif isinstance(payload.get("models"), dict):
+            # 中转站常见形态：{ "models": { "<id>": {..}, ... } }
+            raw_items = []
+            for mid, meta in (payload.get("models") or {}).items():
+                entry = dict(meta) if isinstance(meta, dict) else {}
+                entry.setdefault("id", mid)
+                raw_items.append(entry)
+    elif isinstance(payload, list):
+        raw_items = [x for x in payload if isinstance(x, dict)]
+
+    def _first_int(*values) -> Optional[int]:
+        for v in values:
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                continue
+            if n > 0:
+                return n
+        return None
+
+    out: List[dict] = []
+    seen = set()
+    for item in raw_items:
+        mid = str(item.get("id") or item.get("name") or "").strip()
+        if not mid or mid in seen:
+            continue
+        seen.add(mid)
+        out.append({
+            "id": mid,
+            "name": str(item.get("name") or item.get("display_name") or mid).strip() or mid,
+            "context_window": _first_int(
+                item.get("context_window"), item.get("context_length"),
+                item.get("max_input_tokens"), item.get("input_token_limit")),
+            "max_tokens": _first_int(
+                item.get("max_tokens"), item.get("max_output_tokens"),
+                item.get("output_token_limit")),
+        })
+    out.sort(key=lambda m: m["id"])
+    return out
+
+
 def _get_json(url: str, key: str = "", timeout: float = DOCTOR_TIMEOUT_S) -> dict:
     """doctor 用的 GET：把结果摊平成 ``{status, value, error}``，不抛异常。
 
@@ -462,21 +601,29 @@ def doctor(cfg: dict, model_id: str) -> dict:
     model = config.find_model(cfg, str(model_id or ""))
     stages: List[dict] = []
 
-    # ---- 1. key：只看环境变量名，取值只在服务端用于发请求 ----------------
+    # ---- 1. key：本机密钥文件优先，其次环境变量。取值只在服务端用于发请求 ----
+    # 这里必须和 _model_key 同一口径：以前只查环境变量，于是「在页面上粘贴了密钥
+    # 并保存」之后，体检仍然报「没配密钥」并让人去设环境变量——两条路只看一条。
     candidates = key_candidates(model)
     key_name = ""
     secret = ""
-    try:
-        key_name, secret = resolve_key(model)
-    except errors.HarnessError:
-        pass
+    stored = _stored_key(model)
+    if stored:
+        # 本机密钥文件里的那把：对外只说「本机密钥文件」，不回显 key 名以外的信息
+        key_name = "本机密钥"
+        secret = stored
+    else:
+        try:
+            key_name, secret = resolve_key(model)
+        except errors.HarnessError:
+            pass
     if key_name:
         stages.append(_stage("key", True, key_name))
     else:
         stages.append(_stage(
             "key", False, candidates[0] if candidates else "",
-            hint="在服务端（启动评测台的那台机器）设置环境变量 %s 后重启服务；"
-                 "密钥不经过浏览器，也不写进 config.json。"
+            hint="到这个供应商的「编辑」里粘贴 API 密钥并保存，"
+                 "或在服务端设置环境变量 %s。"
                  % (candidates[0] if candidates else "对应变量")))
 
     # ---- 2. base_url：必须是显式填写的 http(s) 地址 -----------------------

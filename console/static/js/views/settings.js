@@ -18,7 +18,7 @@
 import { el, clear } from '../core/dom.js';
 import { S, t } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
-import { storage, DEFAULT_PREFS } from '../core/storage.js';
+import { storage, STORAGE_KEYS, DEFAULT_PREFS } from '../core/storage.js';
 import { announce } from '../core/a11y.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
@@ -80,11 +80,33 @@ export function createSettings(props = {}) {
   const logToggle = makeToggle(S.SETTINGS_PREF_LOG, S.SETTINGS_PREF_LOG_HINT, 'autoExpandLog');
   const confirmToggle = makeToggle(S.SETTINGS_PREF_CONFIRM, S.SETTINGS_PREF_CONFIRM_HINT, 'confirmDestructive');
   const statsToggle = makeToggle(S.SETTINGS_PREF_STATS, S.SETTINGS_PREF_STATS_HINT, 'contributeStats');
+
+  // 首启引导开关：strings.js 承诺过「可在设置页重新打开」，这里是兑现。
+  // 「显示」= 清掉 dismissed 标记；「隐藏」= 写回 dismissed（任务库读取同一 key）。
+  const guideToggle = makeToggle(
+    '显示首启引导',
+    '重新打开任务库顶部的三步指引（关闭后可在任务库「不再显示」里再关）',
+    '__guide__',
+  );
+  // makeToggle 读写 prefs[key]，引导状态不在 prefs 里——手动接管这份输入。
+  {
+    const guideInput = guideToggle.el.querySelector('input');
+    if (guideInput) {
+      guideInput.checked = !storage.get(STORAGE_KEYS.GUIDE_DISMISSED, false);
+      guideInput.addEventListener('change', () => {
+        const dismissed = !guideInput.checked;
+        storage.set(STORAGE_KEYS.GUIDE_DISMISSED, dismissed);
+        if (dismissed) storage.set(STORAGE_KEYS.GUIDE_OPENED, false);
+        announce(guideInput.checked ? '首启引导已打开。' : '首启引导已关闭。');
+      });
+    }
+  }
+
   const prefsPanel = el(
     'section',
     { class: 'panel' },
     el('h2', { class: 'panel__title' }, S.SETTINGS_PREF_TITLE),
-    el('div', { class: 'panel__body' }, themeField.el, logToggle.el, confirmToggle.el, statsToggle.el),
+    el('div', { class: 'panel__body' }, themeField.el, guideToggle.el, logToggle.el, confirmToggle.el, statsToggle.el),
   );
 
   // ---- 本机数据区 ----

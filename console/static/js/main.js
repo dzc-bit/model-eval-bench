@@ -28,6 +28,7 @@ import { createToastHost, showToast } from './components/toast.js';
 import { openModal, closeTopModal, hasOpenModal } from './components/modal.js';
 import { createStatusDot } from './components/status-dot.js';
 import { createButton } from './components/button.js';
+import { createIcon } from './components/icons.js';
 import { createTaskLibrary } from './views/task-library.js';
 import { createWorkspace } from './views/workspace.js';
 
@@ -40,16 +41,17 @@ const NAV_GROUPS = {
 /**
  * 导航项：name → 文案。顺序即页签顺序。
  * group 决定该项落在哪一段里；分组的先后顺序以本数组里首次出现的顺序为准。
+ * icon 是 components/icons.js 的图标名（缺失时不画图标，只保留文字）。
  */
 const NAV_ITEMS = [
-  { name: 'tasks', label: S.NAV_TASKS, group: 'flow' },
-  { name: 'leaderboard', label: S.NAV_LEADERBOARD, group: 'flow' },
-  { name: 'workspace', label: S.NAV_WORKSPACE, group: 'flow' },
-  { name: 'batch', label: S.NAV_BATCH, group: 'flow' },
-  { name: 'scoreboard', label: S.NAV_SCOREBOARD, group: 'flow' },
-  { name: 'models', label: S.NAV_MODELS, group: 'config' },
-  { name: 'settings', label: S.NAV_SETTINGS, group: 'config' },
-  { name: 'help', label: S.NAV_HELP, group: 'config' },
+  { name: 'tasks', label: S.NAV_TASKS, group: 'flow', icon: 'tasks' },
+  { name: 'leaderboard', label: S.NAV_LEADERBOARD, group: 'flow', icon: 'podium' },
+  { name: 'workspace', label: S.NAV_WORKSPACE, group: 'flow', icon: 'chat' },
+  { name: 'batch', label: S.NAV_BATCH, group: 'flow', icon: 'play' },
+  { name: 'scoreboard', label: S.NAV_SCOREBOARD, group: 'flow', icon: 'scoreboard' },
+  { name: 'models', label: S.NAV_MODELS, group: 'config', icon: 'chip' },
+  { name: 'settings', label: S.NAV_SETTINGS, group: 'config', icon: 'sliders' },
+  { name: 'help', label: S.NAV_HELP, group: 'config', icon: 'help' },
 ];
 
 // ==================================================================
@@ -313,7 +315,14 @@ function mountNav() {
       const heading = createNavGroupHeading(item.group);
       if (heading) navEl.appendChild(heading);
     }
-    navEl.appendChild(el('a', { class: 'app-nav__link', href: buildHash(item.name) }, item.label));
+    // 图标是纯辅助形状（aria-hidden），语义仍在链接文字里；
+    // 作为链接子节点存在，不影响 syncNav() 按下标配对 `.app-nav__link`。
+    const icon = item.icon ? createIcon(item.icon, { class: 'app-nav__icon' }) : null;
+    navEl.appendChild(
+      el('a', { class: 'app-nav__link', href: buildHash(item.name) },
+        ...(icon ? [icon] : []),
+        el('span', { class: 'app-nav__label' }, item.label)),
+    );
   });
   syncNav();
   app.subscribe((s) => s.lastTask, () => syncNav());
@@ -484,6 +493,20 @@ function mountView(route) {
   currentView = view;
   clear(rootEl);
   rootEl.appendChild(view.el);
+
+  // 视图淡入：只动透明度，200ms。切页时内容整体换掉，硬切会像闪一下；
+  // 幅度大的动画（位移/缩放）又会对整棵视图树每帧重绘 —— 用户反馈的
+  // 「切换卡顿生硬」就是那个。
+  //
+  // 重启动画不用 `void offsetWidth`：那会强制同步布局，而此刻刚插进一整棵
+  // 视图 DOM，读取布局等于让浏览器立刻重排一次（这正是卡顿的来源之一）。
+  // 改用下一帧加类：rAF 回调时样式已经算完，不会触发额外重排。
+  rootEl.classList.remove('view-enter');
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => rootEl.classList.add('view-enter'));
+  } else {
+    rootEl.classList.add('view-enter');
+  }
 
   // 焦点移到本视图 h1；工作台优先回到上次区域与滚动位置（§13.5）
   if (route.name === 'workspace' && route.params.region && typeof view.focusRegion === 'function') {
@@ -803,6 +826,9 @@ function navigate(name, params = {}, opts = {}) {
  */
 function onGlobalKeydown(event) {
   if (event.defaultPrevented) return;
+  // 键盘导航过就在 <html> 上留个标记：程序移焦（路由切换把焦点搬到 h1）
+  // 不该画焦点环，只有真人用键盘操作时才画。见 views.css 的 html.keyboard-nav。
+  markKeyboardNav();
   if (event.key === 'Escape') {
     if (hasOpenModal()) closeTopModal();
     return;
@@ -813,6 +839,12 @@ function onGlobalKeydown(event) {
     event.preventDefault();
     openShortcutHelp();
   }
+}
+
+/** 标记「用户真的在用键盘」，让程序移焦不再画焦点环。只挂一次。 */
+function markKeyboardNav() {
+  if (document.documentElement.classList.contains('keyboard-nav')) return;
+  document.documentElement.classList.add('keyboard-nav');
 }
 
 /** 打开快捷键表之前记住的焦点，关闭后还回去。 */

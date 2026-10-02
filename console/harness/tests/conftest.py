@@ -84,6 +84,44 @@ def reclaim_workspaces():
     yield
 
 
+@pytest.fixture(autouse=True)
+def forbid_writing_real_config(monkeypatch):
+    """保险丝：测试绝不允许写真实的 config.json 与密钥文件。
+
+    起因（2026-10-01）：模型配置重构后，几个走 HTTP 的用例只 patch 了「读配置」
+    的入口，写路径仍然指向真实 console/config.json —— 一次全量测试把用户的
+    3 个模型档案替换成了测试数据。写路径必须默认被挡住，用例要写就自己
+    patch 到 tmp_path，而不是靠每个用例自觉。
+    """
+    from harness import config as harness_config
+    from harness import keyring as harness_keyring
+
+    real_config = os.path.abspath(harness_config.CONFIG_PATH)
+    real_keys = os.path.abspath(harness_keyring.path())
+
+    def _guard(path, kind):
+        target = os.path.abspath(str(path))
+        if target in (real_config, real_keys):
+            raise AssertionError(
+                "测试试图写真实%s（%s）。把写路径 patch 到 tmp_path 再跑。" % (kind, target))
+
+    for name in ("save", "update_models", "update_providers"):
+        original = getattr(harness_config, name)
+        monkeypatch.setattr(
+            harness_config, name,
+            (lambda orig: lambda *a, **kw: _guard(
+                harness_config.CONFIG_PATH, "config.json") or orig(*a, **kw))(original),
+            raising=False)
+    for name in ("set_key", "remove_key", "rename_key"):
+        original = getattr(harness_keyring, name)
+        monkeypatch.setattr(
+            harness_keyring, name,
+            (lambda orig: lambda *a, **kw: _guard(
+                harness_keyring.path(), "密钥文件") or orig(*a, **kw))(original),
+            raising=False)
+    yield
+
+
 # --------------------------------------------------------------------------
 # 配置
 # --------------------------------------------------------------------------
