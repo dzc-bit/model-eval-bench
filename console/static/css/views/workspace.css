@@ -191,10 +191,9 @@
   font-size: var(--font-size-sm);
 }
 
-/* ---- 模型思考：默认折叠成一行，不抢正文视觉权重 ---- */
+/* ---- 模型思考：一行「◐ 思考 · 持续约 n 秒」，默认折叠，不抢正文视觉权重 ---- */
 .ws .ws-reasoning {
-  border-left: calc(var(--border-width-thick) * 2) solid var(--color-border-strong);
-  padding-left: var(--space-3);
+  border-radius: var(--radius-sm);
 }
 
 .ws .ws-reasoning > summary {
@@ -202,117 +201,98 @@
   min-height: var(--control-height-sm);
   display: flex;
   align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
   color: var(--color-text-faint);
   font-size: var(--font-size-sm);
+  list-style: none;
+}
+
+.ws .ws-reasoning > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ws .ws-reasoning > summary::before {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+}
+
+.ws .ws-reasoning[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.ws .ws-reasoning > summary:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+}
+
+.ws .ws-reasoning__glyph {
+  flex: 0 0 auto;
 }
 
 .ws .ws-reasoning__content {
+  padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + var(--space-4));
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
-/* ---- 工具调用紧凑卡：默认折叠成一行摘要 ---- */
-.ws .ws-toolround {
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+/* ---- 工具调用紧凑行：一行一条、平铺混排在对话流里，默认折叠 ---- */
+.ws .ws-toolline {
+  border-radius: var(--radius-sm);
 }
 
-.ws .ws-toolround__summary {
+.ws .ws-toolline__summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-height-sm);
-  padding: var(--space-1) var(--space-3);
+  padding: 0 var(--space-2);
   cursor: pointer;
   list-style: none;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
-.ws .ws-toolround__summary::-webkit-details-marker {
+.ws .ws-toolline__summary::-webkit-details-marker {
   display: none;
 }
 
-.ws .ws-toolround__summary:hover {
+.ws .ws-toolline__summary::before {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+}
+
+.ws .ws-toolline[open] > .ws-toolline__summary::before {
+  transform: rotate(90deg);
+}
+
+.ws .ws-toolline__summary:hover {
+  background: var(--color-surface-2);
   color: var(--color-text);
 }
 
-.ws .ws-toolround__glyph {
+.ws .ws-toolline__icon {
+  flex: 0 0 auto;
   color: var(--color-text-faint);
 }
 
-.ws .ws-toolround__line {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.ws .ws-toolround__pending {
-  color: var(--color-warn);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
-}
-
-.ws .ws-toolround__failed {
+/* 失败 = 图标变色 + 行尾「✕ 失败」文字，颜色不是唯一信号（§12） */
+.ws .ws-toolline--fail .ws-toolline__icon {
   color: var(--color-danger);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
 }
 
-.ws .ws-toolround__body {
-  padding: 0 var(--space-3) var(--space-2);
-}
-
-.ws .ws-toolround__calls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.ws .ws-toolround__hint {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-faint);
-  font-size: var(--font-size-xs);
-}
-
-/* 单次工具调用：状态图标 + 工具名 + 关键参数一行，展开看完整入参/返回 */
-.ws .ws-toolcall {
-  border-top: var(--border-width) solid var(--color-border);
-}
-
-.ws .ws-toolcall__summary {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-height: var(--control-height-sm);
-  padding: var(--space-1) 0;
-  cursor: pointer;
-  list-style: none;
-  font-size: var(--font-size-sm);
-}
-
-.ws .ws-toolcall__summary::-webkit-details-marker {
-  display: none;
-}
-
-.ws .ws-toolcall__glyph {
+.ws .ws-toolline__name {
+  flex: 0 0 auto;
+  color: var(--color-text);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
 }
 
-.ws .ws-toolcall--ok .ws-toolcall__glyph {
-  color: var(--color-success);
-}
-
-.ws .ws-toolcall--fail .ws-toolcall__glyph {
-  color: var(--color-danger);
-}
-
-.ws .ws-toolcall__name {
-  font-family: var(--font-mono);
-  overflow-wrap: anywhere;
-}
-
-.ws .ws-toolcall__param {
+.ws .ws-toolline__param {
   color: var(--color-text-faint);
   min-width: 0;
   overflow: hidden;
@@ -320,26 +300,34 @@
   white-space: nowrap;
 }
 
-.ws .ws-toolcall__failed {
+.ws .ws-toolline__fail {
+  flex: 0 0 auto;
   color: var(--color-danger);
   font-size: var(--font-size-xs);
   white-space: nowrap;
 }
 
-.ws .ws-toolcall__body {
+.ws .ws-toolline__pending {
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.ws .ws-toolline__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding-bottom: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + var(--space-4));
 }
 
-.ws .ws-toolcall__heading {
+.ws .ws-toolline__heading {
   font-size: var(--font-size-xs);
   color: var(--color-text-faint);
   letter-spacing: var(--letter-spacing-label);
 }
 
-.ws .ws-toolcall__pre {
+.ws .ws-toolline__pre {
   margin: 0;
   max-height: var(--log-height);
   overflow: auto;
@@ -416,24 +404,67 @@
   gap: var(--space-3);
 }
 
-/* ============================ 校验结果节点（对话流内联） ============================ */
+/* ============================ 校验结果条（对话流内联，轻量一行） ============================
+   完整报告在「校验报告」独立窗口（report-modal.js）：窗口挂在 document.body 上、不在
+   .ws 子树里，所以报告内容的样式挂在 .ws-report-modal 根类下（见本节后半）——
+   与「选择器一律挂 .ws」是同一个不外泄意图。 */
 .ws .ws-report {
-  /* 普通 section 节点（非 details）：结果始终可见，不做折叠 */
+  /* 普通 section 节点（非 details）：结果条始终可见，不做折叠 */
   padding: 0;
   overflow: hidden;
 }
 
-.ws .ws-report__head {
+/* 进行中：状态点 + 进度 + 实时日志 */
+.ws .ws-report__running {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+/* 完成：✓/✗ + 部分分 + 分组概要 + 新结果标记 +「查看完整报告」，一行摆完 */
+.ws .ws-report__bar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-wrap: wrap;
   min-height: var(--control-height-lg);
   padding: var(--space-2) var(--space-4);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 
+.ws .ws-report__bar:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.ws .ws-report__bar-glyph {
+  flex: 0 0 auto;
+  font-weight: var(--font-weight-medium);
+}
+
+.ws .ws-report__bar--pass .ws-report__bar-glyph {
+  color: var(--color-success);
+}
+
+.ws .ws-report__bar--fail .ws-report__bar-glyph {
+  color: var(--color-danger);
+}
+
+.ws .ws-report__bar-score {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws .ws-report__bar-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ============================ 校验报告窗口（modal 内容） ============================ */
 /* 结果横幅：通过 = 绿 tint；未过 / 作废 = 红 tint。第一眼必须是它。 */
-.ws .ws-grade-banner {
+.ws-report-modal .ws-grade-banner {
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -444,12 +475,12 @@
   background: var(--color-success-soft);
 }
 
-.ws .ws-grade-banner[data-tone="fail"] {
+.ws-report-modal .ws-grade-banner[data-tone="fail"] {
   border-color: var(--color-danger-border);
   background: var(--color-danger-soft);
 }
 
-.ws .ws-grade-banner__score {
+.ws-report-modal .ws-grade-banner__score {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-medium);
@@ -457,19 +488,19 @@
   line-height: var(--line-height-tight);
 }
 
-.ws .ws-grade-banner__summary {
+.ws-report-modal .ws-grade-banner__summary {
   min-width: 0;
 }
 
-.ws .ws-grade-banner__note {
+.ws-report-modal .ws-grade-banner__note {
   margin: 0;
 }
 
-.ws .ws-grade-exhausted {
+.ws-report-modal .ws-grade-exhausted {
   margin: 0;
 }
 
-.ws .ws-report__guidance {
+.ws-report-modal .ws-report__guidance {
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border-left: calc(var(--border-width-thick) * 2) solid var(--color-accent-border);
@@ -479,7 +510,7 @@
 }
 
 /* 分组明细：列表行，不做容器卡 */
-.ws .grade__groups {
+.ws-report-modal .grade__groups {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -487,7 +518,7 @@
   flex-direction: column;
 }
 
-.ws .group-card {
+.ws-report-modal .group-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -495,42 +526,42 @@
   border-top: var(--border-width) solid var(--color-border);
 }
 
-.ws .grade__groups > .group-card:first-child {
+.ws-report-modal .grade__groups > .group-card:first-child {
   border-top: 0;
   padding-top: var(--space-1);
 }
 
-.ws .group-card__head {
+.ws-report-modal .group-card__head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.ws .group-card__glyph {
+.ws-report-modal .group-card__glyph {
   font-weight: var(--font-weight-medium);
 }
 
-.ws .group-card--pass .group-card__glyph {
+.ws-report-modal .group-card--pass .group-card__glyph {
   color: var(--color-success);
 }
 
-.ws .group-card--fail .group-card__glyph {
+.ws-report-modal .group-card--fail .group-card__glyph {
   color: var(--color-danger);
 }
 
-.ws .group-card__name {
+.ws-report-modal .group-card__name {
   font-weight: var(--font-weight-medium);
   overflow-wrap: anywhere;
 }
 
-.ws .group-card__weight {
+.ws-report-modal .group-card__weight {
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
 }
 
-.ws .group-card__body {
+.ws-report-modal .group-card__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -538,7 +569,7 @@
   min-width: 0;
 }
 
-.ws .fail-list {
+.ws-report-modal .fail-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -547,7 +578,7 @@
   gap: var(--space-2);
 }
 
-.ws .fail-item {
+.ws-report-modal .fail-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -555,16 +586,18 @@
   border-top: var(--border-width) solid var(--color-border);
 }
 
-.ws .fail-item__name {
+.ws-report-modal .fail-item__name {
   font-weight: var(--font-weight-medium);
 }
 
-.ws .fail-item__msg {
+.ws-report-modal .fail-item__msg {
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
 
-.ws .grade__new-flag {
+/* 新结果标记：对话流结果条（.ws 内）与报告窗口横幅（.ws-report-modal 内）都用 */
+.ws .grade__new-flag,
+.ws-report-modal .grade__new-flag {
   color: var(--color-accent-text);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
@@ -632,8 +665,10 @@
   overflow-wrap: anywhere;
 }
 
-/* ============================ 日志块 ============================ */
-.ws .ws-log {
+/* ============================ 日志块 ============================
+   .ws 内（运行详情 / 校验进行中的实时日志）与报告窗口（.ws-report-modal）共用。 */
+.ws .ws-log,
+.ws-report-modal .ws-log {
   margin: 0;
   max-height: var(--log-height);
   overflow: auto;
@@ -647,13 +682,16 @@
   overflow-wrap: anywhere;
 }
 
-.ws .ws-log:focus-visible {
+.ws .ws-log:focus-visible,
+.ws-report-modal .ws-log:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
   outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
-/* ============================ 完整性清单 ============================ */
-.ws .integrity-list {
+/* ============================ 完整性清单 ============================
+   .ws 内（运行详情）与报告窗口（.ws-report-modal：回归/越界/噪声/执行详情）共用。 */
+.ws .integrity-list,
+.ws-report-modal .integrity-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -663,7 +701,8 @@
   font-size: var(--font-size-sm);
 }
 
-.ws .integrity-item {
+.ws .integrity-item,
+.ws-report-modal .integrity-item {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -820,7 +859,7 @@
 
 /* ---- 类名补齐：键名逐字节取自视图 JS，保证选择器与 DOM 一致 ---- */
 
-.ws .ws-grade-banner__score-wrap {
+.ws-report-modal .ws-grade-banner__score-wrap {
   min-width: 0;
 }
 

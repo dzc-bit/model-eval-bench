@@ -5,8 +5,9 @@
  *   [状态栏]   一条细的常驻栏：任务编号+标题 · 档位徽标 · 第 n 轮/共 m 次 ·
  *              模型档案下拉 · 运行状态一句话。路径/哈希/运行编号一律不进状态栏。
  *   [改动正文] 菜单「查看改动」弹出的内联区（按需拉取，不轮询）。
- *   [对话流]   页面主轴：任务与提示词节点 → 用户/模型消息 → 工具调用紧凑卡 →
- *              校验结果节点（内联）→ 运行详情 / 本轮备注（折叠节点）。
+ *   [对话流]   页面主轴：任务与提示词节点 → 用户/模型消息 → 工具调用紧凑行 →
+ *              校验结果条（轻量一行，完整报告在「校验报告」独立窗口）→
+ *              运行详情 / 本轮备注（折叠节点）。
  *   [底部]     操作栏（每时刻一个主按钮 + 显式「结束本轮并回收沙箱」 + ⋯ 更多操作）
  *              + 对话输入区。
  *
@@ -58,6 +59,7 @@ import { createStatusDot } from '../components/status-dot.js';
 import { createTaskNode } from './workspace/task-node.js';
 import { createChatStream } from './workspace/chat-stream.js';
 import { createReportNode } from './workspace/report-node.js';
+import { openReportModal } from './workspace/report-modal.js';
 import { createRunDetails } from './workspace/run-details.js';
 import { createDock } from './workspace/dock.js';
 
@@ -306,7 +308,9 @@ export function createWorkspace(props = {}) {
     onFillPrompt: () => chatStream.setDraft(taskNode.getPrompt()),
     onRestartWithModel: (preferredId) => doRestartWithModel(preferredId),
   });
-  const reportNode = createReportNode();
+  const reportNode = createReportNode({
+    onOpenReport: () => openReport(),
+  });
   const runDetails = createRunDetails({
     onNotesSave: (note) => saveNote(note),
   });
@@ -955,7 +959,55 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 校验完成的结果提醒：滚到对话流里的结果节点（红线：结果内联，不弹窗）。
+   * 打开「校验报告」独立窗口（结果条上「查看完整报告」的唯一去向）。
+   * footer 出口（作废 / 揭晓 / 导出）直接复用 ⋯ 菜单的同一套状态机判定：
+   * 禁用态与原因两边永远一致，不会出现「菜单里禁用了、窗口里还能点」的分叉。
+   */
+  function openReport() {
+    const s = store.getState();
+    if (!s.run || !s.run.report) return;
+    const items = menuItems(s);
+    const pick = (key) => items.find((i) => i.key === key) || {};
+    const reopen = pick('reopen');
+    const reveal = pick('reveal');
+    const exportItem = pick('export');
+    openReportModal({
+      run: s.run,
+      revealed: s.revealed,
+      newResult: Boolean(s.newResult),
+      actions: [
+        {
+          key: 'reopen',
+          label: reopen.label || T.M_REOPEN,
+          disabled: Boolean(reopen.disabled),
+          reason: reopen.reason || '',
+          variant: 'default',
+          onClick: () => doReopen(),
+        },
+        {
+          key: 'reveal',
+          label: reveal.label || T.M_REVEAL,
+          disabled: Boolean(reveal.disabled),
+          reason: reveal.reason || '',
+          variant: 'default',
+          onClick: () => doReveal(),
+        },
+        {
+          key: 'export',
+          label: exportItem.label || T.M_EXPORT,
+          disabled: Boolean(exportItem.disabled),
+          reason: exportItem.reason || '',
+          variant: 'ghost',
+          keepOpen: true,
+          onClick: () => doExport(),
+        },
+      ],
+    });
+  }
+
+  /**
+   * 校验完成的结果提醒：滚到对话流里的结果条并聚焦它（红线：结果条内联在流里；
+   * 完整报告在独立窗口，校验完成不自动弹窗、不抢焦点，§13.2）。
    * 焦点在输入框里时不抢焦点——toast 已经报了分数，不打断正在打字的人。
    */
   function guideToResult() {
@@ -1309,6 +1361,9 @@ export function createWorkspace(props = {}) {
       patch({ revealed: { patch: res.patch || '', notice: res.notice || '' }, busy: '' });
       await loadRun(s.run.run_id);
       showToast({ message: S.GRADE_REVEAL_DONE, kind: 'warn', duration: 8000 });
+      // 参考解正文随校验报告住在独立窗口里：这次点击要的就是它，直接把窗口呈上来
+      // （这是用户主动动作的即时结果，不是校验完成那种被动事件，不违反 §13.2）。
+      openReport();
     } catch (err) {
       reportError(err, '查看参考解');
     }

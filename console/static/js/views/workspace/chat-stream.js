@@ -1,16 +1,21 @@
 /**
- * chat-stream.js — 工作台对话流（2026-10-02 对话流改版；由旧 chat-panel 演进而来）
+ * chat-stream.js — 工作台对话流（2026-10-02 二次优化：工具调用平铺紧凑行）
  *
- * 对话流是工作台的页面主轴，按时间顺序落在同一列里：
- *   用户消息 → 模型思考（默认折叠成一行，不抢正文视觉权重）→ 工具调用紧凑卡
- *   （默认折叠，点开看每次调用的入参/返回）→ 模型回复 → 收尾总结（内联，不 sticky）。
- * 「任务与提示词」节点在 task-node.js；校验结果节点在 report-node.js；
- * 输入区（composer）由编排层挂在底部操作栏下方，本模块只管它的行为。
+ * 对话流是工作台的页面主轴，所有条目平铺、按时间顺序混排在同一列里（参考主流
+ * agent 聊天界面，不再按「工具轮 n」分组套两层）：
+ *   用户消息 → 「◐ 思考 · 持续约 n 秒」折叠行 → 模型正文 → 工具调用紧凑行
+ *   （一行一条：工具图标 + 中文名 + 关键参数内联预览，默认折叠，点开看完整
+ *   入参/返回）→ 收尾总结（内联，不 sticky）。
+ * 「任务与提示词」节点在 task-node.js；校验结果条在 report-node.js（完整报告
+ * 在 report-modal.js 独立窗口）；输入区（composer）由编排层挂在底部操作栏下方，
+ * 本模块只管它的行为。
  *
  * 工具调用展示纪律（任务书）：
- *   - 一轮工具调用 = 一张紧凑卡：一行摘要（工具名 + 次数 + 失败数），默认折叠；
- *   - 展开后每次调用一行（工具名 + 关键参数：路径/命令），再点开看完整入参与返回；
- *   - 成功/失败用「图标 + 文字 + 颜色」三重编码区分。
+ *   - 每次调用一行：左侧小图标 + 工具中文名（read_file→读文件 等）+ 关键参数
+ *     内联预览（命令一行截断、文件路径取 basename）；
+ *   - 失败的行尾带「失败」标记：图标 + 文字 + 颜色三重编码，不靠颜色单传（§12）；
+ *   - 默认折叠，点击展开看完整入参与返回（超长截断，完整数据在该轮运行目录的
+ *     chat.jsonl）。
  *
  * 对话由服务端代理当前运行绑定的模型档案；前端不保存或接触 API 密钥。
  *
@@ -42,15 +47,17 @@ const T = {
     + '旧记录的成绩可以在「更多操作」里用「继续对话（本轮分数作废）」摘掉。',
   EMPTY_RESTART: '用现存档案重开一轮',
   EMPTY_RESTART_NEEDS_PICK: '先在顶部状态栏选一个现存档案',
-  // 思考折叠行
-  REASONING_LINE: '模型思考（{n} 字）',
-  // 工具调用卡
-  TOOL_CALLS_ONE_LINE: '{n} 次调用',
-  TOOL_FAILED_BADGE: '{n} 次失败',
+  // 思考折叠行：「◐ 思考 · 持续约 n 秒」，时长估不出来就「· n 字」
+  REASONING_LINE: '思考 · {meta}',
+  REASONING_SECONDS: '持续约 {n} 秒',
+  REASONING_MINUTES: '持续约 {n} 分钟',
+  REASONING_CHARS: '{n} 字',
+  // 工具调用紧凑行
   TOOL_IN: '入参',
   TOOL_OUT: '返回',
   TOOL_TRUNCATED: '……（界面只显示前 {n} 字，完整内容在这一轮运行目录的 chat.jsonl）',
-  TOOL_ROUND_HINT: '展开每次调用可看完整入参与返回；原始记录同时留在本轮运行目录的 chat.jsonl。',
+  TOOL_FAILED: '✕ 失败',
+  TOOL_PENDING: '等待返回…',
   TOOL_ORPHAN: '工具返回',
 };
 
@@ -64,7 +71,19 @@ const ROLE_LABELS = {
   system: '系统',
 };
 
-/** 用户展开过的工具轮 / 思考行 / 单次调用（按消息 id 记住，轮询重渲染时不塌回去）。 */
+/**
+ * 工具名 → 中文名 + 左侧小图标（图形符号，不是 emoji）。
+ * 没登记的按原名显示，图标退化为通用齿轮。
+ */
+const TOOL_META = {
+  read_file: { label: '读文件', icon: '¶' },
+  write_file: { label: '写文件', icon: '✎' },
+  run_command: { label: '终端', icon: '❯' },
+  list_files: { label: '列目录', icon: '☰' },
+};
+const TOOL_META_FALLBACK = { label: '', icon: '⚙' };
+
+/** 用户展开过的思考行 / 工具调用行（按消息 id 记住，轮询重渲染时不塌回去）。 */
 const expandedNodes = new Set();
 
 /** 已经收束、不再接收新消息的运行状态。 */
@@ -77,27 +96,47 @@ const CLOSED_STATUS = new Set(['cancelled', 'error']);
 const CHAT_OK = new Set(['ready', 'graded']);
 
 /**
- * 从工具调用参数里挑「关键参数」：优先路径，其次命令，再次第一个字符串值。
+ * 从工具调用参数里挑「关键参数」做内联预览：
+ * 命令类取命令第一行（一行放不下由 CSS 截断）；路径类取 basename；
+ * 都没有就取第一个字符串值（长得像路径的照样取 basename）。
+ * @param {string} toolName 工具名（决定偏好哪类参数）
  * @param {string} rawArguments JSON 字符串
  * @returns {string}
  */
-function keyParamOf(rawArguments) {
+function keyParamOf(toolName, rawArguments) {
   const raw = String(rawArguments || '');
   if (!raw) return '';
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object') {
-      for (const key of ['path', 'file', 'command', 'cmd', 'query', 'pattern']) {
-        if (typeof parsed[key] === 'string' && parsed[key]) return parsed[key];
-      }
+      const command = ['command', 'cmd'].map((key) => parsed[key]).find((v) => typeof v === 'string' && v);
+      if (command) return String(command).split('\n')[0];
+      const path = ['path', 'file'].map((key) => parsed[key]).find((v) => typeof v === 'string' && v);
+      if (path) return baseName(path);
+      const query = ['query', 'pattern'].map((key) => parsed[key]).find((v) => typeof v === 'string' && v);
+      if (query) return query;
       for (const value of Object.values(parsed)) {
-        if (typeof value === 'string' && value) return value;
+        if (typeof value === 'string' && value) {
+          return /[\\/]/.test(value) ? baseName(value) : value.length > 80 ? `${value.slice(0, 80)}…` : value;
+        }
       }
     }
   } catch {
     /* 参数不是 JSON：下面直接截原文 */
   }
+  void toolName;
   return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+}
+
+/**
+ * 路径取 basename：内联预览只要认出「哪个文件」，目录链太占行宽。
+ * @param {string} path
+ * @returns {string}
+ */
+function baseName(path) {
+  const clean = String(path || '').replace(/[\\/]+$/, '');
+  const segments = clean.split(/[\\/]/).filter(Boolean);
+  return segments.length ? segments[segments.length - 1] : clean;
 }
 
 /** 截断过长的入参/返回正文，并标注完整内容在哪。 */
@@ -219,6 +258,7 @@ export function createChatStream(handlers = {}) {
         reasoning: [item.reasoning_content, item.reasoning].find((value) => typeof value === 'string' && value) || '',
         name: String(item.name || item.tool || ''),
         toolCalls: normalizeToolCalls(item.tool_calls || item.toolCalls),
+        toolCallId: String(item.tool_call_id || item.toolCallId || ''),
         status: String(item.status || ''),
         errorCode: String(item.error_code || item.errorCode || ''),
         created_at: item.created_at || '',
@@ -254,7 +294,7 @@ export function createChatStream(handlers = {}) {
   }
 
   function messageKey(item) {
-    return `${item.id}|${item.role}|${item.content}|${item.reasoning}|${item.name}|${item.status}|${JSON.stringify(item.toolCalls || [])}`;
+    return `${item.id}|${item.role}|${item.content}|${item.reasoning}|${item.name}|${item.toolCallId}|${item.status}|${JSON.stringify(item.toolCalls || [])}`;
   }
 
   function mergeMessages(next) {
@@ -347,26 +387,50 @@ export function createChatStream(handlers = {}) {
     chatEmpty.el.hidden = true;
     messageList.hidden = false;
     const summaryIndex = finalSummaryIndex(messages);
-    let roundNumber = 0;
     for (let index = 0; index < messages.length; index += 1) {
       const message = messages[index];
       if (message.role === 'tool') {
-        // 理论上工具返回都跟在自己的调用轮里；落单时兜底折叠显示
-        messageList.appendChild(toolRoundNode(null, [message], roundNumber + 1));
+        // 落单的工具返回（前面没有带 tool_calls 的助手消息）也要看得见
+        messageList.appendChild(toolLineNode(null, message, `orphan:${message.id}`));
         continue;
       }
-      if (message.role === 'assistant' && message.toolCalls.length) {
-        roundNumber += 1;
-        const grouped = [];
-        let cursor = index + 1;
-        while (cursor < messages.length && messages[cursor].role === 'tool') {
-          grouped.push(messages[cursor]);
-          cursor += 1;
-        }
-        index = cursor - 1;
-        const thinking = reasoningNode(message);
+      if (message.role === 'assistant') {
+        const previous = index > 0 ? messages[index - 1] : null;
+        const thinking = reasoningRow(message, previous);
         if (thinking) messageList.appendChild(thinking);
-        messageList.appendChild(toolRoundNode(message, grouped, roundNumber));
+        // 带工具调用的助手消息常带一句正文（「我先看一下文件」）：平铺后它不再是
+        // 哪张卡的标题，该作为普通模型正文出现在调用行之前。
+        if (String(message.content || '').trim()) {
+          messageList.appendChild(textMessageNode(message, index === summaryIndex));
+        }
+        if (message.toolCalls.length) {
+          // 紧跟其后的 tool 消息是这批调用的返回：优先按 tool_call_id 对号，
+          // 对不上再按顺序兜底（历史记录里没有 tool_call_id 的老数据）。
+          const results = [];
+          let cursor = index + 1;
+          while (cursor < messages.length && messages[cursor].role === 'tool') {
+            results.push(messages[cursor]);
+            cursor += 1;
+          }
+          index = cursor - 1;
+          const used = new Set();
+          message.toolCalls.forEach((call, position) => {
+            let hit = -1;
+            if (call.id) {
+              hit = results.findIndex((r, ri) => !used.has(ri) && r.toolCallId && r.toolCallId === call.id);
+            }
+            if (hit < 0) hit = results.findIndex((r, ri) => !used.has(ri));
+            const result = hit >= 0 ? results[hit] : null;
+            if (hit >= 0) used.add(hit);
+            messageList.appendChild(toolLineNode(call, result, `call:${message.id}:${call.id || position}`));
+          });
+          // 多出来的落单返回（没有对应调用记录）也要看得见
+          results.forEach((extra, extraIndex) => {
+            if (!used.has(extraIndex)) {
+              messageList.appendChild(toolLineNode(null, extra, `call:${message.id}:extra-${extraIndex}`));
+            }
+          });
+        }
         continue;
       }
       messageList.appendChild(textMessageNode(message, index === summaryIndex));
@@ -375,10 +439,29 @@ export function createChatStream(handlers = {}) {
   }
 
   /**
-   * 模型思考：默认折叠成一行「模型思考（n 字）」，点开看全文。
-   * 展开状态按消息 id 记住，轮询重渲染不塌回去。
+   * 思考时长的估算：本消息与前一条消息的落盘时间差（chat.jsonl 每条都带
+   * created_at）。差值不可用（缺时间戳 / 太小 / 大得像隔了一次会话）就回退到字数。
+   * @param {object} message
+   * @param {object|null} previous
+   * @returns {string}
    */
-  function reasoningNode(message) {
+  function reasoningMeta(message, previous) {
+    const end = Date.parse(String(message.created_at || ''));
+    const start = previous ? Date.parse(String(previous.created_at || '')) : NaN;
+    const seconds = Number.isFinite(end) && Number.isFinite(start) ? Math.round((end - start) / 1000) : 0;
+    if (seconds >= 2 && seconds <= 3600) {
+      return seconds >= 120
+        ? t(T.REASONING_MINUTES, { n: Math.round(seconds / 60) })
+        : t(T.REASONING_SECONDS, { n: seconds });
+    }
+    return t(T.REASONING_CHARS, { n: message.reasoning.length });
+  }
+
+  /**
+   * 模型思考：一行「◐ 思考 · 持续约 n 秒」（估不出时长就「· n 字」），默认折叠，
+   * 点开读全文。展开状态按消息 id 记住，轮询重渲染不塌回去。
+   */
+  function reasoningRow(message, previous) {
     if (!message.reasoning) return null;
     const nodeId = `reasoning:${message.id}`;
     return el('details', {
@@ -389,7 +472,9 @@ export function createChatStream(handlers = {}) {
         else expandedNodes.delete(nodeId);
       },
     },
-      el('summary', {}, t(T.REASONING_LINE, { n: message.reasoning.length })),
+      el('summary', { class: 'ws-reasoning__summary' },
+        el('span', { class: 'ws-reasoning__glyph', 'aria-hidden': 'true' }, '◐'),
+        el('span', {}, t(T.REASONING_LINE, { meta: reasoningMeta(message, previous) }))),
       el('div', { class: 'ws-stream__text ws-reasoning__content' }, message.reasoning));
   }
 
@@ -397,23 +482,12 @@ export function createChatStream(handlers = {}) {
   function textMessageNode(message, isFinal) {
     const role = ROLE_LABELS[message.role] || message.role;
     const kind = `ws-msg--${message.role}`;
-    // 服务商没返回思维链时不写空态提示，正文本身就是全部内容。
-    const reasoning = reasoningNode(message);
     return el('article', { class: `ws-msg ${kind}${isFinal ? ' ws-msg--final' : ''}` },
       el('div', { class: 'ws-msg__meta' },
         isFinal ? S.CHAT_FINAL_SUMMARY : (message.name ? `${role} · ${message.name}` : role)),
-      isFinal ? null : reasoning,
       el('div', { class: 'ws-stream__text' }, message.content || '—'),
-      isFinal ? reasoning : null,
       message.status ? el('div', { class: 'ws-msg__status' }, message.status) : null,
     );
-  }
-
-  /** 按工具名聚合的摘要行：read_file ×4、run_command ×2。 */
-  function toolSummaryLine(calls) {
-    const counts = new Map();
-    calls.forEach((call) => counts.set(call.name, (counts.get(call.name) || 0) + 1));
-    return [...counts.entries()].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name)).join('、');
   }
 
   /** 工具返回把失败放进 {"error": ...}；按此给每次调用标成功/失败。 */
@@ -428,86 +502,49 @@ export function createChatStream(handlers = {}) {
   }
 
   /**
-   * 一次工具调用的完整卡片：summary = 状态图标 + 工具名 + 关键参数（路径/命令），
-   * 展开看完整入参与返回（超长截断，完整数据在该轮运行目录的 chat.jsonl）。
+   * 一次工具调用 = 对话流里的一行紧凑条目（平铺，不再套「工具轮」分组卡）：
+   * 小图标 + 工具中文名 + 关键参数内联预览，失败的行尾带「✕ 失败」（图标 + 文字 +
+   * 颜色三重编码）。默认折叠，点开看完整入参与返回（超长截断，完整数据在该轮
+   * 运行目录的 chat.jsonl）。
    * @param {object|null} call 调用（落单的工具返回时为 null）
    * @param {object|null} result 对应的工具返回消息
    * @param {string} nodeId 展开状态记忆键
    */
-  function toolCallNode(call, result, nodeId) {
-    const name = call ? call.name : (result ? result.name || '工具' : '工具');
+  function toolLineNode(call, result, nodeId) {
+    const rawName = call ? call.name : (result ? result.name : '');
+    const meta = TOOL_META[rawName] || { ...TOOL_META_FALLBACK, label: rawName || T.TOOL_ORPHAN };
     const failed = toolResultFailed(result);
-    const param = call ? keyParamOf(call.arguments) : '';
-    const body = el('div', { class: 'ws-toolcall__body' });
+    // 调用已发出、返回还没落盘（发送轮询中途）：行尾给一个等待标记而不是假装成功
+    const pending = Boolean(call) && !result;
+    const param = call ? keyParamOf(call.name, call.arguments) : '';
+    const body = el('div', { class: 'ws-toolline__body' });
     if (call) {
-      body.appendChild(el('h4', { class: 'ws-toolcall__heading' }, T.TOOL_IN));
-      body.appendChild(el('pre', { class: 'ws-toolcall__pre', tabindex: '0' }, capToolText(call.arguments || '—')));
+      body.appendChild(el('h4', { class: 'ws-toolline__heading' }, T.TOOL_IN));
+      body.appendChild(el('pre', { class: 'ws-toolline__pre', tabindex: '0' }, capToolText(call.arguments || '—')));
     }
     if (result) {
-      body.appendChild(el('h4', { class: 'ws-toolcall__heading' }, T.TOOL_OUT));
-      body.appendChild(el('pre', { class: 'ws-toolcall__pre', tabindex: '0' }, capToolText(result.content || '—')));
+      body.appendChild(el('h4', { class: 'ws-toolline__heading' }, T.TOOL_OUT));
+      body.appendChild(el('pre', { class: 'ws-toolline__pre', tabindex: '0' }, capToolText(result.content || '—')));
     }
     if (!call && !result) {
       body.appendChild(el('p', { class: 'u-faint' }, S.CHAT_TOOL_CALL_EMPTY));
     }
     return el('details', {
-      class: `ws-toolcall ${failed ? 'ws-toolcall--fail' : 'ws-toolcall--ok'}`,
+      class: `ws-toolline${failed ? ' ws-toolline--fail' : ''}`,
       open: expandedNodes.has(nodeId),
       onToggle: (event) => {
         if (event.target.open) expandedNodes.add(nodeId);
         else expandedNodes.delete(nodeId);
       },
     },
-      el('summary', { class: 'ws-toolcall__summary' },
-        el('span', { class: 'ws-toolcall__glyph', 'aria-hidden': 'true' }, failed ? '✕' : '✓'),
-        el('span', { class: 'ws-toolcall__name' }, name),
-        param ? el('span', { class: 'ws-toolcall__param u-mono' }, param) : null,
-        failed ? el('span', { class: 'ws-toolcall__failed' }, S.CHAT_TOOL_ROUND_FAILED) : null),
+      el('summary', { class: 'ws-toolline__summary' },
+        el('span', { class: 'ws-toolline__icon', 'aria-hidden': 'true' }, meta.icon),
+        el('span', { class: 'ws-toolline__name' }, meta.label),
+        param ? el('span', { class: 'ws-toolline__param u-mono' }, param) : null,
+        el('span', { class: 'u-spacer' }),
+        failed ? el('span', { class: 'ws-toolline__fail' }, T.TOOL_FAILED) : null,
+        pending ? el('span', { class: 'ws-toolline__pending' }, T.TOOL_PENDING) : null),
       body,
-    );
-  }
-
-  /**
-   * 一个工具轮 = 对话流里的一张紧凑卡：一行摘要（次数 + 工具名聚合 + 失败数），
-   * 默认折叠；展开后每次调用一行（可再展开看完整入参/返回）。
-   * @param {object|null} assistant 带工具调用的助手消息；null 表示落单的工具返回
-   * @param {Array<object>} toolMessages 本轮的工具返回消息
-   * @param {number} roundNumber 展示用轮次
-   */
-  function toolRoundNode(assistant, toolMessages, roundNumber) {
-    const calls = assistant ? assistant.toolCalls : [];
-    const roundId = assistant ? `round:${assistant.id}` : `orphan:${toolMessages[0] ? toolMessages[0].id : roundNumber}`;
-    const pending = Math.max(0, calls.length - toolMessages.length);
-    const failedCount = toolMessages.filter(toolResultFailed).length;
-
-    const items = [];
-    calls.forEach((call, position) => {
-      items.push(toolCallNode(call, toolMessages[position] || null, `${roundId}:${call.id || position}`));
-    });
-    // 多出来的落单返回（没有对应调用记录）也要看得见
-    toolMessages.slice(calls.length).forEach((extra, extraIndex) => {
-      items.push(toolCallNode(null, extra, `${roundId}:extra-${extraIndex}`));
-    });
-
-    const summary = assistant
-      ? `${S.CHAT_TOOL_ROUND || '工具轮'} ${roundNumber} · ${t(T.TOOL_CALLS_ONE_LINE, { n: calls.length })}：${toolSummaryLine(calls)}`
-      : `${toolMessages[0] ? toolMessages[0].name || T.TOOL_ORPHAN : T.TOOL_ORPHAN} ${T.TOOL_ORPHAN}`;
-    return el('details', {
-      class: 'ws-toolround',
-      open: expandedNodes.has(roundId),
-      onToggle: (event) => {
-        if (event.target.open) expandedNodes.add(roundId);
-        else expandedNodes.delete(roundId);
-      },
-    },
-      el('summary', { class: 'ws-toolround__summary' },
-        el('span', { class: 'ws-toolround__glyph', 'aria-hidden': 'true' }, '⚙'),
-        el('span', { class: 'ws-toolround__line' }, summary),
-        pending ? el('span', { class: 'ws-toolround__pending' }, `${pending} ${S.CHAT_TOOL_ROUND_PENDING}`) : null,
-        failedCount ? el('span', { class: 'ws-toolround__failed' }, t(T.TOOL_FAILED_BADGE, { n: failedCount })) : null),
-      el('div', { class: 'ws-toolround__body' },
-        el('div', { class: 'ws-toolround__calls' }, items),
-        el('p', { class: 'ws-toolround__hint' }, T.TOOL_ROUND_HINT)),
     );
   }
 
