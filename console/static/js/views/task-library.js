@@ -22,6 +22,7 @@ import { storage, STORAGE_KEYS } from '../core/storage.js';
 import { announce } from '../core/a11y.js';
 import { relativeTime } from '../core/format.js';
 import { createButton } from '../components/button.js';
+import { createIcon } from '../components/icons.js';
 import { createBadge } from '../components/badge.js';
 import { createSkeleton } from '../components/skeleton.js';
 import { createEmptyState } from '../components/empty-state.js';
@@ -196,17 +197,29 @@ export function createTaskLibrary(props = {}) {
   }
   const tierChips = createTierChips();
 
-  const searchField = createField({
-    label: S.LIB_SEARCH_LABEL,
-    name: 'task-search',
+  // 搜索框不用 createField：它会带一个独立标签把盒子撑到 77px 高，
+  // 与档位 chips（34px）并排时三个元素三个起点，工具栏就散了。
+  // 紧凑输入 + 放大镜图标，与 chips 等高同一行；placeholder 已经说明用途。
+  const searchWrap = el('div', { class: 'lib__search' });
+  const searchInput = el('input', {
+    class: 'lib__search-input',
     type: 'search',
+    name: 'task-search',
     placeholder: S.LIB_SEARCH_PLACEHOLDER,
-    onInput: (value) => {
-      keyword = value;
-      renderList();
-    },
+    'aria-label': S.LIB_SEARCH_LABEL,
   });
-  searchField.el.style.flex = '1 1 260px';
+  searchInput.addEventListener('input', () => {
+    keyword = searchInput.value;
+    renderList();
+  });
+  const searchIcon = createIcon('search', { class: 'lib__search-icon', size: 15 });
+  searchWrap.append(searchIcon, searchInput);
+  searchWrap.style.flex = '1 1 220px';
+  const searchField = {
+    el: searchWrap,
+    setValue: (v) => { searchInput.value = v; keyword = v; renderList(); },
+    destroy: () => {},
+  };
 
   const refreshBtn = createButton({
     label: S.ACTION_REFRESH,

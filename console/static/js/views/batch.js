@@ -178,7 +178,7 @@ export function createBatch(props = {}) {
     onClick: () => load(),
   });
 
-  const comboEl = el('div', { class: 'batch__combos' });
+  const comboEl = el('div', {});
 
   const controls = el(
     'div',
@@ -217,6 +217,9 @@ export function createBatch(props = {}) {
     return [key.slice(0, at), key.slice(at + 1)];
   }
 
+  /** 折叠条展开状态：勾选/轮询会整棵重建，别把用户点开的明细收回去。 */
+  let combosOpen = false;
+
   /** 勾选变化后立刻列出这一批会排哪些「题 × 模型」，并标出与上一批的差异。 */
   function renderCombos(n) {
     clear(comboEl);
@@ -228,29 +231,34 @@ export function createBatch(props = {}) {
     taskIds.forEach((tid) => modelIds.forEach((mid) => keys.push(comboKey(tid, mid))));
     const added = lastStarted ? keys.filter((k) => !lastStarted.has(k)) : [];
 
-    comboEl.appendChild(el('h3', { class: 'batch__combos-title' },
-      `本批排 ${n} 个独立会话：${taskIds.join('、')} × ${modelIds.join('、')}`));
-
-    const list = el('ul', { class: 'batch__combo-list' });
-    keys.slice(0, 12).forEach((k) => {
-      const [tid, mid] = comboParts(k);
-      const isNew = added.includes(k);
-      list.appendChild(el('li', { class: `batch__combo${isNew ? ' batch__combo--new' : ''}` },
-        el('span', { class: 'batch__combo-task' }, tid),
-        el('span', { class: 'batch__combo-x', 'aria-hidden': 'true' }, '×'),
-        el('span', { class: 'batch__combo-model' }, mid),
-        isNew ? el('span', { class: 'batch__combo-flag' }, '新增') : null));
-    });
-    if (keys.length > 12) {
-      list.appendChild(el('li', { class: 'u-faint' }, `…另有 ${keys.length - 12} 条`));
-    }
-    comboEl.appendChild(list);
-
-    if (lastStarted) {
-      const removed = [...lastStarted].filter((k) => !keys.includes(k)).length;
-      comboEl.appendChild(el('p', { class: 'batch__combo-delta u-faint' },
-        `与上一批相比：新增 ${added.length} 条 · 移除 ${removed} 条`));
-    }
+    // 组合明细收进折叠条：12 颗「任务 × 模型」芯片是同构噪音，
+    // 用户要的只是「这一批有多少条、都是谁和谁」。默认一句统计，点开看明细。
+    const detailsEl = el('details',
+      { class: 'batch__combos' },
+      el('summary', { class: 'batch__combos-title' },
+        el('strong', {}, `本批排 ${n} 个独立会话`),
+        el('span', { class: 'u-faint' }, `${taskIds.length} 道题 × ${modelIds.length} 个模型 · 点开看明细`),
+      ),
+      el('div', { class: 'batch__combo-list-wrap' },
+        el('ul', { class: 'batch__combo-list' },
+          keys.map((k) => {
+            const [tid, mid] = comboParts(k);
+            const isNew = added.includes(k);
+            return el('li', { class: `batch__combo${isNew ? ' batch__combo--new' : ''}` },
+              el('span', { class: 'batch__combo-task' }, tid),
+              el('span', { class: 'batch__combo-x', 'aria-hidden': 'true' }, '×'),
+              el('span', { class: 'batch__combo-model' }, mid),
+              isNew ? el('span', { class: 'batch__combo-flag' }, '新增') : null);
+          })),
+        lastStarted
+          ? el('p', { class: 'batch__combo-delta u-faint' },
+              `与上一批相比：新增 ${added.length} 条 · 移除 ${[...lastStarted].filter((k) => !keys.includes(k)).length} 条`)
+          : null,
+      ),
+    );
+    detailsEl.open = combosOpen;
+    detailsEl.addEventListener('toggle', () => { combosOpen = detailsEl.open; });
+    comboEl.appendChild(detailsEl);
   }
 
   /**

@@ -6,6 +6,16 @@
    ========================================================================== */
 
 /* ============================ 外壳与导航 ============================ */
+/* 侧栏的对齐栅格：所有"内容左缘"落在同一条竖线上。
+   之前品牌图标在 24、分组标题在 12、导航图标在 24、底部文字在 38——
+   四条线各走各的，读起来就是"没对齐、怪怪的"。
+   基准取 24px：品牌图标与导航图标都在这条线上，分组标题也归到它。 */
+.app-shell,
+.app-header {
+  --sidebar-gutter: 12px;          /* 容器内边距 */
+  --sidebar-inset: 24px;           /* 内容左缘（含导航项自身 padding） */
+}
+
 /* 侧栏骨架照 claude.ai 的分区：品牌 → 主操作 → 可滚动导航 → 贴底信息。
    四段各自独立，靠留白与一条 hairline 分层，不用卡片框、不用阴影。 */
 .app-header {
@@ -44,14 +54,16 @@
 .brand:hover {
   background: var(--color-surface-3);
 }
-/* 徽标：SVG 刻度条直接继承赤陶主色——形状本身就是标识，不需要底板 */
+/* 徽标：三根刻度条直接继承主色，不套底板——形状本身就是标识。
+   多一层色块只会和下面的主操作按钮抢注意力（两者都是实心色块，
+   挨着放会读成「两个按钮」）。 */
 .brand__mark {
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-fill);
-  color: var(--color-accent-fill-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-accent);
+  transition: color var(--motion-base) var(--ease-out);
+}
+.brand:hover .brand__mark {
+  color: var(--color-accent-text);
 }
 
 /* ---------- 主操作区（全站唯一实心按钮，Claude 的「New chat」位）---------- */
@@ -59,42 +71,45 @@
   padding: var(--space-1) var(--space-4) var(--space-4);
 }
 
+/* 主操作按钮（全站唯一实心强调）。
+   设计要点：
+   - 高度比普通控件大一档（44px），它是"开始"而不是"设置"里的一个选项；
+   - 图标不小：16px 描边加号，和文字同重心，扫读时先看到「+」；
+   - 高度用 padding 撑而不是固定值，200% 缩放时文字不会溢出；
+   - 左对齐图标 + 文字，与下方导航项的左边线对齐成一条。 */
 .side-cta {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
-  min-height: var(--control-height-md);
+  min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-accent-fill);
   color: var(--color-accent-fill-text);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
   text-decoration: none;
   transition: var(--transition-base);
+  /* 悬停/按下只用亮度：位移会让它在列表里"跳"一下，抢注意力 */
 }
 .side-cta:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
 }
 .side-cta:active {
-  filter: brightness(0.96);
+  filter: brightness(0.94);
 }
-/* 主操作按钮的焦点环用「实心底上的文字色」画，而不是硬编码白——
-   深色主题下 accent-fill 是浅色，白环会完全看不见。 */
+/* 焦点环用「实心底上的文字色」画，不硬编码白——
+   深色主题下 accent-fill 是浅色，白环完全看不见。 */
 .side-cta:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-accent-fill-text);
   outline-offset: var(--focus-ring-offset);
 }
+/* 加号图标：描边 SVG。比文字「+」的字形稳——不受字体 fallback 影响，
+   也不会在窄屏被压扁；线宽与旁边文字的笔画粗细相称。 */
 .side-cta__glyph {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ---------- 导航区：唯一可滚动的部分 ---------- */
@@ -113,7 +128,11 @@
 
 /* 分组标题：小字号疏排、弱色，与链接文字左对齐 */
 .app-nav__group {
-  padding: var(--space-0) var(--space-3);
+  /* 左内边距只补到 --sidebar-inset 与容器 gutter 的差值：
+     导航容器已经留了 12，这里再补 12 → 文字落在 24，
+     与下面的导航图标、品牌图标、底部图标同一条竖线。 */
+  padding: var(--space-0) var(--space-3)
+           var(--space-0) calc(var(--sidebar-inset) - var(--sidebar-gutter));
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
@@ -185,7 +204,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  /* 左内边距 = --sidebar-inset：底部图标与上面的导航图标对齐 */
+  padding: var(--space-3) var(--sidebar-gutter) var(--space-4) var(--sidebar-inset);
   border-top: var(--border-width) solid var(--color-border);
   color: var(--color-text-faint);
 }
@@ -194,6 +214,7 @@
   opacity: 0.8;
 }
 .app-header__foot-text {
+  line-height: var(--line-height-snug);
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
@@ -642,6 +663,36 @@ html.keyboard-nav .view__head h1:focus {
   outline-offset: var(--focus-ring-offset);
 }
 
+/* 身份色点：六个低饱和暖色按 data-hue 取值（与 models.css 同一套色板）。
+   同一模型在记分板和档案页是同一个颜色，跨页扫读靠它对上。 */
+.sb__profile {
+  --hue: var(--color-text-faint);
+}
+.sb__profile[data-hue="0"] { --hue: #86b58c; }
+.sb__profile[data-hue="1"] { --hue: #d9b08c; }
+.sb__profile[data-hue="2"] { --hue: #8fa9d9; }
+.sb__profile[data-hue="3"] { --hue: #c48fb8; }
+.sb__profile[data-hue="4"] { --hue: #d9c08c; }
+.sb__profile[data-hue="5"] { --hue: #c49a8f; }
+.sb__profile-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hue);
+  opacity: 0.85;
+}
+.sb__profile[aria-current="page"] .sb__profile-dot {
+  opacity: 1;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--hue) 22%, transparent);
+}
+.sb__profile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .sb__profile-name {
   display: block;
   overflow-wrap: anywhere;
@@ -656,23 +707,22 @@ html.keyboard-nav .view__head h1:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* 摘要只报数：中性浅底细边框，不再用左色条+品牌底（与模型卡同一条设计纪律） */
 .sb__profile-summary {
   display: flex;
   gap: var(--space-4);
   flex-wrap: wrap;
   align-items: baseline;
-  padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-.sb__profile-summary strong {
-  font-size: var(--font-size-lg);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .sb__profile-summary span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
+  color: inherit;
 }
 
 .sb__cell {
@@ -706,7 +756,198 @@ html.keyboard-nav .view__head h1:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--space-4);
-  align-items: start;
+  /* stretch 让两张卡等高、底缘对齐——用户点名要的。
+     左卡（自检表）内容少，撑高后多出的空间留在卡内底部，
+     比露在卡外的空白好看。 */
+  align-items: stretch;
+}
+
+/* 面板说明：与标题同组（不再是裸的 u-faint），字号小一档、色弱一档 */
+.settings__grid .panel__desc,
+.settings__panel--data .panel__desc {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ---------- 偏好项：左边「标签 + 说明」两行，右边控件 ---------- */
+.settings__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.settings__row:last-child {
+  border-bottom: none;
+}
+.settings__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  cursor: pointer;
+}
+.settings__row-label {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  line-height: var(--line-height-snug);
+}
+.settings__row-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  max-width: 46ch;
+}
+
+/* ---------- 开关：自绘 track + knob，不用原生 checkbox ---------- */
+.settings__switch {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+/* 真 input 保留在 DOM 里（键盘可达、可读屏），视觉上藏起来由 track 代表 */
+.settings__switch-input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.settings__switch-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-surface-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  transition: var(--transition-base);
+}
+.settings__switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-text-faint);
+  transition: var(--transition-base);
+}
+.settings__switch-input:checked + .settings__switch-track {
+  background: var(--color-accent-fill);
+  border-color: var(--color-accent-fill);
+}
+.settings__switch-input:checked + .settings__switch-track::after {
+  left: calc(100% - 18px);
+  background: var(--color-accent-fill-text);
+}
+/* 焦点环画在 track 上（input 是透明的，画了也看不见） */
+.settings__switch-input:focus-visible + .settings__switch-track {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ---------- 主题分段控件 ---------- */
+.settings__chips {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+.settings__chip {
+  position: relative;
+  cursor: pointer;
+}
+.settings__chip-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.settings__chip-face {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  transition: var(--transition-base);
+  white-space: nowrap;
+}
+.settings__chip:hover .settings__chip-face {
+  color: var(--color-text);
+}
+.settings__chip-input:checked + .settings__chip-face {
+  background: var(--color-surface);
+  color: var(--color-accent-text);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-xs);
+}
+.settings__chip-input:focus-visible + .settings__chip-face {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* ---------- 本机数据：一个动作一行，各自带说明 ---------- */
+.settings__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.settings__action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.settings__action:last-of-type {
+  border-bottom: none;
+}
+.settings__action-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.settings__action-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+.settings__action-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  max-width: 52ch;
+}
+
+@media (max-width: 640px) {
+  .settings__row,
+  .settings__action {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .kv {
@@ -1091,22 +1332,59 @@ kbd.key {
   background: var(--color-surface);
 }
 
-/* 选中态：以前整行只有 :hover 有变化，勾完模型页面像没反应。 */
+/* 选中态：淡 accent 底 + 勾选框旁的文字变色即可——
+   以前整行压一层 accent-soft + ring-accent，任务列表 12 行全勾时
+   是一整块鲑鱼色，视觉重量大到像出错了。 */
 .batch__pick-row--on,
 .batch__pick-row--on:hover {
-  background: var(--color-accent-soft);
-  box-shadow: var(--ring-accent);
+  background: color-mix(in oklab, var(--color-accent) 7%, transparent);
 }
 
 /* 勾选变化后实时列出「题 × 模型」组合，并标出与上一批的差异 */
+/* 组合明细折叠条：默认一句统计，点开看「题 × 模型」明细 */
 .batch__combos {
   margin-top: var(--space-3);
 }
-
-.batch__combos-title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-sm);
+.batch__combos > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: var(--control-height-sm, 32px);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
   color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  list-style: none;
+  transition: var(--transition-base);
+}
+.batch__combos > summary::-webkit-details-marker {
+  display: none;
+}
+.batch__combos > summary::after {
+  content: '▸';
+  margin-left: auto;
+  color: var(--color-text-faint);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.batch__combos[open] > summary::after {
+  transform: rotate(90deg);
+}
+.batch__combos > summary:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+.batch__combos > summary:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+.batch__combos-title strong {
+  color: var(--color-accent-text);
+}
+
+.batch__combo-list-wrap {
+  padding: var(--space-3);
 }
 
 .batch__combo-list {
