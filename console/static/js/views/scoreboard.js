@@ -34,6 +34,13 @@ const T = {
   SB_PROFILE_DELETE_BODY_NONE: '档案与已保存的密钥会一起删除。它名下没有运行记录与成绩。',
   SB_PROFILE_DELETE_HINT: '删除后这一列从记分板与排行榜上一并消失；之后需要到「模型档案」页重新新建。',
   SB_PROFILE_TRIALS: '结束 {n} 次 · pass@1 {pass}/{n}',
+  SB_PROFILE_TASKS_PASSED: '做对 {pass}/{n} 题',
+  // 格子主判定看「最好一次是否全绿」；pass@1 降为副标（多轮题的 pass@1 天然偏低）
+  SB_CELL_BEST_PASS: '做对',
+  SB_CELL_BEST_FAIL: '未做对',
+  SB_CELL_PASS1: '第 1 轮全绿 {n} / {m}',
+  SB_CELL_BEST_ROUND: '最好一次在第 {n} 轮',
+  SB_LEGEND_BEST: '格子第一眼看「最好一次有没有全绿」；pass@1 是稳定性副标（中级以上题目有多次机会）',
 };
 
 /**
@@ -90,6 +97,7 @@ export function createScoreboard(props = {}) {
   const legend = el(
     'div',
     { class: 'sb__legend' },
+    el('span', {}, T.SB_LEGEND_BEST),
     el('span', {}, S.SB_LEGEND_PASS),
     el('span', {}, S.SB_LEGEND_REVEAL),
   );
@@ -114,10 +122,13 @@ export function createScoreboard(props = {}) {
       .filter((cell) => cell && Number(cell.attempts) > 0);
     const attempts = cells.reduce((sum, cell) => sum + Number(cell.attempts || 0), 0);
     const pass1 = cells.reduce((sum, cell) => sum + Number(cell.pass1 || 0), 0);
+    const solved = cells.reduce((sum, cell) => sum + (cell.best_passed ? 1 : 0), 0);
     const best = cells.reduce((max, cell) => Math.max(max, Number(cell.best_score || 0)), 0);
     return {
       attempts,
       pass1,
+      solved,
+      tasks: cells.length,
       bestScore: best,
       passRate: attempts ? pass1 / attempts : 0,
     };
@@ -180,6 +191,7 @@ export function createScoreboard(props = {}) {
     return el(
       'div',
       { class: 'sb__profile-summary', role: 'status' },
+      el('span', {}, t(T.SB_PROFILE_TASKS_PASSED, { pass: stats.solved, n: stats.tasks })),
       el('span', {}, t(T.SB_PROFILE_TRIALS, { pass: stats.pass1, n: stats.attempts })),
       el('span', {}, t(S.SB_PROFILE_RATE, { rate: percent(stats.passRate) })),
       el('span', {}, t(T.SB_PROFILE_BEST, { best: stats.bestScore })),
@@ -189,6 +201,11 @@ export function createScoreboard(props = {}) {
   /**
    * 一个 (任务 × 模型) 单元格。数据源是成绩台账：只有点过「结束本轮」的尝试
    * 才会出现在这里，台账里每次结束各留一条，格子展示最高分那条。
+   *
+   * 第一眼结论 = 「最高分那条有没有全绿」（best_passed），不是 pass@1：
+   * 中级以上题目有 2–3 次机会，T3-08 就是第 1 轮 85.7 未过、第 2 轮 100 全绿，
+   * 只报 pass@1 会让格子上顶一个 ✕，而台账里那条成绩其实是 passed=true。
+   * pass@1 仍然是副标——它是模型稳定性的口径，不是"这道题做没做对"的答案。
    * @param {object} row 记分板行
    * @param {string} modelId 档案编号
    * @returns {HTMLElement}
@@ -203,18 +220,28 @@ export function createScoreboard(props = {}) {
       );
     }
     const offband = isOffBand(row, cell);
+    const solved = Boolean(cell.best_passed);
     return el(
       'div',
       { class: 'sb__cell' },
       el(
         'span',
         { class: 'sb__cell-main' },
-        el('span', { 'aria-hidden': 'true' }, cell.pass1 > 0 ? '✓' : '✕'),
+        el('span', { 'aria-hidden': 'true' }, solved ? '✓' : '✕'),
         ' ',
-        cell.pass1 > 0 ? S.SB_CELL_PASS : S.SB_CELL_NO_PASS,
+        solved ? T.SB_CELL_BEST_PASS : T.SB_CELL_BEST_FAIL,
       ),
-      el('span', { class: 'sb__cell-sub' }, `${t(S.SB_CELL_TRIES, { n: cell.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.attempts })}`),
+      el('span', { class: 'sb__cell-sub' },
+        t(T.SB_CELL_PASS1, { n: cell.pass1 || 0, m: cell.attempts || 0 })
+        + ` · ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.attempts || 0 })}`),
       el('span', { class: 'sb__cell-sub' }, t(T.SB_CELL_BEST, { best: cell.best_score, avg: cell.avg_score })),
+      // 「最好一次在第 n 轮」用的是 best_round（代表条目在第几轮拿到这个分），
+      // 不是 best_rounds（那次尝试一共校验了几轮）——T2-04 是两轮、最高分在第 1 轮，
+      // 用错字段会写成「最好一次在第 2 轮」。
+      (cell.best_round || 0) > 1 || (cell.best_rounds || 0) > 1
+        ? el('span', { class: 'sb__cell-sub u-faint' },
+            t(T.SB_CELL_BEST_ROUND, { n: cell.best_round || cell.best_rounds }))
+        : null,
       offband
         ? el(
             'span',

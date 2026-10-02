@@ -117,6 +117,9 @@ def summarize_groups(groups: List[dict]) -> dict:
         out.append({
             "id": group["id"],
             "title": group.get("title") or group["id"],
+            # 中文口径（题包 groups.json 的 port）与 title 一起下发：前端优先显示它，
+            # 这样「这个组在守什么出口」是一句人话而不是一个英文 id。
+            "port": group.get("port") or "",
             "weight": group.get("weight", 1),
             "passed": bool(group.get("passed")),
             "total": group.get("total", 0),

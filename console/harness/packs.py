@@ -196,12 +196,16 @@ def load_hidden_for(meta: dict, spec: dict) -> dict:
             weight = float(item.get("weight", 1))
         except (TypeError, ValueError):
             weight = 1.0
+        # title 是组名（题包几乎都不写），port 是「这个组在守哪个出口」的中文口径。
+        # 只把 tests（用例 node id）留在后端跑评分用，port 会随报告与任务详情下发给
+        # 校验弹窗做解释（模型看不到控制台，公开的是口径不是用例）。
         groups.append({
             "id": str(item["id"]),
             "weight": weight,
             "mode": mode,
             "tests": [str(t) for t in (item.get("tests") or [])],
             "title": str(item.get("title") or ""),
+            "port": str(item.get("port") or item.get("note") or ""),
         })
 
     p2p_doc = util.read_json(p2p_path, default={}) or {}
@@ -392,6 +396,37 @@ def reference_path(meta: dict, name: str = "fix.patch") -> str | None:
     """参考解补丁路径；没有就返回 None（不是错误，只是这题没写）。"""
     path = os.path.join(meta["pack_dir"], "reference", name)
     return path if os.path.isfile(path) else None
+
+
+def check_plan(meta: dict) -> list:
+    """这道题这一轮会查什么：按 check 汇总分组口径（不含隐藏用例 id）。
+
+    给控制台的「校验」弹窗用：用户点下校验的那一刻就能看到「这次要查哪几个出口、
+    每个出口在守什么、权重多少」，不必等出分才知道自己在评什么。**用例 node id
+    一律不下发**——那是隐藏用例的落点，模型看不到控制台也不该有第二条泄露面。
+
+    题包写坏（缺 groups.json、目录不存在）时不抛错：返回 []，由报告与任务详情
+    各自按「题包坏了」的老路径处理；弹窗拿不到计划就少解释一段，不影响校验本身。
+    """
+    specs = meta.get("checks") or []
+    plan: list = []
+    for index, spec in enumerate(specs):
+        try:
+            hidden = load_hidden_for(meta, spec if isinstance(spec, dict) else {})
+        except errors.HarnessError:
+            continue
+        for group in hidden.get("groups") or []:
+            if group.get("mode") == "regression":
+                continue
+            plan.append({
+                "id": group["id"],
+                "title": group.get("title") or "",
+                "port": group.get("port") or "",
+                "weight": group.get("weight", 1),
+                "kind": str((spec if isinstance(spec, dict) else {}).get("kind") or ""),
+                "spec_index": index,
+            })
+    return plan
 
 
 def reference_patches(meta: dict) -> list:

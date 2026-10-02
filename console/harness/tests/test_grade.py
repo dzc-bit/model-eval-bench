@@ -554,3 +554,45 @@ def test_notes_markdown_is_chinese(bench):
     assert "✅" in text or "⛔" in text
     assert "turnover_rate" not in text, "小结是给人看的，不该漏测试函数名当正文"
     assert len(text) > 100
+
+
+def test_group_port_reaches_the_report():
+    """组的中文口径（题包 groups.json 的 port）必须一路带进报告与分组摘要。
+
+    控制台的校验弹窗靠它解释「这个组在守什么出口」；漏了这一环，界面只能显示
+    exclusive_write_exit 这种英文 id（2026-10-02 实测）。
+    """
+    from types import SimpleNamespace
+
+    info = SimpleNamespace(outcome="passed", duration=0.01, message="", detail="", passed=True)
+    graded = grade._grade_groups(
+        [{"id": "exclusive_write_exit", "weight": 1,
+          "port": "跨进程互斥：两个真进程对同一分区，第二个写者必须被挡住",
+          "tests": ["hidden/tests_hidden/x.py::t"], "spec_index": 0}],
+        [],
+        {0: lambda node_id: info},
+        lambda message: None,
+    )
+
+    group = graded["groups"][0]
+    assert group["port"] == "跨进程互斥：两个真进程对同一分区，第二个写者必须被挡住"
+    assert group["title"] == "exclusive_write_exit", "题包没写 title 时退回 id"
+
+    summary = report.summarize_groups(graded["groups"])["groups"][0]
+    assert summary["port"] == group["port"], "摘要也要带上，前端两个窗口共用它"
+
+
+def test_group_port_defaults_to_empty_without_pack_wording():
+    """题包没写 port / note 时字段存在但为空：前端据此回落到 title / id。"""
+    from types import SimpleNamespace
+
+    info = SimpleNamespace(outcome="passed", duration=0.0, message="", detail="", passed=True)
+    graded = grade._grade_groups(
+        [{"id": "g1", "weight": 1, "title": "手写组名", "tests": ["hidden/x.py::t"],
+          "spec_index": 0}],
+        [],
+        {0: lambda node_id: info},
+        lambda message: None,
+    )
+    assert graded["groups"][0]["port"] == ""
+    assert graded["groups"][0]["title"] == "手写组名"

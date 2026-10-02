@@ -199,6 +199,11 @@ def test_reader_never_sees_partial_file_during_replace(tmp_path, monkeypatch):
     观察点放在数据落盘的瞬间：先落一半的行、此时读目标文件、再落完整
     内容。直写目标路径会把"半截"交给读者；走临时文件再替换的写法，
     目标文件在替换之前始终是完整的旧内容。
+
+    判据只看"这次落盘写的是不是目标文件本身"，**不对暂存文件的命名/位置提要求**：
+    临时文件叫 `x.parquet.tmp`、`x.tmp`、`x.parquet.<pid>.tmp` 还是放在别处，
+    都是实现自由（2026-10-02 修：旧判据要求名字以目标全名为前缀，
+    把 `path.with_suffix(".tmp")` 这类正确写法误判成红——那是假阴性）。
     """
     warehouse = Warehouse(tmp_path)
     warehouse.write_daily_bars(_bars("600519", "2024-01-02", 5))
@@ -210,7 +215,7 @@ def test_reader_never_sees_partial_file_during_replace(tmp_path, monkeypatch):
 
     def half_then_full(frame, path, *args, **kwargs):
         where = Path(str(path))
-        if where.parent == target.parent and where.name.startswith(target.name):
+        if where != target:
             # 先写一半的行（磁盘上真实出现"写到一半"的现场），此时读目标
             real_to_parquet(frame.iloc[: max(1, len(frame) // 2)], path, index=False)
             seen.append(pq.read_table(target).num_rows)
@@ -234,6 +239,8 @@ def test_failed_write_keeps_previous_partition_intact(tmp_path, monkeypatch):
     失败现场 = 半截内容已经落盘、随后抛错。直写目标路径时这半截就是
     分区的新内容；先写临时文件的写法里它只存在于临时文件，失败清理
     后目标分区原样未动。
+
+    判据同样只看"写的是不是目标文件本身"，不限定暂存文件的命名（见上一条的说明）。
     """
     warehouse = Warehouse(tmp_path)
     warehouse.write_daily_bars(_bars("600519", "2024-01-02", 5))
@@ -244,7 +251,7 @@ def test_failed_write_keeps_previous_partition_intact(tmp_path, monkeypatch):
 
     def failing_to_parquet(frame, path, *args, **kwargs):
         where = Path(str(path))
-        if where.parent == target.parent and where.name.startswith(target.name):
+        if where != target:
             real_to_parquet(frame.iloc[: max(1, len(frame) // 2)], path, index=False)
             raise OSError("disk full")
         return real_to_parquet(frame, path, *args, **kwargs)

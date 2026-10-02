@@ -9,8 +9,14 @@
    异步语义保持一致（`POST /api/runs/{id}/grade` 也是异步的）。
 3. **每个 item 独立成败**。一道题失败（题包坏了、模型档案没了）不能拖垮整批，
    记到该 item 的 `error` 里，批次继续。
-4. 每个会话准备后保持就绪，直到用户在对应工作台提交评分；评分完成后回收工作区，
-   再继续准备排队会话。run 仍使用原有落盘格式。
+4. **一个条目占用一个槽位，直到用户在工作台点「结束本轮」**（2026-10-02 语义修正）：
+   校验只是过程，`结束本轮`（或`废弃本轮`）才是这次尝试的终点。旧实现一看到
+   run.status=graded 就回收槽位、把条目判成「已完成」，于是
+   (a) 队列在用户还没读完第一轮结果时就派下了下一条；
+   (b) 条目把第 1 轮的分数当成最终成绩钉死，用户接着跑第 2 轮拿满分也刷不回来
+       （T3-08 实测：台账 100 分通过，批次行却写着 85.7 未通过）。
+   现在：出分后条目停在 `awaiting_finish`（槽位保留、分数随轮次刷新），
+   等收尾出口把记录收走，再从台账读最终成绩落定。
 
 线程模型：一个「批次线程」负责调度，每个 item 再交给一个工作线程；
 批次线程只做派发与状态汇总，不持有任何长事务锁。
@@ -24,7 +30,7 @@ import time
 import uuid
 from typing import Dict, List, Optional
 
-from . import chat, config, errors, packs, runs, util
+from . import chat, config, errors, packs, results as results_ledger, runs, util
 
 #: 同时保留的批次（内存态）上限，防止长时间运行堆爆
 MAX_BATCHES = 40
@@ -33,6 +39,14 @@ MAX_ITEMS = 100
 _LOCK = threading.RLock()
 #: batch_id → 批次状态（内存态；落盘只在 batch 目录留一份快照）
 _BATCHES: Dict[str, dict] = {}
+
+#: 条目的终态：到这里就不再占槽位，也不许再被调度或对账改写。
+#: ``graded`` = 已进台账；``discarded`` = 结束了但没成绩（未校验 / 作废 / 废弃）。
+TERMINAL_ITEM_STATUS = {"graded", "discarded", "error", "cancelled", "skipped"}
+#: 「已出分，等你结束本轮」：槽位仍然占着，队列不往下派（这就是用户要的节拍）。
+AWAITING_STATUS = "awaiting_finish"
+#: 还在占用槽位的中间态（准备 / 就绪 / 校验 / 等结束本轮）。
+BUSY_ITEM_STATUS = {"preparing", "ready", "grading", AWAITING_STATUS}
 
 
 # --------------------------------------------------------------------------
@@ -93,10 +107,13 @@ def _public_batch(batch: dict) -> dict:
         "mode": batch.get("mode", "interactive"),
         "concurrency": batch["concurrency"],
         "problems": batch.get("problems") or [],
-        "total": len(batch["items"]),
-        "done": sum(1 for i in items if i["status"] in {"graded", "error", "cancelled"}),
-        "passed": sum(1 for i in items if i["status"] == "graded" and i.get("passed")),
-        "running": sum(1 for i in items if i["status"] in {"preparing", "ready", "grading"}),
+        "total": len(items),
+        "done": sum(1 for i in items if i["status"] in TERMINAL_ITEM_STATUS),
+        # 「通过」看每一条**最好的一轮**有没有全绿：第 2 轮才做对也算做对，
+        # 不能只认第 1 轮（旧实现把出分当终点，第 1 轮 85.7 就永久钉在那一行）。
+        "passed": sum(1 for i in items if i.get("best_passed")),
+        "running": sum(1 for i in items if i["status"] in BUSY_ITEM_STATUS),
+        "awaiting": sum(1 for i in items if i["status"] == AWAITING_STATUS),
         "queued": sum(1 for i in items if i["status"] == "pending"),
         "items": items,
     }
@@ -108,12 +125,12 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
 
     :param items: `[{"task": "T1-01", "model": "gpt-x", "attempt": 1}, ...]`
     :param concurrency: 想同时跑几个；默认 = config.max_concurrency
-    :param auto_release: 每条完成评分后是否回收它的沙箱工作区。
+    :param auto_release: 条目落定后是否回收它的沙箱工作区。
     :param auto_send: 沙箱就绪后是否自动把第 1 级提示词发给模型（无人值守作答）。
         默认关闭：跑批历来只负责准备，发送与校验由人驱动。开启后校验仍然手动。
 
-        就绪会话一直占用一个槽位。用户在该 run 的工作台操作并启动评分后，批次
-        记录成绩并回收工作区，再派发下一条，避免清掉仍在使用的工作区。
+    就绪会话一直占用一个槽位，直到用户在工作台**点「结束本轮」收尾**（或废弃、
+    或手动回收后跳过）：校验出分只让条目进入 `awaiting_finish`，不派发下一条。
     """
     if not items:
         raise errors.HarnessError(errors.E_BAD_REQUEST, "批量跑批至少要有一个条目。")
@@ -167,8 +184,17 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
             "run_id": "",
             "sandbox": "",
             "drive": "",
+            # score/passed 是**当前这一轮**的成绩；best_* 是到目前为止最好的一轮。
+            # 两者一起给，用户才看得出「第 2 轮才做对」不是没做对。
             "score": None,
             "passed": False,
+            "best_score": None,
+            "best_passed": False,
+            "round": attempt,
+            "rounds": 0,
+            "best_round": 0,
+            "ledgered": False,
+            "entry_id": "",
             "error": "",
             "events": [],
             "started_at": "",
@@ -211,16 +237,24 @@ def start(cfg: dict, items: List[dict], concurrency: Optional[int] = None,
     payload["problems"] = problems
     payload["notice"] = (
         "已开始准备会话：并发 %d。会话就绪后请打开对应工作台；"
-        "提交评分并结束后，系统会回收该工作区并继续准备队列。" % concurrency
+        "**每一条都要在工作台点「结束本轮」收尾后，队列里的下一条才会开工**，"
+        "校验出分本身不会让出槽位。" % concurrency
     )
     return payload
 
 
-def _run_snapshot(cfg: dict, run_id: str) -> dict:
-    """轻量读一条 run 记录（不扫全树）：批次读侧对账用。"""
+def _run_snapshot(cfg: dict, run_id: str) -> Optional[dict]:
+    """轻量读一条 run 记录（不扫全树）：批次读侧对账用。
+
+    返回 None = 记录目录里没有这条 run（已被收尾出口删掉）；
+    返回 {} = 文件在但读不出内容（坏 JSON）——那是「状态未知」，不能当成「已收尾」。
+    """
     if not run_id:
-        return {}
-    doc = util.read_json(os.path.join(runs.dir_of_run_id(cfg, run_id), "run.json"), default=None)
+        return None
+    path = os.path.join(runs.dir_of_run_id(cfg, run_id), "run.json")
+    if not os.path.isfile(path):
+        return None
+    doc = util.read_json(path, default=None)
     return doc if isinstance(doc, dict) else {}
 
 
@@ -235,38 +269,205 @@ def _write_doc(cfg: dict, doc: dict) -> None:
         pass
 
 
+def _safe_run(cfg: dict, run_id: str) -> Optional[dict]:
+    """读一条运行记录；记录已被「结束本轮 / 废弃本轮」收走时返回 None。
+
+    记录消失是**正常终态**而不是错误：收尾出口的全部磁盘后果就是把它删干净，
+    批次必须据此落定，而不是把条目永远挂在「等评分」上。
+    """
+    if not run_id:
+        return None
+    try:
+        return runs.get_run(cfg, run_id)
+    except errors.HarnessError as exc:
+        if exc.code == errors.E_RUN_NOT_FOUND:
+            return None
+        raise
+
+
+def _round_no_of(rnd: dict) -> int:
+    try:
+        return int(rnd.get("attempt") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _round_summary(run: dict) -> dict:
+    """从运行记录里算「到目前这一轮为止」的成绩口径。
+
+    作数轮 = 既没被作废（voided）也不判无效（invalidated）的轮次，与台账同口径。
+    ``score``/``passed`` 是**当前这一轮**（run.last_*），``best_*`` 是最好的一轮。
+    """
+    def _score(rnd: dict) -> float:
+        try:
+            return float(rnd.get("score") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    rounds = [r for r in (run.get("rounds") or [])
+              if isinstance(r, dict) and not r.get("voided") and not r.get("invalidated")]
+    best: Optional[dict] = None
+    for rnd in rounds:
+        if best is None or (_score(rnd), 1 if rnd.get("passed") else 0) > (
+                _score(best), 1 if best.get("passed") else 0):
+            best = rnd
+    last_score = run.get("last_score")
+    return {
+        "round": int(run.get("attempt") or 1),
+        "rounds": len(rounds),
+        "score": last_score,
+        "passed": bool(run.get("last_passed")),
+        "best_score": _score(best) if best is not None else last_score,
+        "best_passed": bool(best.get("passed")) if best is not None else bool(run.get("last_passed")),
+        "best_round": _round_no_of(best) if best is not None else int(run.get("attempt") or 1),
+    }
+
+
+def _apply_round_summary(item: dict, run: dict) -> None:
+    """把运行记录里的轮次口径刷进条目（槽位保留期间每次对账都刷一遍）。"""
+    summary = _round_summary(run)
+    item["round"] = summary["round"]
+    item["rounds"] = summary["rounds"]
+    item["score"] = summary["score"]
+    item["passed"] = summary["passed"]
+    item["best_score"] = summary["best_score"]
+    item["best_passed"] = summary["best_passed"]
+    item["best_round"] = summary["best_round"]
+
+
+def _ledger_index(cfg: dict) -> Dict[str, dict]:
+    """{source_run_id: 台账条目}：读侧对账一次读全，别按条目反复扫台账文件。"""
+    try:
+        entries = results_ledger.load_entries(cfg)
+    except Exception:  # noqa: BLE001 - 台账读不出来就退化成"没有条目"
+        return {}
+    out: Dict[str, dict] = {}
+    for entry in entries:
+        run_id = str(entry.get("source_run_id") or "")
+        if run_id:
+            out[run_id] = entry
+    return out
+
+
+def _settle_from_ledger(cfg: dict, item: dict, entries: Optional[Dict[str, dict]] = None) -> None:
+    """运行记录已经消失：按台账把条目落定成终态。
+
+    台账是最终成绩的唯一权威（记分板与排行榜都只读它）：有条目 = 用户点了
+    「结束本轮」，分数、轮数、通过与否一律抄台账，不用批次自己那份可能过期的
+    最后一轮数字；没条目 = 废弃本轮（或没成绩就结束），不留成绩。
+    """
+    run_id = str(item.get("run_id") or "")
+    if entries is not None:
+        entry = entries.get(run_id)
+    else:
+        try:
+            entry = results_ledger.find_by_source_run(cfg, run_id)
+        except Exception:  # noqa: BLE001 - 台账读失败不该把条目卡在中间态
+            entry = None
+    if entry:
+        item["status"] = "graded"
+        item["ledgered"] = True
+        item["entry_id"] = str(entry.get("entry_id") or "")
+        item["score"] = entry.get("score")
+        item["passed"] = bool(entry.get("passed"))
+        item["best_score"] = entry.get("score")
+        item["best_passed"] = bool(entry.get("passed"))
+        item["rounds"] = int(entry.get("rounds") or 1)
+        item["best_round"] = int(entry.get("best_round") or 1)
+        item["round"] = int(entry.get("best_round") or item.get("round") or 1)
+        _add_event(item, "已结束本轮：成绩已记入台账（代表分 %s 分，%s）"
+                   % (entry.get("score"), "全绿" if entry.get("passed") else "未全绿"), "graded")
+    else:
+        item["status"] = "discarded"
+        item["ledgered"] = False
+        item["entry_id"] = ""
+        _add_event(item, "这一轮已结束，但没有可计入台账的成绩（未校验 / 已作废 / 已废弃）", "discarded")
+    item["finished_at"] = _now()
+
+
 def _reconcile(cfg: dict, doc: dict) -> dict:
-    """按 run 的真实状态补齐批次条目。
+    """按 run 的真实状态补齐批次条目（只读侧对账，不派发）。
 
     服务一重启就会带走批次里的监控线程，条目于是永远停在「工作区就绪，等待评分」，
     而工作台里那一轮早就校验完了——人还会照着旧状态再点一次启动评分。
     读的时候对一次账并落盘，批次总状态也跟着收敛。
+
+    与内存态监控同一套口径：run 有报告 → `awaiting_finish`（等结束本轮）；
+    run 不见了 → 从台账落定终态；**已经是 graded 的旧条目也拿台账校一遍**
+    （2026-10-02 之前的老快照把第 1 轮的分数钉成了最终成绩，T3-08 那行因此
+    一直写着「85.7 未通过」，而台账里它是第 2 轮 100 分通过）。
     """
     changed = False
-    for item in doc.get("items") or []:
+    items = doc.get("items") or []
+    # 一次读全台账：几百条条目也不该按条目反复扫文件
+    needs_ledger = any(
+        str(i.get("run_id") or "") and (str(i.get("status") or "") == "graded"
+                                        or str(i.get("status") or "") not in TERMINAL_ITEM_STATUS)
+        for i in items)
+    entries = _ledger_index(cfg) if needs_ledger else {}
+
+    for item in items:
         run_id = str(item.get("run_id") or "")
-        if not run_id or item.get("status") not in {"pending", "preparing", "ready"}:
+        status = str(item.get("status") or "")
+        if not run_id or status == "pending":
+            continue
+        if status in TERMINAL_ITEM_STATUS and status != "graded":
+            continue
+        if status == "graded":
+            # 终态校对：老实现会在第 1 轮出分那一刻把条目判成「已完成」并钉死分数
+            entry = entries.get(run_id)
+            if entry and (
+                    item.get("score") != entry.get("score")
+                    or bool(item.get("passed")) != bool(entry.get("passed"))
+                    or int(item.get("rounds") or 0) != int(entry.get("rounds") or 1)):
+                item["score"] = entry.get("score")
+                item["passed"] = bool(entry.get("passed"))
+                item["best_score"] = entry.get("score")
+                item["best_passed"] = bool(entry.get("passed"))
+                item["rounds"] = int(entry.get("rounds") or 1)
+                item["best_round"] = int(entry.get("best_round") or 1)
+                item["ledgered"] = True
+                item["entry_id"] = str(entry.get("entry_id") or "")
+                _add_event(item, "按台账校正代表分：第 %d 轮 %s 分"
+                           % (int(entry.get("best_round") or 1), entry.get("score")), "graded")
+                changed = True
+            elif entry and item.get("entry_id") != entry.get("entry_id"):
+                item["ledgered"] = True
+                item["entry_id"] = str(entry.get("entry_id") or "")
+                changed = True
             continue
         snap = _run_snapshot(cfg, run_id)
-        status = str(snap.get("status") or "")
-        if status not in {"graded", "error", "cancelled"}:
+        if snap is None:
+            _settle_from_ledger(cfg, item, entries)
+            changed = True
             continue
-        item["status"] = status
-        if snap.get("last_score") is not None:
-            item["score"] = snap.get("last_score")
-            item["passed"] = bool(snap.get("last_passed"))
+        if not snap:
+            continue      # 记录读不出来：状态未知，保持原状等人来看
+        run_status = str(snap.get("status") or "")
+        if run_status in {"error", "cancelled"}:
+            item["status"] = run_status
+            item["finished_at"] = item.get("finished_at") or _now()
+            if run_status == "error":
+                err = snap.get("last_error") or {}
+                item["error"] = (err.get("message") if isinstance(err, dict) else "") or "校验失败"
+        elif run_status == "graded":
+            _apply_round_summary(item, snap)
+            item["status"] = AWAITING_STATUS
+        else:
+            _apply_round_summary(item, snap)
+            item["status"] = run_status if run_status in {"preparing", "grading"} else "ready"
         _add_event(item, "批次监控已中断，按运行记录补齐状态", "ready")
         changed = True
-    items = doc.get("items") or []
     # 计数是落盘时快照下来的，补齐状态后必须一起重算，否则「1/3 完成」会一直骗人
-    done = [i for i in items if i.get("status") in {"graded", "error", "cancelled"}]
+    done = [i for i in items if i.get("status") in TERMINAL_ITEM_STATUS]
     counters = {
         "done": len(done),
-        "passed": sum(1 for i in done if i.get("passed")),
-        "running": sum(1 for i in items if i.get("status") in {"preparing", "ready", "grading"}),
+        "passed": sum(1 for i in items if i.get("best_passed")),
+        "running": sum(1 for i in items if i.get("status") in BUSY_ITEM_STATUS),
+        "awaiting": sum(1 for i in items if i.get("status") == AWAITING_STATUS),
         "queued": sum(1 for i in items if i.get("status") == "pending"),
     }
-    if items and all(i.get("status") in {"graded", "error", "cancelled"} for i in items):
+    if items and all(i.get("status") in TERMINAL_ITEM_STATUS for i in items):
         counters["status"] = "finished"
     stale = any(doc.get(key) != value for key, value in counters.items())
     if not changed and not stale:
@@ -394,12 +595,26 @@ def _cancel_event(batch: dict) -> threading.Event:
 
 def _mark_item_cancelled(batch: dict, item: dict, message: str = "会话已取消") -> None:
     """幂等地把条目推到终态，确保 done/queued 与前端一致。"""
-    if item.get("status") in {"graded", "error", "cancelled"}:
+    if item.get("status") in TERMINAL_ITEM_STATUS:
         return
     item["status"] = "cancelled"
     item["finished_at"] = _now()
     batch["updated_at"] = _now()
     _add_event(item, message, "cancelled")
+
+
+def _mark_item_skipped(batch: dict, item: dict, message: str) -> None:
+    """把「已出分但不再等结束本轮」的条目推到终态并让出槽位。
+
+    成绩不会因为跳过而丢：工作台那边照样能结束本轮，台账条目照样生成，
+    这条只是不再占着批次的槽位（批次已停止 / 用户主动跳过时用）。
+    """
+    if item.get("status") in TERMINAL_ITEM_STATUS:
+        return
+    item["status"] = "skipped"
+    item["finished_at"] = _now()
+    batch["updated_at"] = _now()
+    _add_event(item, message, "skipped")
 
 
 def _trim_batches() -> None:
@@ -416,7 +631,7 @@ def _trim_batches() -> None:
 # --------------------------------------------------------------------------
 
 def _run_batch(cfg: dict, batch_id: str, log) -> None:
-    """批次线程体：按工作区槽位派发会话，等人工评分后继续排队。"""
+    """批次线程体：按工作区槽位派发会话，等用户「结束本轮」后继续排队。"""
     emit = log or (lambda m: None)
     with _LOCK:
         batch = _BATCHES.get(batch_id)
@@ -426,12 +641,13 @@ def _run_batch(cfg: dict, batch_id: str, log) -> None:
     items = batch["items"]
     limit = max(1, int(batch["concurrency"]))
     cancel_event = _cancel_event(batch)
-    # 用信号量把同时准备或等待评分的条目卡在配置上限内
+    # 用信号量把「准备中 / 就绪 / 校验中 / 等结束本轮」的条目卡在配置上限内。
+    # 槽位的释放点 = 条目落定（用户点了结束本轮或废弃），不是校验出分那一刻。
     gate = threading.Semaphore(limit)
     threads: List[threading.Thread] = []
 
     for item in items:
-        if item.get("status") in {"graded", "error", "cancelled"}:
+        if item.get("status") in TERMINAL_ITEM_STATUS:
             continue          # 已落定（含排队中被移除的）：不派发、不重复收尾
         if cancel_event.is_set():
             with _LOCK:
@@ -491,13 +707,17 @@ def _auto_send_first_prompt(cfg: dict, run: dict, batch: dict, item: dict) -> No
 
 def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emit,
               cancel_event: threading.Event | None = None) -> None:
-    """准备一个独立会话；取消时协作终止准备并回收槽位。"""
+    """准备一个独立会话，然后守着它直到用户「结束本轮」，再让出槽位。
+
+    槽位的持有期是这次尝试的**完整生命周期**（准备 → 作答 → 校验 → 结束本轮），
+    不是「到出分为止」：出分只把条目推进到 ``awaiting_finish``。
+    """
     run = None
     released = False
     cancel_event = cancel_event or _cancel_event(batch)
     try:
         with _LOCK:
-            if cancel_event.is_set() or item.get("status") in {"graded", "error", "cancelled"}:
+            if cancel_event.is_set() or item.get("status") in TERMINAL_ITEM_STATUS:
                 # 派发与停止/移除之间的竞态：条目已经不需要跑了，原样退出（幂等）。
                 _mark_item_cancelled(batch, item, "排队会话已取消")
                 return
@@ -525,6 +745,7 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
             item["sandbox"] = run.get("sandbox", "")
             item["drive"] = run.get("drive", "")
             item["status"] = "ready"
+            item["round"] = int(run.get("attempt") or item.get("attempt") or 1)
             batch["updated_at"] = _now()
             _add_event(item, "工作区已就绪，等待模型操作与人工评分", "ready")
         _save_batch(cfg, batch)
@@ -534,51 +755,86 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
         if batch.get("auto_send"):
             _auto_send_first_prompt(cfg, run, batch, item)
 
-        # 批量会话不代替用户触发评分；保持工作区到评分结束。
+        # 守到这次尝试被收尾为止：记录消失（结束本轮 / 废弃本轮）才是终点。
+        # 批量会话不代替用户触发评分，也不代替用户结束本轮。
         final = None
+        settled = False
         while True:
-            current = runs.get_run(cfg, run["run_id"])
-            current_status = current.get("status")
-            if current_status in {"graded", "error", "cancelled"}:
-                final = current
+            current = _safe_run(cfg, run["run_id"])
+            if current is None:
+                # 记录已被收尾出口整条删掉：按台账落定（这就是 fix：不再把
+                # 第 1 轮的分数钉死，也不再在第一轮出分后就判「已完成」）。
+                with _LOCK:
+                    _settle_from_ledger(cfg, item)
+                    batch["updated_at"] = _now()
+                _save_batch(cfg, batch)
+                settled = True
                 break
 
-            if current_status == "grading":
-                with _LOCK:
-                    if item["status"] != "grading":
+            current_status = str(current.get("status") or "")
+            with _LOCK:
+                changed = False
+                _apply_round_summary(item, current)
+                if current_status in {"error", "cancelled"}:
+                    final = current
+                elif current_status == "graded":
+                    if item.get("status") != AWAITING_STATUS:
+                        item["status"] = AWAITING_STATUS
+                        _add_event(item, "第 %d 轮已出分（%s 分），等你回工作台点「结束本轮」"
+                                   % (int(current.get("attempt") or 1), current.get("last_score")),
+                                   "awaiting_finish")
+                        changed = True
+                elif current_status == "grading":
+                    if item.get("status") != "grading":
                         item["status"] = "grading"
-                        batch["updated_at"] = _now()
                         _add_event(item, "工作台已启动校验", "grading")
                         changed = True
-                    else:
-                        changed = False
+                elif item.get("status") != "ready":
+                    item["status"] = "ready"
+                    changed = True
                 if changed:
-                    _save_batch(cfg, batch)
+                    batch["updated_at"] = _now()
+            if changed:
+                _save_batch(cfg, batch)
+            if final is not None:
+                break
+
+            if cancel_event.is_set() and current_status == "graded":
+                # 停止批次：出分即让出槽位，不再等「结束本轮」。成绩不会丢——
+                # 工作台那边照样可以结束本轮，台账条目照样生成，批次不去抢。
+                with _LOCK:
+                    _mark_item_skipped(
+                        batch, item,
+                        "批次已停止：这一条已出分，成绩以工作台「结束本轮」为准")
+                _save_batch(cfg, batch)
+                settled = True
+                break
+
             if cancel_event.is_set():
                 # 停止后不再打扰本条目：保持低频观察，等它自然落定。
                 time.sleep(0.5)
             else:
                 cancel_event.wait(0.5)
 
-        with _LOCK:
-            if final.get("status") == "cancelled":
-                _mark_item_cancelled(batch, item, "运行记录已取消")
-            elif final.get("status") == "error":
-                item["status"] = "error"
-                err = final.get("last_error") or {}
-                item["error"] = err.get("message") or "校验失败"
-                item["finished_at"] = _now()
-                batch["updated_at"] = _now()
-                _add_event(item, "评分失败", "error")
-            else:
-                item["status"] = "graded"
-                item["score"] = final.get("last_score")
-                item["passed"] = bool(final.get("last_passed"))
-                item["finished_at"] = _now()
-                batch["updated_at"] = _now()
-                _add_event(item, "评分完成", "graded")
-        _save_batch(cfg, batch)
-        if _release_item_sandbox(cfg, batch, run, emit):
+        if final is not None:
+            with _LOCK:
+                if final.get("status") == "cancelled":
+                    _mark_item_cancelled(batch, item, "运行记录已取消")
+                else:
+                    item["status"] = "error"
+                    err = final.get("last_error") or {}
+                    message = err.get("message") if isinstance(err, dict) else ""
+                    item["error"] = message or "校验失败"
+                    item["finished_at"] = _now()
+                    batch["updated_at"] = _now()
+                    _add_event(item, "评分失败", "error")
+            _save_batch(cfg, batch)
+
+        if settled and item.get("status") in {"graded", "discarded"}:
+            # 记录已被收尾出口删掉，沙箱跟着一起没了：只清字段，不去碰回收门面
+            # （对着一条不存在的记录调 release_sandbox 只会刷一条假报错）。
+            _clear_item_workspace(cfg, batch, item)
+        elif _release_item_sandbox(cfg, batch, run, emit):
             _clear_item_workspace(cfg, batch, item)
         released = True
     except errors.HarnessError as exc:
@@ -610,19 +866,23 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
         _save_batch(cfg, batch)
         emit("[%s×%s] 条目异常：%r" % (item["task"], item["model"], exc))
     finally:
-        if run and not released and item.get("status") in {"error", "cancelled"}:
+        if run and not released and item.get("status") in TERMINAL_ITEM_STATUS:
             if _release_item_sandbox(cfg, batch, run, emit):
                 _clear_item_workspace(cfg, batch, item)
         gate.release()
 
 
 def remove_item(cfg: dict, batch_id: str, index: int) -> dict:
-    """把一个还没开工的排队条目移出批次（2026-10-02 补的口子）。
+    """把一条移出批次：排队中的叫「移除」，已出分等结束本轮的叫「跳过」。
 
-    只对 pending 生效：已派发的条目（preparing/ready/grading）归工作台自己的
-    出口管，批次侧绝不满地杀；终态条目没有可移除的东西。移除后这条永远不会
-    被派发（调度循环跳过 + _run_item 入口幂等护栏双保险），批次照常等其余
-    条目自然落定。
+    只对两种状态生效：
+
+    - `pending`：还没开工，移出后永远不会被派发；
+    - `awaiting_finish`：已经出分但用户还没回工作台点「结束本轮」。用户可能
+      先去看别的题、或者干脆想放一放——这一条不该把整条队列堵死在这里。
+      **跳过不动它的运行记录与成绩**：工作台那边照常结束本轮，台账条目照常生成。
+
+    其余状态（准备中/作答中/校验中）归工作台自己的出口管，批次侧绝不满地杀。
     """
     try:
         pos = int(index)
@@ -636,21 +896,31 @@ def remove_item(cfg: dict, batch_id: str, index: int) -> dict:
     if not 0 <= pos < len(items):
         raise errors.HarnessError(errors.E_BAD_REQUEST, "没有这个批次条目。")
     item = items[pos]
-    if item.get("status") != "pending":
+    status = str(item.get("status") or "")
+    if status == "pending":
+        item["status"] = "cancelled"
+        item["finished_at"] = _now()
+        doc["updated_at"] = _now()
+        _add_event(item, "排队中移除：这条还没有开工，不会再派发", "cancelled")
+        message = "条目已移出批次；正在跑的条目不受影响。"
+    elif status == AWAITING_STATUS:
+        item["status"] = "skipped"
+        item["finished_at"] = _now()
+        doc["updated_at"] = _now()
+        _add_event(item, "已跳过：这一条已出分，槽位让给队列；"
+                         "工作台里照样可以「结束本轮」，成绩照样进台账", "skipped")
+        message = "已跳过这一条，槽位让给队列；它的运行记录与成绩仍归工作台管。"
+    else:
         raise errors.HarnessError(
             errors.E_BAD_REQUEST,
-            "只有还没开工的排队条目可以移除，这一条的状态是「%s」；"
-            "已开工的条目请到工作台收尾。" % (item.get("status") or "未知"))
-    item["status"] = "cancelled"
-    item["finished_at"] = _now()
-    doc["updated_at"] = _now()
-    _add_event(item, "排队中移除：这条还没有开工，不会再派发", "cancelled")
+            "这一条现在是「%s」，不能移出：排队中的可以移除，已出分等结束本轮的可以跳过；"
+            "其余状态请到工作台收尾。" % (status or "未知"))
     if batch is None:
         _write_doc(cfg, doc)
     else:
         _save_batch(cfg, batch)
     return {"batch_id": batch_id, "index": pos, "removed": True,
-            "message": "条目已移出批次；正在跑的条目不受影响。"}
+            "status": item["status"], "message": message}
 
 
 def _add_event(item: dict, message: str, kind: str) -> None:

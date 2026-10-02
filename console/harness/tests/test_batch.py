@@ -63,18 +63,23 @@ def test_auto_send_failure_keeps_the_workspace_usable(cfg, monkeypatch):
 def test_batch_get_reconciles_items_after_a_restart(cfg):
     """服务重启带走监控线程后，读批次要按 run 的真实状态补齐。
 
-    否则工作台里早就校验完的一条，批次页会永远显示「工作区就绪，等待评分」，
-    人还会照着旧状态再点一次启动评分。
+    两段事实都要对：
+    1. run 已出分 → 条目是「等你结束本轮」（槽位仍然占着，队列不往下派）；
+    2. 用户点了「结束本轮」→ 记录被整条删掉、成绩进台账 → 条目按台账落定。
+    旧实现只认第 1 步并把 graded 当终点，于是第 2 轮的满分永远刷不进这一行。
     """
     import json
 
     from conftest import make_run
-    from harness import runs, util
+    from harness import results as ledger, runs, util
 
     run = make_run(cfg, model="对账模型")
     run["status"] = "graded"
     run["last_score"] = 66.7
     run["last_passed"] = False
+    run["attempts_allowed"] = 2
+    run["rounds"] = [{"attempt": 1, "score": 66.7, "passed": False,
+                      "graded_at": "2026-01-01T00:10:00"}]
     runs.save_run(cfg, run)
 
     doc = {
@@ -89,11 +94,109 @@ def test_batch_get_reconciles_items_after_a_restart(cfg):
     util.write_json_atomic(path, doc)
 
     out = batch.get(cfg, "batch-recon")
-
-    assert out["items"][0]["status"] == "graded"
+    assert out["items"][0]["status"] == "awaiting_finish"
     assert out["items"][0]["score"] == 66.7
-    assert out["status"] == "finished"
+    assert out["items"][0]["best_passed"] is False
+    assert out["status"] == "running", "还没结束本轮，批次不许判成已完成"
+    assert out["awaiting"] == 1
+
+    # 用户在工作台点「结束本轮」：成绩进台账、记录被真删
+    entry = ledger.append_entry(cfg, ledger.make_entry(
+        run["task"], run["model"], run["model"], source_run_id=run["run_id"],
+        rounds=2, best_round=2, score=100.0, passed=True, pass1=False))
+    os.remove(os.path.join(runs.dir_of_run_id(cfg, run["run_id"]), "run.json"))
+
+    out2 = batch.get(cfg, "batch-recon")
+    assert out2["items"][0]["status"] == "graded"
+    assert out2["items"][0]["score"] == 100.0
+    assert out2["items"][0]["best_passed"] is True
+    assert out2["items"][0]["rounds"] == 2
+    assert out2["items"][0]["entry_id"] == entry["entry_id"]
+    assert out2["passed"] == 1
+    assert out2["status"] == "finished"
     assert json.load(open(path, encoding="utf-8"))["items"][0]["status"] == "graded"
+
+
+def test_reconcile_repairs_stale_graded_numbers_from_the_ledger(cfg):
+    """老快照把第 1 轮的分数钉成最终成绩：读一次就对到台账上（T3-08 实测）。
+
+    旧实现在 run.status=graded 那一刻就把条目判成「已完成」，于是第 2 轮 100 分
+    通过、台账条目写着 score=100/passed=true，批次行还挂在「85.7 未通过」。
+    台账是成绩的唯一权威，读侧必须把它校回来。
+    """
+    from harness import results as ledger, util
+
+    entry = ledger.append_entry(cfg, ledger.make_entry(
+        "TEST-01", "stub", "stub", source_run_id="R-stale",
+        rounds=2, best_round=2, score=100.0, passed=True, pass1=False))
+
+    doc = {
+        "batch_id": "batch-stale", "created_at": "x", "updated_at": "x", "status": "finished",
+        "concurrency": 1, "problems": [], "auto_release": True,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "graded", "run_id": "R-stale", "sandbox": "",
+                   "score": 85.7, "passed": False, "events": []}],
+    }
+    path = os.path.join(batch._batch_dir(cfg, "batch-stale"), "batch.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    util.write_json_atomic(path, doc)
+
+    out = batch.get(cfg, "batch-stale")
+    item = out["items"][0]
+    assert item["score"] == 100.0
+    assert item["passed"] is True and item["best_passed"] is True
+    assert item["rounds"] == 2 and item["best_round"] == 2
+    assert item["entry_id"] == entry["entry_id"]
+    assert any("台账" in e["message"] for e in item["events"])
+    assert out["passed"] == 1
+
+
+def test_reconcile_leaves_legacy_graded_rows_alone(cfg):
+    """台账里没有这一条的老记录（台账之前就结束的尝试）不许被改成「没留成绩」。"""
+    from harness import util
+
+    doc = {
+        "batch_id": "batch-legacy", "created_at": "x", "updated_at": "x", "status": "finished",
+        "concurrency": 1, "problems": [], "auto_release": True,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "graded", "run_id": "R-legacy", "sandbox": "",
+                   "score": 66.0, "passed": True, "events": []}],
+    }
+    path = os.path.join(batch._batch_dir(cfg, "batch-legacy"), "batch.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    util.write_json_atomic(path, doc)
+
+    out = batch.get(cfg, "batch-legacy")
+    assert out["items"][0]["status"] == "graded"
+    assert out["items"][0]["score"] == 66.0
+    assert out["items"][0]["passed"] is True
+
+
+def test_batch_get_reconciles_finished_without_score(cfg):
+    """记录没了、台账里也没有这一条（废弃本轮）→ 条目落定成「没留成绩」。"""
+    from conftest import make_run
+    from harness import runs, util
+
+    run = make_run(cfg, model="废弃模型")
+    runs.save_run(cfg, run)
+    os.remove(os.path.join(runs.dir_of_run_id(cfg, run["run_id"]), "run.json"))
+
+    doc = {
+        "batch_id": "batch-discard", "created_at": "x", "updated_at": "x", "status": "running",
+        "concurrency": 1, "problems": [], "auto_release": True,
+        "items": [{"index": 0, "task": run["task"], "model": run["model"], "attempt": 1,
+                   "status": "awaiting_finish", "run_id": run["run_id"], "sandbox": "",
+                   "events": []}],
+    }
+    path = os.path.join(batch._batch_dir(cfg, "batch-discard"), "batch.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    util.write_json_atomic(path, doc)
+
+    out = batch.get(cfg, "batch-discard")
+    assert out["items"][0]["status"] == "discarded"
+    assert out["items"][0]["ledgered"] is False
+    assert out["status"] == "finished"
+    assert out["passed"] == 0
 
 
 def test_concurrency_defaults_to_configured_limit(cfg):
@@ -172,19 +275,31 @@ def test_public_batch_shape():
         "batch_id": "b1", "created_at": "t0", "updated_at": "t1", "status": "running",
         "concurrency": 3,
         "items": [
-            {"index": 0, "task": "A", "model": "m", "status": "graded", "passed": True, "score": 100},
-            {"index": 1, "task": "A", "model": "m", "status": "grading", "passed": False, "score": None},
-            {"index": 2, "task": "A", "model": "m", "status": "pending", "passed": False, "score": None},
-            {"index": 3, "task": "A", "model": "m", "status": "ready", "passed": False, "score": None},
-            {"index": 4, "task": "A", "model": "m", "status": "error", "passed": False, "score": None},
-            {"index": 5, "task": "A", "model": "m", "status": "cancelled", "passed": False, "score": None},
+            {"index": 0, "task": "A", "model": "m", "status": "graded",
+             "passed": True, "score": 100, "best_passed": True, "best_score": 100},
+            {"index": 1, "task": "A", "model": "m", "status": "grading",
+             "passed": False, "score": None, "best_passed": False, "best_score": None},
+            {"index": 2, "task": "A", "model": "m", "status": "pending",
+             "passed": False, "score": None, "best_passed": False, "best_score": None},
+            {"index": 3, "task": "A", "model": "m", "status": "ready",
+             "passed": False, "score": None, "best_passed": False, "best_score": None},
+            {"index": 4, "task": "A", "model": "m", "status": "awaiting_finish",
+             "passed": False, "score": 85.7, "best_passed": True, "best_score": 100},
+            {"index": 5, "task": "A", "model": "m", "status": "discarded",
+             "passed": False, "score": None, "best_passed": False, "best_score": None},
+            {"index": 6, "task": "A", "model": "m", "status": "skipped",
+             "passed": False, "score": 50, "best_passed": False, "best_score": 50},
+            {"index": 7, "task": "A", "model": "m", "status": "error", "passed": False, "score": None},
+            {"index": 8, "task": "A", "model": "m", "status": "cancelled", "passed": False, "score": None},
         ],
     }
     view = batch._public_batch(doc)
-    assert view["total"] == 6
-    assert view["done"] == 3          # graded + error + cancelled
-    assert view["passed"] == 1
-    assert view["running"] == 2       # ready 与 grading 都占用一个槽位
+    assert view["total"] == 9
+    assert view["done"] == 5          # graded + discarded + skipped + error + cancelled
+    # 通过看的是「最好的一轮」：awaiting_finish 那条第 2 轮已经全绿，也要算通过
+    assert view["passed"] == 2
+    assert view["running"] == 3       # grading + ready + awaiting_finish 都占着槽位
+    assert view["awaiting"] == 1
     assert view["queued"] == 1
     assert view["mode"] == "interactive"
     assert "batch_id" in view and "items" in view
@@ -308,16 +423,31 @@ def test_release_sandbox_refuses_while_send_in_flight(cfg, monkeypatch):
         sandbox.destroy(cfg, run, log=lambda m: None)
 
 
-def test_remove_item_dequeues_pending_only(cfg, monkeypatch):
-    """排队中的条目可以移出批次；已开工的拒绝移除且原样保留（2026-10-02）。"""
+def test_remove_item_dequeues_pending_and_skips_awaiting_finish(cfg, monkeypatch):
+    """排队中的可以移出；已出分等结束本轮的可以跳过（让出槽位）；开工中的拒绝。"""
+    from harness import runs
+
+    graded_run = make_run(cfg, model="已出分")
+    graded_run["status"] = "graded"
+    graded_run["last_score"] = 70.0
+    graded_run["last_passed"] = False
+    graded_run["attempts_allowed"] = 2
+    runs.save_run(cfg, graded_run)
+
+    live_run = make_run(cfg, model="作答中")
+    live_run["status"] = "ready"
+    runs.save_run(cfg, live_run)
+
     doc = {
         "batch_id": "b-remove", "created_at": "t", "updated_at": "t",
         "status": "running", "concurrency": 1,
         "items": [
             {"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
              "status": "pending", "events": []},
-            {"index": 1, "task": "TEST-02", "model": "stub", "attempt": 1,
-             "status": "ready", "run_id": "r-live", "events": []},
+            {"index": 1, "task": live_run["task"], "model": live_run["model"], "attempt": 1,
+             "status": "ready", "run_id": live_run["run_id"], "events": []},
+            {"index": 2, "task": graded_run["task"], "model": graded_run["model"], "attempt": 1,
+             "status": "awaiting_finish", "run_id": graded_run["run_id"], "events": []},
         ],
         "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
     }
@@ -330,10 +460,20 @@ def test_remove_item_dequeues_pending_only(cfg, monkeypatch):
         assert doc["items"][0]["status"] == "cancelled"
         assert any("移除" in e["message"] for e in doc["items"][0]["events"])
 
+        # 已出分等结束本轮：跳过只让出槽位，不动运行记录与成绩
+        res2 = batch.remove_item(cfg, "b-remove", 2)
+        assert res2["removed"] is True and res2["status"] == "skipped"
+        item2 = doc["items"][2]
+        assert item2["status"] == "skipped"
+        assert item2["run_id"] == graded_run["run_id"], "跳过不许碰运行记录"
+        assert item2["score"] == 70.0
+        assert any("结束本轮" in e["message"] for e in item2["events"])
+
         with pytest.raises(errors.HarnessError) as excinfo:
             batch.remove_item(cfg, "b-remove", 1)
         assert "排队" in excinfo.value.message
         assert doc["items"][1]["status"] == "ready", "已开工的条目不许被移除波及"
+        assert doc["items"][1]["run_id"] == live_run["run_id"]
 
         with pytest.raises(errors.HarnessError):
             batch.remove_item(cfg, "b-remove", 9)
@@ -389,8 +529,13 @@ def _stub_model(cfg, monkeypatch, model_id: str) -> None:
     )
 
 
-def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatch):
-    """同题多模型同时就绪；完成一个评分后再为队列会话准备盘符。"""
+def test_batch_waits_for_finish_before_next_item(cfg, monkeypatch):
+    """出分不等于收工：队列里的下一条必须等工作台「结束本轮」才开工。
+
+    2026-10-02 用户口径：跑批的节拍是「一条一条收尾」，不是「一条一条出分」。
+    旧实现在 run.status=graded 那一刻就回收槽位并派发下一条，用户还在读第 1 轮
+    结果，下一题已经开跑了。
+    """
     _stub_model(cfg, monkeypatch, ["model-a", "model-b"])
     cfg["max_concurrency"] = 2
 
@@ -403,8 +548,9 @@ def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatc
     ])
 
     counter = {"n": 0, "active": 0, "max_active": 0}
-    lock = __import__("threading").Lock()
-    run_status = {}
+    lock = threading.Lock()
+    run_state = {}
+    closed = set()
 
     def fake_create_run(c, task, model, attempt=1, claim_queued=True, wait_s=0.0, log=None):
         with lock:
@@ -414,21 +560,34 @@ def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatc
             counter["max_active"] = max(counter["max_active"], counter["active"])
         time.sleep(0.05)                      # 模拟铺沙箱的耗时
         run_id = "r%d" % idx
-        run_status[run_id] = "ready"
+        run_state[run_id] = {
+            "run_id": run_id, "task": task, "model": model, "status": "ready",
+            "sandbox": "sandbox-%d" % idx, "drive": "", "attempt": attempt,
+            "rounds": [], "last_score": None, "last_passed": None,
+        }
         with lock:
             counter["active"] -= 1
-        return {
-            "run_id": run_id, "task": task, "model": model, "status": "ready",
-            "sandbox": "sandbox-%d" % idx, "drive": ["Q:", "R:"][idx % 2],
-        }
+        return dict(run_state[run_id])
+
+    def fake_get_run(c, rid):
+        if rid in closed:
+            raise errors.HarnessError(errors.E_RUN_NOT_FOUND, "没有这条运行记录。", rid)
+        return dict(run_state[rid])
 
     monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
+    monkeypatch.setattr(batch.runs, "get_run", fake_get_run)
     monkeypatch.setattr(batch.runs, "start_grade", lambda *_: pytest.fail("批次不能自动评分"))
-    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
-        "run_id": rid, "status": run_status[rid], "last_score": 42.0, "last_passed": False,
-    })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
     monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
+
+    def close_run(run_id, score, passed):
+        """在工作台点「结束本轮」：成绩进台账、记录被真删。"""
+        from harness import results as ledger
+        entry = ledger.append_entry(cfg, ledger.make_entry(
+            "TEST-01", "stub", "stub", source_run_id=run_id,
+            rounds=1, best_round=1, score=score, passed=passed, pass1=passed))
+        closed.add(run_id)
+        return entry
 
     items = [
         {"task": "TEST-01", "model": "model-a"},
@@ -455,48 +614,158 @@ def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatc
     assert counter["max_active"] == 2
     assert ready["mode"] == "interactive"
 
+    # 第 1 轮出分（未全绿）：条目停在「等你结束本轮」，队列一动不动
     first_run_id = ready["items"][0]["run_id"]
-    run_status[first_run_id] = "grading"
-    wait_until(lambda doc: doc["items"][0]["status"] == "grading")
-    run_status[first_run_id] = "graded"
-    queued_ready = wait_until(lambda doc: doc["items"][2]["status"] == "ready")
-    remaining = [item for item in queued_ready["items"] if item["status"] == "ready"]
-    assert len(remaining) == 2
-    for item in remaining:
-        run_status[item["run_id"]] = "graded"
+    run_state[first_run_id].update({
+        "status": "graded", "last_score": 85.7, "last_passed": False,
+        "rounds": [{"attempt": 1, "score": 85.7, "passed": False}],
+    })
+    awaiting = wait_until(lambda doc: doc["items"][0]["status"] == batch.AWAITING_STATUS)
+    assert awaiting["items"][2]["status"] == "pending", "出分就把下一条派出去 = 旧缺陷"
+    assert awaiting["items"][0]["score"] == 85.7
+    assert awaiting["items"][0]["best_passed"] is False
+    assert awaiting["awaiting"] == 1
+    assert counter["n"] == 2, "第 3 条不许在结束本轮之前开始准备"
 
+    # 用户点「结束本轮」：记录收走、成绩进台账 → 槽位释放，第 3 条才开工
+    close_run(first_run_id, 85.7, False)
+    nxt = wait_until(lambda doc: doc["items"][2]["status"] == "ready")
+    assert nxt["items"][0]["status"] == "graded"
+    assert nxt["items"][0]["score"] == 85.7
+    assert counter["n"] == 3
+
+    # 其余两条各自结束本轮 → 整批完成
+    for item in nxt["items"]:
+        if item["status"] == "ready":
+            close_run(item["run_id"], 100.0, True)
     final = wait_until(lambda doc: doc.get("status") == "finished")
     assert final["done"] == 3 and final["total"] == 3
     assert all(i["status"] == "graded" for i in final["items"])
-    assert all(i["score"] == 42.0 for i in final["items"])
-    assert all(not i["sandbox"] and not i["drive"] for i in final["items"])
+    assert final["passed"] == 2, "TEST-01×model-a 第 1 轮未过；另两条满分"
     assert final["concurrency"] <= cfg["max_concurrency"]
 
 
+def test_batch_item_follows_later_rounds_then_ledger(cfg, monkeypatch):
+    """T3-08 的教训：第 1 轮 85.7、第 2 轮满分，批次行必须跟着走并以台账落定。
+
+    旧实现一看到 graded 就把条目判成「已完成」并钉死第 1 轮的分数，
+    于是用户第 2 轮做对、结束本轮写出 100 分的台账条目，批次页还挂着「85.7 未通过」。
+    """
+    from harness import results as ledger
+
+    run_id = "r-rounds"
+    state = {
+        "run_id": run_id, "task": "TEST-01", "model": "stub", "status": "ready",
+        "sandbox": "sandbox", "drive": "", "attempt": 1, "attempts_allowed": 2,
+        "rounds": [], "last_score": None, "last_passed": None,
+    }
+    closed = set()
+
+    def fake_get_run(c, rid):
+        if rid in closed:
+            raise errors.HarnessError(errors.E_RUN_NOT_FOUND, "没有这条运行记录。", rid)
+        return dict(state)
+
+    monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(state))
+    monkeypatch.setattr(batch.runs, "get_run", fake_get_run)
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+
+    doc = {
+        "batch_id": "b-rounds", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "pending", "events": []}],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    item = doc["items"][0]
+    gate = threading.Semaphore(0)
+    worker = threading.Thread(target=batch._run_item,
+                              args=(cfg, doc, item, gate, lambda message: None))
+    worker.start()
+    try:
+        def wait_for(predicate, label, timeout=6):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                if predicate():
+                    return
+                time.sleep(0.05)
+            pytest.fail("等待超时：%s（现状 %r）" % (label, item))
+
+        wait_for(lambda: item["status"] == "ready", "工作区就绪")
+
+        # 第 1 轮出分未全绿：槽位不许让出去
+        state.update({"status": "graded", "last_score": 85.7, "last_passed": False,
+                      "rounds": [{"attempt": 1, "score": 85.7, "passed": False}]})
+        wait_for(lambda: item["status"] == batch.AWAITING_STATUS, "第 1 轮等你结束本轮")
+        assert item["best_score"] == 85.7 and item["best_passed"] is False
+        assert gate.acquire(blocking=False) is False, "出分不是终点，槽位必须留着"
+
+        # 进入第 2 轮并做对：同一行要跟着刷成满分
+        state.update({"status": "ready", "attempt": 2})
+        wait_for(lambda: item["round"] == 2, "进入第 2 轮")
+        state.update({
+            "status": "graded", "last_score": 100.0, "last_passed": True,
+            "rounds": [{"attempt": 1, "score": 85.7, "passed": False},
+                       {"attempt": 2, "score": 100.0, "passed": True}],
+        })
+        wait_for(lambda: item["best_score"] == 100.0, "第 2 轮满分")
+        assert item["status"] == batch.AWAITING_STATUS
+        assert item["passed"] is True and item["best_passed"] is True
+        assert item["rounds"] == 2 and item["best_round"] == 2
+
+        # 用户点「结束本轮」：记录被收走、成绩进台账 → 条目按台账落定
+        entry = ledger.append_entry(cfg, ledger.make_entry(
+            "TEST-01", "stub", "stub", source_run_id=run_id,
+            rounds=2, best_round=2, score=100.0, passed=True, pass1=False))
+        closed.add(run_id)
+        worker.join(4)
+        assert not worker.is_alive()
+        assert item["status"] == "graded"
+        assert item["score"] == 100.0 and item["passed"] is True
+        assert item["rounds"] == 2 and item["best_round"] == 2
+        assert item["entry_id"] == entry["entry_id"]
+        assert item["ledgered"] is True
+        assert any("台账" in e["message"] for e in item["events"])
+        assert gate.acquire(blocking=False) is True, "落定后闸门必须释放"
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)
+
+
 def test_batch_survives_single_item_failure(cfg, monkeypatch):
-    """单条准备失败 → 该条 error，其余会话仍可准备并由用户评分。"""
+    """单条准备失败 → 该条 error，其余会话仍可准备并由用户收尾。"""
     _stub_model(cfg, monkeypatch, "stub")
     monkeypatch.setattr(batch.packs, "load_meta", lambda c, t: {
         "id": t, "title": "桩题", "tier": "easy", "attempts": 3, "pack_dir": ".",
     })
 
     seen = {"n": 0}
-    run_status = {}
+    run_state = {}
+    closed = set()
 
     def flaky_create_run(c, task, model, attempt=1, claim_queued=True, wait_s=0.0, log=None):
         seen["n"] += 1
         if seen["n"] == 1:
             raise errors.HarnessError(errors.E_DRIVE_UNAVAILABLE, "盘符池已用尽")
         run_id = "ok%d" % seen["n"]
-        run_status[run_id] = "ready"
-        return {"run_id": run_id, "task": task, "model": model, "status": "ready",
-                "sandbox": "sandbox", "drive": "Q:"}
+        run_state[run_id] = {
+            "run_id": run_id, "task": task, "model": model, "status": "ready",
+            "sandbox": "sandbox", "drive": "", "attempt": 1,
+            "rounds": [], "last_score": None, "last_passed": None,
+        }
+        return dict(run_state[run_id])
+
+    def fake_get_run(c, rid):
+        if rid in closed:
+            raise errors.HarnessError(errors.E_RUN_NOT_FOUND, "没有这条运行记录。", rid)
+        return dict(run_state[rid])
 
     monkeypatch.setattr(batch.runs, "create_run", flaky_create_run)
     monkeypatch.setattr(batch.runs, "start_grade", lambda *_: pytest.fail("批次不能自动评分"))
-    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
-        "run_id": rid, "status": run_status[rid], "last_score": 10.0, "last_passed": False,
-    })
+    monkeypatch.setattr(batch.runs, "get_run", fake_get_run)
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
     monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
 
@@ -511,10 +780,13 @@ def test_batch_survives_single_item_failure(cfg, monkeypatch):
     final = None
     while time.time() < deadline:
         doc = batch.get(cfg, batch_id)
-        if doc["items"][1]["status"] == "ready":
-            run_status[doc["items"][1]["run_id"]] = "graded"
-        if doc["items"][2]["status"] == "ready":
-            run_status[doc["items"][2]["run_id"]] = "graded"
+        for item in doc["items"]:
+            if item["status"] == "ready":
+                run_state[item["run_id"]].update({"status": "graded", "last_score": 10.0,
+                                                  "last_passed": False})
+            if item["status"] == batch.AWAITING_STATUS:
+                # 用户直接结束本轮（没有可计入台账的成绩 → discarded）
+                closed.add(item["run_id"])
         if doc.get("status") in {"finished", "cancelled"}:
             final = doc
             break
@@ -523,7 +795,7 @@ def test_batch_survives_single_item_failure(cfg, monkeypatch):
     assert final is not None
     statuses = [i["status"] for i in final["items"]]
     assert statuses.count("error") == 1
-    assert statuses.count("graded") == 2
+    assert statuses.count("discarded") == 2
     errored = [i for i in final["items"] if i["status"] == "error"][0]
     assert "盘符池已用尽" in errored["error"]
 
@@ -550,7 +822,7 @@ def test_cancel_marks_batch_cancelling(cfg):
 
 
 def test_cancel_spares_ready_session_until_it_settles(cfg, monkeypatch):
-    """停止不打扰已开工的条目：ready 的会话原地保留，评分后自然落定（2026-10-02 语义）。"""
+    """停止不打扰已开工的条目：ready 的会话原地保留，出分后让出槽位（2026-10-02 语义）。"""
     run_state = {"run_id": "r-cancel", "task": "TEST-01", "model": "stub",
                  "status": "ready", "sandbox": "sandbox", "drive": ""}
     released = []
@@ -586,13 +858,13 @@ def test_cancel_spares_ready_session_until_it_settles(cfg, monkeypatch):
     assert "cancel_requested" not in run_state
     assert not released
 
-    # 用户在工作台正常评分 → 条目自然落定，工作区照常回收
+    # 用户在工作台正常评分 → 批次已停止，不再等「结束本轮」：让出槽位并回收工作区
     run_state.update({"status": "graded", "last_score": 90.0, "last_passed": True})
     worker.join(2)
     assert not worker.is_alive()
     item = doc["items"][0]
-    assert item["status"] == "graded"
-    assert item["score"] == 90.0
+    assert item["status"] == "skipped"
+    assert item["score"] == 90.0 and item["passed"] is True
     assert released == ["r-cancel"]
     assert not item["sandbox"]
     assert gate.acquire(blocking=False)
@@ -642,12 +914,12 @@ def test_cancel_during_preparation_lets_it_finish(cfg, monkeypatch):
     assert "cancel_requested" not in run_state["r-prep"]
     assert not released
 
-    # 用户在工作台正常评分 → 条目自然落定，闸门释放
+    # 用户在工作台正常评分 → 批次已停止，出分即让出槽位，闸门释放
     run_state["r-prep"].update({"status": "graded", "last_score": 50.0, "last_passed": False})
     worker.join(3)
     assert not worker.is_alive()
     try:
-        assert doc["items"][0]["status"] == "graded"
+        assert doc["items"][0]["status"] == "skipped"
         assert doc["items"][0]["score"] == 50.0
         assert released == ["r-prep"]
         assert gate.acquire(blocking=False)
@@ -704,14 +976,16 @@ def test_cancel_while_gate_waiting_does_not_block_batch(cfg, monkeypatch):
     try:
         assert not scheduler.is_alive()
         assert doc["status"] == "cancelled"
-        assert [item["status"] for item in doc["items"]] == ["graded", "cancelled"]
+        # 停止后不再等「结束本轮」：出分即跳过让位（成绩以工作台为准）
+        assert [item["status"] for item in doc["items"]] == ["skipped", "cancelled"]
+        assert doc["items"][0]["score"] == 66.0
     finally:
         with batch._LOCK:
             batch._BATCHES.pop(doc["batch_id"], None)
 
 
 def test_cancel_during_grading_keeps_result_but_cancels_batch(cfg, monkeypatch):
-    """取消不强杀已开始的评分；评分结果保留，但批次终态为 cancelled。"""
+    """取消不强杀已开始的评分；评分结果保留在条目上，批次终态为 cancelled。"""
     run_state = {
         "run_id": "r-grading", "task": "TEST-01", "model": "stub", "status": "ready",
         "sandbox": "sandbox", "drive": "",
@@ -750,7 +1024,7 @@ def test_cancel_during_grading_keeps_result_but_cancels_batch(cfg, monkeypatch):
     try:
         assert not scheduler.is_alive()
         assert doc["status"] == "cancelled"
-        assert doc["items"][0]["status"] == "graded"
+        assert doc["items"][0]["status"] == "skipped"
         assert doc["items"][0]["score"] == 77.0
         assert doc["items"][0]["passed"] is True
     finally:

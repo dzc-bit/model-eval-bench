@@ -4,9 +4,15 @@
  * 职责：
  *   1. 选一组合任务 + 一组模型，做成笛卡尔积，一次排进后台并发执行。
  *   2. 并发数可调，上限由本地配置控制。
- *   3. 实时进度：逐条展示 排队/准备沙箱/校验中/已完成/失败，带得分与通过标记。
+ *   3. 实时进度：逐条展示 排队/准备沙箱/校验中/已出分等结束本轮/已结束，带分数与通过标记。
  *   4. 结果用 result-mark 动画标记每一条的成败（与工作台同一套视觉语言）。
  *   5. 可取消：已开跑的跑完当前一步，未开始的不再派发。
+ *
+ * 节拍（2026-10-02 用户口径）：**一条占一个槽位，直到用户在工作台点「结束本轮」**。
+ * 校验出分只是 `awaiting_finish`（分数、轮次继续刷新），队列不会往下派；
+ * 记录被收尾出口收走之后，条目才按台账落定成 `graded`（进台账）或
+ * `discarded`（结束但没成绩）。批次已停止时出分即 `skipped`（让出槽位），
+ * 免得一条没去收尾的记录把整批卡死。
  *
  * 状态：loading / ready / running / empty / error。
  * 键盘：任务与模型是多选列表，原生 checkbox 可 Tab + Space。
@@ -16,13 +22,14 @@
  *   POST /api/batches            {tasks[], models[], attempt, concurrency} → 批次
  *   GET  /api/batches/{id}       批次进度
  *   POST /api/batches/{id}/cancel
+ *   POST /api/batches/{id}/remove {index}   排队中=移除；已出分等结束本轮=跳过
  *
  * 依赖：core/*、components/*
  * 导出：createBatch(props) → { el, destroy, el_h1 }
  */
 
 import { el, clear, setText } from '../core/dom.js';
-import { S, TIER_NAMES } from '../core/strings.js';
+import { S, TIER_NAMES, t } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { announce } from '../core/a11y.js';
 import { createButton } from '../components/button.js';
@@ -43,23 +50,49 @@ const T = {
   RELEASE_BODY: '只删沙箱目录；成绩、报告与对话记录都留在 runs/ 里，需要再看随时能打开。',
   REMOVE_TITLE: '把这条移出批次？',
   REMOVE_BODY: '只有还没开工的排队条目可以移除；正在跑的条目不受影响，会照常跑完。',
-  REMOVE_DISABLED_HINT: '只有还没开工的排队条目可以移除；已开工的请到工作台收尾',
+  SKIP_TITLE: '跳过这一条，把槽位让给队列？',
+  SKIP_BODY: '这一条已经出分了，只是还没回工作台点「结束本轮」。跳过只让出批次槽位：'
+    + '它的运行记录、对话与成绩仍然归工作台管，之后点「结束本轮」照样进台账。',
+  REMOVE_DISABLED_HINT: '只有排队中的能移除、已出分等结束本轮的能跳过；其余请到工作台收尾',
   ITEM_ANSWER_BUSY: '模型作答中…',
-  ITEM_ANSWER_DONE: '作答已结束，等待评分',
-  ITEM_ANSWER_BUSY_REASON: '模型还在作答，等这条消息结束后再启动评分',
+  ITEM_ANSWER_DONE: '作答已结束，等待校验',
+  ITEM_ANSWER_BUSY_REASON: '模型还在作答，等这条消息结束后再运行校验',
   HEADER_ACTIVE: '作答/校验中',
-  HEADER_AWAITING: '等评分',
+  HEADER_AWAITING: '等结束本轮',
+  HEADER_READY: '等校验',
+  // 已出分但还没结束本轮：队列会一直等在这里（这就是「一条一条收尾」的节拍）
+  ITEM_AWAITING: '已出分 {score} 分，等你回工作台点「结束本轮」，队列才会派下一条',
+  ITEM_AWAITING_PASS: '已出分 {score} 分（全绿），等你回工作台点「结束本轮」，队列才会派下一条',
+  ITEM_BEST: '最高 {score} 分 · 第 {n} 轮',
+  ITEM_ROUNDS: '已校验 {n} 轮',
+  ITEM_LEDGER: '已记入台账 {id}',
+  ITEM_NO_LEDGER: '结束本轮时没有可计入台账的成绩',
+  ITEM_SKIPPED: '已跳过：槽位让给队列，成绩仍以工作台「结束本轮」为准',
+  SCORE_THIS_ROUND: '第 {n} 轮 {score} 分',
 };
-/** 单条状态 → 中文标签与状态点种类。 */
+
+/**
+ * 单条状态 → 中文标签与状态点种类。
+ *
+ * 「一条一条收尾」的节拍（2026-10-02）：出分只是 `awaiting_finish`，
+ * 用户回工作台点「结束本轮」之后条目才落定成 `graded`（进台账）或
+ * `discarded`（结束但没成绩）。`skipped` = 批次停止/用户主动跳过时让出槽位。
+ */
 const ITEM_STATE = {
   pending: { text: '排队中', kind: 'idle' },
   preparing: { text: '正在准备沙箱', kind: 'busy' },
-  ready: { text: '工作区就绪，等待评分', kind: 'ok' },
+  ready: { text: '工作区就绪，等待校验', kind: 'ok' },
   grading: { text: '正在校验', kind: 'busy' },
-  graded: { text: '已完成', kind: 'ok' },
+  awaiting_finish: { text: '已出分，等你结束本轮', kind: 'warn' },
+  graded: { text: '已结束本轮', kind: 'ok' },
+  discarded: { text: '已结束（没留成绩）', kind: 'idle' },
+  skipped: { text: '已跳过（让出槽位）', kind: 'warn' },
   error: { text: '失败', kind: 'error' },
   cancelled: { text: '已取消', kind: 'warn' },
 };
+
+/** 条目的终态：到了这里就不用再去工作台收尾。 */
+const TERMINAL_ITEM_STATE = new Set(['graded', 'discarded', 'error', 'cancelled', 'skipped']);
 
 /**
  * 已废弃机制的历史错误文案。盘符池（Q:/R:/S: + subst）已从 harness 移除，
@@ -125,7 +158,9 @@ export function createBatch(props = {}) {
     'div',
     { class: 'view' },
     el('div', { class: 'view__head' },
-      el('div', {}, h1, el('p', { class: 'view__desc' }, '每题 × 每模型一个独立工作区：发提示词 → 模型改代码 → 跑评分。')),
+      el('div', {}, h1, el('p', { class: 'view__desc' },
+        '每题 × 每模型一个独立工作区：发提示词 → 模型改代码 → 运行校验 → 在工作台点「结束本轮」收尾。'
+        + '一条收尾之后，队列里的下一条才开工。')),
     ),
     errorHost,
     setupHost,
@@ -202,7 +237,8 @@ export function createBatch(props = {}) {
   setupHost.appendChild(
     el('section', { class: 'panel' },
       el('h2', { class: 'panel__title' }, S.BATCH_SETUP_TITLE),
-      el('p', { class: 'u-faint' }, '每题 × 每模型一个独立工作区，评分后自动回收。'),
+      el('p', { class: 'u-faint' },
+        '每题 × 每模型一个独立工作区；每一条在工作台点「结束本轮」后释放工作区，队列才继续派下一条。'),
       el('div', { class: 'batch__pickers' },
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_TASKS), taskListEl),
         el('div', {}, el('h3', { class: 'batch__pick-title' }, S.BATCH_PICK_MODELS), modelListEl),
@@ -419,19 +455,25 @@ export function createBatch(props = {}) {
       onClick: async () => {
         const batchId = progressView && progressView.batchId;
         if (!batchId || current.index === undefined) return;
+        // 排队中 = 移除（不会再派发）；已出分等结束本轮 = 跳过（只让出槽位）
+        const skipping = current.status === 'awaiting_finish';
         const ok = await confirmDialog({
-          title: T.REMOVE_TITLE,
-          messages: [T.REMOVE_BODY],
-          confirmLabel: '移除',
+          title: skipping ? T.SKIP_TITLE : T.REMOVE_TITLE,
+          messages: [skipping ? T.SKIP_BODY : T.REMOVE_BODY],
+          confirmLabel: skipping ? '跳过' : '移除',
           cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
           danger: true,
         });
         if (!ok) return;
-        removeBtn.update({ loading: true, busyLabel: '正在移除' });
+        removeBtn.update({ loading: true, busyLabel: skipping ? '正在跳过' : '正在移除' });
         try {
           const res = await api.post(`/batches/${encodeURIComponent(batchId)}/remove`,
             { index: current.index }, { scope });
-          showToast({ message: '已移出批次', detail: res.message || '', kind: 'success' });
+          showToast({
+            message: skipping ? '已跳过这一条' : '已移出批次',
+            detail: res.message || '',
+            kind: 'success',
+          });
           await load();
         } catch (err) {
           const code = err instanceof ApiError ? err.code : 'INTERNAL';
@@ -468,6 +510,7 @@ export function createBatch(props = {}) {
       errorNode,
       legacyNote,
     );
+    const hintNode = el('span', { class: 'u-faint batch__item-hint', hidden: true });
     const head = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
       mark.el, main, el('span', { class: 'u-spacer' }), score, statusDot.el);
     const actions = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
@@ -475,37 +518,65 @@ export function createBatch(props = {}) {
     const card = el('li', {
       class: `batch__item batch__item--${initialItem.status}`,
       style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '0' },
-    }, head, actions, promptDetails, eventDetails);
+    }, head, hintNode, actions, promptDetails, eventDetails);
 
     return {
       el: card,
       update(item) {
         current = item;
         const stateNow = ITEM_STATE[item.status] || { text: item.status, kind: 'idle' };
-        const done = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
-        // ready 是两件事的合体：「模型还在作答」与「作答已结束、等人工评分」。
-        // chat_busy 由轮询逐条补查；未知（还没查到）时按等待评分显示，不假装在跑。
+        const done = TERMINAL_ITEM_STATE.has(item.status);
+        const awaiting = item.status === 'awaiting_finish';
+        // ready 是两件事的合体：「模型还在作答」与「作答已结束、等校验」。
+        // chat_busy 由轮询逐条补查；未知（还没查到）时按等待校验显示，不假装在跑。
         const answerBusy = item.status === 'ready' && item.chat_busy === true;
         const answerDone = item.status === 'ready' && item.chat_busy === false;
+        // 通过/失败看「最好的一轮」：第 2 轮才做对也算做对（T3-08 的教训）
+        const bestPassed = Boolean(item.best_passed);
         const markKind = item.status === 'error' ? 'fail'
-          : item.status === 'graded' ? (item.passed ? 'pass' : 'fail')
-            : item.status === 'ready' ? (answerBusy ? 'busy' : 'idle')
-              : item.status === 'pending' || item.status === 'cancelled' ? 'idle' : 'busy';
-        mark.update({ kind: markKind, animate: done, label: '' });
+          : item.status === 'graded' ? (bestPassed ? 'pass' : 'fail')
+            : awaiting ? (bestPassed ? 'pass' : 'busy')
+              : item.status === 'ready' ? (answerBusy ? 'busy' : 'idle')
+                : item.status === 'pending' || item.status === 'cancelled'
+                  || item.status === 'discarded' || item.status === 'skipped' ? 'idle' : 'busy';
+        mark.update({ kind: markKind, animate: done && item.status !== 'discarded' && item.status !== 'skipped', label: '' });
         if (answerBusy) {
           statusDot.update({ kind: 'busy', text: T.ITEM_ANSWER_BUSY });
         } else if (answerDone) {
           statusDot.update({ kind: 'ok', text: T.ITEM_ANSWER_DONE });
+        } else if (awaiting) {
+          const shown = item.score === null || item.score === undefined ? '—' : item.score;
+          statusDot.update({
+            kind: bestPassed ? 'ok' : 'warn',
+            text: t(bestPassed ? T.ITEM_AWAITING_PASS : T.ITEM_AWAITING, { score: shown }),
+          });
         } else {
           statusDot.update({ kind: stateNow.kind, text: stateNow.text });
         }
         // 通过/失败必须上类：views.css 的 --pass/--fail 左边框规则靠它生效，
         // 否则完成的行全部同灰，多列网格里成功失败无法扫读。
-        const passFail = item.status === 'graded'
-          ? (item.passed ? ' batch__item--pass' : ' batch__item--fail') : '';
+        const passFail = item.status === 'graded' || awaiting
+          ? (bestPassed ? ' batch__item--pass' : ' batch__item--fail') : '';
         card.className = `batch__item batch__item--${item.status}${passFail}`;
-        score.hidden = item.status !== 'graded';
-        setText(score, `${item.score === null || item.score === undefined ? '—' : item.score} 分`);
+        // 分数：出分后一直显示当前这一轮的分；已落定的条目显示台账代表分。
+        const hasScore = item.score !== null && item.score !== undefined;
+        score.hidden = !hasScore;
+        setText(score, hasScore ? `${item.score} 分` : '');
+        // 「最高分 / 第几轮 / 台账条目」三行辅助事实：让「第 2 轮才做对」一眼看得出来
+        const facts = [];
+        if (item.rounds > 1 && item.best_score !== null && item.best_score !== undefined) {
+          facts.push(t(T.ITEM_BEST, { score: item.best_score, n: item.best_round || item.rounds }));
+        }
+        if (!awaiting && item.status !== 'pending' && item.rounds > 1) {
+          facts.push(t(T.ITEM_ROUNDS, { n: item.rounds }));
+        }
+        if (item.status === 'graded' && item.entry_id) {
+          facts.push(t(T.ITEM_LEDGER, { id: item.entry_id }));
+        }
+        if (item.status === 'discarded') facts.push(T.ITEM_NO_LEDGER);
+        if (item.status === 'skipped') facts.push(T.ITEM_SKIPPED);
+        hintNode.hidden = facts.length === 0;
+        setText(hintNode, facts.join(' · '));
         setText(runId, item.run_id ? `运行：${item.run_id}` : '');
         runId.hidden = !item.run_id;
         setText(path, item.sandbox ? `目录：${item.sandbox}` : '');
@@ -515,7 +586,7 @@ export function createBatch(props = {}) {
           openLink.href = `#/workspace/${encodeURIComponent(item.task)}/chat/${encodeURIComponent(item.run_id)}`;
           if (item.status !== 'ready') gradeRequested = gradeRequested || item.status === 'grading'
             || item.status === 'graded' || item.status === 'error';
-          // 对话还在飞时评分必然被后端拒绝：给禁用态 + 原因，别让人点完才知道。
+          // 对话还在飞时校验必然被后端拒绝：给禁用态 + 原因，别让人点完才知道。
           gradeBtn.update({
             disabled: item.status !== 'ready' || gradeRequested || answerBusy,
             reason: answerBusy && !gradeRequested ? T.ITEM_ANSWER_BUSY_REASON : '',
@@ -523,15 +594,19 @@ export function createBatch(props = {}) {
         } else {
           gradeBtn.update({ disabled: true });
         }
-        // 评分结束后沙箱还占着磁盘：批次监控线程一死（服务重启）就没人自动回收，
+        // 收尾之后沙箱还占着磁盘：批次监控线程一死（服务重启）就没人自动回收，
         // 所以只要这一条已经收束又还有工作区，就给一个手动关掉的入口。
-        const terminal = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
+        const terminal = TERMINAL_ITEM_STATE.has(item.status);
         releaseBtn.el.hidden = !(terminal && item.sandbox);
-        // 排队中的条目可移出批次；已开工的给禁用态 + 原因（出口不条件隐藏），
-        // 终态条目没有可移除的东西，直接隐藏。
+        // 排队中的可移出；已出分等结束本轮的可以跳过（让出槽位，记录与成绩仍归工作台）；
+        // 其余状态给禁用态 + 原因（出口不条件隐藏），终态没有可操作的东西，直接隐藏。
+        const removable = item.status === 'pending' || awaiting;
         removeBtn.el.hidden = terminal;
-        removeBtn.el.title = item.status === 'pending' ? '' : T.REMOVE_DISABLED_HINT;
-        removeBtn.update({ disabled: item.status !== 'pending' });
+        removeBtn.el.title = removable ? '' : T.REMOVE_DISABLED_HINT;
+        removeBtn.update({
+          label: awaiting ? '跳过（让出槽位）' : '移除',
+          disabled: !removable,
+        });
         promptPre.textContent = item.prompt || '这道题没有配置当前轮提示词。';
         promptCopy.update({ getText: () => String(current.prompt || '') });
         const nextEvents = item.events || [];
@@ -584,6 +659,7 @@ export function createBatch(props = {}) {
       const count = el('span', { class: 'batch__count' });
       const runningValue = el('span');
       const readyValue = el('span');
+      const awaitingValue = el('span');
       const queuedValue = el('span');
       const passedValue = el('span');
       const concurrencyValue = el('span', { class: 'u-faint' });
@@ -601,7 +677,7 @@ export function createBatch(props = {}) {
         el('div', { class: 'u-stack', style: { gap: '2px' } },
           el('span', { class: 'u-faint' }, S.BATCH_PROGRESS_LABEL), count),
         el('div', { class: 'batch__stats' },
-          runningValue, readyValue, queuedValue, passedValue, concurrencyValue, batchState.el),
+          runningValue, readyValue, awaitingValue, queuedValue, passedValue, concurrencyValue, batchState.el),
         el('span', { class: 'u-spacer' }),
         el('span', { class: 'u-mono u-faint' }, batch.batch_id || ''),
       );
@@ -616,7 +692,7 @@ export function createBatch(props = {}) {
       progressHost.appendChild(section);
       progressView = {
         batchId: batch.batch_id,
-        count, runningValue, readyValue, queuedValue, passedValue,
+        count, runningValue, readyValue, awaitingValue, queuedValue, passedValue,
         concurrencyValue, batchState, bar, fill, list,
       };
     }
@@ -626,17 +702,20 @@ export function createBatch(props = {}) {
     const passed = batch.passed || 0;
     const items = batch.items || [];
     // 「作答/校验中」只数真在跑的：准备、校验、对话在飞的作答。ready 而对话
-    // 已结束的是「等评分」，不再冒充进行中（2026-10-02 用户实测的误导）。
+    // 已结束的是「等校验」，不再冒充进行中（2026-10-02 用户实测的误导）。
     const activeNow = items.filter((item) => item.status === 'preparing' || item.status === 'grading'
       || (item.status === 'ready' && item.chat_busy === true)).length;
-    const awaiting = items.filter((item) => item.status === 'ready' && item.chat_busy !== true).length;
+    const readyNow = items.filter((item) => item.status === 'ready' && item.chat_busy !== true).length;
+    // 「等结束本轮」= 出分了但用户还没收尾：槽位还占着，队列不会往下派
+    const awaitingNow = items.filter((item) => item.status === 'awaiting_finish').length;
     const queued = batch.queued === undefined
       ? items.filter((item) => item.status === 'pending').length
       : batch.queued;
     const pct = total ? Math.round((done / total) * 100) : 0;
     setText(progressView.count, `${done} / ${total}`);
     setText(progressView.runningValue, `${T.HEADER_ACTIVE} ${activeNow}`);
-    setText(progressView.readyValue, `${T.HEADER_AWAITING} ${awaiting}`);
+    setText(progressView.readyValue, `${T.HEADER_READY} ${readyNow}`);
+    setText(progressView.awaitingValue, `${T.HEADER_AWAITING} ${awaitingNow}`);
     setText(progressView.queuedValue, `排队 ${queued}`);
     setText(progressView.passedValue, `${S.BATCH_PASSED} ${passed}`);
     setText(progressView.concurrencyValue, `并发 ${batch.concurrency}`);

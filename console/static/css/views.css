@@ -1200,6 +1200,98 @@ kbd.key {
   text-align: center;
 }
 
+/* ---------- 题目现象速查（帮助页）----------
+   一道题一个折叠节点：摘要行给「题号 · 档位 · 次数 · 标题」，展开是四行事实。
+   默认全收起——11 道题摊开是一堵墙，速查要的是先扫到题号与标题。 */
+.help__task-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.help__task {
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.help__task-summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: var(--control-height-lg);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--radius-md);
+}
+.help__task-summary::-webkit-details-marker {
+  display: none;
+}
+.help__task-summary::before {
+  content: '›';
+  flex: 0 0 auto;
+  color: var(--color-text-faint);
+}
+.help__task[open] > .help__task-summary::before {
+  transform: rotate(90deg);
+}
+.help__task-summary:hover {
+  background: var(--color-surface-2);
+}
+
+.help__task-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.help__task-tier {
+  white-space: nowrap;
+}
+
+.help__task-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+}
+
+.help__task-facts {
+  display: grid;
+  grid-template-columns: minmax(8em, max-content) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4) var(--space-5);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.help__task-facts dt {
+  color: var(--color-text-faint);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.help__task-facts dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+}
+
+@media (max-width: 640px) {
+  .help__task-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .help__task-facts dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
 /* ---------- 术语表 ----------
    不用卡片：14 个术语各套一个边框盒子，读起来像 14 张并列的卡，
    扫读时找不到「下一个词从哪开始」。改成定义列表——术语一行、释义缩进跟随，
@@ -1545,6 +1637,16 @@ kbd.key {
 .batch__item--ready {
   border-left: 3px solid var(--color-success);
 }
+/* 「已出分，等你结束本轮」：槽位还占着，队列没动——用琥珀色区分「完成」 */
+.batch__item--awaiting_finish {
+  border-left: 3px solid var(--color-warn);
+  background: var(--color-warn-soft);
+}
+/* 已跳过 / 结束但没成绩：不算成功也不算失败，灰着 */
+.batch__item--skipped,
+.batch__item--discarded {
+  border-left: 3px solid var(--color-border-strong);
+}
 .batch__item--pending {
   border-left: 3px solid var(--color-border-strong);
 }
@@ -1567,6 +1669,12 @@ kbd.key {
 .batch__item-error {
   font-size: var(--font-size-xs);
   color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
+
+/* 条目辅助事实（最高分 / 第几轮 / 台账条目）：一行小字，说明「第 2 轮才做对」 */
+.batch__item-hint {
+  font-size: var(--font-size-xs);
   overflow-wrap: anywhere;
 }
 
@@ -1660,17 +1768,35 @@ kbd.key {
   }
 }
 
-/* 工作台路由的外壳修正：把主区的上下内边距让给两条粘性栏。
-   粘性定位的 inset 是相对滚动容器的**内容盒**算的，而 .app-main 上下都有内边距
-   （--space-6 / --space-9）。于是 top:0 的状态栏停在离顶 24px 处、bottom:0 的操作栏
-   停在离底 56px 处，两条缝里都有对话内容滚过去——「标题没有真正置顶」就是这么来的。
-   实测过负 margin 拉出去：底栏那条有效，顶栏那条无效（仍被内容盒上沿夹住），
-   所以唯一可靠的做法是这里归零、由 workspace.css 把同样的间距补回两条栏自己身上。
-
-   选择器只能写成 .app-main > #app-root：视图是挂在 #app-root 里的，#app-root 才是
-   .app-main 的直接子元素。写成 .app-main > .view-enter 一类永远匹配不上（上一版就
-   是这么写的，整块规则从未生效）。 */
+/* 工作台路由的外壳修正：把主区的上下内边距让给两条状态栏。
+   （历史：粘性定位的 inset 相对滚动容器的内容盒算，.app-main 上下都有内边距时
+   状态栏会停在离边 24px/56px 处，缝里滚过对话内容。2026-10-02 三改后工作台
+   不再依赖 sticky——滚动交给对话列自己的 .ws-scroll，主区只是把高度让出来。）
+   选择器只能写成 .app-main > #app-root：视图挂在 #app-root 里，#app-root 才是
+   .app-main 的直接子元素。 */
 .app-main:has(> #app-root > .view.ws) {
   padding-top: 0;
   padding-bottom: 0;
+  /* 主区自身不再滚动：滚动条归位到对话列右缘（.ws-scroll），
+     挨着正在读的那一列，而不是窗口最右侧那根全局滚动条。 */
+  overflow-y: hidden;
+}
+
+/* 高度链：.app-main（grid 行 minmax(0,1fr)）→ #app-root → .ws（height:100%）。
+   少了这一环，百分比高度解析不到，.ws-scroll 的 overflow:auto 就没有确定高度，
+   对话列会一路撑高、滚动条又跑回主区。 */
+.app-main:has(> #app-root > .view.ws) > #app-root {
+  height: 100%;
+  min-height: 0;
+}
+
+/* 窄屏：外壳本来就不锁高（base.css 的 max-width:900px 分支），工作台退回整页滚动 */
+@media (max-width: 900px) {
+  .app-main:has(> #app-root > .view.ws) {
+    overflow-y: visible;
+  }
+
+  .app-main:has(> #app-root > .view.ws) > #app-root {
+    height: auto;
+  }
 }

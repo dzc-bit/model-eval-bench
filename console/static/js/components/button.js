@@ -24,12 +24,15 @@ let seq = 0;
  *
  * @param {{
  *   label?: string, variant?: 'default'|'primary'|'danger'|'ghost',
- *   size?: 'sm'|'md'|'lg', icon?: string, kbd?: string,
+ *   size?: 'sm'|'md'|'lg', icon?: string, iconNode?: Element, kbd?: string,
  *   loading?: boolean, loadingLabel?: string, busyLabel?: string,
  *   disabled?: boolean, reason?: string, reasonTone?: 'warn'|'danger'|'success',
  *   ariaLabel?: string, title?: string, block?: boolean, pressed?: boolean,
  *   onClick?: (ev: MouseEvent) => void
  * }} [props]
+ *   `icon` 是文本字形（▶ ↗ ⧉），`iconNode` 是真正的图形节点（components/icons.js 的
+ *   SVG）。状态栏那两个图标按钮要有线稿图标，字形的「ⓘ」看起来像坏掉的界面；
+ *   两者同时给时以 `iconNode` 为准，且都算「图标按钮」（无可见文字时套 btn--icon）。
  * @returns {{el: HTMLElement, update: Function, destroy: Function, focus: Function}}
  */
 export function createButton(props = {}) {
@@ -101,7 +104,15 @@ export function createButton(props = {}) {
     const next = readState();
 
     setText(labelSpan, next.label);
-    setText(iconSpan, current.icon || '');
+    // 图形节点只在换了的时候重挂：轮询里每次重建 SVG 会让按钮闪一下
+    if (current.iconNode) {
+      if (iconSpan.firstChild !== current.iconNode) {
+        iconSpan.textContent = '';
+        iconSpan.appendChild(current.iconNode);
+      }
+    } else {
+      setText(iconSpan, current.icon || '');
+    }
     if (current.kbd) {
       if (!kbdSpan) {
         kbdSpan = el('kbd', { class: 'btn__kbd', 'aria-hidden': 'true' }, current.kbd);
@@ -112,11 +123,12 @@ export function createButton(props = {}) {
     }
 
     // 类名
+    const hasIcon = Boolean(current.icon || current.iconNode);
     const className = [
       'btn',
       current.variant && current.variant !== 'default' ? `btn--${current.variant}` : '',
       current.size && current.size !== 'md' ? `btn--${current.size}` : '',
-      current.icon && !current.label ? 'btn--icon' : '',
+      hasIcon && !current.label ? 'btn--icon' : '',
       current.block ? 'btn--block' : '',
     ]
       .filter(Boolean)

@@ -1382,6 +1382,11 @@ def _cell_stats(entries: List[dict]) -> dict:
         "pass_rate": round(pass1 / attempts, 3) if attempts else 0.0,
         "best_score": round(_score(best_entry), 1) if best_entry else 0.0,
         "best_rounds": int(best_entry.get("rounds") or 1) if best_entry else 0,
+        # 代表条目「最好的一次」到底全绿没有。格子上的第一眼结论必须用它：
+        # T3-08 第 1 轮 85.7 未过、第 2 轮 100 全绿，只报 pass1 会让记分板
+        # 顶着一个 ✕，而台账里那条成绩其实是 passed=true（2026-10-02 用户实测）。
+        "best_passed": bool(best_entry.get("passed")) if best_entry else False,
+        "best_round": int(best_entry.get("best_round") or 1) if best_entry else 0,
         "avg_score": round(sum(scores) / len(scores), 1) if scores else 0.0,
         "last_at": last_at,
         # 台账条目 id：台账是成绩不是记录，没有「回工作台打开」这条路，

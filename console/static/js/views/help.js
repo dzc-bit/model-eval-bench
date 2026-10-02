@@ -5,8 +5,10 @@
  *   h1 页面标题 → h2 章节（左侧目录一级）→ h3 小节 → 段落 / 列表 / 表格 / 提示块
  * 阅读顺序即文档顺序：正文单栏到底，只有等宽短条目（术语表）用多栏。
  *
- * 渲染纪律：本页**零业务数据**，全部是常量文案。仍然一律走 `el()` + textContent，
- * 不用 innerHTML（§10.3 允许的静态模板例外在本项目实测不需要，故一律不写）。
+ * 渲染纪律：本页除「题目现象速查」一节外**零业务数据**，其余全部是常量文案。
+ * 那一节的题面速查数据来自同目录的 help-tasks.js（出题者视角的静态速查，不是接口数据），
+ * 渲染仍然一律走 `el()` + textContent，不用 innerHTML（§10.3 允许的静态模板例外在本项目
+ * 实测不需要，故一律不写）。
  *
  * 状态：静态单页。滚动时左侧目录高亮当前章节（IntersectionObserver）。
  * 键盘：目录是页内锚点，Tab 可达；正文 heading 层级与视觉顺序一致。
@@ -17,8 +19,26 @@
  */
 
 import { el, on } from '../core/dom.js';
-import { S } from '../core/strings.js';
+import { S, t } from '../core/strings.js';
 import { focusHeading } from '../core/a11y.js';
+import { TASK_NOTES, TIER_LABEL } from './help-tasks.js';
+
+
+/** 「题目现象速查」章节文案（strings.js 冻结，新增一律走本地常量）。 */
+const T = {
+  TASKS_LEAD: '这一节是出题者视角的速查：每道题在测什么、注入的 bug 长什么样（现象）、'
+    + '根因落在哪个模块、这一轮校验会盯哪几个出口、正确的修复方向是什么。'
+    + '跑之前先知道 bug 的具体情况，看模型的回答与校验红绿时才有判断依据。',
+  TASKS_TIP: '这里不写参考解代码，也不列隐藏用例的文件名——参考解只能在某一轮「查看参考解」时揭晓，'
+    + '揭晓过的那一轮成绩永不进台账。',
+  TASKS_COUNT: '共 {n} 道题',
+  TASK_SYMPTOM: '使用者看到的现象',
+  TASK_ROOT: '注入的根因',
+  TASK_CHECK: '这一轮校验盯什么',
+  TASK_FIX: '正确的修复方向',
+  TIER_FALLBACK: '未标档',
+  ATTEMPTS: '{n} 次机会',
+};
 
 
 
@@ -79,6 +99,7 @@ const TOC = [
   { id: 'help-flow', label: S.HELP_FLOW_TITLE },
   { id: 'help-sandbox', label: S.HELP_SANDBOX_TITLE },
   { id: 'help-grade', label: S.HELP_GRADE_TITLE },
+  { id: 'help-tasks', label: '题目现象速查' },
   { id: 'help-shortcut', label: S.HELP_SHORTCUT_TITLE },
   { id: 'help-a11y', label: S.HELP_A11Y_TITLE },
   { id: 'help-trouble', label: S.HELP_TROUBLE_TITLE },
@@ -269,6 +290,53 @@ export function createHelp(props = {}) {
     bullets([S.HELP_GRADE_TERM_6, S.HELP_GRADE_TERM_5]),
   ]);
 
+  // ==================== 题目现象速查（出题者视角，逐题速查） ====================
+  /**
+   * 一道题一块折叠节点：摘要行给「题号 · 档位 · 次数 · 标题」，
+   * 展开是四行事实（现象 / 根因 / 校验盯什么 / 修复方向）。
+   * 默认全收起：11 道题全摊开是一堵墙，速查要的是「先看到题号与标题」。
+   */
+  function taskBlock(note) {
+    const tierLabel = TIER_LABEL[note.tier] || note.tier || T.TIER_FALLBACK;
+    const meta = `${tierLabel} · ${t(T.ATTEMPTS, { n: note.attempts })}`;
+    const rows = [
+      [T.TASK_SYMPTOM, note.symptom],
+      [T.TASK_ROOT, note.root],
+      [T.TASK_CHECK, note.check],
+      [T.TASK_FIX, note.fix],
+    ];
+    return el(
+      'details',
+      { class: 'help__task' },
+      el(
+        'summary',
+        { class: 'help__task-summary' },
+        el('span', { class: 'help__task-id' }, note.id),
+        el('span', { class: 'help__task-tier u-faint' }, meta),
+        el('span', { class: 'help__task-title' }, note.title),
+      ),
+      el(
+        'dl',
+        { class: 'help__task-facts' },
+        ...rows.flatMap(([label, text]) => [
+          el('dt', {}, label),
+          el('dd', {}, text),
+        ]),
+      ),
+    );
+  }
+
+  const tasksSection = section('help-tasks', '题目现象速查', [
+    el('p', {}, T.TASKS_LEAD),
+    el('p', { class: 'u-faint' }, t(T.TASKS_COUNT, { n: TASK_NOTES.length })),
+    tip(T.TASKS_TIP),
+    el(
+      'div',
+      { class: 'help__task-list' },
+      ...TASK_NOTES.map((note) => taskBlock(note)),
+    ),
+  ]);
+
   // ==================== 快捷键 ====================
   const shortcutRows = SHORTCUTS.map((s) =>
     el('tr', {},
@@ -337,6 +405,7 @@ export function createHelp(props = {}) {
     flowSection,
     sandboxSection,
     gradeSection,
+    tasksSection,
     shortcutSection,
     a11ySection,
     troubleSection,

@@ -318,6 +318,10 @@
 .modal--wide {
   width: min(900px, 100%);
 }
+/* slim：状态栏图标点开的小窗口（运行详情 / 本轮备注）——内容短，窗口别铺满 */
+.modal--slim {
+  width: min(560px, 100%);
+}
 .modal--danger {
   border-top: 4px solid var(--color-danger);
 }

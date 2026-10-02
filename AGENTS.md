@@ -40,6 +40,24 @@
 `chat_busy` 来自服务端内存里的发送线程计数，重启即清零——别为了让按钮可点去改门禁，
 该做的是把原因写在按钮上。
 
+## 跑批节拍（2026-10-02 二改：一条一条收尾）
+
+**一个条目占一个槽位，直到用户在工作台点「结束本轮」**（或废弃、或手动跳过）：
+
+- 校验出分只把条目推进到 `awaiting_finish`（分数随轮次刷新，槽位仍占着），
+  队列**不会**往下派下一条。旧实现一看到 `run.status=graded` 就回收槽位并判「已完成」，
+  于是用户还在读第一轮结果，下一题已经开跑，而这一条第 1 轮的分数被永久钉死
+  ——T3-08 就是这么变成「85.7 未通过、第一轮后就结束」的（台账里其实是第 2 轮 100 分）。
+- 收尾出口把运行记录整条删掉之后，条目按**台账**落定：有条目 → `graded`
+  （分数、轮数、通过与否全部抄台账）；没条目（废弃本轮 / 没成绩就结束）→ `discarded`。
+- 读侧对账（`batch._reconcile`）拿同一套口径修历史快照，连**已经是 `graded` 的旧行**
+  也按台账校一遍代表分——2026-10-02 之前的老批次因此能被就地修正。
+- 批次停止（`cancel`）时出分即 `skipped` 让出槽位，免得一条没人去收尾的记录把整批卡死；
+  手动「移除」只对 `pending` 生效，`awaiting_finish` 的条目走「跳过（让出槽位）」，
+  两种操作都不动它的运行记录与成绩。
+- 条目状态词：`pending/preparing/ready/grading/awaiting_finish/graded/discarded/skipped/error/cancelled`；
+  前端的 `TERMINAL_ITEM_STATE` 必须与后端的 `TERMINAL_ITEM_STATUS` 对齐。
+
 ## 收尾语义（硬纪律：一个出口就是彻底结束）
 
 工作台只有**一个收尾出口**，另外两个不是它的替代品：
@@ -97,6 +115,10 @@
 - 排行榜排序（`runs.task_leaderboard`）：最高分 → 轮数少 → 模型工作时间；同一模型只占一行，
   `attempts` 一并下发，让人看得出最高分那条是稳出来的还是撞出来的。
 - 记分板与排行榜必须同口径、同数据源（同一份台账），历史上两套视图给过互相矛盾的结论，别再分叉。
+- **格子第一眼结论看「代表条目有没有全绿」**（`_cell_stats.best_passed`），不是 `pass1`：
+  中级以上题目有 2–3 次机会，只报 pass@1 会让「第 2 轮做对」的格子顶着 ✕（T3-08 实测）。
+  `pass1` / `pass_rate` 仍然下发，作为稳定性副标；`best_round` 是代表条目第几轮拿到这个分，
+  `best_rounds` 是那次尝试校验了几轮——前端别拿错字段（T2-04 会写成「最好一次在第 2 轮」）。
 - 检查器**没真正跑起来**（找不到 node、找不到 vitest、报告解析失败、零用例）一律
   `CheckResult.executed = False` → 记 `run_error` 并中断，绝不给 0 分冒充"跑过了"；
   组权重全零同样是 fail-closed，不发满分。
@@ -114,15 +136,69 @@
 - 只有网络调用进 `try`：删除已经落盘成功，收尾步骤出岔子不能报成「删除失败」。
 - 地址栏是书签：记录被删后要把 `run_id` 段摘掉，否则刷新生成的是指向空记录的空书签。
 
-## 工作台形态（2026-10-02 对话流改版）
+## 工作台形态（2026-10-02 对话流改版 → 三改：一屏三行 → 四改：详情/备注收成图标小窗口）
 
-工作台是单列对话流：顶部一条粘性状态栏（任务 · 档位 · 轮次 · 档案下拉 · 状态一句话），
-主轴依次是「任务与提示词」折叠节点 → 消息流（思考默认折叠成一行；工具调用是默认折叠的
-紧凑卡，展开看每次调用的入参/返回）→ 校验结果内联节点 → 运行详情 / 本轮备注折叠节点；
-底部粘性区 = 操作栏（**每时刻一个主按钮** + 显式常驻的「结束本轮」+ ⋯ 更多操作菜单，
-菜单项常列、禁用项写原因）+ 输入区。编排层在 `views/workspace.js`，节点实现按
-`views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js` 拆分；
+工作台是单列对话流，**一屏三行**（三改之后不再整页滚动）：
+
+```
+.ws（height:100%，flex 列）
+├ .ws-statusbar   常驻：任务 · 档位 · 轮次 · [运行详情/本轮备注 两个图标] ·
+│                 档案下拉 · 状态一句话
+├ .ws-scroll      唯一滚动容器（overflow-y:auto）：改动正文 → 任务与提示词折叠节点 →
+│                 消息流（思考默认折叠成一行；工具调用是默认折叠的紧凑卡）→
+│                 校验结果条 → 「↓ 回到最新」浮钮（sticky）
+└ .ws-bottom     常驻：操作栏（每时刻一个主按钮 + **常驻「运行校验/重新校验」** +
+                  「结束本轮」+ ⋯ 更多操作菜单）+ 输入区（一颗「发送」）
+```
+
+三条 2026-10-02 三改的口径（用户逐条报过）：
+
+- **滚动条归位**：滚动发生在 `.ws-scroll`（贴在对话列右缘），不再是整页 `.app-main`
+  在滚（滚动条跑到窗口最右端，离对话很远）。`.app-main:has(> #app-root > .view.ws)`
+  负责高度链（`padding` 归零 + `#app-root { height:100% }`），窄屏（<900px）自动退回整页滚动。
+- **打开即最新**：刷新/重开工作台直接落在最新一条（`restoreScroll` → `chatStream.scrollToLatest`），
+  不再恢复上次的像素偏移；翻历史时不拽人，改用「↓ 回到最新」浮钮（`chatStream.jumpEl`，
+  挂在滚动区末尾 + `position: sticky`）。
+- **校验常驻**：出分之后主按钮会变成「进入第 n 轮」，但校验本身不许消失——它与「结束本轮」
+  并排常驻（`dock.js` 的 `grade` 槽位，判定与 ⋯ 菜单的 `regrade` 同源）。
+
+四改（同日，用户口径「为了进一步增加聊天区域」）动了三处，全部围绕"纵向像素只给对话"：
+
+- **运行详情 / 本轮备注 = 状态栏两个图标 + 小窗口**（`run-details.js` 的 `toolsEl` +
+  `openModal({variant:'slim'})`，正文类名 `.ws-win`）。它们不再是对话流末尾的折叠节点；
+  正文节点仍归 `run-details` 所有，关窗只是把它从 DOM 摘下来，下次开窗原地挂回，
+  所以窗口开着与关着都是同一套差异更新。图标**不禁用、不隐藏**：没有记录时照开，
+  窗口里说清「还没有记录、下一步点准备沙箱」——状态栏里挂两行禁用原因比这更吵。
+- **输入区只留一颗「发送」**：旧版这里还有一颗叫「发送当前提示词」的按钮，实际只往草稿里
+  填字，与底部操作栏真发送的那颗同名不同义（用户报的「发送按钮重复」就是它）。填提示词的
+  能力移进 ⋯ 菜单（「把当前提示词填进输入框」）。对话空态也不再自带发送按钮，改为指路。
+- **主按钮写清等级**：`发送当前提示词` → `发送第 {n} 级提示词`（n = 当前查看的轮次）。
+  题面没读到（任务详情读取失败 / 这一级没有正文）时按钮**禁用并写原因**，同时任务节点
+  自动展开显示「读取失败 + 重试」——旧版这种情况点了完全没反应，看起来像按钮坏了。
+
+**题面载入纪律（用户报「重建沙箱后提示词没有出现」的根因）**：任务详情是提示词的唯一来源，
+所以 ① 每次（重）读都带当前 `run_id`（不带时服务端拿"这道题最新的记录"算已解锁级数）；
+② 建/重建/进下一轮/重开一轮之后都要重读一次（`refreshTask`），不能只 `loadRun`；
+③ 首屏那次读取失败时摘掉陈旧 `run_id` 再读一次，别让一个死书签连题面一起赔进去；
+④ 订阅里发现「有 run 却没题面 / 题面停在更低的级」自动补读（上限 2 次），补不上就停在
+可见的「读取失败 + 重试」上。`load()` 里 **ABORTED 也必须把 `loading` 落回 false**，
+否则工作台永久停在「正在载入…」，所有按钮不可用且没有原因。
+
+**校验弹窗**（`report-modal.js` 的 `openGradeModal`）：点下校验就弹，当场解释
+「这次在查什么」（本题分组口径 + 每组的 `port` + 权重 + 回归/越界规则），进行中给进度与
+实时日志，出分**原地**换成结果正文（用户自己触发的动作，不算 §13.2 说的被动弹窗）。
+旧报告还在时会同时显示进度块与「上一次校验的结果」并注明会被替换。
+
 区域锚点 `#ws-region-{prompt,chat,sandbox,grade,run}` 是书签契约，改名要同步路由。
+其中 `sandbox`（运行详情）与 `run`（本轮备注）**跳转 = 开小窗口**（`focusRegion` 里分流），
+锚点挂在窗口正文根上，所以书签语义不变。
+编排层在 `views/workspace.js`，节点实现按
+`views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js` 拆分。
+
+**组的中文口径**：题包 `hidden/groups.json` 的 `port`（回归组常写 `note`）由
+`packs.load_hidden_for` 读成 group 的 `port`，随 `grade._grade_groups` → `report.summarize_groups`
+一路进报告，并通过 `packs.check_plan`（**不含隐藏用例 id**）进任务详情的 `check_plan`，
+供校验弹窗在出分前就解释每个出口在守什么。题包几乎都不写 `title`，前端因此优先显示 `port`。
 
 两个真实踩过的 JS 坑，写代码时先想起来：
 
@@ -131,13 +207,16 @@
   需要改的值复制成 `let`（见 `urlRunId`）。
 - `node --check x.js` 对 ESM 语法**静默返回 0**，等于没查。必须复制成 `.mjs` 或
   `node --input-type=module --check` 重跑；别人 PR 描述里"全部 JS 通过 node --check"不能采信。
+- `createButton().el` 是**外层 `<span class="u-inline">`**，真正的 `<button>` 在它里面
+  （`getButton()` 才拿得到）。给按钮挂定位类要挂在外层、挂点击目标必须挂内层；
+  在浏览器里用脚本点外层等于没点（2026-10-02 验收时踩过一次）。
 
 ## 验证门禁（他说"绿"就是这几条全绿）
 
 ```bash
 EVAL_PYTEST_TMP=D:/tmp/evalpytest-<新目录> python -m pytest console/harness/tests -q
 python console/harness/selfcheck.py          # 0 错误 0 提示
-# 每个前端模块复制成 .mjs 后 node --check（当前 42 个）
+# 每个前端模块复制成 .mjs 后 node --check（当前 43 个）
 ```
 
 - 跑 pytest 前必须给一个**全新**的 `EVAL_PYTEST_TMP`；残留的被锁 `.pytest-tmp` 会让 fixture
@@ -151,8 +230,14 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
   挂在 `purge_run` 上不够——级联删是先 `list_runs` 再逐条 purge 的，真实 `runs/` 空了
   purge 一次都不会被调到，检查就成了摆设。新写删除类用例记得用 `cfg` fixture，
   或在自己的影子 config 里一起覆盖这两个根。
-- 静态声明与单测不算验收。UI 行为要在浏览器里点一遍并读证据（`evaluate_script` +
-  `getBoundingClientRect`；Browser 面板没打开时 click/screenshot 会失败）。
+- 静态声明与单测不算验收。UI 行为要在浏览器里点一遍并读证据（`getBoundingClientRect` +
+  DOM 文本；截图可以留档，但**结论只能建立在读到的数值/文本上**）。本机没有浏览器工具，
+  2026-10-02 四改用的是一次性探针：headless Edge（`msedge --headless=new
+  --remote-debugging-port`）+ 原生 CDP over node 内置 WebSocket（约 100 行，落在
+  `D:\tmp\probe\cdp.mjs`）。两个要点：① `Page.addScriptToEvaluateOnNewDocument`
+  预注入打桩脚本可以在**不真的叫一次模型**的前提下验证发送路径（探针里 stub 掉
+  `POST /api/runs/{id}/chat`、其余请求照旧）；② 打桩必须走预注入——`api.js` 的
+  `transport` 是模块加载时 `fetch.bind(window)` 抓的，页面跑起来之后再改 `window.fetch` 无效。
 - 8899 是本机唯一实例：重启前扫**所有** `runs/*/*/*/chat.jsonl` 的 mtime，最近 1–2 分钟还在写
   的都算在飞；`git pull` 后必须重启，否则新前端调旧后端 = "项目打不开"。只改 `console/static/**`
   不用重启（静态文件 `no-store`）。
@@ -165,6 +250,8 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
 
 这些已经报过，等他点头再动：
 
+- 难度定档复核（T3-09 只给 1 级提示词、一轮 7/7 满分；T2-07 / T2-05 / T1-02 也超各自
+  `target_band` 上沿；T1-03 是初级里唯一 0/2）——重定档属于改 `packs/`，等授权。
 - 批次视图不渲染 `started_at` / `finished_at`；跑批与工作台对"同一组合"的措辞还没统一。
 - `packgate.py` 的补丁应用仍借用 `selfgrade.apply_patch`，与 harness 自带的 `_apply_unified`
   是两份实现（2026-10-02 复核：`selfgrade.py` 不认识 vitest 一条已修——声明了非 pytest 检查的题
@@ -174,6 +261,18 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
 
 ### 2026-10-02 两起事故的处置记录
 
+- **T2-06 隐藏用例的原子性判据耦合了临时文件命名（假阴性）已修**：两条用例打桩
+  `pd.DataFrame.to_parquet` 时要求 `where.parent == target.parent and where.name.startswith(target.name)`，
+  于是"行为完全正确、只是临时文件叫 `daily_bars.tmp`"的实现（`path.with_suffix(".tmp")`，
+  本仓库 5 处代码的写法）一次都触发不到打桩 → 直接判红。用户授权后改成
+  **只看"写的是不是目标文件本身"**（`where != target`），并在 `packs/core/README.md`
+  的入库纪律里加了第 8 条（打桩式观测不得耦合实现自由度；三态门禁查不出这类假阴性，
+  必须补跑"等价实现"复验）。
+  复验（D:\tmp 临时树，只读快照与题包）：三态判别力与存档一致
+  （锚解 100 / 半成品 33.33 / 注入态 0，逐组红绿同 `calibration/gate_*.json`）；
+  换命名的那种正确实现从"2 条红"变成 **12/12 全绿**。
+  **因此 T2-06 那个 83.3（=5/6，恰一个权重 1 的组红）依旧不能反推能力或题包结论——
+  但从此以后，同类写法不会再被误判。**
 - **T1-02 假 60 分**（校验器没跑起来却记成作数轮）已修：`run_error` 现在进 `invalid`
   （`grade.run_grade`），`executed=False` 的轮次一律 invalidated、永不进台账；报告分组带
   真实故障原因（不再是"隐藏测试可能导入失败"）。空 `node_modules` 加了两道 fail-closed：

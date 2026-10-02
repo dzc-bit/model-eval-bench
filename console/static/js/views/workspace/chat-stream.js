@@ -19,9 +19,13 @@
  *
  * 对话由服务端代理当前运行绑定的模型档案；前端不保存或接触 API 密钥。
  *
+ * 滚动（2026-10-02 三改）：对话列自己是滚动容器（.ws-scroll，桌面），所以
+ * 「接近底部才跟滚」的判定与「落到最新一条」都在这里做；重开页面由编排层调
+ * scrollToLatest 直接停在最新，翻历史时给一个「↓ 回到最新」浮钮（jumpEl）。
+ *
  * 依赖：core/*、components/*
- * 导出：createChatStream(handlers) → { el, composerEl, update, setDraft, sendText,
- *         focusComposer, destroy }
+ * 导出：createChatStream(handlers) → { el, composerEl, jumpEl, update, setDraft,
+ *         sendText, focusComposer, scrollToLatest, followLatest, destroy }
  */
 
 import { el, clear, on, setText } from '../../core/dom.js';
@@ -40,8 +44,11 @@ const T = {
   EMPTY_NO_RUN_TITLE: '这一轮还没有开始',
   EMPTY_NO_RUN_DESC: '在底部操作栏点「准备沙箱」，模型才有一个只属于它自己的工作目录可改。',
   EMPTY_NO_MESSAGES_TITLE: '还没有消息',
-  EMPTY_NO_MESSAGES_DESC: '把第 1 级提示词发给模型，它就会动手改沙箱；没动手时校验只会按「未改动」判 0 分。',
-  EMPTY_SEND_PROMPT: '发送当前提示词',
+  /** 空态不再自带「发送」按钮（与底部操作栏那颗重复，用户报过），改为指路。 */
+  EMPTY_NO_MESSAGES_DESC: '在下方操作栏点「发送第 {n} 级提示词」，模型就会动手改沙箱；'
+    + '没动手时校验只会按「未改动」判 0 分。',
+  EMPTY_NO_PROMPT_DESC: '这一轮的提示词还没读到（任务详情读取失败），先点上方的「重试」把题面读回来，'
+    + '再发提示词给模型。',
   EMPTY_GONE_TITLE: '这一轮的档案已被删除',
   EMPTY_GONE_DESC: '历史可以回看，但这条档案已经发不出去。在顶部状态栏改选一个现存档案，再重开一轮；'
     + '旧记录的成绩可以在「更多操作」里用「继续对话（本轮分数作废）」摘掉。',
@@ -53,13 +60,15 @@ const T = {
   REASONING_MINUTES: '持续约 {n} 分钟',
   REASONING_CHARS: '{n} 字',
   REASONING_NOTE: '思考时长按相邻消息的时间估算，不是接口返回的推理耗时；接口不返回推理时这一行不显示。',
-  // 工具调用紧凑行
+  /** 工具调用紧凑行 */
   TOOL_IN: '入参',
   TOOL_OUT: '返回',
   TOOL_TRUNCATED: '……（界面只显示前 {n} 字，完整内容在这一轮运行目录的 chat.jsonl）',
   TOOL_FAILED: '✕ 失败',
   TOOL_PENDING: '等待返回…',
   TOOL_ORPHAN: '工具返回',
+  // 「回到最新」浮钮：翻历史时新消息到了不拽人，给一个显式出口
+  JUMP_LATEST: '↓ 回到最新',
 };
 
 /** 工具返回/入参在界面上的最大展示字符数；完整数据在该轮运行目录的 chat.jsonl。 */
@@ -152,9 +161,10 @@ function capToolText(text) {
  * @param {{
  *   scope?: object,
  *   onPrepare?: Function,
- *   onSendPrompt?: Function,
  *   onRestartWithModel?: (preferredId: string) => void,
  * }} [handlers]
+ *   「发送当前提示词」不在这里：它是底部操作栏的主按钮（编排层管），本模块只负责
+ *   把用户打的那句话发出去（`sendText` 仍是提示词按钮的实现体）。
  */
 export function createChatStream(handlers = {}) {
   const ownsScope = !handlers.scope;
@@ -173,6 +183,8 @@ export function createChatStream(handlers = {}) {
   let remoteTimer = null;
   /** 状态栏档案下拉当前值（空态「重开一轮」按钮的可用性要看它）。 */
   let pickedModelId = '';
+  /** 当前轮的提示词正文是否已在本地（由编排层算好）：空态文案与发送门禁都要用它。 */
+  let promptReady = false;
 
   // ==================== 消息流 ====================
   const statusText = el('span', { class: 'u-faint', role: 'status', 'aria-live': 'polite' });
@@ -188,12 +200,6 @@ export function createChatStream(handlers = {}) {
     variant: 'ghost',
     size: 'sm',
     onClick: () => handlers.onPrepare && handlers.onPrepare(),
-  });
-  const emptyPromptBtn = createButton({
-    label: T.EMPTY_SEND_PROMPT,
-    variant: 'ghost',
-    size: 'sm',
-    onClick: () => handlers.onSendPrompt && handlers.onSendPrompt(),
   });
   const emptyRestartBtn = createButton({
     label: T.EMPTY_RESTART,
@@ -216,21 +222,47 @@ export function createChatStream(handlers = {}) {
     messageList,
   );
 
+  /**
+   * 「↓ 回到最新」浮钮（2026-10-02 三改）。
+   *
+   * 对话列现在自己滚，翻历史时新消息只在下面悄悄长出来（刻意不拽人，§13.2），
+   * 那就得给一个显式出口。节点由编排层挂到 .ws 上（要相对整列定位，不能跟着
+   * 内容一起滚），行为留在这里——「什么时候算不在底部」只有本模块知道。
+   */
+  const jumpBtn = createButton({
+    label: T.JUMP_LATEST,
+    variant: 'ghost',
+    size: 'sm',
+    onClick: () => scrollToEnd(),
+  });
+  jumpBtn.el.classList.add('ws-jump');
+  jumpBtn.el.hidden = true;
+
+  /** 不在底部（且确实有消息）时才显示浮钮。 */
+  function syncJump() {
+    const show = Boolean(currentRunId) && messages.length > 0 && !nearBottom();
+    jumpBtn.el.hidden = !show;
+  }
+
+  // 滚动事件不冒泡：捕获阶段挂在 document 上，内层 .ws-scroll 与整页滚动都能收到。
+  const offScroll = on(document, 'scroll', () => {
+    window.requestAnimationFrame(syncJump);
+  }, { capture: true, passive: true });
+
   // ==================== 输入区（挂到页面底部，由编排层放置） ====================
   const draft = el('textarea', {
     id: 'workspace-chat-message',
     class: 'ws-composer__input',
-    rows: 4,
+    // 2 行起步（旧版 4 行 + min-height:88px，2026-10-02 四改再收一档）：输入区是可拖高的，
+    // 默认给最小可用高度，把纵向空间留给对话（用户口径：对话被挤得太少）。
+    rows: 2,
     name: 'workspace-chat-message',
     placeholder: S.CHAT_INPUT_PLACEHOLDER || '输入消息，让模型继续处理当前沙箱',
+    // 常驻提示收进 title：它一行说明「模型能干什么」，随时悬停可读，
+    // 但不再占掉输入区下面整整一行（那一行省下来全给对话）。
+    title: S.CHAT_TOOL_HINT || '',
     'aria-label': S.CHAT_INPUT_LABEL || '发送给模型的消息',
     disabled: true,
-  });
-  const usePromptBtn = createButton({
-    label: S.CHAT_USE_PROMPT || '填入当前提示词',
-    variant: 'ghost',
-    size: 'sm',
-    onClick: () => handlers.onFillPrompt && handlers.onFillPrompt(),
   });
   const sendBtn = createButton({
     label: S.CHAT_SEND || '发送',
@@ -238,14 +270,27 @@ export function createChatStream(handlers = {}) {
     variant: 'default',
     onClick: () => send(),
   });
-  const composerHint = el('span', { class: 'u-faint ws-composer__hint' }, S.CHAT_TOOL_HINT || '模型可在当前沙箱内读写文件并运行检查。');
+  /**
+   * 模型档案被删这类「为什么发不出去」的常驻说明。
+   *
+   * 2026-10-02 四改：输入区只留**一颗**发送按钮（旧版这里还有一颗叫「发送当前提示词」
+   * 的按钮，实际只往草稿里填字，与底部操作栏真发送的那颗重名——用户报的「发送按钮重复」
+   * 就是它）。填提示词的能力移进底部 ⋯ 菜单，这里不再放第二颗。
+   */
+  const composerHint = el('span', { class: 'u-faint ws-composer__hint' });
+  const composerFoot = el('p', { class: 'ws-composer__foot', hidden: true }, statusText, composerHint);
   const composer = el(
     'form',
     { class: 'ws-composer', onSubmit: (event) => { event.preventDefault(); send(); } },
     el('label', { class: 'visually-hidden', for: 'workspace-chat-message' }, S.CHAT_INPUT_LABEL || '发送给模型的消息'),
-    draft,
-    el('div', { class: 'ws-composer__foot' }, statusText, composerHint, el('span', { class: 'u-spacer' }), usePromptBtn.el, sendBtn.el),
+    el('div', { class: 'ws-composer__row' }, draft, sendBtn.el),
+    composerFoot,
   );
+
+  /** 状态行没话说时整行收掉（空行也会吃掉输入区高度）。 */
+  function syncFoot() {
+    composerFoot.hidden = !statusText.textContent && !composerHint.textContent;
+  }
 
   // ==================== 消息归一化 ====================
   function normalizeMessages(next) {
@@ -344,11 +389,16 @@ export function createChatStream(handlers = {}) {
       return;
     }
     if (currentRunId) {
+      // 空态只指路、不再自带一颗「发送当前提示词」：底部操作栏那颗就是它，
+      // 同一屏两颗同义按钮是用户报过的重复（2026-10-02 四改）。
+      const level = Number(currentRun && currentRun.attempt) || 1;
       chatEmpty.update({
         icon: 'clock',
         title: T.EMPTY_NO_MESSAGES_TITLE,
-        desc: T.EMPTY_NO_MESSAGES_DESC,
-        actions: [emptyPromptBtn.el],
+        desc: promptReady
+          ? t(T.EMPTY_NO_MESSAGES_DESC, { n: level })
+          : T.EMPTY_NO_PROMPT_DESC,
+        actions: [],
       });
       return;
     }
@@ -361,8 +411,19 @@ export function createChatStream(handlers = {}) {
   }
 
   /** 页面是否已经接近底部：接近时新内容到了才自动跟滚，翻历史时不拽回去。 */
+  function scroller() {
+    const box = streamRoot.closest('.ws-scroll');
+    const main = streamRoot.closest('.app-main');
+    const scrollable = (node) => Boolean(node) && node.scrollHeight > node.clientHeight + 1;
+    // 桌面：对话列自己是滚动容器（.ws-scroll）。窄屏外壳放开高度、退回整页滚动，
+    // 那时 .ws-scroll 不产生滚动，必须让位给 .app-main，否则「跟滚」会静默失效。
+    if (scrollable(box)) return box;
+    if (scrollable(main)) return main;
+    return box || main || document.scrollingElement;
+  }
+
   function nearBottom() {
-    const container = streamRoot.closest('.app-main') || document.scrollingElement;
+    const container = scroller();
     if (!container) return true;
     return container.scrollHeight - container.scrollTop - container.clientHeight < 200;
   }
@@ -370,15 +431,15 @@ export function createChatStream(handlers = {}) {
   /**
    * 对话流真正可读的那条带：顶部状态栏下沿 → 底部操作栏上沿。
    *
-   * 两条栏都 position:sticky 钉在滚动容器上，铺在最上层；所以「滚动容器底」并不等于
-   * 「最后一条能看见的地方」。这里量出两条栏各自实际占了多少，只认**真的钉住了**的
-   * 那种（顶边贴住容器上沿 / 底边贴住容器下沿），内容短、它们还停在自然位置时不算。
+   * 2026-10-02 三改后两条栏都常驻在滚动区之外（不再 sticky），所以内层滚动时
+   * 上下 inset 都是 0，可读带 = 整个滚动盒子；这段「只认真的钉住了的那种」的逻辑
+   * 留给窄屏整页滚动的回退形态（那时 .app-main 是滚动容器，两条栏仍可能压着内容）。
    */
   function readableBand() {
-    const scroller = streamRoot.closest('.app-main') || document.scrollingElement;
-    if (!scroller) return null;
+    const scrollerEl = scroller();
+    if (!scrollerEl) return null;
     const view = streamRoot.closest('.view');
-    const scrollerRect = scroller.getBoundingClientRect();
+    const scrollerRect = scrollerEl.getBoundingClientRect();
     if (!scrollerRect.height) return null;
     const topBar = view ? view.querySelector('.ws-statusbar') : null;
     const bottomBar = view ? view.querySelector('.ws-bottom') : null;
@@ -391,7 +452,7 @@ export function createChatStream(handlers = {}) {
       ? scrollerRect.bottom - bottomRect.top
       : 0;
     return {
-      scroller,
+      scroller: scrollerEl,
       top: Math.max(0, Math.min(topInset, scrollerRect.height)),
       bottom: Math.max(0, Math.min(bottomInset, scrollerRect.height - topInset)),
     };
@@ -407,18 +468,20 @@ export function createChatStream(handlers = {}) {
   function scrollToEnd() {
     window.requestAnimationFrame(() => {
       const last = messageList.lastElementChild;
-      if (!last) return;
       const band = readableBand();
       if (!band) return;
-      const { scroller } = band;
-      const scrollerRect = scroller.getBoundingClientRect();
-      const gap = 12;
-      const bottom = band.bottom + (band.bottom < gap ? 0 : gap);
-      const next = scroller.scrollTop
-        + (last.getBoundingClientRect().bottom - scrollerRect.top)
-        - bottom;
-      const max = scroller.scrollHeight - scroller.clientHeight;
-      scroller.scrollTop = Math.min(Math.max(0, next), max);
+      const { scroller: box } = band;
+      if (last) {
+        const boxRect = box.getBoundingClientRect();
+        const gap = 12;
+        const bottom = band.bottom + (band.bottom < gap ? 0 : gap);
+        const next = box.scrollTop
+          + (last.getBoundingClientRect().bottom - boxRect.top)
+          - bottom;
+        const max = box.scrollHeight - box.clientHeight;
+        box.scrollTop = Math.min(Math.max(0, next), max);
+      }
+      syncJump();
     });
   }
 
@@ -482,6 +545,7 @@ export function createChatStream(handlers = {}) {
       messageList.appendChild(textMessageNode(message, index === summaryIndex));
     }
     if (follow || wasNearBottom) scrollToEnd();
+    else syncJump();
   }
 
   /**
@@ -600,6 +664,7 @@ export function createChatStream(handlers = {}) {
   function setStatus(text) {
     setText(statusText, text || '');
     statusText.hidden = !text;
+    syncFoot();
   }
 
   /**
@@ -661,7 +726,6 @@ export function createChatStream(handlers = {}) {
       busyLabel: S.CHAT_SENDING,
       reason,
     });
-    usePromptBtn.update({ disabled: !editable });
   }
 
   /**
@@ -712,7 +776,8 @@ export function createChatStream(handlers = {}) {
       remoteBusy = Boolean(data && data.chat_busy);
       profileGone = Boolean(data && data.model && data.model.gone);
       // 把"为什么不能发"常驻写在输入框下面，而不是一闪而过的 toast
-      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE : S.CHAT_TOOL_HINT);
+      setText(composerHint, profileGone ? S.CHAT_MODEL_GONE : '');
+      syncFoot();
       if (remoteBusy) {
         setStatus(S.CHAT_REMOTE_BUSY || '模型仍在处理上一条消息…');
         watchRemoteSend(runId, seq);
@@ -720,6 +785,9 @@ export function createChatStream(handlers = {}) {
         syncStatus();
       }
       renderMessages();
+      // 首次载入/刷新：直接停在最新一条（用户口径：重开页面不该落在顶部）。
+      // 历史是整段拉回来的，此刻没有「用户在读中间」这回事。
+      scrollToEnd();
     } catch (err) {
       if (seq !== requestSeq || runId !== currentRunId) return;
       loading = false;
@@ -854,10 +922,11 @@ export function createChatStream(handlers = {}) {
   // ==================== 对外 ====================
   /**
    * 差异更新。
-   * @param {{run?: object|null, pickedModelId?: string}} state
+   * @param {{run?: object|null, pickedModelId?: string, promptReady?: boolean}} state
    */
   function update(state = {}) {
     if (state.pickedModelId !== undefined) pickedModelId = String(state.pickedModelId || '');
+    if (state.promptReady !== undefined) promptReady = Boolean(state.promptReady);
     if (state.run !== undefined) currentRun = state.run;
     const nextRunId = currentRun && currentRun.run_id ? String(currentRun.run_id) : '';
     if (nextRunId !== currentRunId) {
@@ -867,7 +936,8 @@ export function createChatStream(handlers = {}) {
       loading = false;
       remoteBusy = false;
       profileGone = false;
-      setText(composerHint, S.CHAT_TOOL_HINT);
+      setText(composerHint, '');
+      syncFoot();
       currentRunId = nextRunId;
       messages = [];
       requestSeq += 1;
@@ -881,6 +951,7 @@ export function createChatStream(handlers = {}) {
     errorMessage.hidden = !currentRunId || errorMessage.textContent === '';
     setEnabled(ready);
     renderMessages();
+    syncJump();
   }
 
   function setDraft(value) {
@@ -905,6 +976,8 @@ export function createChatStream(handlers = {}) {
   return {
     el: streamRoot,
     composerEl: composer,
+    /** 「回到最新」浮钮：由编排层挂到 .ws 上（相对整列定位，不跟着内容滚）。 */
+    jumpEl: jumpBtn.el,
     update,
     setDraft,
     sendText,
@@ -913,13 +986,29 @@ export function createChatStream(handlers = {}) {
       draft.focus();
     },
     /**
+     * 直接落到最新一条（重开页面 / 点浮钮用；不判断「本来在不在底部」）。
+     * @returns {boolean} 有没有可落的位置
+     */
+    scrollToLatest() {
+      if (!currentRunId || !messages.length) return false;
+      scrollToEnd();
+      return true;
+    },
+    /**
      * 跟到最新内容（编排层在状态变化时调）。
      * 跟不跟由这里自己判断：翻历史时不拽，用户本来就在底部才跟。
      * 编排层不再自己算 scrollTop——两份「什么时候跟、跟到哪里」的判断迟早漂移，
      * 而漂了就是「有时候跟、有时候把新消息塞进操作栏底下」。
      */
     followLatest() {
-      if (!currentRunId || !messages.length || !nearBottom()) return false;
+      if (!currentRunId || !messages.length) {
+        syncJump();
+        return false;
+      }
+      if (!nearBottom()) {
+        syncJump();
+        return false;
+      }
       scrollToEnd();
       return true;
     },
@@ -930,12 +1019,12 @@ export function createChatStream(handlers = {}) {
       if (ownsScope) scope.cancelAll();
       offInput();
       offKeydown();
+      offScroll();
       chatEmpty.destroy();
       emptyPrepareBtn.destroy();
-      emptyPromptBtn.destroy();
       emptyRestartBtn.destroy();
-      usePromptBtn.destroy();
       sendBtn.destroy();
+      jumpBtn.destroy();
     },
   };
 }

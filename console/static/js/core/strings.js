@@ -202,7 +202,6 @@ export const S = {
   CHAT_STATUS_NOT_READY: '沙箱还没就绪，暂不能对话',
   CHAT_MODEL_GONE: '模型档案已删除',
   CHAT_MODEL_GONE_DETAIL: '这一轮绑定的模型档案已被删除：历史可以回看，但不能再发送。在对话卡头改选一个现存档案，再点「用现存档案重开一轮」。',
-  CHAT_USE_PROMPT: '发送当前提示词',
   CHAT_TOOL_HINT: '模型可在当前沙箱内读写文件并运行受限检查。',
   CHAT_TOOL_CALL: '工具调用',
   CHAT_TOOL_ROUND: '工具轮',

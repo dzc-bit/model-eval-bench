@@ -1,12 +1,15 @@
 /**
- * dock.js — 工作台底部操作栏（2026-10-02 对话流改版）
+ * dock.js — 工作台底部操作栏（2026-10-02 对话流改版；同日三改补常驻校验钮）
  *
  * 职责：
  *   1. 每个时刻只有**一个主按钮**（按状态机切换：发送提示词 → 运行校验 →
  *      进入下一轮 / 查看参考解），由编排层算好 {label, onClick, disabled, reason} 传进来。
- *   2. 显式的「结束本轮并回收沙箱」（红线：不能只留折叠起来的回收）——常驻、
+ *   2. **常驻的「运行校验 / 重新校验」**：第一次校验没过之后主按钮会变成
+ *      「进入第 n 轮」，校验本身不该跟着消失——它与「结束本轮」并排常驻，
+ *      不可用时禁用并写原因（2026-10-02 用户口径）。
+ *   3. 显式的「结束本轮」（红线：不能只留折叠起来的回收）——常驻、
  *      不可用时禁用并把原因写在按钮上。
- *   3. 其余全部出口收进「⋯ 更多操作」菜单：菜单项一律常列，不可用的禁用 + 原因
+ *   4. 其余全部出口收进「⋯ 更多操作」菜单：菜单项一律常列，不可用的禁用 + 原因
  *      写在项里（红线：出口不许条件隐藏，可以收进菜单，不许删到找不到）。
  *
  * 菜单行为：点触发钮/Esc/点外面开合；打开后焦点落到第一个可用项；关闭后焦点还给
@@ -39,6 +42,14 @@ export function createDock() {
       if (action && typeof action.onClick === 'function') action.onClick(event);
     },
   });
+  const gradeBtn = createButton({
+    label: '',
+    variant: 'default',
+    onClick: (event) => {
+      const action = current.grade;
+      if (action && typeof action.onClick === 'function') action.onClick(event);
+    },
+  });
   const finishBtn = createButton({
     label: '',
     variant: 'ghost',
@@ -62,12 +73,13 @@ export function createDock() {
     'div',
     { class: 'ws-dock', role: 'group', 'aria-label': S.WS_TITLE || '工作台操作' },
     primaryBtn.el,
+    gradeBtn.el,
     finishBtn.el,
     el('span', { class: 'u-spacer' }),
     menuWrap,
   );
 
-  let current = { primary: {}, finish: {}, menuItems: [] };
+  let current = { primary: {}, grade: {}, finish: {}, menuItems: [] };
   let menuOpen = false;
   /** 菜单项的 onClick 列表（渲染顺序与 DOM 一致，闭包里按序号取）。 */
   let itemHandlers = [];
@@ -174,12 +186,13 @@ export function createDock() {
 
   /**
    * 差异更新：签名没变就不动 DOM（轮询不能把打开的菜单/焦点吞掉）。
-   * @param {{primary?: object, finish?: object, menuItems?: Array}} next
+   * @param {{primary?: object, grade?: object, finish?: object, menuItems?: Array}} next
    */
   function update(next = {}) {
     const prev = current;
     current = {
       primary: next.primary || {},
+      grade: next.grade || {},
       finish: next.finish || {},
       menuItems: Array.isArray(next.menuItems) ? next.menuItems : [],
     };
@@ -192,6 +205,16 @@ export function createDock() {
       busyLabel: p.busyLabel || p.label || '',
       kbd: p.kbd || '',
       title: p.title || '',
+    });
+    const g = current.grade;
+    gradeBtn.update({
+      label: g.label || '',
+      disabled: Boolean(g.disabled),
+      reason: g.reason || '',
+      loading: Boolean(g.loading),
+      busyLabel: g.busyLabel || g.label || '',
+      kbd: g.kbd || '',
+      title: g.title || '',
     });
     const f = current.finish;
     finishBtn.update({
@@ -220,6 +243,7 @@ export function createDock() {
       offMenuKeydown();
       offDocDown();
       primaryBtn.destroy();
+      gradeBtn.destroy();
       finishBtn.destroy();
       menuBtn.destroy();
     },

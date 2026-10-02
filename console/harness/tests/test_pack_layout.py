@@ -144,6 +144,77 @@ def test_hidden_node_id_not_double_prefixed(tmp_path):
         "hidden/tests_hidden/test_probe.py::test_probe"]
 
 
+def _make_pack_with_raw_groups(tmp_path, raw_groups):
+    """造题包，groups.json 原样写入（用来验证 port / note / title 的读取口径）。"""
+    import json
+
+    root = tmp_path / "T9-99"
+    hidden_dir = os.path.join(root, "hidden", "tests_hidden")
+    os.makedirs(hidden_dir, exist_ok=True)
+    with open(os.path.join(hidden_dir, "test_probe.py"), "w", encoding="utf-8") as fh:
+        fh.write("def test_probe():\n    assert True\n")
+    with open(os.path.join(root, "hidden", "groups.json"), "w", encoding="utf-8") as fh:
+        json.dump({"groups": raw_groups}, fh, ensure_ascii=False)
+    with open(os.path.join(root, "p2p.json"), "w", encoding="utf-8") as fh:
+        json.dump({"tests": []}, fh)
+    meta = {
+        "id": "T9-99", "pack_dir": str(root),
+        "checks": [{"kind": "pytest", "hidden": "hidden/tests_hidden",
+                    "groups": "hidden/groups.json", "p2p": "p2p.json"}],
+    }
+    return meta
+
+
+def test_group_port_becomes_the_public_wording(tmp_path):
+    """组的中文口径：题包写 port 就用 port；只写 note（回归组常见）时退到 note。
+
+    控制台的校验弹窗与报告都用它当组名——旧读取口径只认 title，题包又几乎不写
+    title，于是界面上只能显示 exclusive_write_exit 这种英文 id。
+    """
+    meta = _make_pack_with_raw_groups(tmp_path, [
+        {"id": "g1", "weight": 1, "port": "跨进程互斥：第二个写者必须被挡住",
+         "tests": ["tests_hidden/test_probe.py::test_probe"]},
+        {"id": "p2p", "weight": 0, "mode": "regression", "note": "既有白名单，任一条红则本轮作废",
+         "tests": []},
+    ])
+    hidden = packs.load_hidden_for(meta, meta["checks"][0])
+
+    assert hidden["groups"][0]["port"] == "跨进程互斥：第二个写者必须被挡住"
+    assert hidden["groups"][0]["title"] == ""
+    assert hidden["groups"][1]["port"] == "既有白名单，任一条红则本轮作废"
+
+
+def test_check_plan_lists_groups_without_hidden_node_ids(tmp_path):
+    """校验弹窗用的小抄：给组口径与权重，**绝不带隐藏用例 node id**。"""
+    meta = _make_pack_with_raw_groups(tmp_path, [
+        {"id": "g1", "weight": 2, "port": "写路径的原子性",
+         "tests": ["tests_hidden/test_probe.py::test_probe"]},
+        {"id": "p2p", "weight": 0, "mode": "regression", "note": "回归白名单", "tests": []},
+    ])
+
+    plan = packs.check_plan(meta)
+
+    assert [g["id"] for g in plan] == ["g1"], "回归组不进计分计划"
+    assert plan[0]["port"] == "写路径的原子性"
+    assert plan[0]["weight"] == 2
+    assert plan[0]["kind"] == "pytest"
+    assert "tests" not in plan[0], "隐藏用例 node id 不许下发到控制台"
+    assert "test_probe" not in repr(plan)
+
+
+def test_check_plan_is_empty_when_pack_is_broken(tmp_path):
+    """题包缺 groups.json 时不抛错：返回空计划，由报告侧按「题包坏了」处理。"""
+    root = tmp_path / "T9-97"
+    os.makedirs(os.path.join(root, "hidden", "tests_hidden"), exist_ok=True)
+    meta = {
+        "id": "T9-97", "pack_dir": str(root),
+        "checks": [{"kind": "pytest", "hidden": "hidden/tests_hidden",
+                    "groups": "hidden/groups.json", "p2p": "p2p.json"}],
+    }
+    assert packs.check_plan(meta) == []
+    assert packs.check_plan({}) == []
+
+
 def test_vitest_hidden_node_ids_match_the_relocated_frontend_root(tmp_path):
     """Vitest 隐藏测试必须落到 vitest root（frontend/）之内，用例 ID 前缀与盘上位置一致。
 

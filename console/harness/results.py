@@ -87,6 +87,21 @@ def has_source_run(cfg: dict, run_id: str) -> bool:
     return any(str(e.get("source_run_id") or "") == wanted for e in load_entries(cfg))
 
 
+def find_by_source_run(cfg: dict, run_id: str) -> Optional[dict]:
+    """按来源运行记录取台账条目（没有就 None）。
+
+    跑批条目靠它落定：用户点「结束本轮」的那一刻运行记录就被整条删掉，
+    批次只有从台账里才读得到「这次尝试最终是多少分、几轮、进没进榜」。
+    """
+    wanted = str(run_id or "")
+    if not wanted:
+        return None
+    for entry in load_entries(cfg):
+        if str(entry.get("source_run_id") or "") == wanted:
+            return entry
+    return None
+
+
 def new_entry_id(entries: List[dict]) -> str:
     """台账条目编号：按已有最大值 +1 递增，不复用被删掉的号。"""
     high = 0

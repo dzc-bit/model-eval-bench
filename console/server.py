@@ -265,6 +265,9 @@ def api_task_detail(cfg: dict, task_id: str, run_id: str = "") -> dict:
         "calibration": meta["calibration"],
         "prompts": prompts,
         "unlocked_prompts": unlocked,
+        # 这一轮会查哪几个出口（组口径 + 权重，不含隐藏用例 id）：校验弹窗在点下
+        # 校验的那一刻就要能解释「正在评什么」，不能等出分才让用户知道自己被评了什么。
+        "check_plan": packs.check_plan(meta),
         "wiring_note": WIRING_NOTE,
         "run": None,
     }
@@ -524,6 +527,8 @@ def build_router() -> Router:
     r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/cancel", lambda ctx: (batch_mod.cancel(ctx["cfg"], ctx["batch_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/release",
           lambda ctx: (batch_mod.release(ctx["cfg"], ctx["batch_id"], _as_int(ctx["body"].get("index"), -1)), "application/json; charset=utf-8"))
+    r.add("POST", r"/api/batches/(?P<batch_id>[^/]+)/remove",
+          lambda ctx: (batch_mod.remove_item(ctx["cfg"], ctx["batch_id"], _as_int(ctx["body"].get("index"), -1)), "application/json; charset=utf-8"))
     r.add("POST", r"/api/selfcheck", lambda ctx: (selfcheck.scan(ctx["cfg"]), "application/json; charset=utf-8"))
     return r
 

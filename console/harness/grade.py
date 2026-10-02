@@ -435,6 +435,9 @@ def _grade_groups(groups: list, p2p_entries: list, resolve_map: dict,
         resolved.append({
             "id": group["id"],
             "title": group.get("title") or group["id"],
+            # 组的中文口径（题包 groups.json 的 port）：报告与校验弹窗靠它解释
+            # 「这个组在守什么出口」，不然前端只能显示 exclusive_write_exit 这种 id。
+            "port": group.get("port") or "",
             "weight": group["weight"],
             "passed": passed,
             "cases": cases,

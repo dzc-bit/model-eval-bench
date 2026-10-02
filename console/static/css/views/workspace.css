@@ -1,45 +1,85 @@
 /* ==========================================================================
    workspace.css — 工作台视图样式（2026-10-02 对话流改版后的唯一来源）
 
-   布局（对话流为主轴）：
-     .ws-statusbar  顶部一条细状态栏（粘性）：任务 · 档位 · 轮次 · 档案下拉 · 状态
+   布局（一屏三行；2026-10-02 三改：滚动条归位到对话列）：
+     .ws            定高列：状态栏（auto）→ 滚动区（1fr）→ 底部操作栏 + 输入区（auto）
+     .ws-statusbar  顶部状态栏（不再 sticky：它本来就在滚动区之外）
+     .ws-scroll     唯一滚动容器：任务节点 / 对话流 / 校验结果都在里面；
+                    滚动条贴在对话列右缘（旧版整页 .app-main 在滚，滚动条在窗口最右端，
+                    离对话很远，刷新还停在顶部）
+     .ws-jump       不在底部时出现的「回到底部」浮钮
      .ws-diff       菜单「查看改动」弹出的内联改动正文
-     .ws-stream     对话流主轴：任务节点 / 消息 / 思考折叠行 / 工具调用紧凑卡
-     .ws-report     校验结果节点（内联在对话流里，不弹窗不 sticky）
-     .ws-run-extras 运行详情 + 本轮备注（折叠节点）
-     .ws-bottom     底部粘性区：操作栏（一个主按钮 + 结束本轮 + ⋯ 菜单）+ 输入区
+     .ws-stream     对话流主轴：消息 / 思考折叠行 / 工具调用紧凑卡
+     .ws-report     校验结果节点（内联在对话流里，不 sticky）
+     .ws-tools      状态栏里的两个图标（运行详情 / 本轮备注），点开 .ws-win 小窗口
+     .ws-bottom     底部操作栏（主按钮 + 常驻校验 + 结束本轮 + ⋯ 菜单）+ 输入区
 
    纪律：
-     - 选择器一律挂在 .ws 下（index.html 在 views.css 之后挂本文件）。
+     - 选择器一律挂在 .ws 下；小窗口的正文不在 .ws 子树里（modal 挂在 document.body），
+       那些选择器挂 `.ws-win` / `.ws-report-modal` 两个根类，同样不外泄。
      - 颜色 / 字号 / 间距 / 圆角 / 阴影只用 tokens 变量，不写字面色值。
      - 不声明过渡动画（规格只允许 opacity / max-height 150ms；反馈靠即时变色）。
      - 可点目标 ≥36px（控件行高令牌），正文行高 ≥1.6 由 base.css 继承。
    ========================================================================== */
 
-/* ============================ 整体列宽 ============================ */
-/* 对话列收窄居中（主流 harness 的阅读宽度），状态栏与底部操作栏同一列宽对齐。 */
+/* ============================ 整体：一屏三行 ============================ */
+/* 对话列收窄居中（主流 harness 的阅读宽度），状态栏与底部操作栏同一列宽对齐。
+   height:100% 接的是 views.css 里给工作台打开的 `.app-main > #app-root` 全高链；
+   窄屏（<900px）外壳不锁高，这里退回「整页滚动」，不会把内容裁掉。 */
 .ws {
   max-width: min(960px, 100%);
   margin: 0 auto;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  /* 「回到底部」浮钮的定位参照 */
+  position: relative;
+}
+
+/* ============================ 滚动区（唯一滚动容器） ============================ */
+/* min-height:0 是 flex 子项能收缩出滚动条的前提；overscroll-behavior 防止滚到底
+   之后继续带动外层。两个状态栏现在都在滚动区之外，所以「可读带」就是整个盒子，
+   不再需要给 sticky 遮挡留内边距。 */
+.ws .ws-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 右侧留一点空隙，滚动条不压着消息卡片的圆角 */
+  padding-right: var(--space-1);
+}
+
+.ws .ws-scroll:focus-visible {
+  outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+/* 「回到底部」：翻历史时贴在滚动区右下角。
+   sticky 而不是 absolute —— 绝对定位在滚动容器里会跟着内容滚走，只有 sticky 才能
+   钉在 scrollport 的下沿；它是滚动区最后一个子项，所以「已经在底部」时藏在流末尾。 */
+.ws .ws-scroll > .ws-jump {
+  position: sticky;
+  bottom: var(--space-2);
+  align-self: flex-end;
+  z-index: 1;
+  display: inline-flex;
 }
 
 /* ============================ 顶部状态栏 ============================ */
-/* 上下内边距是替 .app-main 补的：那条 padding 已经在 views.css 里为工作台归零，
-   间距改由两条粘性栏自带，于是 top:0 / bottom:0 才真的贴在视口上下沿
-   （否则对话内容会从 24px / 56px 的缝里滚过去，见 views.css 同名说明）。 */
+/* 常驻在滚动区之上（不再是 sticky）；上下内边距比旧版小一半，把省下来的高度让给
+   对话——旧版两条栏加视口内空白一共吃掉近百像素。 */
 .ws .ws-statusbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--space-3) var(--space-4);
   flex-wrap: wrap;
-  /* 上内边距 = 容器原来的 --space-6 + 自身原来的 --space-2，未滚动时的版面与从前一致 */
-  padding: calc(var(--space-6) + var(--space-2)) 0 var(--space-2);
+  padding: var(--space-3) 0 var(--space-2);
   background: var(--color-bg);
   border-bottom: var(--border-width) solid var(--color-border);
 }
@@ -85,19 +125,37 @@
   min-width: 0;
 }
 
-/* 档案选择器住进状态栏：收窄提示，控件保持原生 field 样式 */
+/* 档案选择器住进状态栏：**排成一行**（label 在左、下拉在右），控件收窄。
+   旧版是 label 独占一行（19px）+ 整高下拉 + 错误提示，整块高 94px，把状态栏顶到
+   115px——状态栏每高一像素都是从对话区扣的（用户口径：为了进一步增加聊天区域）。 */
 .ws .ws-statusbar__model {
-  flex: 0 1 240px;
-  min-width: 160px;
-}
-
-.ws .ws-statusbar__model .field {
-  gap: var(--space-1);
+  flex: 0 1 280px;
+  min-width: 200px;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .ws .ws-statusbar__model .field__label {
+  flex: 0 0 auto;
   font-size: var(--font-size-xs);
   color: var(--color-text-faint);
+  white-space: nowrap;
+}
+
+.ws .ws-statusbar__model select {
+  flex: 1 1 150px;
+  min-height: var(--control-height-sm);
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+}
+
+/* 原因说明（没选档案 / 读取失败）另起一行，不跟下拉抢宽度 */
+.ws .ws-statusbar__model .field__error,
+.ws .ws-statusbar__model .field__hint {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .ws .ws-statusbar__model .field__hint {
@@ -412,10 +470,34 @@
   border-top: var(--border-width) solid var(--color-border);
 }
 
-.ws .ws-run-extras {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* ---- 状态栏工具图标（运行详情 / 本轮备注；2026-10-02 四改） ----
+   两个图标常驻在状态栏右侧，点开各自的小窗口（.ws-win）。它们描述的是「这一轮」，
+   所以有记录时才亮：有完整性问题的运行给警示色，有备注的运行给实心色。 */
+.ws .ws-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.ws .ws-tools .btn {
+  color: var(--color-text-muted);
+}
+
+/* 线稿图标要给足尺寸：.btn__icon 默认是 1em 的文本框宽（icons.js 的 SVG 是 24×24
+   属性尺寸，塞进 1em 的盒子里会被压成一个小点，状态栏上几乎看不见）。 */
+.ws .ws-tools .btn__icon,
+.ws .ws-tools .btn__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ws .ws-tools__item--warn .btn {
+  color: var(--color-warn);
+}
+
+.ws .ws-tools__item--on .btn {
+  color: var(--color-text);
 }
 
 /* ============================ 校验结果条（对话流内联，轻量一行） ============================
@@ -589,6 +671,58 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 组 id：中文口径（port）当组名之后，英文 id 留一枚等宽小标供对 JSON 用 */
+.ws-report-modal .group-card__id {
+  font-size: var(--font-size-xs);
+}
+
+/* ---- 校验窗口：本题分组口径（"这次校验在查什么"里的清单） ---- */
+.ws-report-modal .grade-plan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ws-report-modal .grade-plan__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.ws-report-modal .grade-plan__name {
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.ws-report-modal .grade-plan__meta {
+  flex: 0 0 auto;
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-report-modal .grade-plan__id {
+  flex: 0 0 auto;
+  font-size: var(--font-size-xs);
+}
+
+/* 校验窗口：进行中 / 已出分两条提示带 */
+.ws-report-modal .ws-grade-running,
+.ws-report-modal .ws-grade-done {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+}
+
 .ws-report-modal .group-card__body {
   display: flex;
   flex-direction: column;
@@ -668,34 +802,38 @@
   min-width: 0;
 }
 
-/* ============================ 事实格（运行详情） ============================ */
-.ws .ws-facts {
+/* ============================ 事实格（运行详情小窗口） ============================ */
+/* 运行详情 / 本轮备注的正文住在状态栏图标点开的小窗口里（modal 挂在 document.body
+   上，不在 .ws 子树内），所以这一节的选择器挂在 `.ws-win` 上，与 `.ws-report-modal`
+   是同一个「不外泄」意图：样式只认这棵子树，不污染别处。 */
+.ws-win .ws-facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: var(--space-2) var(--space-4);
 }
 
-.ws .ws-fact {
+.ws-win .ws-fact {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.ws .ws-fact__label {
+.ws-win .ws-fact__label {
   font-size: var(--font-size-xs);
   color: var(--color-text-faint);
 }
 
-.ws .ws-fact__value {
+.ws-win .ws-fact__value {
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
 /* ============================ 日志块 ============================
-   .ws 内（运行详情 / 校验进行中的实时日志）与报告窗口（.ws-report-modal）共用。 */
+   .ws 内（校验进行中的实时日志）与两个窗口（.ws-win / .ws-report-modal）共用。 */
 .ws .ws-log,
+.ws-win .ws-log,
 .ws-report-modal .ws-log {
   margin: 0;
   max-height: var(--log-height);
@@ -711,14 +849,15 @@
 }
 
 .ws .ws-log:focus-visible,
+.ws-win .ws-log:focus-visible,
 .ws-report-modal .ws-log:focus-visible {
   outline: var(--focus-ring-width) var(--focus-ring-style) var(--color-focus-ring);
   outline-offset: calc(-1 * var(--focus-ring-offset));
 }
 
 /* ============================ 完整性清单 ============================
-   .ws 内（运行详情）与报告窗口（.ws-report-modal：回归/越界/噪声/执行详情）共用。 */
-.ws .integrity-list,
+   .ws-win（运行详情窗口）与 .ws-report-modal（回归/越界/噪声/执行详情）共用。 */
+.ws-win .integrity-list,
 .ws-report-modal .integrity-list {
   list-style: none;
   margin: 0;
@@ -729,7 +868,7 @@
   font-size: var(--font-size-sm);
 }
 
-.ws .integrity-item,
+.ws-win .integrity-item,
 .ws-report-modal .integrity-item {
   display: flex;
   align-items: baseline;
@@ -737,26 +876,25 @@
   overflow-wrap: anywhere;
 }
 
-/* ============================ 本轮备注 ============================ */
-.ws .ws-notes__body .field textarea {
-  min-height: 96px;
+/* ============================ 本轮备注小窗口 ============================ */
+.ws-win--notes .field textarea {
+  min-height: 160px;
 }
 
-/* ============================ 底部粘性区：操作栏 + 输入区 ============================ */
+/* ============================ 底部区：操作栏 + 输入区 ============================ */
+/* 常驻在滚动区之下（不再是 sticky）：对话列自己滚，底部永远在原位。
+   下内边距只留一点呼吸，旧版那 52px 的「补间距」不再需要。 */
 .ws .ws-bottom {
-  position: sticky;
-  bottom: 0;
-  z-index: var(--z-sticky);
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  /* 下内边距 = 容器原来的 --space-9 + 自身原来的 --space-4，同上：补的是让出去的间距 */
-  padding: var(--space-3) 0 calc(var(--space-9) + var(--space-4));
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-2);
   background: var(--color-bg);
   border-top: var(--border-width) solid var(--color-border);
 }
 
-/* 操作栏：一个主按钮 + 显式「结束本轮并回收沙箱」 + ⋯ 更多操作 */
+/* 操作栏：一个主按钮 + 常驻「运行校验」/「重新校验」 + 显式「结束本轮」 + ⋯ 更多操作 */
 .ws .ws-dock {
   display: flex;
   align-items: flex-start;
@@ -829,16 +967,26 @@
 }
 
 /* ============================ 输入区 ============================ */
+/* 2026-10-02 四改：只留一颗「发送」（旧版这里还有一颗叫「发送当前提示词」的按钮，
+   实际只往草稿里填字，与底部操作栏真发送的那颗重名）。textarea 与发送钮同一行，
+   下面那行状态提示为空时整行收掉——省下来的高度全给对话。 */
 .ws .ws-composer {
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ws .ws-composer__row {
+  display: flex;
+  align-items: flex-end;
   gap: var(--space-2);
 }
 
 .ws .ws-composer__input {
-  width: 100%;
-  min-height: 88px;
-  padding: 10px 14px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 12px;
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -862,18 +1010,45 @@
   opacity: 0.55;
 }
 
+/* 状态行（模型处理中 / 档案已删）：没话说时整行 hidden，不占高度 */
 .ws .ws-composer__foot {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+  margin: 0;
+  min-height: 0;
+}
+
+.ws .ws-composer__foot[hidden] {
+  display: none;
 }
 
 .ws .ws-composer__hint {
   min-width: 0;
+  color: var(--color-warn);
 }
 
 /* ============================ 窄屏 ============================ */
+/* 窄屏外壳不锁高（base.css 的 max-width:900px 分支），工作台退回整页滚动：
+   这里必须把定高链与内层滚动一起放开，否则内容会被裁掉一截。 */
+@media (max-width: 900px) {
+  .ws {
+    height: auto;
+  }
+
+  .ws .ws-scroll {
+    overflow-y: visible;
+    min-height: 0;
+  }
+
+  .ws .ws-scroll > .ws-jump {
+    position: sticky;
+    bottom: var(--space-2);
+    align-self: flex-end;
+  }
+}
+
 @media (max-width: 720px) {
   .ws .ws-statusbar__side {
     margin-left: 0;

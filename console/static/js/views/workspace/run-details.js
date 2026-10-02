@@ -1,19 +1,29 @@
 /**
- * run-details.js — 对话流末尾的两个折叠节点：「运行详情」与「本轮备注」
- * （2026-10-02 对话流改版；由旧 sandbox-panel 的详情区与 run-bar 迁移而来）
+ * run-details.js — 状态栏两个图标 + 各自的小窗口（2026-10-02 四改）
  *
- * - 运行详情（#ws-region-sandbox）：路径、本轮开始时间、模型工作时长、轮次、
- *   运行编号、基线指纹、完整性自检、沙箱操作日志。术语不裸奔，全部收在折叠节点里。
- * - 本轮备注（#ws-region-run）：textarea + 保存，随这一轮记录落盘
- *   （POST /api/runs/{id}/note）。**轮询不覆盖用户正在输入的草稿**（§11.2 #14）：
- *   只有换了运行记录（run_id 变了）才从服务端同步一次备注。
+ * 四改前的形态是对话流末尾的两个折叠节点（运行详情 / 本轮备注）。它们把对话列
+ * 往下推了两行，而内容（路径、时长、完整性、备注框）本来就是「想看才看」的东西，
+ * 用户口径：**收到顶部状态栏当图标，点开是小窗口**，纵向空间全部让给对话。
+ *
+ * 本模块因此同时提供两件东西：
+ *   1. `toolsEl`：两个图标按钮（由编排层挂进状态栏），无运行记录时禁用并写原因
+ *      ——出口不许条件隐藏（红线 1），只是从「常驻折叠节点」变成「常驻图标」。
+ *   2. 两个小窗口（components/modal.js 的 slim 变体）：运行详情 / 本轮备注。
+ *      正文节点归本模块所有，关窗只是把它从 DOM 上摘下来，下次开窗原地挂回，
+ *      所以窗口开着与关着时 `update()` 都是同一套差异更新。
+ *
+ * 区域锚点 `#ws-region-sandbox` / `#ws-region-run` 仍是书签契约（§13.5）：它们现在
+ * 挂在小窗口的正文根上，`focusRegion('sandbox'|'run')` = 开窗（见 workspace.js）。
  *
  * 依赖：core/*、components/*
- * 导出：createRunDetails(handlers) → { el, update, destroy, setDetailsOpen, setNotesOpen, copyPath }
+ * 导出：createRunDetails(handlers) → { toolsEl, update, destroy, openDetails, openNotes,
+ *        isOpen, copyPath }
  */
 
 import { el, setText } from '../../core/dom.js';
 import { S, t } from '../../core/strings.js';
+import { openModal } from '../../components/modal.js';
+import { createIcon } from '../../components/icons.js';
 import { createButton } from '../../components/button.js';
 import { createCopyButton } from '../../components/copy-button.js';
 import { createDetailsCard } from '../../components/details-card.js';
@@ -37,16 +47,20 @@ function humanSeconds(seconds) {
 /** 本节点新增文案。 */
 const T = {
   DETAILS_TITLE: '运行详情',
-  FACT_ROUND_STARTED: '本轮开始于',
-  FACT_MODEL_WORK: '模型工作时长',
   NOTES_ASIDE: '随这一轮记录保存',
+  TOOLS_LABEL: '运行工具',
+  NO_RUN: '还没有运行记录。',
+  NOTE_EMPTY: '这一轮还没有备注。',
+  NOTE_HAS: '这一轮已有备注。',
+  NOTE_OPEN_HINT: '备注跟着这一轮记录走：写完点「保存备注」才落盘，关窗不会丢草稿。',
+  NO_RUN_HINT: '还没有运行记录：先在底部操作栏点「准备沙箱」，这条记录才有路径、时长与日志可看。',
 };
 
 /**
- * 创建运行详情 + 本轮备注两个节点（一个宿主元素，编排层只挂一次）。
+ * 创建状态栏工具图标 + 两个小窗口（一个宿主元素，编排层只挂一次）。
  * @param {{onNotesSave: (note: string) => void}} handlers
- * @returns {{el: HTMLElement, update: Function, destroy: Function,
- *            setDetailsOpen: Function, setNotesOpen: Function, copyPath: Function}}
+ * @returns {{toolsEl: HTMLElement, update: Function, destroy: Function,
+ *            openDetails: Function, openNotes: Function, isOpen: Function, copyPath: Function}}
  */
 export function createRunDetails(handlers) {
   let current = { run: null, busy: '', loading: true, opLog: [] };
@@ -56,6 +70,9 @@ export function createRunDetails(handlers) {
   let draftRunId = null;
   /** 上一次渲染过的完整性问题清单签名：没变就不重画。 */
   let integritySig = null;
+  /** 两个小窗口的句柄（关掉即置空，下次点图标重开）。 */
+  let detailsModal = null;
+  let notesModal = null;
 
   // ---- 运行详情：事实格 ----
   const copyPathBtn = createCopyButton({
@@ -100,17 +117,15 @@ export function createRunDetails(handlers) {
   const opLogCount = el('span', { class: 'u-faint' });
   const opLogCard = createDetailsCard({ title: S.SANDBOX_LOG_TITLE, content: opLogBox, open: false });
 
-  const detailsBody = el('div', { class: 'ws-node__body' }, facts, integrityCard.el, opLogCard.el);
-  const detailsAside = el('span', { class: 'ws-node__aside u-faint u-truncate' });
-  const detailsNode = el(
-    'details',
-    { class: 'ws-node ws-region', id: 'ws-region-sandbox' },
-    el('summary', { class: 'ws-node__summary' },
-      el('span', { class: 'ws-node__title' }, T.DETAILS_TITLE),
-      el('span', { class: 'u-spacer' }),
-      detailsAside,
-      el('span', { class: 'ws-node__chevron', 'aria-hidden': 'true' }, '›')),
-    detailsBody,
+  /** 运行详情正文（开窗时挂进 modal，关窗时摘下来留在本模块）。 */
+  const detailsEmpty = el('p', { class: 'u-faint', hidden: true }, T.NO_RUN_HINT);
+  const detailsBody = el(
+    'section',
+    { class: 'ws-win ws-region', id: 'ws-region-sandbox', 'aria-label': T.DETAILS_TITLE },
+    detailsEmpty,
+    facts,
+    integrityCard.el,
+    opLogCard.el,
   );
 
   // ---- 本轮备注 ----
@@ -118,7 +133,7 @@ export function createRunDetails(handlers) {
     label: S.RUN_NOTES_LABEL,
     name: 'run-note',
     type: 'textarea',
-    rows: 4,
+    rows: 6,
     placeholder: S.RUN_NOTES_PLACEHOLDER,
     hint: S.RUN_NOTES_HINT,
     onInput: (value) => {
@@ -131,20 +146,41 @@ export function createRunDetails(handlers) {
       if (handlers.onNotesSave) handlers.onNotesSave(noteField.getValue());
     },
   });
-  const notesNode = el(
-    'details',
-    { class: 'ws-node ws-region', id: 'ws-region-run' },
-    el('summary', { class: 'ws-node__summary' },
-      el('span', { class: 'ws-node__title' }, S.RUN_NOTES_LABEL),
-      el('span', { class: 'u-spacer' }),
-      el('span', { class: 'ws-node__aside u-faint' }, T.NOTES_ASIDE),
-      el('span', { class: 'ws-node__chevron', 'aria-hidden': 'true' }, '›')),
-    el('div', { class: 'ws-node__body ws-notes__body' },
-      noteField.el,
-      el('div', { class: 'u-row' }, saveNoteBtn.el)),
+  // 窗口标题已经是「本轮备注」，字段自己的 label 再写一遍是重复：视觉上收掉，
+  // 但留在无障碍树里（visually-hidden，不是 display:none——读屏还要靠它给输入框命名）。
+  const noteLabel = noteField.el.querySelector('.field__label');
+  if (noteLabel) noteLabel.classList.add('visually-hidden');
+  /** 备注正文（开窗时挂进 modal）。 */
+  const notesBody = el(
+    'section',
+    { class: 'ws-win ws-win--notes ws-region', id: 'ws-region-run', 'aria-label': S.RUN_NOTES_LABEL },
+    el('p', { class: 'u-faint' }, T.NOTE_OPEN_HINT),
+    noteField.el,
   );
 
-  const root = el('div', { class: 'ws-run-extras' }, detailsNode, notesNode);
+  // ---- 状态栏图标 ----
+  const detailsBtn = createButton({
+    variant: 'ghost',
+    size: 'sm',
+    iconNode: createIcon('info'),
+    ariaLabel: T.DETAILS_TITLE,
+    title: T.DETAILS_TITLE,
+    onClick: () => openDetails(),
+  });
+  const notesBtn = createButton({
+    variant: 'ghost',
+    size: 'sm',
+    iconNode: createIcon('note'),
+    ariaLabel: S.RUN_NOTES_LABEL,
+    title: S.RUN_NOTES_LABEL,
+    onClick: () => openNotes(),
+  });
+  const toolsEl = el(
+    'div',
+    { class: 'ws-tools', role: 'group', 'aria-label': T.TOOLS_LABEL },
+    detailsBtn.el,
+    notesBtn.el,
+  );
 
   /**
    * 渲染基线完整性：结论来自报告里的 baseline_problems（没有独立完整性接口）。
@@ -158,6 +194,8 @@ export function createRunDetails(handlers) {
       : 'pending';
     if (sig === integritySig) return;
     integritySig = sig;
+    // 图标上挂一枚警示：有完整性问题的运行，不进窗口也该看得出来（形状 + 颜色）
+    detailsBtn.el.classList.toggle('ws-tools__item--warn', Boolean(problems && problems.length));
     if (!problems) {
       integrityCard.update({ content: el('p', { class: 'u-faint' }, S.SANDBOX_INTEGRITY_EMPTY) });
       return;
@@ -218,19 +256,68 @@ export function createRunDetails(handlers) {
   }
 
   /**
+   * 打开「运行详情」小窗口（图标点击 / focusRegion('sandbox') 的唯一去向）。
+   *
+   * 没有运行记录时也照开：窗口里说清「还没有记录、下一步点准备沙箱」，比把图标
+   * 禁用掉更好——图标禁用只能在状态栏里挂一行原因文字，反而更吵（红线 1 的意思是
+   * 「路要摆着且说得出为什么」，不是「必须把按钮画成灰的」）。
+   * @returns {object} modal 句柄
+   */
+  function openDetails() {
+    if (detailsModal && detailsModal.isOpen()) return detailsModal;
+    detailsModal = openModal({
+      title: T.DETAILS_TITLE,
+      body: detailsBody,
+      variant: 'slim',
+      onClose: () => {
+        detailsModal = null;
+      },
+    });
+    return detailsModal;
+  }
+
+  /**
+   * 打开「本轮备注」小窗口：正文 + 保存（保存后不关窗，方便接着改）。
+   * @returns {object} modal 句柄
+   */
+  function openNotes() {
+    if (notesModal && notesModal.isOpen()) {
+      noteField.focus();
+      return notesModal;
+    }
+    notesModal = openModal({
+      title: S.RUN_NOTES_LABEL,
+      body: notesBody,
+      footer: [saveNoteBtn.el],
+      variant: 'slim',
+      initialFocus: current.run ? noteField.getControl() : null,
+      onClose: () => {
+        notesModal = null;
+      },
+    });
+    return notesModal;
+  }
+
+  /**
    * 差异更新。
    * @param {{run?: object|null, busy?: string, loading?: boolean, opLog?: string[]}} state
    */
   function update(state = {}) {
     current = { ...current, ...state };
     const run = current.run;
+    const hasRun = Boolean(run);
 
-    // 没有运行记录时整个宿主隐藏：详情与备注都依附于一条真实记录
-    root.hidden = !run;
-    if (!run) return;
+    // 图标不做条件隐藏也不禁用：点开就是这个小窗口，缺记录时窗口自己说清楚。
+    // 只在图标上体现「这条记录有没有东西值得看」（有完整性问题的警示 / 有备注）。
+    detailsEmpty.hidden = hasRun;
+    if (!hasRun) {
+      detailsBtn.el.classList.remove('ws-tools__item--warn');
+      notesBtn.el.classList.remove('ws-tools__item--on');
+      notesBtn.update({ title: T.NO_RUN });
+      saveNoteBtn.update({ disabled: true, reason: T.NO_RUN, loading: false });
+      return;
+    }
 
-    // 摘要行：路径存在与否一句话
-    setText(detailsAside, run.sandbox ? '' : S.ERR_NO_SANDBOX);
     renderFacts(run);
     renderIntegrity(run);
 
@@ -240,33 +327,35 @@ export function createRunDetails(handlers) {
     opLogCard.update({ content: opLogBox, hint: opLogCount.textContent });
 
     // 备注：只有换了一轮才从服务端同步草稿
-    const serverNote = run ? run.note || '' : '';
-    const runId = run ? run.run_id : null;
+    const serverNote = run.note || '';
+    const runId = run.run_id;
     if (runId !== draftRunId) {
       draftRunId = runId;
       noteDraft = serverNote;
       noteField.setValue(serverNote);
     }
+    // 图标上体现「这一轮有没有备注」：空备注时点开是一个空框，值得先看一眼
+    notesBtn.el.classList.toggle('ws-tools__item--on', Boolean(String(serverNote).trim()));
+    notesBtn.update({ title: String(serverNote).trim() ? T.NOTE_HAS : T.NOTE_EMPTY });
     saveNoteBtn.update({
       loading: current.busy === 'notes',
       busyLabel: S.ACTION_SAVED,
-      disabled: !run,
-      reason: run ? '' : S.ERR_NO_RUN,
+      disabled: false,
+      reason: '',
     });
   }
 
   update({});
 
   return {
-    el: root,
+    toolsEl,
     update,
-    /** 展开/收起运行详情（焦点跳转前先展开）。 */
-    setDetailsOpen(open) {
-      detailsNode.open = Boolean(open);
-    },
-    /** 展开/收起本轮备注。 */
-    setNotesOpen(open) {
-      notesNode.open = Boolean(open);
+    openDetails,
+    openNotes,
+    /** 某个窗口是不是开着（编排层决定要不要把状态推给它）。 */
+    isOpen: (which) => {
+      const handle = which === 'notes' ? notesModal : detailsModal;
+      return Boolean(handle && handle.isOpen());
     },
     /**
      * 复制沙箱路径（菜单「复制沙箱路径」动作的承载体）。
@@ -279,11 +368,15 @@ export function createRunDetails(handlers) {
     },
     /** 解绑（§10.4）。 */
     destroy() {
+      if (detailsModal) detailsModal.close('destroy');
+      if (notesModal) notesModal.close('destroy');
       copyPathBtn.destroy();
       integrityCard.destroy();
       opLogCard.destroy();
       noteField.destroy();
       saveNoteBtn.destroy();
+      detailsBtn.destroy();
+      notesBtn.destroy();
     },
   };
 }

@@ -36,7 +36,7 @@ let seq = 0;
  *   onClose?: (reason: string) => void,
  *   closeOnBackdrop?: boolean,
  *   initialFocus?: HTMLElement,
- *   variant?: 'default'|'danger'|'wide',
+ *   variant?: 'default'|'danger'|'wide'|'slim',
  *   describedBy?: string
  * }} options
  * @returns {{el: HTMLElement, close: Function, destroy: Function, setBusy: Function, isOpen: Function, bodyEl: HTMLElement}}
@@ -72,7 +72,13 @@ export function openModal(options = {}) {
   const dialog = el(
     'div',
     {
-      class: `modal${options.variant === 'danger' ? ' modal--danger' : ''}${options.variant === 'wide' ? ' modal--wide' : ''}`,
+      class: [
+        'modal',
+        options.variant === 'danger' ? 'modal--danger' : '',
+        options.variant === 'wide' ? 'modal--wide' : '',
+        // slim：状态栏图标点开的小窗口（运行详情 / 本轮备注），内容本来就短
+        options.variant === 'slim' ? 'modal--slim' : '',
+      ].filter(Boolean).join(' '),
       role: 'dialog',
       'aria-modal': 'true',
       'aria-labelledby': titleId,

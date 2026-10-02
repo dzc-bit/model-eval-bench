@@ -44,10 +44,7 @@ import { storage } from '../core/storage.js';
 import {
   announce,
   isEditableTarget,
-  pageScrollTop,
-  revealIfCoveredByStickyTop,
   scrollBelowStickyHeader,
-  setPageScroll,
 } from '../core/a11y.js';
 import { tierBadge } from '../components/badge.js';
 import { confirmDialog } from '../components/confirm-dialog.js';
@@ -59,7 +56,7 @@ import { createStatusDot } from '../components/status-dot.js';
 import { createTaskNode } from './workspace/task-node.js';
 import { createChatStream } from './workspace/chat-stream.js';
 import { createReportNode } from './workspace/report-node.js';
-import { openReportModal } from './workspace/report-modal.js';
+import { openReportModal, openGradeModal } from './workspace/report-modal.js';
 import { createRunDetails } from './workspace/run-details.js';
 import { createDock } from './workspace/dock.js';
 
@@ -95,10 +92,15 @@ const T = {
   P_PREPARE: '准备沙箱',
   P_PREPARING: '正在准备沙箱…',
   P_PREPARING_REASON: '首次准备会铺开整个沙箱副本，一般几秒到几十秒。',
-  P_SEND_PROMPT: '发送当前提示词',
+  /** 提示词按钮带等级：它发的是「第 n 级」那一份，不是笼统的「当前提示词」。 */
+  P_SEND_PROMPT_LEVEL: '发送第 {n} 级提示词',
+  P_NEED_PROMPT: '这一轮的提示词还没读到（任务详情读取失败）：在「任务与提示词」节点里点「重试」，读回来再发送。',
   P_GRADE: '运行校验',
   P_REGRADING: '校验进行中…',
   P_GRADING_REASON: '服务端正在跑隐藏用例，跑完自动出分。',
+  // 常驻校验按钮：第一次校验没过之后它必须还在（用户口径，2026-10-02）
+  G_GRADE: '运行校验',
+  G_REGRADE: '重新校验',
   P_PROMOTE: '进入第 {n} 轮',
   P_REVEAL: '查看参考解',
   P_BACK_TASKS: '换一题',
@@ -129,6 +131,9 @@ const T = {
   FINISHED_PLAIN: '本轮已结束',
   // ⋯ 菜单
   M_COPY_PATH: '复制沙箱路径',
+  M_FILL_PROMPT: '把当前提示词填进输入框',
+  M_FILL_PROMPT_REASON: '填进输入框后可以先改再发；不用它就直接点主按钮发送原文。',
+  M_FILL_PROMPT_NO_TEXT: '这一轮的提示词还没读到，先点上方的「重试」。',
   M_RESET: '清空改动',
   M_REBUILD: '重建沙箱（回到基线）',
   M_REBUILD_REASON: '会作废已有成绩并归档本轮证据。',
@@ -197,6 +202,14 @@ export function createWorkspace(props = {}) {
     /** 本机长操作：prepare / reset / rebuild / grade / finish / discard / notes */
     busy: '',
     error: null,
+    /**
+     * 任务详情读取失败的原因码（空串 = 没失败）。
+     *
+     * 任务详情是提示词的**唯一**来源：读不到就没有东西可发。它必须是一个可见状态
+     * （任务节点显示「读取失败 + 重试」、发送按钮禁用并写原因），不能只闪一条 toast
+     * ——2026-10-02 用户报的「重建沙箱后提示词没有出现」就是这条路径静默失败的样子。
+     */
+    taskError: '',
     /** 沙箱区日志：本机真实发过的每一步（后端不提供沙箱日志，见 NOTES.md） */
     opLog: [],
     /** 当前长操作已用毫秒（心跳累加） */
@@ -230,6 +243,16 @@ export function createWorkspace(props = {}) {
   let tickTimer = null;
   /** 已经写进地址栏的区域：跳转回来时不再重复改 hash，避免「路由 → 跳转 → 路由」打转。 */
   let lastUrlRegion = '';
+  /** 「校验」窗口句柄：点下校验就开，出分原地切换（关掉不影响校验）。 */
+  let gradeModal = null;
+  /**
+   * 题面自动补读的次数上限。
+   *
+   * 「有 run 却没有题面」是一个能自我修复的故障（首屏那次读取失败 / 被取消），
+   * 但补读本身会失败，所以给它一个上限，之后停在「任务节点显示读取失败 + 重试」
+   * 的可见状态上——不能让补读自己打转，也不能留一个点了没反应的发送按钮。
+   */
+  let taskRetryCount = 0;
 
   // 模型档案是异步到达的：首屏可能晚于本视图、模型页改完会再推一次、启动那次请求
   // 可能整个失败。只吃创建时的快照会让下拉永久停在「尚未选择档案」且没有原因，
@@ -285,6 +308,12 @@ export function createWorkspace(props = {}) {
   const modelRetryHost = el('span', { class: 'ws-statusbar__model-retry' }, modelRetryBtn.el);
   modelRetryHost.hidden = true;
 
+  // 运行详情与本轮备注先建：它们的图标要挂进下面那条状态栏（四改：从对话流末尾
+  // 的两个折叠节点收成图标 + 小窗口）。
+  const runDetails = createRunDetails({
+    onNotesSave: (note) => saveNote(note),
+  });
+
   const statusDot = createStatusDot({ kind: 'idle', text: T.ST_IDLE });
   const statusBar = el(
     'header',
@@ -293,6 +322,9 @@ export function createWorkspace(props = {}) {
       h1,
       el('div', { class: 'ws-statusbar__meta' }, tierHost, roundText)),
     el('div', { class: 'ws-statusbar__side' },
+      // 运行详情 / 本轮备注：2026-10-02 四改从对话流末尾的两个折叠节点收成
+      // 状态栏的两个图标，点开是小窗口（见 workspace/run-details.js）。
+      runDetails.toolsEl,
       modelField.el,
       modelRetryHost,
       statusDot.el),
@@ -305,7 +337,7 @@ export function createWorkspace(props = {}) {
   const diffCard = createDetailsCard({ title: S.RUN_DIFF_TITLE, content: diffText, open: true });
   const diffWrap = el('div', { class: 'ws-diff', hidden: true }, diffCard.el);
 
-  // ==================== 任务节点 / 对话流 / 结果节点 / 详情 / 操作栏 ====================
+  // ==================== 任务节点 / 对话流 / 结果节点 / 操作栏 ====================
   const taskNode = createTaskNode({
     onRoundChange: (n) => doRoundChange(n),
     onSendPrompt: (text) => chatStream.sendText(text),
@@ -314,30 +346,42 @@ export function createWorkspace(props = {}) {
   const chatStream = createChatStream({
     scope,
     onPrepare: () => doPrepare(),
-    // 空态与「填入当前提示词」共用任务节点的当前轮正文
-    onSendPrompt: () => chatStream.sendText(taskNode.getPrompt()),
-    onFillPrompt: () => chatStream.setDraft(taskNode.getPrompt()),
     onRestartWithModel: (preferredId) => doRestartWithModel(preferredId),
   });
   const reportNode = createReportNode({
     onOpenReport: () => openReport(),
   });
-  const runDetails = createRunDetails({
-    onNotesSave: (note) => saveNote(note),
-  });
   const dock = createDock();
 
   const bottom = el('div', { class: 'ws-bottom' }, dock.el, chatStream.composerEl);
+
+  /**
+   * 唯一的滚动容器（2026-10-02 三改）。
+   *
+   * 旧版是整页 .app-main 在滚：滚动条跑到窗口最右端，离对话列很远；而且刷新后
+   * 落在顶部，要手动往下拽一大段才看到最新一条。现在任务节点 / 对话流 / 校验结果
+   * 都装进这个盒子，滚动条贴着对话列右缘，重开页面直接停在最新（见
+   * restoreScroll 与 chatStream.scrollToLatest）。
+   *
+   * 四改：运行详情与本轮备注搬出这里（进状态栏图标 + 小窗口），纵向空间全留给对话。
+   */
+  const scrollBox = el(
+    'div',
+    { class: 'ws-scroll', id: 'ws-scroll', tabindex: '0' },
+    diffWrap,
+    taskNode.el,
+    chatStream.el,
+    reportNode.el,
+    // 「回到底部」浮钮挂在滚动区末尾：sticky 才能钉在 scrollport 下沿（挂到 .ws 上
+    // 会压在输入区上，挂成 absolute 会跟着内容滚走）。
+    chatStream.jumpEl,
+  );
 
   const root = el(
     'div',
     { class: 'view ws' },
     statusBar,
-    diffWrap,
-    taskNode.el,
-    chatStream.el,
-    reportNode.el,
-    runDetails.el,
+    scrollBox,
     bottom,
   );
 
@@ -382,14 +426,19 @@ export function createWorkspace(props = {}) {
     if (grading) return { label: T.P_REGRADING, disabled: true, reason: T.P_GRADING_REASON, loading: true, busyLabel: T.P_REGRADING };
     if (revealed) return { label: T.P_BACK_TASKS, onClick: () => navigate('tasks') };
     const busyReason = chatBusy ? T.P_REMOTE_BUSY : localBusy ? T.P_LOCAL_BUSY : '';
+    // 「发送第 n 级提示词」：n 取当前查看的那一级。没有题面就没得发——按钮必须禁用
+    // 并把原因写出来（旧版这种情况下点了完全没反应，看起来像按钮坏了）。
+    const promptText = promptTextOf(s);
+    const sendDisabled = !promptText;
+    const sendReason = sendDisabled ? T.P_NEED_PROMPT : '';
     if (run.report) {
       if (!acted) {
         // 报告在、模型却没动手：那份 0 分是误点出来的，第一步是让它真的开工
         return {
-          label: T.P_SEND_PROMPT,
-          onClick: () => chatStream.sendText(taskNode.getPrompt()),
-          disabled: !s.modelId || Boolean(busyReason),
-          reason: busyReason || (s.modelId ? '' : T.P_NEED_MODEL),
+          label: t(T.P_SEND_PROMPT_LEVEL, { n: Number(s.round) || 1 }),
+          onClick: () => chatStream.sendText(promptText),
+          disabled: sendDisabled || !s.modelId || Boolean(busyReason),
+          reason: sendReason || busyReason || (s.modelId ? '' : T.P_NEED_MODEL),
         };
       }
       if (attempt < allowed) {
@@ -409,10 +458,12 @@ export function createWorkspace(props = {}) {
     }
     if (!acted) {
       return {
-        label: T.P_SEND_PROMPT,
-        onClick: () => chatStream.sendText(taskNode.getPrompt()),
-          disabled: !s.modelId || !sandboxOk || Boolean(busyReason),
-          reason: busyReason || (!s.modelId ? T.P_NEED_MODEL : !sandboxOk ? sandboxReason : ''),
+        label: t(T.P_SEND_PROMPT_LEVEL, { n: Number(s.round) || 1 }),
+        onClick: () => chatStream.sendText(promptText),
+        disabled: sendDisabled || !s.modelId || !sandboxOk || Boolean(busyReason),
+        reason: sendReason
+          || busyReason
+          || (!s.modelId ? T.P_NEED_MODEL : !sandboxOk ? sandboxReason : ''),
       };
     }
     return {
@@ -455,6 +506,31 @@ export function createWorkspace(props = {}) {
   }
 
   /**
+   * 显式的「运行校验 / 重新校验」常驻按钮（2026-10-02 用户口径）。
+   *
+   * 旧版校验只在「模型动手后」当主按钮出现一次，出了分主按钮就变成「进入第 n 轮」，
+   * 校验只剩 ⋯ 菜单里那一项——中级以上题目本来就有 2–3 次机会，第一次没过之后
+   * 用户想「让模型接着改，再校验一次」时按钮却消失了，这就是「校验按钮隐藏」。
+   * 现在它与「结束本轮」并排常驻：能走的路一直摆着，不可用时禁用 + 写原因。
+   * @param {object} s store 快照
+   */
+  function gradeAction(s) {
+    const run = s.run;
+    const item = menuItems(s).find((i) => i.key === 'regrade') || {};
+    const label = run && run.report ? T.G_REGRADE : T.G_GRADE;
+    const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
+    return {
+      label,
+      onClick: () => doGrade(),
+      disabled: Boolean(item.disabled) || grading,
+      reason: grading ? T.P_GRADING_REASON : (item.reason || ''),
+      loading: grading || s.busy === 'grade',
+      busyLabel: T.P_REGRADING,
+      kbd: 'G',
+    };
+  }
+
+  /**
    * ⋯ 菜单：全量次级出口常列，不可用的禁用 + 原因写在项里。
    * @param {object} s store 快照
    * @returns {Array}
@@ -471,6 +547,8 @@ export function createWorkspace(props = {}) {
     const sandboxOk = Boolean(run && SANDBOX_OK.has(run.status) && run.sandbox);
     const foreign = Boolean(s.modelMismatch);
     const foreignReason = foreign ? t(T.P_FOREIGN, { model: (run && run.model) || '（空）' }) : '';
+    /** 当前查看的那一级提示词正文（「填进输入框」这条口子的载荷）。 */
+    const promptText = promptTextOf(s);
     // 同 primaryAction：已回收的 run 状态还是 ready/graded，必须看 sandbox 字段
     const sandboxGoneReason = run && !run.sandbox ? T.M_NO_SANDBOX : T.P_NEED_SANDBOX;
     const busyReason = chatBusy
@@ -494,6 +572,20 @@ export function createWorkspace(props = {}) {
         disabled: !run || !run.sandbox,
         reason: !run ? T.M_NO_RUN : !run.sandbox ? T.M_NO_SANDBOX : '',
         onClick: () => doOpenDir(),
+      },
+      {
+        // 旧版这颗按钮长在输入区里、名字叫「发送当前提示词」，实际只往草稿里填字
+        // ——与底部主按钮同名不同义，用户报的「发送按钮重复」就是它。现在它是菜单里
+        // 一条名字与行为一致的口子（2026-10-02 四改）。
+        key: 'fill-prompt',
+        label: T.M_FILL_PROMPT,
+        disabled: !run || !promptText,
+        reason: !run
+          ? T.M_NO_RUN
+          : !promptText
+            ? T.M_FILL_PROMPT_NO_TEXT
+            : T.M_FILL_PROMPT_REASON,
+        onClick: () => chatStream.setDraft(promptText),
       },
       {
         key: 'reset',
@@ -557,16 +649,18 @@ export function createWorkspace(props = {}) {
    */
   function renderDock(s) {
     const primary = primaryAction(s);
+    const grade = gradeAction(s);
     const finish = finishAction(s);
     const items = menuItems(s);
     const sig = [
       primary.label, primary.disabled ? 1 : 0, primary.reason || '', primary.loading ? 1 : 0,
+      grade.label, grade.disabled ? 1 : 0, grade.reason || '', grade.loading ? 1 : 0,
       finish.disabled ? 1 : 0, finish.reason || '', finish.loading ? 1 : 0,
       items.map((i) => `${i.key}|${i.label}|${i.disabled ? 1 : 0}|${i.reason || ''}`).join('#'),
     ].join('|');
     if (sig === dockSignature) return;
     dockSignature = sig;
-    dock.update({ primary, finish, menuItems: items });
+    dock.update({ primary, grade, finish, menuItems: items });
   }
 
   // ==================== 状态栏渲染 ====================
@@ -781,24 +875,39 @@ export function createWorkspace(props = {}) {
       }
       const runForSend = next.run;
       const chatOk = runForSend && (runForSend.status === 'ready' || runForSend.status === 'graded');
+      const promptOk = hasPrompt(next);
+      // 题面读失败 / 这一级没正文，都要在节点里显形（展开 + 重试），不能只在 toast 里闪一下：
+      // 它是「发送第 n 级提示词」能不能用的唯一依据。没有 error 时节点里就没有重试出口，
+      // 而发送按钮的原因正指着那个出口。
+      const taskFailure = next.taskError
+        ? { code: next.taskError }
+        : (!promptOk && next.run ? { code: 'LOAD_FAILED' } : null);
       taskNode.update({
         task: next.task,
         run: next.run,
         round: next.round,
         loading: next.loading,
-        error: next.error,
-        sendDisabled: !runForSend || !chatOk || Boolean(runForSend.chat_busy) || Boolean(runForSend.model_gone),
-        sendReason: !runForSend
-          ? '先准备沙箱，再把提示词发给模型。'
-          : runForSend.model_gone
-            ? '这一轮绑定的模型档案已被删除。'
-            : runForSend.chat_busy
-              ? S.CHAT_REMOTE_BUSY
-              : !chatOk
-                ? '这一轮还不能对话：沙箱没就绪或已经收束。'
-                : '',
+        error: taskFailure,
+        sendDisabled: !promptOk || !runForSend || !chatOk
+          || Boolean(runForSend.chat_busy) || Boolean(runForSend.model_gone),
+        sendReason: !promptOk
+          ? T.P_NEED_PROMPT
+          : !runForSend
+            ? '先准备沙箱，再把提示词发给模型。'
+            : runForSend.model_gone
+              ? '这一轮绑定的模型档案已被删除。'
+              : runForSend.chat_busy
+                ? S.CHAT_REMOTE_BUSY
+                : !chatOk
+                  ? '这一轮还不能对话：沙箱没就绪或已经收束。'
+                  : '',
       });
-      chatStream.update({ run: next.run, pickedModelId: next.modelId });
+      // 题面缺了 / 落后了就自动补读一次（有上限）：补不上会停在任务节点的「读取失败 + 重试」。
+      if (taskStale(next) && taskRetryCount < 2) {
+        taskRetryCount += 1;
+        refreshTask(next.run ? next.run.run_id : '');
+      }
+      chatStream.update({ run: next.run, pickedModelId: next.modelId, promptReady: promptOk });
       // 状态一变就可能长高（结果条、运行详情、任务节点展开）：对话在飞时把末尾带回来。
       // 跟不跟、跟到哪里全由 chatStream 判断，这里只负责喊一声。
       chatStream.followLatest();
@@ -812,9 +921,52 @@ export function createWorkspace(props = {}) {
       };
       if (next.newResult) reportState.newResult = true;
       reportNode.update(reportState);
+      // 校验窗口开着就跟着状态走：进行中 → 日志/用时；出分 → 原地换成结果正文。
+      if (gradeModal && gradeModal.isOpen()) {
+        gradeModal.update({ run: next.run, elapsed: next.elapsed });
+      }
       runDetails.update({ run: next.run, busy: next.busy, loading: next.loading, opLog: next.opLog });
     }),
   );
+
+  /**
+   * 当前这一轮要发的提示词正文（任务详情是它唯一的来源）。
+   *
+   * 与任务节点共用同一份数据：发送按钮的「能不能点」与「点了发什么」必须同源，
+   * 否则会出现「按钮说能发、发出去的却是另一级」的错位。
+   * @param {object} s store 快照
+   * @returns {string}
+   */
+  function promptTextOf(s) {
+    const level = Number(s.round) || 1;
+    const hit = ((s.task && s.task.prompts) || []).find((p) => Number(p.level) === level);
+    return hit ? String(hit.text || '') : '';
+  }
+
+  /**
+   * 这一轮的提示词在不在本地。
+   * @param {object} s store 快照
+   * @returns {boolean}
+   */
+  function hasPrompt(s) {
+    return Boolean(promptTextOf(s).trim());
+  }
+
+  /**
+   * 题面是不是缺了 / 落后了：有 run 却没读到题面，或题面停在更低的提示词级
+   * （进下一轮时那次重读失败了）。这两种情况都让「发送第 n 级提示词」变成哑按钮，
+   * 所以订阅里发现就补读一次。
+   * @param {object} s store 快照
+   * @returns {boolean}
+   */
+  function taskStale(s) {
+    if (s.loading || s.taskError) return false;
+    if (!s.task) return Boolean(s.run);
+    if (!s.run) return false;
+    // 题面在、但这一级没有正文（级数对不上 / 服务端少给了）：一样没法发
+    if (!hasPrompt(s)) return true;
+    return Number(s.task.unlocked_prompts || 0) < Number(s.run.attempt || 1);
+  }
 
   /**
    * 已解锁的提示词级。
@@ -869,6 +1021,10 @@ export function createWorkspace(props = {}) {
       rememberModelRun(s.modelId, runId);
       logOp(t(S.SANDBOX_PREPARE_DONE, { path: res.sandbox || '' }));
       await loadRun(runId);
+      // 新记录建好之后要按它读一遍题面：准备沙箱这条路径以前不碰任务详情，
+      // 一旦首屏那次读取失败过，接下来就是「有沙箱、没有提示词」的死状态
+      // （2026-10-02 用户报的现象）。
+      await refreshTask(runId);
       patch({ busy: '', elapsed: 0 });
     } catch (err) {
       reportError(err, '准备沙箱');
@@ -990,11 +1146,6 @@ export function createWorkspace(props = {}) {
   function openReport() {
     const s = store.getState();
     if (!s.run || !s.run.report) return;
-    const items = menuItems(s);
-    const pick = (key) => items.find((i) => i.key === key) || {};
-    const reopen = pick('reopen');
-    const reveal = pick('reveal');
-    const exportItem = pick('export');
     openReportModal({
       run: s.run,
       revealed: s.revealed,
@@ -1002,34 +1153,69 @@ export function createWorkspace(props = {}) {
       // 报告窗开着时这一轮可能又跑完一次校验：传这个进去，窗口顶部会出现
       // 一条 polite 的「有新结果，点击刷新」。正文不自动替换（§13.2）。
       reloadRun: () => api.get(`/runs/${encodeURIComponent(s.run.run_id)}`, { scope }),
-      actions: [
-        {
-          key: 'reopen',
-          label: reopen.label || T.M_REOPEN,
-          disabled: Boolean(reopen.disabled),
-          reason: reopen.reason || '',
-          variant: 'default',
-          onClick: () => doReopen(),
-        },
-        {
-          key: 'reveal',
-          label: reveal.label || T.M_REVEAL,
-          disabled: Boolean(reveal.disabled),
-          reason: reveal.reason || '',
-          variant: 'default',
-          onClick: () => doReveal(),
-        },
-        {
-          key: 'export',
-          label: exportItem.label || T.M_EXPORT,
-          disabled: Boolean(exportItem.disabled),
-          reason: exportItem.reason || '',
-          variant: 'ghost',
-          keepOpen: true,
-          onClick: () => doExport(),
-        },
-      ],
+      actions: reportActions(s),
     });
+  }
+
+  /**
+   * 校验/报告两个窗口共用的 footer 出口：从 ⋯ 菜单的同一套判定里取，
+   * 保证「菜单里禁用的，窗口里也点不动，理由还一样」。
+   * @param {object} s store 快照
+   * @returns {Array}
+   */
+  function reportActions(s) {
+    const items = menuItems(s);
+    const pick = (key) => items.find((i) => i.key === key) || {};
+    const reopen = pick('reopen');
+    const reveal = pick('reveal');
+    const exportItem = pick('export');
+    return [
+      {
+        key: 'reopen',
+        label: reopen.label || T.M_REOPEN,
+        disabled: Boolean(reopen.disabled),
+        reason: reopen.reason || '',
+        variant: 'default',
+        onClick: () => doReopen(),
+      },
+      {
+        key: 'reveal',
+        label: reveal.label || T.M_REVEAL,
+        disabled: Boolean(reveal.disabled),
+        reason: reveal.reason || '',
+        variant: 'default',
+        onClick: () => doReveal(),
+      },
+      {
+        key: 'export',
+        label: exportItem.label || T.M_EXPORT,
+        disabled: Boolean(exportItem.disabled),
+        reason: exportItem.reason || '',
+        variant: 'ghost',
+        keepOpen: true,
+        onClick: () => doExport(),
+      },
+    ];
+  }
+
+  /**
+   * 打开「校验」窗口（2026-10-02 用户口径：只要进行校验就弹出来）。
+   *
+   * 用户点下校验的那一刻就要看到「这次在查什么」——本题的分组口径、每组守哪个
+   * 出口、权重、回归与越界的规则；出分后同一个窗口原地换成结果正文。
+   * 这不是 §13.2 说的「完成事件自动弹窗」：弹窗由用户自己的动作触发，
+   * 结果条与「查看完整报告」照旧留一份回看入口。
+   */
+  function openGrade() {
+    const s = store.getState();
+    gradeModal = openGradeModal({
+      run: s.run,
+      plan: (s.task && s.task.check_plan) || [],
+      revealed: s.revealed,
+      elapsed: s.elapsed,
+      actions: reportActions(s),
+    });
+    return gradeModal;
   }
 
   /**
@@ -1129,7 +1315,9 @@ export function createWorkspace(props = {}) {
       const res = await api.post('/sandbox/rebuild', { run_id: s.run.run_id, task: taskId }, { scope });
       logOp(t(S.SANDBOX_REBUILD_DONE, { path: res.sandbox || '' }));
       await loadRun(s.run.run_id);
-      await loadTask();
+      // 题面必须按**这条记录**重读：不带 run_id 时服务端会拿「这道题最新的记录」
+      // 去算已解锁的提示词级，重建之后可能读到另一条记录的级数（提示词对不上）。
+      await refreshTask(s.run.run_id);
       patch({ busy: '', elapsed: 0 });
       announce(S.ANNOUNCE_SANDBOX_READY);
       showToast({ message: S.CONFIRM_REBUILD_DONE, kind: 'success', duration: 6000 });
@@ -1141,6 +1329,7 @@ export function createWorkspace(props = {}) {
   /**
    * 运行校验。
    * 契约：POST /api/runs/{id}/grade **异步**返回，真实进度靠轮询 GET /api/runs/{id}。
+   * 弹窗：点下去就开「校验」窗口（说明这次在查什么 + 实时进度），出分原地换结果。
    */
   async function doGrade() {
     const s = store.getState();
@@ -1159,6 +1348,8 @@ export function createWorkspace(props = {}) {
     }
     patch({ busy: 'grade', newResult: false, elapsed: 0, run: { ...s.run, status: 'grading' } });
     announce(S.ANNOUNCE_GRADE_STARTED);
+    // 弹窗用乐观状态开：先看到「正在校验 + 这次查什么」，出分后原地换正文。
+    openGrade();
     try {
       await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/grade`, {}, { scope });
       poller.start();
@@ -1171,6 +1362,15 @@ export function createWorkspace(props = {}) {
       try {
         await loadRun(s.run.run_id);
       } catch { /* 保留本地状态即可 */ }
+      // 窗口里也要说明失败原因：只弹一条 toast 的话，窗口还写着「正在校验」。
+      if (gradeModal && gradeModal.isOpen()) {
+        const code = err instanceof ApiError ? err.code : 'INTERNAL';
+        gradeModal.update({
+          run: store.getState().run,
+          elapsed: 0,
+          error: `${errorTitle(code)}：${errorBody(code)}`,
+        });
+      }
     }
   }
 
@@ -1216,7 +1416,7 @@ export function createWorkspace(props = {}) {
     try {
       const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/promote`, {}, { scope });
       const level = Number(res.attempt) || nextLevel;
-      await loadTask();
+      await refreshTask(s.run.run_id);
       await loadRun(s.run.run_id);
       patch({ round: level, busy: '', elapsed: 0 });
       wsStore.set('round', level);
@@ -1391,6 +1591,7 @@ export function createWorkspace(props = {}) {
       storage.set('last-task', taskId);
       rememberModelRun(modelId, res.run_id);
       await loadRun(res.run_id);
+      await refreshTask(res.run_id);
       patch({ busy: '', elapsed: 0 });
       showToast({ message: T.RESTART_DONE, detail: res.sandbox || '', kind: 'success', duration: 8000 });
     } catch (err) {
@@ -1614,15 +1815,29 @@ export function createWorkspace(props = {}) {
    * 地址栏只是「记录在哪一区」的书签：main.js 对同一任务 + 同一视图的身份变化
    * 做就地跳转，不再销毁重建视图。这里的 navigate 由 lastUrlRegion 兜一层，
    * 避免「写 hash → 路由回调 focusRegion → 又写 hash」的原地打转。
+   *
+   * 2026-10-02 四改：`sandbox`（运行详情）与 `run`（本轮备注）不再是对话流里的折叠
+   * 节点，而是状态栏图标点开的小窗口——跳这两个区域 = 把小窗口开起来（区域锚点
+   * 仍挂在窗口正文根上，书签语义不变）。
    * @param {'prompt'|'chat'|'sandbox'|'grade'|'run'} region
    */
   function focusRegion(region) {
+    if (region === 'sandbox' || region === 'run') {
+      const handle = region === 'sandbox' ? runDetails.openDetails() : runDetails.openNotes();
+      if (handle) {
+        wsStore.set('region', region);
+        if (region !== lastUrlRegion) {
+          lastUrlRegion = region;
+          if (navigate) navigate('workspace', { taskId, region }, { replace: true });
+        }
+        return;
+      }
+      // 没有运行记录时窗口开不出来：退回对话区，别把人留在一个什么都没发生的位置
+    }
     const node = root.querySelector(`#ws-region-${region}`);
     if (!node) return;
     // 折叠节点先展开再跳，别把人滚到一个关着的节点上
     if (region === 'prompt') taskNode.setOpen(true);
-    if (region === 'sandbox') runDetails.setDetailsOpen(true);
-    if (region === 'run') runDetails.setNotesOpen(true);
     const target = node.querySelector('h1, h2, summary') || node;
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
@@ -1680,59 +1895,95 @@ export function createWorkspace(props = {}) {
   }
   offHandlers.push(on(document, 'keydown', onKeydown));
 
-  // ==================== 滚动位置持久化（§13.5） ====================
-  // 外壳是「主内容区自己滚动」（.app-main 带 overflow），而 scroll 事件
-  // 不冒泡。用捕获阶段挂在 document 上才能同时收到窗口滚动和容器滚动，
-  // 否则刷新后「回到上次位置」会静默失效。
-  offHandlers.push(
-    on(
-      document,
-      'scroll',
-      () => {
-        window.requestAnimationFrame(() => {
-          wsStore.set('scroll', pageScrollTop(root));
-        });
-      },
-      { capture: true, passive: true },
-    ),
-  );
+  // ==================== 滚动位置（打开即最新） ====================
+  // 2026-10-02 三改：工作台的滚动发生在对话列自己的 .ws-scroll 里，不再整页滚动。
+  // 用户口径是「重新打开页面要落在最新一条上，而不是顶部」，所以这里不再恢复
+  // 上次的像素偏移：有消息就直接落到最新（在途的历史由 chat-stream 拉完后自己跟），
+  // 翻历史是本次会话内的事，刷新后回到最新才是期望行为。
 
   // ==================== 启动 ====================
   /**
    * 载入任务详情（meta + 已解锁提示词）。
-   * @returns {Promise<void>}
+   *
+   * **一律带上当前 run_id**：服务端按它算「已解锁到第几级」。不带 run_id 时它会拿
+   * 这道题最新的一条记录去算，重建 / 进下一轮之后就可能读到另一条记录的级数。
+   * @param {string} runId
+   * @returns {Promise<object>}
    */
   async function loadTask(runId = '') {
     const query = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
     const task = await api.get(`/tasks/${encodeURIComponent(taskId)}${query}`, { scope });
-    patch({ task });
+    patch({ task, taskError: '' });
+    taskRetryCount = 0;
     return task;
   }
 
   /**
-   * 首次加载：任务详情 → 上次的 run_id。
+   * 容错版读题面：失败不抛，把原因落进 store（任务节点显示「读取失败 + 重试」，
+   * 发送按钮禁用并把原因写在按钮上），不留「点了没反应」的哑按钮。
+   * @param {string} runId
+   * @returns {Promise<object|null>}
+   */
+  async function refreshTask(runId = '') {
+    try {
+      return await loadTask(runId);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'ABORTED') return null;
+      const code = err instanceof ApiError ? err.code : 'INTERNAL';
+      patch({ taskError: code });
+      if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+        console.warn(`[workspace] 读任务详情失败：${code}`);
+      }
+      return null;
+    }
+  }
+
+  /**
+   * 首屏加载：任务详情 → 上次的 run_id。
    * @returns {Promise<void>}
    */
   async function load() {
-    patch({ loading: true, error: null });
-    const lastRunId = urlRunId || recallModelRun(store.getState().modelId);
+    patch({ loading: true, error: null, taskError: '' });
+    const state0 = store.getState();
+    const lastRunId = urlRunId || recallModelRun(state0.modelId);
+    let task = null;
     try {
-      const task = await loadTask(lastRunId);
-      const taskRound = task.run && Number(task.run.attempt);
-      const round = taskRound > 0 ? taskRound : Number(wsStore.get('round', 1)) || 1;
-      patch({ loading: false, round });
-      if (taskRound > 0) wsStore.set('round', round);
+      task = await loadTask(lastRunId);
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'ABORTED') return;
-      patch({ loading: false, error: { code: err.code || 'INTERNAL' } });
-      reportError(err, '载入任务');
-      return;
+      if (err instanceof ApiError && err.code === 'ABORTED') {
+        // 在途请求被取消（切视图 / 重新载入）：不能把 loading 留在 true，
+        // 否则工作台永久停在「正在载入…」，所有按钮都不可用且没有原因。
+        patch({ loading: false });
+        return;
+      }
+      // 陈旧书签（那条记录已经被删）不该连题面一起赔进去：摘掉这个 run_id 再读一次。
+      // 以前这里整段退出，页面就变成「有 run、没有提示词」——用户报的现象之一。
+      if (lastRunId && err instanceof ApiError && err.code === 'NO_RUN') {
+        wsStore.remove(runKey(state0.modelId));
+        try {
+          task = await loadTask('');
+        } catch {
+          task = null;
+        }
+      }
+      if (!task) {
+        const code = err instanceof ApiError ? err.code : 'INTERNAL';
+        patch({ loading: false, error: { code }, taskError: code });
+        reportError(err, '载入任务');
+        return;
+      }
     }
+    const taskRound = task.run && Number(task.run.attempt);
+    const round = taskRound > 0 ? taskRound : Number(wsStore.get('round', 1)) || 1;
+    patch({ loading: false, round });
+    if (taskRound > 0) wsStore.set('round', round);
 
-    // 这一任务是否已有运行记录：有就接上，没有就显示空态（等用户点「准备沙箱」）
-    if (lastRunId) {
+    // 这一任务是否已有运行记录：有就接上，没有就显示空态（等用户点「准备沙箱」）。
+    // 记录从题面回读里取（题面就是按这条记录读的），取不到才回落到本地记住的那个。
+    const runId = (task.run && task.run.run_id) || lastRunId;
+    if (runId) {
       try {
-        await loadRun(lastRunId);
+        await loadRun(runId);
         ensureTicker();
         if (store.getState().run && BUSY_STATUS.has(store.getState().run.status)) poller.start();
       } catch {
@@ -1760,20 +2011,14 @@ export function createWorkspace(props = {}) {
       if (runId) rememberModelRun(s.modelId, runId);
     },
     /**
-     * 恢复上次的滚动位置（§13.5）。
-     * @returns {boolean} 有没有可恢复的位置
+     * 打开工作台时落在最新一条消息上（§13.5 刷新的新口径：对话流回到最新，
+     * 而不是回到上次的像素位置——旧行为是刷新后停在顶部，要手动往下拽）。
+     * @returns {boolean} 有没有落到最新
      */
     restoreScroll() {
-      const y = Number(wsStore.get('scroll', 0)) || 0;
-      if (y <= 0) return false;
-      window.requestAnimationFrame(() => {
-        setPageScroll(y, root);
-        // 只有「标题被顶部粘性条压住」时才挪一下。桌面宽度 .app-header 是左侧粘性
-        // 侧栏（height:100vh），拿它的 bottom 当遮挡高度会永远判定成被遮住，
-        // 于是刚恢复好的滚动位置又被拽回标题处。
-        revealIfCoveredByStickyTop(h1);
-      });
-      return true;
+      const ok = chatStream.scrollToLatest();
+      if (!ok) scrollBox.scrollTop = 0;
+      return ok;
     },
     /** 导出给快捷键 / 外部调用的动作集合。 */
     actions: { doGrade, doReset, doPrepare, doRoundChange, focusRegion },

@@ -288,8 +288,39 @@ def test_scoreboard_matrix_rows_and_columns(cfg):
     assert board["totals"] == {"attempts": 3, "pass1": 1, "pass_rate": pytest.approx(0.333, abs=0.001)}
 
 
+def test_scoreboard_cell_verdict_follows_the_best_round(cfg):
+    """格子的第一眼结论看「最好一次有没有全绿」，不是 pass@1。
+
+    T3-08 实测：第 1 轮 85.7 未过、第 2 轮 100 全绿，台账条目是
+    ``score=100, passed=true, pass1=false, rounds=2``。旧前端拿 pass1 当主判定，
+    格子上顶着一个 ✕「未通过」——台账里明明写着通过。
+    """
+    ledger(cfg, BACKEND_TASK, "迟到的模型", score=100.0, passed=True, pass1=False, rounds=2)
+
+    cell = cell_of(cfg, BACKEND_TASK, "迟到的模型")
+    assert cell["best_passed"] is True, "格子主判定必须来自代表条目"
+    assert cell["pass1"] == 0 and cell["attempts"] == 1, "pass@1 仍然是独立口径（副标）"
+    assert cell["best_score"] == 100.0
+    assert cell["best_rounds"] == 2, "要能说出「最好一次在第 2 轮」"
+
+
+def test_scoreboard_cell_verdict_false_when_nothing_passed(cfg):
+    """两次都没做对：best_passed 为假，格子的 ✕ 才是真的。"""
+    ledger(cfg, BACKEND_TASK, "没做对的模型", score=83.3, passed=False, pass1=False, rounds=2)
+    cell = cell_of(cfg, BACKEND_TASK, "没做对的模型")
+    assert cell["best_passed"] is False
+    assert cell["best_score"] == 83.3
+
+
+def test_ledger_lookup_by_source_run(cfg):
+    """跑批靠「按 run_id 取台账条目」落定：结束本轮之后记录没了，只有台账认得出它。"""
+    entry = ledger(cfg, BACKEND_TASK, "跑批模型", score=90.0, passed=True, run_id="R-1")
+    assert results.find_by_source_run(cfg, "R-1")["entry_id"] == entry["entry_id"]
+    assert results.find_by_source_run(cfg, "R-不存在") is None
+    assert results.find_by_source_run(cfg, "") is None
+
+
 def test_scoreboard_only_counts_ended_runs(cfg):
-    """还没结束的记录不在榜上——成绩要等收尾才落账。"""
     store_run(cfg, "TEST-01__真跑模型__20260101-000001", BACKEND_TASK, "真跑模型", True, 100.0)
     never = store_run(cfg, "TEST-01__没结束__20260101-000002", BACKEND_TASK, "真跑模型", False, 10.0)
     never["rounds"] = []             # 建了记录但一次校验都没跑过
