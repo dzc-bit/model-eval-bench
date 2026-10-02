@@ -1,0 +1,60 @@
+{
+  "task": "T2-06",
+  "state": "baseline",
+  "repo": "D:\\New project 6",
+  "patches": [],
+  "touched_files": [],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 100.0,
+      "weight_passed": 6,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "exclusive_write_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "atomic_replace_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "corrupt_visibility_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "health_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 50,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-10-02T23:22:13"
+}

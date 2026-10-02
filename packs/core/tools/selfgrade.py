@@ -176,13 +176,22 @@ def _prune_test_file(path: Path, patterns: list[str]) -> int:
 
 
 def prune_visible_tests(tree_root: Path, prune_patterns: list[str]) -> int:
-    """``prune_patterns`` 形如 ``tests/test_x.py::test_name_*``。"""
+    """应用 ``visible.prune``，支持按用例或整文件裁剪。
+
+    ``tests/test_x.py::test_name_*`` 删除匹配的顶层测试；没有 ``::`` 时
+    删除整文件，与正式 snapshot 门禁的语义保持一致。
+    """
     by_file: dict[str, list[str]] = {}
     for entry in prune_patterns:
-        if "::" not in entry:
-            raise ValueError(f"visible.prune 条目缺少 '::'：{entry}")
-        file_part, name_part = entry.split("::", 1)
-        by_file.setdefault(file_part.replace("\\", "/"), []).append(name_part)
+        normalized = str(entry).replace("\\", "/")
+        if "::" not in normalized:
+            target = tree_root / normalized
+            if not target.is_file():
+                raise FileNotFoundError(f"visible.prune 指向不存在的测试文件：{normalized}")
+            target.unlink()
+            continue
+        file_part, name_part = normalized.split("::", 1)
+        by_file.setdefault(file_part, []).append(name_part)
     removed = 0
     for file_part, names in by_file.items():
         target = tree_root / file_part
@@ -295,16 +304,30 @@ def run_pytest(tree: Path, node_files: list[str], timeout: int) -> tuple[dict[st
 def _match_outcome(node_id: str, outcomes: dict[str, str]) -> str | None:
     if node_id in outcomes:
         return outcomes[node_id]
-    # junit 的 classname 会把 tests_hidden.test_x 折成 tests_hidden/test_x，与包里
-    # 写的 node id 可能差一层 'tests/' 前缀；参数化用例还会多出 ``[参数]`` 后缀。
-    # 这两处都做宽松匹配，但要求命中项的结论一致，避免"匹配到了别人"。
+    # JUnit removes `.py`, folds module separators into `/`, and places class
+    # names in the classname path; pack IDs may also include a `hidden/` prefix.
     if "::" not in node_id:
         return None
-    name = node_id.split("::", 1)[1]
-    exact = [key for key in outcomes if key.endswith("::" + name)]
-    if len(exact) == 1:
-        return outcomes[exact[0]]
-    parametrised = [outcomes[key] for key in outcomes if key.endswith(f"::{name}[")]
+    file_part, _, rest = node_id.partition("::")
+    normalized_file = file_part.replace("\\", "/")
+    if normalized_file.startswith("hidden/"):
+        normalized_file = normalized_file[len("hidden/"):]
+    if normalized_file.endswith(".py"):
+        normalized_file = normalized_file[:-3]
+    # pytest's JUnit writer stores class names in the classname path. Map
+    # `file.py::TestCase::test_name` to `file/TestCase::test_name` exactly.
+    rest_parts = rest.split("::")
+    if len(rest_parts) > 1:
+        expected = f"{normalized_file}/{'/'.join(rest_parts[:-1])}::{rest_parts[-1]}"
+    else:
+        expected = f"{normalized_file}::{rest}"
+    normalized = {key.replace("\\", "/"): value for key, value in outcomes.items()}
+    if expected in normalized:
+        return normalized[expected]
+    parametrised = [
+        value for key, value in normalized.items()
+        if key.startswith(expected + "[")
+    ]
     if parametrised and len(set(parametrised)) == 1:
         return parametrised[0]
     return None

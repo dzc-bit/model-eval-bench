@@ -1,0 +1,99 @@
+{
+  "task": "T1-03",
+  "state": "baseline",
+  "patches": [],
+  "runs": [
+    {
+      "score": 60.0,
+      "raw_score": 60.0,
+      "groups": [
+        {
+          "id": "error_code_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_specific_stream_failures_keep_distinct_codes",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_validation_and_unknown_stream_failures_keep_their_fallbacks",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "stream_terminal_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_same_ai_failure_keeps_its_code_in_json_and_stream",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_error_code_chain.py::test_frontend_translator_mirrors_every_declared_ai_error_code",
+              "outcome": "failed",
+              "message": "AssertionError: 页面错误翻译缺少后端已声明类别：['ai_memory_not_found', 'ai_session_not_found', 'request_failed']\nassert not ['ai_memory_not_found', 'ai_session_not_found', 'request_failed']"
+            }
+          ]
+        },
+        {
+          "id": "frontend_branch_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 25,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 60.0,
+  "score_max": 60.0,
+  "stable": true,
+  "finished_at": "2026-10-02T23:55:38"
+}

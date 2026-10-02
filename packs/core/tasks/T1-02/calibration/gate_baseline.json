@@ -1,15 +1,11 @@
 {
   "task": "T1-02",
-  "state": "fixed",
-  "patches": [
-    "D:\\new model test\\packs\\core\\tasks\\T1-02\\inject\\patches\\0001-backend-holiday-table.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T1-02\\inject\\patches\\0002-frontend-calendar-window.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T1-02\\reference\\fix.patch"
-  ],
+  "state": "baseline",
+  "patches": [],
   "runs": [
     {
-      "score": 100.0,
-      "raw_score": 100.0,
+      "score": 80.0,
+      "raw_score": 80.0,
       "groups": [
         {
           "id": "backend_calendar_exit",
@@ -70,7 +66,7 @@
         {
           "id": "default_window_exit",
           "weight": 1.0,
-          "passed": true,
+          "passed": false,
           "cases": [
             {
               "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
@@ -84,13 +80,13 @@
             },
             {
               "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
-              "outcome": "passed",
-              "message": ""
+              "outcome": "failed",
+              "message": "expected false to be true // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
-              "outcome": "passed",
-              "message": ""
+              "outcome": "failed",
+              "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
             }
           ]
         }
@@ -101,8 +97,8 @@
     }
   ],
   "repeat": 1,
-  "score_min": 100.0,
-  "score_max": 100.0,
+  "score_min": 80.0,
+  "score_max": 80.0,
   "stable": true,
-  "finished_at": "2026-10-03T02:27:19"
+  "finished_at": "2026-10-03T02:29:09"
 }

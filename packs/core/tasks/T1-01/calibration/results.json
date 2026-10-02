@@ -2,7 +2,10 @@
   "schema": 1,
   "task": "T1-01",
   "calibrated": false,
-  "target_band": [0.6, 0.85],
+  "target_band": [
+    0.6,
+    0.85
+  ],
   "owner": "author",
   "policy": "§6.4 硬纪律：出题模型不得给自己出的题做校准。本表在盲测完成前保持空表，calibrated 恒为 false。",
   "gate": {
@@ -12,7 +15,7 @@
     "injected_state": "gate_injected_x20.json"
   },
   "blind_runs": {
-    "note": "每一行 = 一次『只给第 1 级提示词』的完整作答。由**非出题模型**填写。",
+    "note": "每一行 = 一次『只给第 1 级提示词』的独立作答（题面 = git HEAD 的原始 1 级题面），由非出题模型 cbcn/deepseek-v4.1-flash 经保真探针（直接复用生产 harness 工具层，模型可自行跑 pytest/vitest）产生，补丁经 packgate --state custom 按生产评分树评分。只计入「补丁非空且产物仍在」的轮次；空补丁、旧探针产物一律剔除。探针仍带三处保守偏差（自设 max_tokens、截断工具输出、不做重复读取省略），故分数为下界；样本量 n≤2，不足以判定 target_band。",
     "columns": [
       "run_id",
       "model",
@@ -24,13 +27,43 @@
       "p2p_broken",
       "notes"
     ],
-    "rows": []
+    "rows": [
+      {
+        "run_id": "blind-2026-10-03-t1",
+        "model": "cbcn/deepseek-v4.1-flash",
+        "tier": "primary",
+        "prompt_level": 1,
+        "pass@1": true,
+        "score": 100.0,
+        "failed_groups": [],
+        "p2p_broken": 0,
+        "notes": "原始 1 级题面（= git HEAD）；保真探针；130 步 / 129 次工具调用，一轮满分。（探针三处保守偏差使其偏难，此分为下界）"
+      },
+      {
+        "run_id": "blind-2026-10-03-t2",
+        "model": "cbcn/deepseek-v4.1-flash",
+        "tier": "primary",
+        "prompt_level": 1,
+        "pass@1": false,
+        "score": 0.0,
+        "failed_groups": [
+          "turnover_column_exit",
+          "market_cap_column_exit",
+          "condition_row_exit",
+          "condition_mask_exit",
+          "limit_board_exit",
+          "coherence"
+        ],
+        "p2p_broken": 0,
+        "notes": "同题面；125 步；六组全红但 p2p 未破坏（语义改错而非写崩）。模型自述受单次写入长度限制，可能受探针 max_tokens 偏差放大。（探针三处保守偏差使其偏难，此分为下界）"
+      }
+    ]
   },
   "summary": {
-    "runs": 0,
-    "pass_at_1": null,
+    "runs": 2,
+    "pass_at_1": 0.5,
     "confidence_interval": null,
     "in_band": null,
-    "conclusion": null
+    "conclusion": "样本量过小（n=2），与生产台账（同模型同题第 1 轮 pass1=True）合并看也只有 n≤3，不足以判定 target_band；探针自带的三处保守偏差还使分数偏低。按 §6.4 纪律不填造、不外推；改写后题面的 pass@1 待模型配额恢复（2026-10-04 00:52 UTC+8）后补测。"
   }
 }

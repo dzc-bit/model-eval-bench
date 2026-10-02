@@ -757,6 +757,8 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
         except errors.HarnessError:
             work = None
 
+    groups = _round_group_summary(cfg, run, best)
+
     return results_ledger.make_entry(
         run.get("task"), canonical_model(cfg, raw_model), raw_model,
         source_run_id=run_id, origin=origin,
@@ -765,8 +767,41 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
         passed=any(r.get("passed") is True for r in counted),
         pass1=any(_round_no(r) == 1 and r.get("passed") is True for r in counted),
         model_work_seconds=work, wall_seconds=wall,
-        graded_at=best.get("graded_at"),
+        graded_at=best.get("graded_at"), groups=groups,
     )
+
+
+def _round_group_summary(cfg: dict, run: dict, rnd: dict) -> Optional[List[dict]]:
+    """从代表轮报告取轻量分组摘要；缺报告的旧记录仍可正常入账。"""
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, str(run.get("run_id") or ""))
+    if not util.path_within(cfg["runs_root"], run_dir_path):
+        return None
+    report_name = str(rnd.get("report") or "round-%d.json" % _round_no(rnd))
+    report_path = os.path.join(run_dir_path, report_name)
+    if not util.path_within(run_dir_path, report_path):
+        return None
+    report_doc = util.read_json(report_path, default=None)
+    if not isinstance(report_doc, dict):
+        return None
+    summary = report_doc.get("summary")
+    raw_groups = summary.get("groups") if isinstance(summary, dict) else None
+    if not isinstance(raw_groups, list):
+        raw_groups = report_doc.get("groups")
+    if not isinstance(raw_groups, list):
+        return None
+    groups = []
+    for group in raw_groups:
+        if not isinstance(group, dict) or not group.get("id"):
+            continue
+        groups.append({
+            "id": str(group.get("id") or ""),
+            "port": str(group.get("port") or ""),
+            "weight": group.get("weight", 1),
+            "passed": bool(group.get("passed")),
+            "total": group.get("total", 0),
+            "passed_count": group.get("passed_count", 0),
+        })
+    return groups or None
 
 
 def _round_no(rnd: dict) -> int:

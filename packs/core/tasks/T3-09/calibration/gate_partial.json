@@ -102,17 +102,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -128,5 +128,5 @@
   "score_min": 28.57,
   "score_max": 28.57,
   "stable": true,
-  "finished_at": "2026-09-30T01:28:53"
+  "finished_at": "2026-10-03T02:30:10"
 }

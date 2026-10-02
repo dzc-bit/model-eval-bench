@@ -6,8 +6,8 @@
 * ``attempts`` / ``title`` / ``tier`` / ``target_band`` 来自 ``meta.json``；
 * ``prune_count`` / ``p2p_count`` / ``hidden_groups`` 来自 ``meta.visible.prune``、
   all checker p2p lists、``hidden/groups.json``；
-* ``gate`` 来自 ``calibration/gate_fixed.json`` / ``gate_partial.json`` /
-  ``gate_injected_x20.json``（缺失则记 ``null``）。
+* ``gate`` 来自 ``calibration/gate_baseline.json`` / ``gate_fixed.json`` /
+  ``gate_partial.json`` / ``gate_injected_x20.json``（缺失则记 ``null``）。
 
     python regenerate_index.py --pack .. --repo "D:\\New project 6"
 """
@@ -64,6 +64,7 @@ def main() -> int:
                 continue
             fe_p2p = _json(task_dir / str(check.get("p2p") or "")) or {}
             p2p_count += len(fe_p2p.get("tests") or [])
+        baseline = _json(task_dir / "calibration" / "gate_baseline.json")
         fixed = _json(task_dir / "calibration" / "gate_fixed.json")
         partial = _json(task_dir / "calibration" / "gate_partial.json")
         injected = _json(task_dir / "calibration" / "gate_injected_x20.json")
@@ -83,6 +84,7 @@ def main() -> int:
             "p2p_count": p2p_count,
             "hidden_groups": [group.get("id") for group in groups],
             "gate": {
+                "baseline": None if baseline is None else baseline.get("score_min"),
                 "fixed": None if fixed is None else fixed.get("score_min"),
                 "partial": None if partial is None else partial.get("score_min"),
                 "injected_x20": None if injected is None else (

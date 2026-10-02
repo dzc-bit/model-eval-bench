@@ -143,6 +143,46 @@ def test_finish_is_idempotent_per_record(cfg):
     assert len(entries_for(cfg, BACKEND_TASK, "去重模型")) == 1
 
 
+def test_ledger_v2_keeps_legacy_entries_without_optional_groups(cfg):
+    legacy = {
+        "task": BACKEND_TASK, "model": "旧模型", "model_raw": "旧模型",
+        "score": 80.0, "rounds": 1, "best_round": 1,
+    }
+    util.write_json_atomic(results.ledger_path(cfg), {"version": 1, "entries": [legacy]})
+
+    assert results.load_entries(cfg) == [legacy]
+    entry = results.make_entry(BACKEND_TASK, "新模型", "新模型")
+    assert "groups" not in entry, "无报告的旧记录不应被伪造成空的组级成绩"
+    results.write_entries(cfg, [entry])
+    doc = util.read_json(results.ledger_path(cfg), default={})
+    assert doc["version"] == 2
+    assert results.load_entries(cfg)[0]["task"] == BACKEND_TASK
+
+
+def test_record_run_result_keeps_groups_from_the_representative_round(cfg):
+    run = store_run(cfg, "TEST-01__代表轮组摘要__20260101-000001", BACKEND_TASK,
+                    "代表轮组摘要", True, 80.0, attempts=2)
+    first_groups = [{
+        "id": "first", "port": "代表轮", "weight": 2, "passed": True,
+        "total": 3, "passed_count": 3,
+    }]
+    second_groups = [{
+        "id": "second", "port": "当前轮", "weight": 1, "passed": False,
+        "total": 4, "passed_count": 1,
+    }]
+    util.write_json_atomic(os.path.join(run["run_dir"], "round-1.json"), {
+        "summary": {"groups": first_groups},
+    })
+    util.write_json_atomic(os.path.join(run["run_dir"], "round-2.json"), {
+        "summary": {"groups": second_groups},
+    })
+
+    entry = runs.record_run_result(cfg, run)
+
+    assert entry["best_round"] == 1
+    assert entry["groups"] == first_groups
+
+
 def test_finish_without_a_graded_round_deletes_but_writes_nothing(cfg):
     """没跑过校验就结束：记录照删，台账一条不写（没成绩可记）。"""
     run = {

@@ -167,11 +167,12 @@ p2p 断裂 → 本轮作废 0 分，所以宁缺毋滥。
   （盘符池已退役，不要再写「当前目录 / Q:\」；沙箱是 `sandbox_root` 下的普通文件夹，
   具体路径由工作台服务端提供，`packcheck.py` 按上面这三句固定措辞校验。）
 
-- **第 1 级（症状）**：纯用户视角，一两段现象 + 验收要求；无文件名/函数名。
-- **第 2 级（不一致清单）**：指出"同一事实被几处各自计算、现在互相矛盾"，
-  仍不定位到函数。信息量必须比第 1 级多（packcheck 校验字数递增）。
-- **第 3 级（不变量 + 否决项）**：给出必须同时成立的不变量表述 +
-  1~3 条"已被否决的思路及原因"（防重提），仍不给 diff。
+- **第 1 级（症状）**：只写用户能观察到的现象、影响和具体例子；不列机制、原因、
+  实现边界或验收不变量清单。描述既有缺陷时，给出可观察后果，不给出它背后的实现解释。
+- **第 2 级（不一致清单）**：补充不同出口对同一事实给出不同结果的可观察证据，
+  不列内部机制、状态边界或解法清单。信息量必须比第 1 级多（packcheck 校验字数递增）。
+- **第 3 级（不变量 + 否决项）**：可按任务需要下沉机制性不变量和 1~3 条
+  "已被否决的思路及原因"；不要求每题都提供机制提示，仍不给文件/函数名或 diff。
 - 三级内容必须不同、逐级增加信息量；同一级对同一任务固定不变。
 
 ### 步骤 6 · 参考解
@@ -196,10 +197,11 @@ cd packs\core\tools
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state fixed   --timeout 900 --out ..\tasks\T1-01\calibration\gate_fixed.json
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state partial --timeout 900 --out ..\tasks\T1-01\calibration\gate_partial.json
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state injected --repeat 20 --timeout 900 --out ..\tasks\T1-01\calibration\gate_injected_x20.json
+python selfgrade.py --task T1-01 --repo "D:\New project 6" --state baseline --timeout 900 --out ..\tasks\T1-01\calibration\gate_baseline.json
 ```
 
 （selfgrade 只懂 pytest；含 vitest 检查的前端题/组合题会 fail-closed，
-这类题一律用 `runs/blind/tools/packgate.py` 跑同样的三态。）
+这类题一律用 `runs/blind/tools/packgate.py` 跑 fixed、partial、injected ×20 和 baseline 四种状态。）
 
 入库门槛：
 
@@ -208,14 +210,16 @@ python selfgrade.py --task T1-01 --repo "D:\New project 6" --state injected --re
 | 锚解 fixed | 100/100；目标组全绿；不触碰 forbidden_paths；p2p 全绿 |
 | 半成品 partial | < 100（只修一个端口必然不满分） |
 | 注入态 ×20 | 全部 0 分、目标组全红、稳定不 flaky、p2p 零断裂 |
-| 基线 baseline | p2p 白名单在未注入快照上全绿（p2p 的定义即来自这一步） |
+| 基线 baseline | 每题必跑并留档；p2p 白名单在未注入快照上全绿；逐组核对并归因所有目标组红项 |
 
-**baseline 门禁是每题的标准产物（2026-10-02 起，推荐项）**：除三态外再留一份
-`calibration/gate_baseline.json`（`--state baseline`，1 次即可）。用途是把
-「基线态就红的目标组」变成显式数据——锚解里凡是"修复基线就已存在的缺陷"
-（而非恢复注入退化）的部分，会在 baseline 上以红组显形，必须在 notes.md 里
-逐条披露（先例：T1-01 §5.1、T3-08 §二、T3-09 §八、T4-11 §七）。
-存量题不强制补跑；新题与重跑门禁的旧题一律留档。
+**baseline 门禁是每题的必需产物**：除 fixed、partial、injected ×20 外，必须跑一次未注入快照并留
+`calibration/gate_baseline.json`（`--state baseline`）。报告必须包含每个目标组的
+逐用例结果。若目标组在基线态有红项，必须在 `reference/notes.md` 逐条列出红用例、
+判定原因及处置：若锚解修复的是基线已有缺陷，该行为的用户可观察后果必须已在第 1 级
+题面出现，notes 写清题面与断言的对应关系；若题面无法推出该行为，或断言超出题目范围，
+应调整/移除该断言，不能把基线红当作合理例外。与本题无关的基线红用例不得进入 p2p。
+首次入库及重跑门禁的旧题都必须留档；已有题目在修改或复核时补齐 baseline 后，才能据此
+宣称题目可赢。
 
 ### 步骤 8 · 入库
 

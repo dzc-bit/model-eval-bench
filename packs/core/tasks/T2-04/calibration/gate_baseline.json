@@ -1,0 +1,60 @@
+{
+  "task": "T2-04",
+  "state": "baseline",
+  "repo": "D:\\New project 6",
+  "patches": [],
+  "touched_files": [],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 100.0,
+      "weight_passed": 6,
+      "weight_total": 6,
+      "groups": [
+        {
+          "id": "coverage_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "per_symbol_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "sync_pool_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "flow_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 125,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 100.0,
+  "score_max": 100.0,
+  "stable": true,
+  "finished_at": "2026-10-02T23:12:57"
+}

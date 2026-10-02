@@ -1,21 +1,16 @@
 {
   "task": "T1-01",
-  "state": "fixed",
-  "patches": [
-    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0001-astock_adapter.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0002-conditions.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T1-01\\inject\\patches\\0003-engine.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T1-01\\reference\\fix.patch"
-  ],
+  "state": "baseline",
+  "patches": [],
   "runs": [
     {
-      "score": 100.0,
-      "raw_score": 100.0,
+      "score": 85.71,
+      "raw_score": 85.71,
       "groups": [
         {
           "id": "turnover_column_exit",
           "weight": 1.0,
-          "passed": true,
+          "passed": false,
           "cases": [
             {
               "node_id": "hidden/tests_hidden/test_derived_metric_caliber.py::test_unknown_turnover_stays_unknown_when_float_shares_are_not_derivable",
@@ -29,8 +24,8 @@
             },
             {
               "node_id": "hidden/tests_hidden/test_derived_metric_caliber.py::test_frame_without_turnover_column_normalizes_to_unknown_not_zero",
-              "outcome": "passed",
-              "message": ""
+              "outcome": "failed",
+              "message": "AssertionError: 缺列的换手率必须留空（未知），不能补 0\nassert np.False_\n +  where np.False_ = all()\n +    where all = 0    False\\n1    False\\nName: turnover_rate, dtype: bool.all\n +      where 0    False\\n1    False\\nName: turnover_rate, dtype: bool = isna()\n +        where isna = 0    0.0\\n1    0.0\\nName: turnover_rate, dtype: float64.isna"
             }
           ]
         },
@@ -141,8 +136,8 @@
     }
   ],
   "repeat": 1,
-  "score_min": 100.0,
-  "score_max": 100.0,
+  "score_min": 85.71,
+  "score_max": 85.71,
   "stable": true,
-  "finished_at": "2026-10-03T02:26:58"
+  "finished_at": "2026-10-03T02:28:30"
 }

@@ -1,12 +1,7 @@
 {
   "task": "T2-07",
-  "state": "fixed",
-  "patches": [
-    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0001-agent.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0002-cancel.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T2-07\\inject\\patches\\0003-facade.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T2-07\\reference\\fix.patch"
-  ],
+  "state": "baseline",
+  "patches": [],
   "runs": [
     {
       "score": 100.0,
@@ -105,5 +100,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-10-03T02:27:40"
+  "finished_at": "2026-10-03T02:29:58"
 }

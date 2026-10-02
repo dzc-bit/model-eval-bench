@@ -34,7 +34,7 @@ RESULTS_DIRNAME = "_results"
 LEDGER_FILENAME = "ledger.json"
 
 #: 台账结构版本；将来改条目形状时用它判断是否需要迁移。
-LEDGER_VERSION = 1
+LEDGER_VERSION = 2
 
 #: 进程内串行化台账写入（读-改-写三步必须同锁）
 _LEDGER_LOCK = threading.RLock()
@@ -134,7 +134,7 @@ def append_entry(cfg: dict, entry: dict) -> dict:
 ENTRY_FIELDS = (
     "entry_id", "task", "model", "model_raw", "source_run_id", "origin",
     "rounds", "best_round", "score", "passed", "pass1",
-    "model_work_seconds", "wall_seconds", "graded_at", "ended_at",
+    "model_work_seconds", "wall_seconds", "graded_at", "ended_at", "groups",
 )
 
 
@@ -144,7 +144,7 @@ def make_entry(task: object, model: object, model_raw: object, *,
                passed: bool = False, pass1: bool = False,
                model_work_seconds: Optional[float] = None,
                wall_seconds: Optional[float] = None,
-               graded_at: object = "") -> dict:
+               graded_at: object = "", groups: Optional[List[dict]] = None) -> dict:
     """组装一条台账条目（只保留 ENTRY_FIELDS）。"""
     def _num(value):
         if value is None:
@@ -154,7 +154,7 @@ def make_entry(task: object, model: object, model_raw: object, *,
         except (TypeError, ValueError):
             return None
 
-    return {
+    entry = {
         "entry_id": "",
         "task": str(task or ""),
         "model": str(model or ""),
@@ -171,6 +171,20 @@ def make_entry(task: object, model: object, model_raw: object, *,
         "graded_at": str(graded_at or ""),
         "ended_at": util.iso_now(),
     }
+    if isinstance(groups, list):
+        entry["groups"] = [
+            {
+                "id": str(group.get("id") or ""),
+                "port": str(group.get("port") or ""),
+                "weight": group.get("weight", 1),
+                "passed": bool(group.get("passed")),
+                "total": group.get("total", 0),
+                "passed_count": group.get("passed_count", 0),
+            }
+            for group in groups
+            if isinstance(group, dict) and group.get("id")
+        ]
+    return entry
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,69 @@
+{
+  "task": "T3-08",
+  "state": "baseline",
+  "repo": "D:\\New project 6",
+  "patches": [],
+  "touched_files": [],
+  "forbidden_overlap": [],
+  "runs": [
+    {
+      "score": 85.71,
+      "weight_passed": 6,
+      "weight_total": 7,
+      "groups": [
+        {
+          "id": "archive_integrity_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "pairing_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "budget_effective_exit",
+          "weight": 1,
+          "passed": false,
+          "failed_tests": [
+            "hidden/tests_hidden/test_archive_trilemma.py::test_budget_counts_tool_call_arguments"
+          ],
+          "missing_tests": []
+        },
+        {
+          "id": "no_data_loss_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "recall_reference_exit",
+          "weight": 1,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        },
+        {
+          "id": "coherence",
+          "weight": 2,
+          "passed": true,
+          "failed_tests": [],
+          "missing_tests": []
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 30,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 85.71,
+  "score_max": 85.71,
+  "stable": true,
+  "finished_at": "2026-10-02T23:33:02"
+}

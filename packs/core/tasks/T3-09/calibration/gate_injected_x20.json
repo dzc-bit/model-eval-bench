@@ -18,7 +18,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000225B947CA00>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000232D3C7CA00>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -69,7 +69,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000225A8097D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000232C2553D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -101,17 +101,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -134,7 +134,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000026F8E2ACC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001ECE5B2CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -185,7 +185,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000026FFCE57D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001ECD4403D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -217,17 +217,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -250,7 +250,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001AEC6AACC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000021E5F83CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -301,7 +301,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001AEB5637D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000021E4E113D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -333,17 +333,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -366,7 +366,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001DC60ECCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022AFC1ACC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -417,7 +417,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001DC4FAE7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022AEAA83D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -449,17 +449,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -482,7 +482,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024ED238CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002041317CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -533,7 +533,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024EC0FA7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000020401A53D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -565,17 +565,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -598,7 +598,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001FE23B5CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000226C85BCC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -649,7 +649,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001FE12777D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000226B6DC3D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -681,17 +681,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -714,7 +714,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001576625CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002D8CD18CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -765,7 +765,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000015754E77D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002D8BBA63D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -797,17 +797,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -830,7 +830,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000018DC988CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000254D6B0CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -881,7 +881,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000018DB84A7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000254C53E3D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -913,17 +913,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -946,7 +946,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A31CBDCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001D98D3BCC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -997,7 +997,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A30B7A7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001D9FBBA3D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1029,17 +1029,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1062,7 +1062,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000023BD5D2CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000232D41BCC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1113,7 +1113,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023BC4947D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000232C2A93D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1145,17 +1145,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1178,7 +1178,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001D16547CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002261538CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1229,7 +1229,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001D154037D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022603C63D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1261,17 +1261,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1294,7 +1294,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000015B04F3CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000163D528CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1345,7 +1345,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000015B73877D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000163C3B63D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1377,17 +1377,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1410,7 +1410,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CD1C8CCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016B04F6CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1461,7 +1461,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CD0B4A7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016B73733D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1493,17 +1493,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1526,7 +1526,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000262D11FCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001C5F302CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1577,7 +1577,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000262BFE17D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001C5E1903D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1609,17 +1609,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1642,7 +1642,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001C748BBCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001FD6C86CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1693,7 +1693,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001C7377A7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001FD5B143D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1725,17 +1725,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1758,7 +1758,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B6AD52CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CA5947CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1809,7 +1809,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B69C147D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CA47D53D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1841,17 +1841,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1874,7 +1874,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E4799ECC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000210BAF8CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1925,7 +1925,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E468607D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000210A9863D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1957,17 +1957,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -1990,7 +1990,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000019AB9DFCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016CC47ACC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2041,7 +2041,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000019AA8A17D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016CB3083D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2073,17 +2073,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -2106,7 +2106,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E687FACC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001EC38CCCC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2157,7 +2157,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6F6AD7D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001EC275A3D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2189,17 +2189,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -2222,7 +2222,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000205AD4FCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024D8944CC70>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2273,7 +2273,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002059C117D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024DF7C63D30>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2305,17 +2305,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
               "outcome": "passed",
               "message": ""
             }
@@ -2331,5 +2331,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T01:32:32"
+  "finished_at": "2026-10-03T02:50:56"
 }

@@ -46,7 +46,7 @@
             {
               "node_id": "hidden/tests_hidden/test_calendar_two_sides.py::test_trade_dates_and_frontend_table_agree_on_sampled_days",
               "outcome": "failed",
-              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x0000017E6D1616C0>('2025-01-29')"
+              "message": "AssertionError: 2025-01-29：后端休市，前端交易——两端口径分叉\nassert True == False\n +  where False = <function test_trade_dates_and_frontend_table_agree_on_sampled_days.<locals>.frontend_says_holiday at 0x0000029EBFE21620>('2025-01-29')"
             }
           ]
         },
@@ -56,12 +56,12 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::把注入缺口年份与原生缺口年份的假期都判为休市",
               "outcome": "failed",
               "message": "expected true to be false // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::不误伤周末之外的真实交易日",
               "outcome": "passed",
               "message": ""
             }
@@ -73,22 +73,22 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::末端是节假日时先回退到最近交易日",
               "outcome": "failed",
               "message": "expected '2026-10-01' to be '2026-09-30' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::周末当口同样回退，且不重复回退",
               "outcome": "failed",
               "message": "expected '2024-06-08' to be '2024-06-07' // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::给定末端落在假期内时，末端与起点都必须是交易日",
               "outcome": "failed",
               "message": "expected false to be true // Object.is equality"
             },
             {
-              "node_id": "tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
+              "node_id": "src/tests_hidden_fe/tradingCalendar.hidden.test.ts::跨年默认窗口的两端同样落在交易日上",
               "outcome": "failed",
               "message": "expected '2027-01-02' to be '2026-12-31' // Object.is equality"
             }
@@ -104,5 +104,5 @@
   "score_min": 20.0,
   "score_max": 20.0,
   "stable": true,
-  "finished_at": "2026-09-30T00:45:48"
+  "finished_at": "2026-10-03T02:28:51"
 }
