@@ -21,20 +21,27 @@ import { percent } from '../core/format.js';
 
 /** 本视图新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
-  SB_CELL_NEVER_GRADED: '{n} 条记录还没跑过校验',
+  SB_CELL_BEST: '最高分 {best} · 均分 {avg}',
+  SB_PROFILE_BEST: '最高分 {best}',
+  SB_CELL_ATTEMPTS: '结束过 {n} 次',
+  SB_PROFILE_DELETE_TITLE: '删除模型档案「{id}」？',
+  SB_PROFILE_DELETE: '删除模型档案',
+  SB_PROFILE_DELETED: '档案「{id}」已删除',
+  SB_PROFILE_BUSY_SKIP: '{n} 条记录正被对话/校验占用，这次没有删除',
+  SB_PROFILE_DELETE_BODY: '档案、已保存的密钥、名下 {n} 条运行记录与 {m} 条成绩会一并彻底删除，不可恢复。',
+  SB_PROFILE_DELETE_BODY_RUNS: '档案、已保存的密钥与名下 {n} 条运行记录会一并彻底删除，不可恢复。',
+  SB_PROFILE_DELETE_BODY_ENTRIES: '档案、已保存的密钥与名下 {m} 条成绩会一并彻底删除，不可恢复。',
+  SB_PROFILE_DELETE_BODY_NONE: '档案与已保存的密钥会一起删除。它名下没有运行记录与成绩。',
+  SB_PROFILE_DELETE_HINT: '删除后这一列从记分板与排行榜上一并消失；之后需要到「模型档案」页重新新建。',
+  SB_PROFILE_TRIALS: '结束 {n} 次 · pass@1 {pass}/{n}',
 };
 
 /**
- * 创建记分板。
- * @param {{navigate?: Function, modelId?: string}} [props]
- * @returns {{el: HTMLElement, destroy: Function, el_h1: HTMLElement}}
+ * 身份色槽位数量：与 views.js 的 HUE_SLOTS 同一份色板——同一模型在记分板和
+ * 档案页是同一个颜色，跨页扫读时靠颜色就能对上。
+ * 颜色本身由 CSS 的 `.sb__profile[data-hue="n"]` 从 tokens 取，JS 只算色号。
  */
-/**
- * 模型档案的身份色：按 id 哈希从六个低饱和暖色里稳定取一个（index）。
- * 与 models.css 的 PROVIDER_HUES 同一套色板——同一模型在记分板和档案页
- * 是同一个颜色，跨页扫读时靠颜色就能对上。
- */
-const SB_HUES = ['#86b58c', '#d9b08c', '#8fa9d9', '#c48fb8', '#d9c08c', '#c49a8f'];
+const HUE_SLOTS = 6;
 
 /** 字符串 → 稳定的 32 位哈希（与 models.js 的 hashId 同实现）。 */
 function hashId(id) {
@@ -47,7 +54,7 @@ function hashId(id) {
 }
 
 function providerHueOf(id) {
-  return hashId(id) % SB_HUES.length;
+  return hashId(id) % HUE_SLOTS;
 }
 
 export function createScoreboard(props = {}) {
@@ -104,15 +111,15 @@ export function createScoreboard(props = {}) {
   function aggregate(modelId) {
     const cells = (data.matrix || [])
       .map((row) => (row.cells || {})[modelId])
-      .filter((cell) => cell && Number(cell.trials) > 0);
-    const trials = cells.reduce((sum, cell) => sum + Number(cell.trials || 0), 0);
+      .filter((cell) => cell && Number(cell.attempts) > 0);
+    const attempts = cells.reduce((sum, cell) => sum + Number(cell.attempts || 0), 0);
     const pass1 = cells.reduce((sum, cell) => sum + Number(cell.pass1 || 0), 0);
-    const revealed = cells.reduce((sum, cell) => sum + Number(cell.revealed || 0), 0);
+    const best = cells.reduce((max, cell) => Math.max(max, Number(cell.best_score || 0)), 0);
     return {
-      trials,
+      attempts,
       pass1,
-      revealed,
-      passRate: trials ? pass1 / trials : 0,
+      bestScore: best,
+      passRate: attempts ? pass1 / attempts : 0,
     };
   }
 
@@ -136,7 +143,7 @@ export function createScoreboard(props = {}) {
         el('span', { class: 'sb__profile-dot', 'aria-hidden': 'true' }),
         el('span', { class: 'sb__profile-body' },
           el('span', { class: 'sb__profile-name' }, modelId),
-          el('span', { class: 'sb__profile-meta' }, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+          el('span', { class: 'sb__profile-meta' }, t(T.SB_PROFILE_TRIALS, { pass: stats.pass1, n: stats.attempts })),
         ),
       );
       if (String(modelId) === selectedModel) link.setAttribute('aria-current', 'page');
@@ -145,7 +152,7 @@ export function createScoreboard(props = {}) {
         label: '×',
         variant: 'ghost',
         size: 'sm',
-        ariaLabel: `${S.SB_PROFILE_DELETE || '删除模型档案'}：${modelId}`,
+        ariaLabel: `${T.SB_PROFILE_DELETE}：${modelId}`,
         onClick: () => deleteProfile(modelId),
       });
       delBtn.el.classList.add('sb__profile-del');
@@ -163,7 +170,7 @@ export function createScoreboard(props = {}) {
     // 下面表格的列头也是它。同一个名字在 40px 内出现三次是噪音。
     if (!selectedModel) return null;
     const stats = aggregate(selectedModel);
-    if (!stats.trials) {
+    if (!stats.attempts) {
       return el(
         'div',
         { class: 'sb__profile-summary', role: 'status' },
@@ -173,48 +180,30 @@ export function createScoreboard(props = {}) {
     return el(
       'div',
       { class: 'sb__profile-summary', role: 'status' },
-      el('span', {}, t(S.SB_PROFILE_TRIALS, { pass: stats.pass1, trials: stats.trials })),
+      el('span', {}, t(T.SB_PROFILE_TRIALS, { pass: stats.pass1, n: stats.attempts })),
       el('span', {}, t(S.SB_PROFILE_RATE, { rate: percent(stats.passRate) })),
-      stats.revealed ? el('span', {}, t(S.SB_CELL_REVEALED, { n: stats.revealed })) : null,
+      el('span', {}, t(T.SB_PROFILE_BEST, { best: stats.bestScore })),
     );
   }
 
+  /**
+   * 一个 (任务 × 模型) 单元格。数据源是成绩台账：只有点过「结束本轮」的尝试
+   * 才会出现在这里，台账里每次结束各留一条，格子展示最高分那条。
+   * @param {object} row 记分板行
+   * @param {string} modelId 档案编号
+   * @returns {HTMLElement}
+   */
   function renderCell(row, modelId) {
     const cell = (row.cells || {})[modelId];
-    if (!cell || !cell.trials) {
-      // 只揭晓过、还没计入主统计的运行：明确标注，而不是让人误以为没测过
-      if (cell && cell.revealed) {
-        return el(
-          'div',
-          { class: 'sb__cell' },
-          el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed })),
-        );
-      }
-      // trials 分母只计真实跑过的尝试（2026-10-02 口径修复）：格子里有记录但从未
-      // 进入评分流程时，要明说并保留删除出口，不能让这些记录变成看不见删不掉的幽灵。
-      const strayIds = (cell && cell.run_ids) || [];
-      const node = el(
+    if (!cell || !cell.attempts) {
+      return el(
         'div',
         { class: 'sb__cell' },
-        el('span', { class: 'u-faint' }, strayIds.length
-          ? t(T.SB_CELL_NEVER_GRADED, { n: strayIds.length })
-          : S.SB_CELL_NO_DATA),
+        el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA),
       );
-      if (strayIds.length) {
-        node.appendChild(
-          createButton({
-            label: S.SB_RUN_DELETE || '删除记录',
-            variant: 'ghost',
-            size: 'sm',
-            ariaLabel: `${S.SB_RUN_DELETE || '删除记录'}：${row.task} × ${modelId}`,
-            onClick: () => deleteCellRuns(row, cell),
-          }).el,
-        );
-      }
-      return node;
     }
     const offband = isOffBand(row, cell);
-    const node = el(
+    return el(
       'div',
       { class: 'sb__cell' },
       el(
@@ -224,11 +213,8 @@ export function createScoreboard(props = {}) {
         ' ',
         cell.pass1 > 0 ? S.SB_CELL_PASS : S.SB_CELL_NO_PASS,
       ),
-      el('span', { class: 'sb__cell-sub' }, `${t(S.SB_CELL_TRIES, { n: cell.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.trials })} · ${cell.avg_score}`),
-      el('span', { class: 'sb__cell-sub' }, t(S.SB_CELL_WILSON, { low: percent(cell.ci_low), high: percent(cell.ci_high) })),
-      cell.revealed
-        ? el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed }))
-        : null,
+      el('span', { class: 'sb__cell-sub' }, `${t(S.SB_CELL_TRIES, { n: cell.pass1 })} / ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.attempts })}`),
+      el('span', { class: 'sb__cell-sub' }, t(T.SB_CELL_BEST, { best: cell.best_score, avg: cell.avg_score })),
       offband
         ? el(
             'span',
@@ -240,93 +226,45 @@ export function createScoreboard(props = {}) {
           )
         : null,
     );
-    const runIds = (cell.run_ids || []).filter(Boolean);
-    if (runIds.length) {
-      node.appendChild(
-        createButton({
-          label: S.SB_RUN_DELETE || '删除记录',
-          variant: 'ghost',
-          size: 'sm',
-          ariaLabel: `${S.SB_RUN_DELETE || '删除记录'}：${row.task} × ${modelId}`,
-          onClick: () => deleteCellRuns(row, cell),
-        }).el,
-      );
-    }
-    return node;
   }
 
   /**
-   * 删除模型档案：档案、已存密钥与名下运行记录一起真删，不可恢复。
-   * 记分板的档案芯片随之消失。
+   * 删除模型档案 = 彻底删除：档案、已存密钥、名下运行记录与台账成绩一起真删。
+   * 记分板与排行榜上该模型随之消失，没有"先留着记录"的选项了。
    * @param {string} modelId 档案编号
    */
   async function deleteProfile(modelId) {
-    const runIds = (data.matrix || [])
-      .map((row) => (row.cells || {})[modelId])
-      .flatMap((cell) => (cell && cell.run_ids) || [])
-      .filter(Boolean);
+    const cells = (data.matrix || []).map((row) => (row.cells || {})[modelId]).filter(Boolean);
+    const runs = cells.reduce((sum, cell) => sum + Number(cell.attempts || 0), 0);
+    let body = T.SB_PROFILE_DELETE_BODY_NONE;
+    if (runs > 0) {
+      body = t(T.SB_PROFILE_DELETE_BODY, { n: runs, m: 0 });
+    }
     const ok = await confirmDialog({
-      title: t(S.SB_PROFILE_DELETE_TITLE || '删除模型档案「{id}」？', { id: modelId }),
-      messages: [
-        runIds.length
-          ? `它名下的 ${runIds.length} 条运行记录会一并删除：对话记录、评分报告、diff、沙箱全部移除，不可恢复。`
-          : '它名下没有运行记录。',
-        '档案本身与已保存的密钥会同步删除；之后需要到「模型档案」页重新新建。',
-      ],
+      title: t(T.SB_PROFILE_DELETE_TITLE, { id: modelId }),
+      messages: [body, T.SB_PROFILE_DELETE_HINT],
       confirmLabel: S.ACTION_DELETE || '删除',
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
       danger: true,
     });
     if (!ok) return;
     try {
-      const res = await api.del('/models', { params: { id: modelId, with_runs: '1' } });
+      const res = await api.del('/models', { scope, params: { id: modelId } });
       const removed = (res && res.removed_runs || []).length;
+      const removedEntries = (res && res.removed_entries || []).length;
       const skipped = (res && res.skipped_busy || []).length;
       showToast({
-        message: t(S.SB_PROFILE_DELETED || '档案「{id}」已删除', { id: modelId }),
-        detail: removed ? t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: removed }) : '',
+        message: t(T.SB_PROFILE_DELETED, { id: modelId }),
+        detail: removed || removedEntries
+          ? `已删除 ${removed} 条运行记录与 ${removedEntries} 条成绩。`
+          : '',
         kind: 'success',
         duration: 5000,
       });
       if (skipped) {
-        showToast({ message: t(S.SB_PROFILE_BUSY_SKIP || '{n} 条记录正被对话/校验占用，这次没有删除', { n: skipped }), kind: 'warn', duration: 6000 });
+        showToast({ message: t(T.SB_PROFILE_BUSY_SKIP, { n: skipped }), kind: 'warn', duration: 6000 });
       }
       if (String(selectedModel) === String(modelId)) selectedModel = '';
-      await load();
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
-      showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error', duration: 7000 });
-    }
-  }
-
-  /**
-   * 删除一格背后的运行记录：逐条 DELETE，服务端真删记录目录、沙箱与评分树。
-   * @param {object} row 记分板行
-   * @param {object} cell 单元格统计数据
-   */
-  async function deleteCellRuns(row, cell) {
-    const runIds = (cell.run_ids || []).filter(Boolean);
-    if (!runIds.length) return;
-    const ok = await confirmDialog({
-      title: runIds.length > 1
-        ? t(S.SB_RUN_DELETE_MANY || '删除这 {n} 条运行记录？', { n: runIds.length })
-        : (S.SB_RUN_DELETE_ONE || '删除这条运行记录？'),
-      messages: [
-        `将删除：${runIds.join('、')}`,
-        '记录目录、对话记录（含纪元归档）、评分报告与 diff 全部删除，不留隔离副本，不可恢复。',
-        '关联的沙箱与评分树一并清理；要重跑这道题就重新准备沙箱。',
-      ],
-      confirmLabel: S.ACTION_DELETE || '删除',
-      cancelLabel: S.CONFIRM_DEFAULT_CANCEL || '取消',
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      for (const runId of runIds) {
-        await api.del(`/runs/${encodeURIComponent(runId)}`);
-      }
-      showToast({ message: t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }), kind: 'success', duration: 4000 });
-      announce(t(S.SB_RUN_DELETED || '已删除 {n} 条运行记录', { n: runIds.length }));
       await load();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : 'ACTION_FAILED';
@@ -343,7 +281,7 @@ export function createScoreboard(props = {}) {
 
   function isOffBand(row, cell) {
     const band = bandOf(row);
-    if (!band || !cell.trials) return false;
+    if (!band || !cell.attempts) return false;
     return cell.pass_rate < band[0] || cell.pass_rate > band[1];
   }
 
@@ -369,7 +307,7 @@ export function createScoreboard(props = {}) {
         sortable: true,
         value: (row) => {
           const cell = (row.cells || {})[modelId];
-          return cell && cell.trials ? cell.pass_rate : -1;
+          return cell && cell.attempts ? cell.pass_rate : -1;
         },
         render: (row) => renderCell(row, modelId),
       },

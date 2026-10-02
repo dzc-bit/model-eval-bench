@@ -82,16 +82,15 @@ const T = {
   SHOW_DIFF: '查看改动',
   HIDE_DIFF: '收起改动',
   GRADE_DONE_TOAST: '校验完成：通过 {pass}/{total}',
-  RELEASE_TITLE: '回收这一轮的工作区？',
-  RELEASE_BODY: '只删沙箱目录，成绩、报告、对话记录都留在 runs/ 里；要再跑一轮就用「重建沙箱」。',
   RESTART_TITLE: '用现存档案重开一轮？',
-  RESTART_BODY: '这一轮绑定的档案已删除，改不了它的归属：会用你选的档案为这道题新建一轮记录，'
-    + '旧记录留在记分板里，可以先点「继续对话（本轮分数作废）」把它从统计里摘掉。',
+  RESTART_BODY: '这一轮绑定的档案已删除，改不了它的归属：会用你选的档案为这道题新建一轮记录。'
+    + '旧记录还留在磁盘上（记分板只收「结束本轮」写进台账的成绩，旧记录不在榜上），'
+    + '想清掉就点「废弃本轮（真删，不留成绩）」。',
   RESTART_DONE: '新一轮已就绪，可以在对话里发提示词了',
   // 状态栏状态词
   ST_IDLE: '还没开始',
   ST_FOREIGN: '当前查看的记录属于档案「{model}」，与所选档案不一致，只能看不能改',
-  ST_REVEALED: '已揭晓参考解，成绩不进排行榜',
+  ST_REVEALED: '已揭晓参考解，成绩不进台账',
   // 主按钮（每时刻一个；其余出口在 ⋯ 菜单）
   P_PREPARE: '准备沙箱',
   P_PREPARING: '正在准备沙箱…',
@@ -112,11 +111,22 @@ const T = {
   P_NEED_SANDBOX: '沙箱还没就绪。',
   P_NEED_ACT: '模型还没有动过手：先把提示词发给它，改动落进沙箱后再校验。',
   P_FOREIGN: '这条记录属于档案「{model}」，不是当前选中的那个',
-  // 「结束本轮」常驻按钮
-  FINISH: '结束本轮并回收沙箱',
+  // 「结束本轮」常驻按钮：工作台唯一的收尾出口
+  FINISH: '结束本轮',
   FINISH_NO_RUN: '还没有运行记录。',
-  FINISH_NO_SANDBOX: '沙箱已回收；记录、对话与报告保留，仍可复盘。',
+  FINISH_NO_SANDBOX: '沙箱已回收；点它照样结束本轮（记台账 + 删记录）。',
   FINISH_BUSY: '有操作正在进行，稍等。',
+  // 「结束本轮」确认框
+  FINISH_TITLE: '结束这一轮？',
+  FINISH_BODY: '本轮成绩会写入台账，记分板与排行榜按最高分那条展示；'
+    + '运行记录、对话、评分报告与 diff、沙箱与评分树全部删除，不可恢复。'
+    + '结束后工作台回到干净空态，下次再跑这道题是全新一轮。',
+  FINISH_BODY_NO_SCORE: '这一轮没有可计入台账的成绩（还没跑校验 / 已作废 / 已揭晓参考解）：'
+    + '只删除记录、对话与沙箱，不留成绩。',
+  FINISH_BODY_REVEALED: '这一轮已揭晓过参考解，成绩按规则不进台账：'
+    + '只删除记录、对话与沙箱，不留成绩。',
+  FINISHED_LEDGERED: '本轮成绩已记入台账',
+  FINISHED_PLAIN: '本轮已结束',
   // ⋯ 菜单
   M_COPY_PATH: '复制沙箱路径',
   M_RESET: '清空改动',
@@ -126,16 +136,17 @@ const T = {
   M_REOPEN: '继续对话（本轮分数作废）',
   M_REVEAL: '查看参考解',
   M_EXPORT: '导出报告 JSON',
-  M_DISCARD: '废弃本轮（真删）',
+  M_DISCARD: '废弃本轮（真删，不留成绩）',
   M_NO_RUN: '还没有运行记录。',
   M_NO_SANDBOX: '沙箱不存在或已回收。',
   M_NO_REPORT: '还没有校验报告。',
   M_ALREADY_REVEALED: '已揭晓过参考解。',
   M_DISCARD_BUSY: '对话或校验进行中，等它停下再删除。',
-  DISCARD_TITLE: '废弃并彻底删除这一轮？',
+  DISCARD_TITLE: '废弃并彻底抹掉这一轮？',
   DISCARD_BODY: '运行记录、对话（含纪元归档）、评分报告与 diff、沙箱与评分树全部删除，'
-    + '不留隔离副本，不可恢复。这道题下次用同一档案打开会回到初始界面。',
-  DISCARDED: '这一轮已彻底删除',
+    + '不进台账、不留任何痕迹，不可恢复。'
+    + '与「结束本轮」的唯一区别就是这一条：跑错了不想让这次进榜时用它。',
+  DISCARDED: '这一轮已彻底抹掉',
   MODEL_NOTE_NONE: '还没有模型档案。先到「模型档案」页新增一个，再回来选。',
   MODEL_NOTE_LOAD_FAILED: '模型档案读取失败：{reason}。可以点「重试」再读一次。',
 };
@@ -183,7 +194,7 @@ export function createWorkspace(props = {}) {
     modelsError,
     modelId: storage.get('last-model', ''),
     round: 1,
-    /** 本机长操作：prepare / reset / rebuild / grade / release / discard / notes */
+    /** 本机长操作：prepare / reset / rebuild / grade / finish / discard / notes */
     busy: '',
     error: null,
     /** 沙箱区日志：本机真实发过的每一步（后端不提供沙箱日志，见 NOTES.md） */
@@ -414,30 +425,32 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 显式的「结束本轮并回收沙箱」（红线：不能只留折叠起来的回收）。
+   * 显式的「结束本轮」（红线：不能只留折叠起来的回收）。
+   *
+   * 2026-10-02 起这是工作台**唯一**的收尾出口：记台账 + 真删整条记录，
+   * 沙箱是记录的一部分，跟着一起删。不再要求沙箱存在——跑批回收过沙箱的
+   * 记录照样要能结束。
    * @param {object} s store 快照
    */
   function finishAction(s) {
     const run = s.run;
     const chatBusy = Boolean(run && run.chat_busy);
     const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
-    const disabled = !run || !run.sandbox || Boolean(s.busy) || grading || chatBusy;
+    const disabled = !run || Boolean(s.busy) || grading || chatBusy;
     return {
       label: T.FINISH,
-      onClick: () => doRelease(),
+      onClick: () => doFinish(),
       disabled,
-      loading: s.busy === 'release',
+      loading: s.busy === 'finish',
       reason: !run
         ? T.FINISH_NO_RUN
-        : !run.sandbox
-          ? T.FINISH_NO_SANDBOX
-          : chatBusy
-            ? T.P_REMOTE_BUSY
-            : grading
-              ? T.P_GRADING_REASON
-              : s.busy
-                ? T.FINISH_BUSY
-                : '',
+        : chatBusy
+          ? T.P_REMOTE_BUSY
+          : grading
+            ? T.P_GRADING_REASON
+            : s.busy
+              ? T.FINISH_BUSY
+              : '',
     };
   }
 
@@ -451,7 +464,7 @@ export function createWorkspace(props = {}) {
     const chatBusy = Boolean(run && run.chat_busy);
     const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
     const preparing = Boolean(run && (s.busy === 'prepare' || run.status === 'preparing'));
-    const mutating = ['reset', 'rebuild', 'release', 'discard'].includes(s.busy);
+    const mutating = ['reset', 'rebuild', 'finish', 'discard'].includes(s.busy);
     const acted = run ? run.model_acted !== false : false;
     const hasReport = Boolean(run && run.report);
     const revealed = Boolean(run && run.revealed) || Boolean(s.revealed);
@@ -899,11 +912,14 @@ export function createWorkspace(props = {}) {
   async function loadRun(runId) {
     try {
       const run = await api.get(`/runs/${encodeURIComponent(runId)}`, { scope });
+      // 已揭晓的参考解从运行记录回读（以前只在揭晓当次下发，刷新就没了）
+      if (!store.getState().revealed) restoreRevealed(run);
       applyRun(run);
+      return run;
     } catch (err) {
       if (err instanceof ApiError && err.code === 'NO_RUN') {
         patch({ run: null, busy: '' });
-        return;
+        return null;
       }
       throw err;
     }
@@ -980,6 +996,9 @@ export function createWorkspace(props = {}) {
       run: s.run,
       revealed: s.revealed,
       newResult: Boolean(s.newResult),
+      // 报告窗开着时这一轮可能又跑完一次校验：传这个进去，窗口顶部会出现
+      // 一条 polite 的「有新结果，点击刷新」。正文不自动替换（§13.2）。
+      reloadRun: () => api.get(`/runs/${encodeURIComponent(s.run.run_id)}`, { scope }),
       actions: [
         {
           key: 'reopen',
@@ -1240,42 +1259,73 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 回收这一轮的工作区目录：只删沙箱，runs/ 记录与报告保留（带二次确认）。
-   * 批次跑完会自动释放，但服务重启会带走监控线程；单轮 run 更是从来没有出口，
-   * 交完卷的目录就一直占着磁盘，而「清空改动 / 重建沙箱」都会再写一遍。
+   * 结束本轮：服务端先把这轮成绩写进台账，再真删整条记录。
+   *
+   * 结束之后工作台回到干净空态——这是刻意的：一条记录对应一次尝试，
+   * 尝试已经结清，剩下的事（换档案、换题）都是新一轮，不该挂在旧记录上继续。
    */
-  async function doRelease() {
+  async function doFinish() {
     const s = store.getState();
     if (!s.run || s.busy) return;
-    if (!s.run.sandbox) {
-      showToast({ message: S.ERR_NO_SANDBOX, detail: S.ERR_NO_SANDBOX_BODY, kind: 'warn', duration: 6000 });
-      return;
+    const runId = s.run.run_id;
+    // 没有可记的成绩要在确认前就说清楚：点了「结束本轮」却发现数字没进榜，
+    // 是最容易踩的一脚坑。
+    let body = T.FINISH_BODY;
+    if (s.run.revealed || s.revealed) {
+      body = T.FINISH_BODY_REVEALED;
+    } else if (!hasCountedRound(s.run)) {
+      body = T.FINISH_BODY_NO_SCORE;
     }
     const ok = await confirmDialog({
-      title: T.RELEASE_TITLE,
-      messages: [T.RELEASE_BODY],
-      confirmLabel: S.BATCH_RELEASE_SANDBOX,
+      title: T.FINISH_TITLE,
+      messages: [body],
+      confirmLabel: T.FINISH,
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
       danger: true,
     });
     if (!ok) return;
-    patch({ busy: 'release', elapsed: 0 });
+    patch({ busy: 'finish', elapsed: 0 });
+    const hadRunInUrl = Boolean(urlRunId);
+    // 只有网络调用进 try：删除已经落盘成功，收尾步骤出岔子也不能报成「结束失败」。
+    let res = null;
     try {
-      const res = await api.post(`/runs/${encodeURIComponent(s.run.run_id)}/release`, {}, { scope });
-      logOp(res.message || S.BATCH_RELEASED);
-      await loadRun(s.run.run_id);
-      patch({ busy: '', elapsed: 0 });
-      showToast({ message: S.BATCH_RELEASED, detail: res.message || '', kind: 'success', duration: 8000 });
+      res = await api.post(`/runs/${encodeURIComponent(runId)}/finish`, {}, { scope });
     } catch (err) {
-      reportError(err, '回收沙箱');
+      reportError(err, '结束本轮');
+      patch({ busy: '', elapsed: 0 });
+      return;
     }
+    wsStore.remove(runKey(s.modelId));
+    poller.stop();
+    patch({ run: null, revealed: null, busy: '', elapsed: 0, modelMismatch: false });
+    urlRunId = '';
+    if (hadRunInUrl && navigate) navigate('workspace', { taskId, region: 'chat' }, { replace: true });
+    const ledgered = !!(res && res.ledgered);
+    announce(ledgered ? T.FINISHED_LEDGERED : T.FINISHED_PLAIN);
+    showToast({
+      message: ledgered ? T.FINISHED_LEDGERED : T.FINISHED_PLAIN,
+      detail: (res && res.notice) || '',
+      kind: 'success',
+      duration: 8000,
+    });
   }
 
   /**
-   * 废弃这一轮：真删记录、对话与沙箱，不可恢复。
+   * 这一轮有没有能进台账的成绩：作废轮与判无效轮都不算。
+   * 与服务端 record_run_result 同一套判据，避免确认框与实际写入不一致。
+   * @param {object} run
+   * @returns {boolean}
+   */
+  function hasCountedRound(run) {
+    if (run.revealed) return false;
+    return (run.rounds || []).some((rnd) => rnd && !rnd.voided && !rnd.invalidated);
+  }
+
+  /**
+   * 废弃这一轮：真删记录、对话与沙箱，**不进台账**，不留任何痕迹。
    *
-   * 与「作废本轮成绩」的分工是：作废保留证据只是不算分（复盘要看得到），
-   * 废弃是"这次尝试连同它的过程一起丢掉"，所以磁盘上不该留下任何东西。
+   * 与「结束本轮」的唯一区别就是进不进台账：跑错了不想让这次进榜时用它。
+   * 磁盘后果完全一样（都是真删），台账是唯一能区分两者的痕迹。
    */
   async function doDiscard() {
     const s = store.getState();
@@ -1372,6 +1422,23 @@ export function createWorkspace(props = {}) {
     } catch (err) {
       reportError(err, '查看参考解');
     }
+  }
+
+  /**
+   * 从运行记录里回读已揭晓的参考解（2026-10-02，原问题 8）。
+   *
+   * 以前补丁只在揭晓那一次下发给前端，刷新页面就没了。现在服务端把参考解写进
+   * 运行记录的 revealed.patch，run_view 每次都带上 revealed_patch，所以复盘时
+   * 报告窗里还能再看到它。
+   * @param {object} run run_view 快照
+   * @returns {boolean} 拿到了参考解正文
+   */
+  function restoreRevealed(run) {
+    if (!run || !run.revealed) return false;
+    const text = String(run.revealed_patch || '');
+    if (!text) return false;
+    patch({ revealed: { patch: text, notice: S.WS_REVEALED_NOTE } });
+    return true;
   }
 
   /**

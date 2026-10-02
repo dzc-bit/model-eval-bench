@@ -50,6 +50,7 @@ const T = {
   FIELD_ID_HINT: '英文标识，用作 run 记录里模型名的前缀。',
   FIELD_ID_READONLY_HINT: '保存后不可修改。',
   FIELD_DISPLAY: '供应商名称',
+  FIELD_DISPLAY_HINT: '卡片上显示的名字。迁移老配置时按接口地址自动推一个，随时可改。',
   FIELD_DISPLAY_REQUIRED: '请填写供应商名称。',
   FIELD_URL: '接口地址',
   FIELD_URL_HINT: '该供应商下所有模型共用。',
@@ -92,10 +93,11 @@ const T = {
   TIME_HOURS: '{n} 小时前',
   DELETE_TITLE: '删除供应商「{id}」？',
   DELETE_BODY_1: '它下面的 {n} 个模型会一起消失，已粘贴的密钥也会清除。',
-  DELETE_BODY_2: '历史记录仍然保留，但记分板会把它当作未知档案。这不能撤销。',
-  DELETE_BODY_2_WITH_RUNS: '它名下有 {n} 条运行记录。默认只删供应商与已存密钥，记录保留（记分板会显示为未知档案）；勾选下方选项后这些记录一并真删。这不能撤销。',
-  DELETE_CASCADE: '连同其下 {n} 条运行记录一起删除（真删，不可恢复）',
-  DELETED_WITH_RUNS: '已删除，连同 {n} 条运行记录。',
+  DELETE_BODY_2: '它名下没有运行记录，删完不会留下别的痕迹。这不能撤销。',
+  DELETE_BODY_2_WITH_RUNS: '它名下的 {n} 条运行记录与 {m} 条成绩会一并彻底删除，不可恢复。',
+  DELETE_BODY_2_RUNS_ONLY: '它名下的 {n} 条运行记录会一并彻底删除，不可恢复。',
+  DELETE_BODY_2_ENTRIES_ONLY: '它名下的 {m} 条成绩会一并彻底删除，不可恢复。',
+  DELETED_WITH_RUNS: '已删除，连同 {n} 条运行记录与 {m} 条成绩。',
   DELETE_SKIPPED_BUSY: '{n} 条记录正在对话或校验，没有删除。',
   FORM_NEW: '新增供应商',
   FORM_EDIT: '编辑供应商',
@@ -119,20 +121,15 @@ const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const URL_PATTERN = /^https?:\/\//i;
 
 /**
- * 供应商的身份色：按 id 哈希从一组低饱和暖色里稳定取一个。
+ * 身份色槽位数量：按 id 哈希取模挑一个色号，写进 data-hue。
  * 同一个供应商永远同一色——刷新、重排都不变；不同供应商大概率不同色，
  * 多张卡扫读时靠这块颜色就能定位「这是哪家」。
- * 色值取自官方扩展色板（anthropic.com 生产 CSS 的 swatch），低饱和、
- * 与暖色系不冲突；deep 变体压暗后做浅色主题的实底。
+ *
+ * 颜色本身不在这里：JS 只算色号，实际取色由 CSS 的
+ * `.model-card[data-hue="n"]` / `.sb__profile[data-hue="n"]` 从 tokens 解析。
+ * 在 JS 里再抄一份色值只会和 tokens 漂移（selfcheck 的「硬编码色值」就是冲它来的）。
  */
-const PROVIDER_HUES = [
-  { soft: '#86b58c', deep: '#3f5c44' },   // mineral 绿
-  { soft: '#d9b08c', deep: '#6e4f33' },   // 沙棕
-  { soft: '#8fa9d9', deep: '#3a4c6e' },   // 雾蓝
-  { soft: '#c48fb8', deep: '#5c3a53' },   // 苔紫
-  { soft: '#d9c08c', deep: '#6e5c33' },   // 麦黄
-  { soft: '#c49a8f', deep: '#5c4038' },   // 陶粉
-];
+const HUE_SLOTS = 6;
 
 /** 字符串 → 稳定的 32 位哈希（djbx2，快且分布均匀）。 */
 function hashId(id) {
@@ -144,9 +141,9 @@ function hashId(id) {
   return Math.abs(h);
 }
 
-/** 供应商 → {soft, deep} 身份色对。 */
+/** 供应商 → 色号（0..HUE_SLOTS-1），实际颜色由 CSS 按 data-hue 取。 */
 function providerHue(id) {
-  return PROVIDER_HUES[hashId(id) % PROVIDER_HUES.length];
+  return hashId(id) % HUE_SLOTS;
 }
 
 /** 取供应商名的首字符做字母徽标（跳过符号）。 */
@@ -882,10 +879,9 @@ export function createModels(props = {}) {
     );
 
     const testLine = renderTestLine(testResults.get(p.id));
-    const hue = providerHue(p.id);
     return el(
       'article',
-      { class: 'model-card', dataset: { hue: String(hashId(p.id) % PROVIDER_HUES.length) } },
+      { class: 'model-card', dataset: { hue: String(providerHue(p.id)) } },
       el('div', { class: 'model-card__row1' },
         el('span', { class: 'model-card__monogram', 'aria-hidden': 'true' }, monogramOf(p)),
         el('div', { class: 'model-card__id-block' },
@@ -986,59 +982,42 @@ export function createModels(props = {}) {
   }
 
   /**
-   * 删除供应商（连同它的模型与密钥）。
-   * 名下有运行记录时给级联勾选项：默认记录保留，勾选后随供应商一起真删。
+   * 删除供应商（连同它的模型、密钥、名下运行记录与台账成绩）。
+   *
+   * 级联是默认且唯一的语义（2026-10-02）：没有勾选项了。前端也不再自己数
+   * 「名下有多少条记录」——那要复刻 delete_provider 的限定名前缀 + 老档案 id
+   * 匹配逻辑，两份必然漂移，漂了就是删不干净的幽灵列。计数由 /api/providers
+   * 直接下发 run_count / entry_count。
    * @param {object} p
    */
   async function remove(p) {
     const n = (p.models || []).length;
-    // 先数名下运行记录（与后端 delete_provider 同一口径：限定名前缀 + 老档案 id）。
-    // 数不出来就不弹确认框——删供应商不可恢复，不能凭猜。
-    let runCount = 0;
-    try {
-      const res = await api.get('/runs', { scope });
-      const owned = new Set([String(p.id)]);
-      (p.models || []).forEach((m) => owned.add(String(m.id)));
-      (p.legacy_ids || []).forEach((x) => owned.add(String(x)));
-      const prefix = `${p.id}::`;
-      runCount = ((res && res.runs) || []).filter((r) => {
-        const rm = String(r.model || '');
-        return rm.startsWith(prefix) || owned.has(rm);
-      }).length;
-    } catch (err) {
-      announce(errorTitle(err && err.code ? err.code : 'INTERNAL'), { assertive: true });
-      return;
-    }
-    let cascadeBox = null;
-    const extras = [];
-    if (runCount > 0) {
-      cascadeBox = el('input', { type: 'checkbox', id: 'provider-delete-cascade' });
-      extras.push(el(
-        'label',
-        { class: 'models__cascade', for: 'provider-delete-cascade' },
-        cascadeBox,
-        el('span', {}, t(T.DELETE_CASCADE, { n: runCount })),
-      ));
+    const runCount = Number(p.run_count || 0);
+    const entryCount = Number(p.entry_count || 0);
+    let cascade = T.DELETE_BODY_2;
+    if (runCount > 0 && entryCount > 0) {
+      cascade = t(T.DELETE_BODY_2_WITH_RUNS, { n: runCount, m: entryCount });
+    } else if (runCount > 0) {
+      cascade = t(T.DELETE_BODY_2_RUNS_ONLY, { n: runCount });
+    } else if (entryCount > 0) {
+      cascade = t(T.DELETE_BODY_2_ENTRIES_ONLY, { m: entryCount });
     }
     const ok = await confirmDialog({
       title: t(T.DELETE_TITLE, { id: p.display_name || p.id }),
-      messages: [
-        t(T.DELETE_BODY_1, { n }),
-        runCount > 0 ? t(T.DELETE_BODY_2_WITH_RUNS, { n: runCount }) : T.DELETE_BODY_2,
-      ],
-      extras,
+      messages: [t(T.DELETE_BODY_1, { n }), cascade],
       confirmLabel: S.ACTION_DELETE,
       danger: true,
     });
     if (!ok) return;
     try {
-      const params = { id: p.id };
-      if (cascadeBox && cascadeBox.checked) params.with_runs = '1';
-      const res = await api.del('/providers', { scope, params });
+      const res = await api.del('/providers', { scope, params: { id: p.id } });
       await load();
       const removed = res && Array.isArray(res.removed_runs) ? res.removed_runs.length : 0;
+      const removedEntries = res && Array.isArray(res.removed_entries) ? res.removed_entries.length : 0;
       const skipped = res && Array.isArray(res.skipped_busy) ? res.skipped_busy : [];
-      announce(removed > 0 ? t(T.DELETED_WITH_RUNS, { n: removed }) : S.MODELS_DELETED);
+      announce(removed > 0 || removedEntries > 0
+        ? t(T.DELETED_WITH_RUNS, { n: removed, m: removedEntries })
+        : S.MODELS_DELETED);
       if (skipped.length) announce(t(T.DELETE_SKIPPED_BUSY, { n: skipped.length }), { assertive: true });
     } catch (err) {
       announce(errorTitle(err && err.code ? err.code : 'INTERNAL'), { assertive: true });

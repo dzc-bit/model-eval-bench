@@ -139,6 +139,11 @@ export function createField(props = {}) {
       if (current.error) control.setAttribute('aria-invalid', 'true');
       else control.removeAttribute('aria-invalid');
     }
+    // 占位符也要跟着换：模型档案的密钥框靠它区分「粘贴一把」与「留空则保持已存」。
+    // 漏了这一句，调用方传了 placeholder 也只会停在创建时那一句。
+    if (patch.placeholder !== undefined) {
+      control.setAttribute('placeholder', current.placeholder || '');
+    }
     syncDescribedBy();
 
     control.disabled = Boolean(current.disabled);

@@ -238,6 +238,15 @@
   font-size: var(--font-size-sm);
 }
 
+/* 思考时长是估算的：展开后在正文末尾给一句说明 */
+.ws .ws-reasoning__note {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + var(--space-4));
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
 /* ---- 工具调用紧凑行：一行一条、平铺混排在对话流里，默认折叠 ---- */
 .ws .ws-toolline {
   border-radius: var(--radius-sm);
@@ -478,6 +487,20 @@
 .ws-report-modal .ws-grade-banner[data-tone="fail"] {
   border-color: var(--color-danger-border);
   background: var(--color-danger-soft);
+}
+
+/* 「有新结果，点击刷新」：开窗期间又跑完一次校验时出现在窗口顶部。
+   role=status + 不自动聚焦，读屏礼貌播报，正文不会被自动抽走替换。 */
+.ws-report-modal .ws-report-modal__new-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-info-soft);
+  font-size: var(--font-size-sm);
 }
 
 .ws-report-modal .ws-grade-banner__score {

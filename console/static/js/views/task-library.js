@@ -44,6 +44,14 @@ const T = {
   STATUS_LAST: '{base} · {ago}',
   /** 引导收起时的一行入口按钮。 */
   GUIDE_SHOW: '查看三步指引',
+  /** 首启横幅：受测仓库没配好时，任务库页头下的那一块。 */
+  SETUP_TITLE: '还差一步：受测仓库还没配置',
+  SETUP_BODY: '题目、沙箱与前端都就绪了，但「受测仓库」指向一个不存在的目录，'
+    + '现在点「准备沙箱」会失败。这一步只要改一行配置。',
+  SETUP_STEP_1: '用编辑器打开 console/config.json（第一次启动时已从 config.example.json 自动生成）。',
+  SETUP_STEP_2: '把 "repo_root" 改成你自己的代码仓库的绝对路径，例如 "D:\\\\code\\\\my-repo"。',
+  SETUP_STEP_3: '保存后回到本页点「刷新」。不用重启服务。',
+  SETUP_GOTO_SETTINGS: '去设置页看环境自检',
 };
 
 /** 档位筛选项（值用归一后的档位名，见 core/strings.js 的 normalizeTier）。tier 用于 chip 上的色点。 */
@@ -94,6 +102,19 @@ export function createTaskLibrary(props = {}) {
       必须在 DOM 组装之前声明——它会被塞进下面的根节点数组，
       放后面会触发 TDZ（Cannot access before initialization）。 */
   const calibBanner = el('p', { class: 'lib__calib-banner', role: 'note', hidden: true });
+
+  /**
+   * 首启环境自检横幅（2026-10-02，原问题 13）。
+   *
+   * 新人 clone 下来第一眼看到的是一个「一切正常」的任务库：12 道题、三步引导、
+   * 搜索与筛选都在。但 `repo_root` 还是模板里的占位路径，此时点「准备沙箱」
+   * 只会报一个跟配置无关的错——页面从头到尾没有一处告诉他要先改 config.json。
+   * `/api/health` 早就能答这个问题，只是它只在设置页露过面。
+   *
+   * 所以这里主动问一次健康检查，**只在「受测仓库不可用」时出现**：
+   * 已配置好的机器不受打扰，红了也一定红得显眼（role=alert）。
+   */
+  const setupBanner = el('div', { class: 'lib__setup-banner', role: 'alert', hidden: true });
 
   // ---- 首启三步引导 ----
   // 默认收起成一行：老用户每次进任务库都让引导占一屏首屏，是噪音不是帮助。
@@ -244,6 +265,7 @@ export function createTaskLibrary(props = {}) {
       { class: 'view__head' },
       el('div', {}, h1, el('p', { class: 'view__desc' }, S.LIB_DESC)),
     ),
+    setupBanner,
     guide,
     guideToggleBtn.el,
     toolbar,
@@ -481,6 +503,44 @@ export function createTaskLibrary(props = {}) {
   /**
    * 全量渲染（三态）。
    */
+  /**
+   * 问一次 `/api/health`，只在「受测仓库不可用」时把横幅亮出来。
+   *
+   * 读失败不算问题：健康检查是锦上添花的引导，不该因为它挂了就给用户一个红条。
+   * @returns {Promise<void>}
+   */
+  async function loadSetupBanner() {
+    let health = null;
+    try {
+      health = await api.get('/health', { scope });
+    } catch {
+      setupBanner.hidden = true;
+      return;
+    }
+    const repo = (health && health.checks || []).find((c) => c.id === 'repo');
+    if (!repo || repo.ok) {
+      setupBanner.hidden = true;
+      return;
+    }
+    clear(setupBanner);
+    setupBanner.append(
+      el('h2', { class: 'lib__setup-banner__title' }, T.SETUP_TITLE),
+      el('p', { class: 'lib__setup-banner__body' }, T.SETUP_BODY),
+      el('p', { class: 'lib__setup-banner__detail u-mono' }, repo.value || ''),
+      el('ol', { class: 'lib__setup-banner__steps' },
+        el('li', {}, T.SETUP_STEP_1),
+        el('li', {}, T.SETUP_STEP_2),
+        el('li', {}, T.SETUP_STEP_3)),
+    );
+    setupBanner.appendChild(createButton({
+      label: T.SETUP_GOTO_SETTINGS,
+      variant: 'primary',
+      size: 'sm',
+      onClick: () => navigate('settings'),
+    }).el);
+    setupBanner.hidden = false;
+  }
+
   function render() {
     bodyHost.textContent = '';
     if (loading) {
@@ -520,6 +580,7 @@ export function createTaskLibrary(props = {}) {
       tasks = (data && data.tasks) || [];
       loading = false;
       render();
+      loadSetupBanner();
       announce(t(S.ANNOUNCE_TASKS_LOADED, { n: tasks.length }));
     } catch (err) {
       loading = false;

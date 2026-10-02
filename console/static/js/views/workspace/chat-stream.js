@@ -52,6 +52,7 @@ const T = {
   REASONING_SECONDS: '持续约 {n} 秒',
   REASONING_MINUTES: '持续约 {n} 分钟',
   REASONING_CHARS: '{n} 字',
+  REASONING_NOTE: '思考时长按相邻消息的时间估算，不是接口返回的推理耗时；接口不返回推理时这一行不显示。',
   // 工具调用紧凑行
   TOOL_IN: '入参',
   TOOL_OUT: '返回',
@@ -475,7 +476,9 @@ export function createChatStream(handlers = {}) {
       el('summary', { class: 'ws-reasoning__summary' },
         el('span', { class: 'ws-reasoning__glyph', 'aria-hidden': 'true' }, '◐'),
         el('span', {}, t(T.REASONING_LINE, { meta: reasoningMeta(message, previous) }))),
-      el('div', { class: 'ws-stream__text ws-reasoning__content' }, message.reasoning));
+      el('div', { class: 'ws-stream__text ws-reasoning__content' }, message.reasoning),
+      // 时长是估算出来的，展开后要说清楚，免得被当成接口返回的推理耗时
+      el('p', { class: 'ws-reasoning__note' }, T.REASONING_NOTE));
   }
 
   /** 普通文本消息（用户提问、模型正文、错误提示）。 */

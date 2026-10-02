@@ -285,6 +285,54 @@
   display: none;
 }
 
+/* ==================== 首启横幅：受测仓库还没配置 ==================== */
+/* 新人 clone 下来第一眼看到的必须是「差哪一步、怎么改」，而不是一个正常得
+   不能再正常的任务库。role=alert 保证它一出现就被读屏播报。 */
+.lib .lib__setup-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-text);
+}
+
+.lib .lib__setup-banner[hidden] {
+  display: none;
+}
+
+.lib .lib__setup-banner__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-danger);
+}
+
+.lib .lib__setup-banner__body {
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+/* 服务端给的原始失败原因（带真实路径），mono 让路径可读 */
+.lib .lib__setup-banner__detail {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.lib .lib__setup-banner__steps {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  line-height: var(--line-height-loose);
+}
+
 /* 档位徽章：spec 官方色板的 tint 底 + 档位文字色（覆盖 components.css 的旧配色） */
 .lib .badge--tier-t1 {
   background: color-mix(in srgb, var(--tier-c1) 13%, transparent);

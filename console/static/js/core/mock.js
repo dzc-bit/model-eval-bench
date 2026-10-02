@@ -267,7 +267,7 @@ const GRADE_LOG_LINES = [
   '开始校验：T2-04 kimi-k3 第 1 轮',
   '检查越界：比对全树哈希，允许改动 backend/app/services/',
   '基线哈希一致，未发现越界改动',
-  '运行隐藏测试 tests_hidden/test_gap_consistency.py',
+  '运行隐藏用例 tests_hidden/test_gap_consistency.py',
   '  test_summary_missing_rows 通过',
   '  test_per_symbol_missing_dates 失败',
   '  test_incomplete_symbols_pool 通过',
@@ -319,40 +319,40 @@ const SAMPLE_DIFF = [
   '+    return GapOracle(cfg).threshold',
 ].join('\n');
 
-/** 记分板矩阵，字段与 server.py `api_scoreboard` 一致。 */
+/** 记分板矩阵，字段与 server.py `api_scoreboard` 一致（数据源 = 成绩台账）。 */
 const SCOREBOARD_MATRIX = [
   {
     task: 'T1-01', title: '三处派生口径不一致', tier: 'easy', target_band: [0.6, 0.85],
     cells: {
-      'kimi-k3': { trials: 2, pass1: 1, pass_any: 1, pass_rate: 0.5, avg_score: 100, ci_low: 0.3, ci_high: 1, revealed: 0 },
-      'gpt-5-codex': { trials: 1, pass1: 1, pass_any: 1, pass_rate: 1, avg_score: 100, ci_low: 0.2, ci_high: 1, revealed: 0 },
+      'kimi-k3': { attempts: 2, pass1: 1, pass_rate: 0.5, best_score: 100, best_rounds: 1, avg_score: 100, last_at: '2026-09-29T20:00:00', entry_ids: ['res-000001', 'res-000002'] },
+      'gpt-5-codex': { attempts: 1, pass1: 1, pass_rate: 1, best_score: 100, best_rounds: 1, avg_score: 100, last_at: '2026-09-29T20:10:00', entry_ids: ['res-000003'] },
     },
   },
   {
     task: 'T1-02', title: '交易日历双端一致性', tier: 'easy', target_band: [0.6, 0.85],
     cells: {
-      'kimi-k3': { trials: 1, pass1: 0, pass_any: 0, pass_rate: 0, avg_score: 75, ci_low: 0, ci_high: 0.76, revealed: 0 },
+      'kimi-k3': { attempts: 1, pass1: 0, pass_rate: 0, best_score: 75, best_rounds: 2, avg_score: 75, last_at: '2026-09-29T20:20:00', entry_ids: ['res-000004'] },
     },
   },
   {
     task: 'T2-04', title: '缺口四出口一致性', tier: 'medium', target_band: [0.25, 0.55],
     cells: {
-      'kimi-k3': { trials: 2, pass1: 0, pass_any: 1, pass_rate: 0.5, avg_score: 60, ci_low: 0.1, ci_high: 0.83, revealed: 1 },
-      'gpt-5-codex': { trials: 2, pass1: 0, pass_any: 1, pass_rate: 0.5, avg_score: 80, ci_low: 0.1, ci_high: 0.83, revealed: 0 },
+      'kimi-k3': { attempts: 2, pass1: 0, pass_rate: 0, best_score: 75, best_rounds: 2, avg_score: 67.5, last_at: '2026-09-29T20:30:00', entry_ids: ['res-000005', 'res-000006'] },
+      'gpt-5-codex': { attempts: 2, pass1: 1, pass_rate: 0.5, best_score: 90, best_rounds: 1, avg_score: 85, last_at: '2026-09-29T20:40:00', entry_ids: ['res-000007', 'res-000008'] },
     },
   },
   {
     task: 'T3-09', title: '实时快照仲裁全链', tier: 'hard', target_band: [0.05, 0.25],
     cells: {
-      'kimi-k3': { trials: 3, pass1: 0, pass_any: 0, pass_rate: 0, avg_score: 40, ci_low: 0, ci_high: 0.56, revealed: 0 },
-      'gpt-5-codex': { trials: 3, pass1: 0, pass_any: 0, pass_rate: 0, avg_score: 40, ci_low: 0, ci_high: 0.56, revealed: 1 },
+      'kimi-k3': { attempts: 3, pass1: 0, pass_rate: 0, best_score: 50, best_rounds: 3, avg_score: 43.3, last_at: '2026-09-29T20:50:00', entry_ids: ['res-000009', 'res-000010', 'res-000011'] },
+      'gpt-5-codex': { attempts: 3, pass1: 1, pass_rate: 0.333, best_score: 60, best_rounds: 3, avg_score: 50, last_at: '2026-09-29T21:00:00', entry_ids: ['res-000012', 'res-000013', 'res-000014'] },
     },
   },
   {
     task: 'T4-11', title: '实时行情与写入链路同时失去唯一事实', tier: 'king', target_band: [0, 0.02],
     cells: {
-      'kimi-k3': { trials: 0, pass1: 0, pass_any: 0, pass_rate: 0, avg_score: 0, ci_low: 0, ci_high: 1, revealed: 0 },
-      'gpt-5-codex': { trials: 0, pass1: 0, pass_any: 0, pass_rate: 0, avg_score: 0, ci_low: 0, ci_high: 1, revealed: 0 },
+      'kimi-k3': { attempts: 0, pass1: 0, pass_rate: 0, best_score: 0, best_rounds: 0, avg_score: 0, last_at: '', entry_ids: [] },
+      'gpt-5-codex': { attempts: 0, pass1: 0, pass_rate: 0, best_score: 0, best_rounds: 0, avg_score: 0, last_at: '', entry_ids: [] },
     },
   },
 ];
@@ -413,10 +413,52 @@ const runs = (function restoreRuns() {
 function persistRuns() {
   try {
     window.sessionStorage.setItem(RUNS_STORE_KEY, JSON.stringify(Array.from(runs.entries())));
+    window.sessionStorage.setItem(LEDGER_STORE_KEY, JSON.stringify(ledger));
   } catch {
     /* 存不下就算了（隐私模式 / 配额满） */
   }
 }
+
+/**
+ * 成绩台账条目（2026-10-02「结束」语义）。
+ *
+ * 真实后端写在 runs/_results/ledger.json，与运行记录脱钩：点「结束本轮」先写一条
+ * 台账再真删记录。mock 里同样保留一份，所以「结束之后榜单还有数」这条链路
+ * 在 mock 模式下也演得出来；记分板与排行榜都从这份台账读数。
+ */
+const LEDGER_STORE_KEY = 'evalconsole:mock:ledger';
+const ledger = (function restoreLedger() {
+  try {
+    const raw = window.sessionStorage.getItem(LEDGER_STORE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {
+    /* 恢复失败就当空台账 */
+  }
+  return SCOREBOARD_MATRIX.flatMap((row) =>
+    Object.entries(row.cells).flatMap(([model, cell]) =>
+      (cell.entry_ids || []).map((entryId) => ({
+        entry_id: entryId,
+        task: row.task,
+        model,
+        model_raw: model,
+        source_run_id: '',
+        origin: 'backfill',
+        rounds: cell.best_rounds || 1,
+        best_round: cell.best_rounds || 1,
+        score: cell.best_score || 0,
+        passed: cell.pass1 > 0,
+        pass1: false,
+        model_work_seconds: null,
+        wall_seconds: null,
+        graded_at: cell.last_at || '',
+        ended_at: cell.last_at || '',
+      })),
+    ),
+  );
+}());
 
 /** 模型档案 */
 let models = MODELS.map((m) => ({ ...m }));
@@ -830,32 +872,36 @@ async function dispatch(url, init = {}) {
     const id = decodeURIComponent(route.slice('tasks/'.length, -'/leaderboard'.length));
     const task = TASKS.find((t) => t.id === id);
     if (!task) return fail(404, 'E_TASK_NOT_FOUND', `没有这道题：${id}`);
-    const entries = Array.from(runs.values())
-      .filter((run) => run.task === id && !run.revealed)
-      .map((run) => {
-        const success = (run.rounds || [])
-          .filter((round) => round.passed && !round.invalidated)
-          .sort((a, b) => Number(a.attempt) - Number(b.attempt))[0];
-        if (!success) return null;
-        const created = Date.parse(run.created_at);
-        const completed = Date.parse(success.graded_at);
-        const duration = Number.isFinite(created) && Number.isFinite(completed)
-          ? Math.max(0, (completed - created) / 1000)
-          : null;
-        return {
-          run_id: run.run_id,
-          model: run.model,
-          rounds: Number(success.attempt),
-          duration_s: duration === null ? null : Math.round(duration * 1000) / 1000,
-          completed_at: success.graded_at,
-          score: Number(success.score) || 0,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.rounds - b.rounds
-        || (a.duration_s === null ? Infinity : a.duration_s) - (b.duration_s === null ? Infinity : b.duration_s)
-        || String(a.completed_at).localeCompare(String(b.completed_at))
-        || String(a.model).localeCompare(String(b.model)));
+    // 数据源是成绩台账：同一模型取分数最高的那条（口径与 server.py task_leaderboard 一致）
+    const byModel = new Map();
+    ledger.filter((e) => e.task === id).forEach((entry) => {
+      const list = byModel.get(entry.model) || [];
+      list.push(entry);
+      byModel.set(entry.model, list);
+    });
+    const entries = [];
+    byModel.forEach((items, model) => {
+      const best = items.slice().sort((a, b) => (b.score - a.score)
+        || (a.rounds - b.rounds)
+        || String(a.ended_at).localeCompare(String(b.ended_at)))[0];
+      entries.push({
+        entry_id: best.entry_id,
+        model,
+        attempts: items.length,
+        score: best.score,
+        rounds: best.rounds,
+        duration_s: best.model_work_seconds,
+        model_work_seconds: best.model_work_seconds,
+        wall_seconds: best.wall_seconds,
+        completed_at: best.graded_at,
+        ended_at: best.ended_at,
+      });
+    });
+    entries.sort((a, b) => b.score - a.score
+      || a.rounds - b.rounds
+      || (a.duration_s === null ? Infinity : a.duration_s) - (b.duration_s === null ? Infinity : b.duration_s)
+      || String(a.completed_at).localeCompare(String(b.completed_at))
+      || String(a.model).localeCompare(String(b.model)));
     entries.forEach((entry, index) => { entry.rank = index + 1; });
     return ok({ task: task.id, title: task.title, entries });
   }
@@ -1037,6 +1083,51 @@ async function dispatch(url, init = {}) {
     run.note = String(body.note || '').slice(0, 4000);
     return ok({ run_id: id, note: run.note });
   }
+  if (route.endsWith('/finish') && method === 'POST') {
+    const id = runIdOf(route, '/finish');
+    const run = runs.get(id);
+    if (!run) return fail(404, 'E_RUN_NOT_FOUND', '运行记录目录不存在，可能已经被删除过了。');
+    if (run.status === 'grading') {
+      return fail(409, 'E_RUN_BUSY', '这一轮正在校验中，等校验结束后再结束本轮。');
+    }
+    // 与 server.py record_run_result 同一套判据：只收作数轮，揭晓过的一律不收
+    const counted = (run.rounds || []).filter((r) => !r.voided && !r.invalidated);
+    const best = counted.slice().sort((a, b) => Number(b.score) - Number(a.score))[0];
+    let entry = null;
+    if (!run.revealed && best && !ledger.some((e) => e.source_run_id === id)) {
+      entry = {
+        entry_id: `res-${String(ledger.length + 1).padStart(6, '0')}`,
+        task: run.task,
+        model: run.model,
+        model_raw: run.model,
+        source_run_id: id,
+        origin: 'run',
+        rounds: counted.length,
+        best_round: Number(best.attempt) || 1,
+        score: Number(best.score) || 0,
+        passed: counted.some((r) => r.passed),
+        pass1: counted.some((r) => Number(r.attempt) === 1 && r.passed),
+        model_work_seconds: null,
+        wall_seconds: null,
+        graded_at: best.graded_at || '',
+        ended_at: isoNow(),
+      };
+      ledger.push(entry);
+    }
+    // 真删：记录、对话、沙箱一起消失，只剩台账里的那条成绩
+    runs.delete(id);
+    persistRuns();
+    return ok({
+      run_id: id,
+      finished: true,
+      ledgered: Boolean(entry),
+      entry,
+      purged: [`D:\\new model test\\runs\\${id}`],
+      notice: entry
+        ? '本轮成绩已记入台账，记分板与排行榜按最高分那条展示；运行记录、对话与沙箱已彻底删除，下次再跑是全新一轮。'
+        : '这一轮没有可计入台账的成绩（未校验 / 已作废 / 已揭晓参考解），记录、对话与沙箱已彻底删除，不留成绩。',
+    });
+  }
   if (route.endsWith('/diff') && method === 'POST') {
     const id = runIdOf(route, '/diff');
     const run = runs.get(id);
@@ -1073,22 +1164,26 @@ async function dispatch(url, init = {}) {
   // ---- 记分板 ----
   if (route === 'scoreboard' && method === 'GET') {
     if (q.get('format') === 'csv') {
-      const header = 'task,tier,model,trials,pass1,pass_any,pass_rate,avg_score,ci_low,ci_high,revealed';
+      const header = '任务,档位,模型,结束次数,pass@1/次数,最高分,均分';
       const lines = SCOREBOARD_MATRIX.flatMap((row) =>
         Object.entries(row.cells).map(([model, c]) => [
-          row.task, row.tier, model, c.trials, c.pass1, c.pass_any, c.pass_rate,
-          c.avg_score, c.ci_low, c.ci_high, c.revealed,
+          row.task, row.tier, model, c.attempts, `${c.pass1}/${c.attempts}`, c.best_score, c.avg_score,
         ].join(',')),
       );
       return ok([header, ...lines].join('\n'));
     }
+    const attempts = SCOREBOARD_MATRIX.flatMap((row) => Object.values(row.cells))
+      .reduce((sum, c) => sum + c.attempts, 0);
+    const pass1 = SCOREBOARD_MATRIX.flatMap((row) => Object.values(row.cells))
+      .reduce((sum, c) => sum + c.pass1, 0);
     return ok({
       generated_at: isoNow(),
       tasks: SCOREBOARD_MATRIX.map((r) => r.task),
       models: models.map((m) => m.id),
       matrix: SCOREBOARD_MATRIX,
-      totals: { trials: 20, pass1: 5, pass_rate: 0.25, ci_low: 0.11, ci_high: 0.47, revealed: 2 },
-      note: 'pass@1 = 一次通过；揭晓过的轮次单列，不参与通过率。',
+      totals: { attempts, pass1, pass_rate: attempts ? Math.round((pass1 / attempts) * 1000) / 1000 : 0 },
+      note: '数据源是成绩台账（runs/_results/ledger.json）：只有点过「结束本轮」的尝试才在这里，'
+        + '每次结束各留一条，单元格展示最高分那条；作废轮、判无效轮与已揭晓参考解的尝试永不进台账。',
     });
   }
 

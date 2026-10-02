@@ -15,8 +15,10 @@
  * 不自动弹本窗口（§13.2）；唯一的主动打开路径是用户点「查看完整报告」，
  * 以及用户主动「查看参考解」成功后把补丁正文直接呈上来（那是这次点击要的东西）。
  *
- * 窗口内容是打开时刻的快照：报告一旦产出就不再变（重新校验会先作废再出新报告），
- * 所以不做窗内轮询；揭晓参考解成功后由编排层重开一版带补丁的窗口。
+ * 窗口内容是打开时刻的快照：内容不自动替换（用户正在读的半句话不该被抽走）。
+ * 但窗口开着期间这一轮可能又跑出一次校验——那时窗口顶部出现一条 polite 的
+ * 「有新结果，点击刷新」（role=status，不抢焦点），点一下才替换正文。
+ * 揭晓参考解成功后由编排层重开一版带补丁的窗口。
  *
  * 样式：modal 挂在 document.body 上、不在 .ws 子树里，所以报告内容的样式单独挂在
  * .ws-report-modal 根类下（workspace.css 末尾一节），与「选择器一律挂 .ws」是同一个
@@ -46,12 +48,35 @@ import { percent } from '../../core/format.js';
 const T = {
   MODAL_TITLE: '校验报告 · 第 {n} 轮',
   MODAL_TITLE_NO_ROUND: '校验报告',
+  NEW_RESULT: '有新结果，点击刷新',
   // 「下一步」引导：主按钮仍在底部操作栏，这里只指路（与历史内联版同一套话）
   NEXT_TO_PROMOTE: '下一步：底部操作栏点「进入第 {n} 轮」，继续解下一级提示。',
   NEXT_TO_FIX: '下一步：回到对话里把失败组告诉模型让它接着改，改完点底部操作栏的「重新校验」。',
-  NEXT_TO_REVEAL: '机会已用完。下一步：底部操作栏点「查看参考解」对照锚解（看过之后成绩不进排行榜）。',
+  NEXT_TO_REVEAL: '机会已用完。下一步：底部操作栏点「查看参考解」对照锚解（看过之后成绩永不进台账）。',
   NEXT_TO_GRADE: '下一步：模型改完后，点底部操作栏的「运行校验」。',
 };
+
+/** 新结果提示的轮询间隔（毫秒）。窗口开着时才在跑。 */
+const NEW_RESULT_POLL_MS = 2500;
+
+/**
+ * 报告指纹：只看「这一次校验产出了什么」，不看时间戳。
+ * 重新校验会整体换一份 report.json，用它比对就能分辨「换了新报告」与「同一份」。
+ * @param {object|null} report
+ * @returns {string}
+ */
+function reportFingerprint(report) {
+  if (!report) return '';
+  const rounds = Array.isArray(report.rounds) ? report.rounds.length : 0;
+  return [
+    report.generated_at || '',
+    report.score,
+    report.passed ? 1 : 0,
+    report.invalidated ? 1 : 0,
+    (report.groups || []).length,
+    rounds,
+  ].join('|');
+}
 
 /**
  * 组状态 → 语义（图标 + 文字 + 颜色三重编码）。
@@ -497,12 +522,15 @@ function buildReportBody({ report, run, revealed, newResult }) {
  *   run: object,
  *   revealed?: object|null,
  *   newResult?: boolean,
+ *   reloadRun?: () => Promise<object|null>,
  *   actions?: Array<{key?: string, label: string, disabled?: boolean, reason?: string,
  *     variant?: string, danger?: boolean, keepOpen?: boolean, onClick?: Function}>
  * }} options
  *   actions：footer 出口按钮。keepOpen=true 的动作（导出）点完不关窗；其余动作
  *   （作废 / 揭晓）自带二次确认，确认框会把本窗口顶掉（modal.js 同屏最多一个），
  *   所以不在此处先关。
+ *   reloadRun：重新读一次运行记录。传了就开「有新结果」轮询（见 watchNewResult），
+ *   不传就完全没有窗内轮询（旧行为）。
  * @returns {object|null} modal handle；没有报告可展示时返回 null
  */
 export function openReportModal(options = {}) {
@@ -537,17 +565,101 @@ export function openReportModal(options = {}) {
     return btn.el;
   });
 
+  const body = buildReportBody({
+    report,
+    run,
+    revealed: options.revealed || null,
+    newResult: Boolean(options.newResult),
+  });
+
+  /**
+   * 新结果提示条（2026-10-02，原问题 6）。
+   *
+   * 窗口是打开时刻的快照，但开窗期间这一轮可能又跑完一次校验。正文绝不自动替换
+   * ——用户正在读的半句话不该被抽走——只在顶部挂一条 polite 提示，点一下才刷新。
+   * role=status 让读屏在末尾播报，不抢焦点（没有 tabindex，不 autoFocus）。
+   *
+   * @param {object} host 报告正文根节点
+   * @param {string} initialFingerprint 开窗时那份报告的指纹
+   */
+  function watchNewResult(host, initialFingerprint) {
+    const runId = String((run && run.run_id) || '');
+    if (!runId || typeof options.reloadRun !== 'function') return;
+
+    let latest = initialFingerprint;
+    let banner = null;
+    let pending = false;
+    let stopped = false;
+    let timer = 0;
+
+    function stop() {
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = 0;
+      }
+    }
+
+    function showBanner() {
+      if (banner) return;
+      const btn = createButton({
+        label: T.NEW_RESULT,
+        variant: 'ghost',
+        size: 'sm',
+        onClick: async () => {
+          const fresh = await options.reloadRun();
+          if (!fresh || !fresh.report) return;
+          latest = reportFingerprint(fresh.report);
+          if (banner) banner.remove();
+          banner = null;
+          host.replaceChildren(buildReportBody({
+            report: fresh.report,
+            run: fresh,
+            revealed: options.revealed || null,
+            newResult: true,
+          }));
+        },
+      });
+      footerButtons.push(btn);
+      banner = el(
+        'div',
+        { class: 'ws-report-modal__new-result', role: 'status' },
+        btn.el,
+        el('span', { class: 'u-faint' }, S.GRADE_NEW_RESULT_HINT),
+      );
+      host.insertBefore(banner, host.firstChild);
+    }
+
+    async function tick() {
+      timer = 0;
+      if (pending) return;
+      pending = true;
+      try {
+        const fresh = await options.reloadRun();
+        if (fresh && fresh.report && reportFingerprint(fresh.report) !== latest) showBanner();
+      } catch {
+        /* 读失败就下一轮再试：报告窗是快照，不该因为一次轮询失败报错 */
+      } finally {
+        pending = false;
+      }
+      if (!stopped) timer = window.setTimeout(tick, NEW_RESULT_POLL_MS);
+    }
+
+    timer = window.setTimeout(tick, NEW_RESULT_POLL_MS);
+    return () => {
+      stopped = true;
+      stop();
+    };
+  }
+
+  const stopWatch = watchNewResult(body, reportFingerprint(report));
+
   modal = openModal({
     title: attempt > 0 ? t(T.MODAL_TITLE, { n: attempt }) : T.MODAL_TITLE_NO_ROUND,
-    body: buildReportBody({
-      report,
-      run,
-      revealed: options.revealed || null,
-      newResult: Boolean(options.newResult),
-    }),
+    body,
     footer,
     variant: 'wide',
     onClose: () => {
+      stopWatch();
       footerButtons.forEach((btn) => btn.destroy());
     },
   });

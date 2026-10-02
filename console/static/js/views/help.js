@@ -60,7 +60,8 @@ const TERM_GROUPS = [
     id: 'help-term-score',
     title: '评分与结果',
     terms: [
-      ['校验', '在评分树里跑仓库原始测试加隐藏测试，产出分组红绿与部分分。'],
+      ['校验', '在评分树里跑仓库原始测试加隐藏用例，产出分组红绿与部分分。'],
+      ['隐藏用例', '只在评分时才出现的测试，对模型隐藏；本题库是公开样例，文件内容随仓库公开。'],
       ['组', '一个对外出口或一条不变量。分组的红绿构成这一轮的成绩。'],
       ['用例', '组里的单个测试。一条用例红，它所在的组就是红的。'],
       ['部分分', '通过组权重占比。用来区分「只修了一半」。'],
@@ -240,6 +241,7 @@ export function createHelp(props = {}) {
       S.HELP_STEP_4,
       S.HELP_STEP_5,
       S.HELP_STEP_6,
+      S.HELP_STEP_7,
     ]),
     tip(S.HELP_FLOW_TIP, 'tip'),
   ]);
@@ -263,6 +265,8 @@ export function createHelp(props = {}) {
     tip(S.HELP_GRADE_TERM_3),
     sub(S.HELP_GRADE_SUB_RED),
     bullets([S.HELP_GRADE_RED_1, S.HELP_GRADE_RED_2, S.HELP_GRADE_RED_3]),
+    sub(S.HELP_GRADE_SUB_LEDGER),
+    bullets([S.HELP_GRADE_TERM_6, S.HELP_GRADE_TERM_5]),
   ]);
 
   // ==================== 快捷键 ====================
