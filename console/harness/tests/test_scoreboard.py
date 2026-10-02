@@ -1,9 +1,10 @@
-"""验收：记录与统计（设计文档 §16）。
+"""验收：运行记录与统计（设计文档 §16）。
 
     · 每轮目录存齐 run.json / baseline_manifest.json / diff.patch / report.json / notes.md；
-    · 记分板保留任务×模型统计，单元格带 Wilson 95% 区间；
-    · 揭晓过的轮次单列，不混进主统计；
+    · 记分板与排行榜读的是成绩台账（runs/_results/ledger.json），不是这些记录；
     · 校准排队不铺工作区，跑一次消耗一个。
+
+台账本身的语义（结束/废弃、作废与无效轮、回填、删档案级联）另见 test_results_ledger.py。
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import threading
 import pytest
 
 from conftest import BACKEND_TASK, make_run, write_in_sandbox
-from harness import calibrate, chat, errors, runs, sandbox, util
+from harness import calibrate, chat, config, errors, results, runs, sandbox, util
 
 
 def read(path):
@@ -35,12 +36,37 @@ def store_run(cfg, run_id, task, model, passed, score, attempts=1, revealed=Fals
     run = {
         "run_id": run_id, "task": task, "model": model, "attempt": attempts,
         "attempts_allowed": 3, "status": "graded", "created_at": "2026-01-01T00:00:00",
+        "round_started_at": "2026-01-01T00:00:00",
         "revealed": revealed, "calibration": False, "rounds": make_rounds(passed, score, attempts),
         "last_score": score, "last_passed": passed, "note": "", "drive": "", "sandbox": "",
         "baseline_commit": "", "baseline_digest": "deadbeef",
     }
     runs.save_run(cfg, run)
     return run
+
+
+def ledger(cfg, task, model, *, score=100.0, passed=True, pass1=None,
+           rounds=1, work=None, wall=None, run_id=""):
+    """往台账写一条（= 一次「结束本轮」的结果）。"""
+    return results.append_entry(cfg, results.make_entry(
+        task, model, model, source_run_id=run_id,
+        rounds=rounds, best_round=rounds, score=score, passed=passed,
+        pass1=bool(passed) if pass1 is None else pass1,
+        model_work_seconds=work, wall_seconds=wall,
+        graded_at="2026-01-01T00:00:00",
+    ))
+
+
+def cell_of(cfg, task, model):
+    board = runs.scoreboard(cfg)
+    row = next(r for r in board["matrix"] if r["task"] == task)
+    return row["cells"][model]
+
+
+def install_providers(cfg, providers):
+    """装一份受控的供应商配置，并按 config.load 同一条派生路径展开扁平档案。"""
+    cfg["providers"] = providers
+    cfg["models"] = config.expand_models(providers)
 
 
 # ------------------------------------------------------------------ 归档
@@ -63,8 +89,7 @@ def test_reopen_voids_the_round_and_unlocks_the_chat(cfg):
     after = runs.get_run(cfg, stored["run_id"])
     assert after["rounds"][0]["voided"] is True
     assert after["last_score"] is None
-    cell = runs._cell_stats([after])
-    assert cell["avg_score"] == 0.0 and cell["pass_any"] == 0
+    assert runs.record_run_result(cfg, after) is None, "作废轮不能进台账"
 
     # 没校验过的轮次不需要重开；已揭晓参考解的不允许重开
     with pytest.raises(errors.HarnessError):
@@ -101,7 +126,10 @@ def test_reopen_discards_a_stale_report_left_on_a_ready_run(cfg):
 
 
 def test_release_sandbox_frees_workspace_but_keeps_the_record(cfg):
-    """回收沙箱只删工作区目录：磁盘要还，成绩、报告、对话记录一个都不能少。"""
+    """回收沙箱只删工作区目录：磁盘要还，成绩、报告、对话记录一个都不能少。
+
+    工作台不再用这个口子（收尾统一走 finish_round），跑批与批量回收还在用。
+    """
     run = make_run(cfg, model="回收模型")
     workspace = os.path.join(cfg["sandbox_root"], run["run_id"])
     util.ensure_dir(workspace)
@@ -156,6 +184,27 @@ def test_run_directory_holds_full_archive(cfg, log):
         sandbox.destroy(cfg, run, log=log)
 
 
+def test_revealed_patch_is_persisted_into_the_run_record(cfg):
+    """揭晓参考解要落盘：以前只在当次下发给前端，刷新就没了。"""
+    from harness import packs
+    meta = packs.load_meta(cfg, BACKEND_TASK)
+    run = make_run(cfg, BACKEND_TASK, "揭晓模型", run_id="TEST-01__揭晓模型__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    runs.save_run(cfg, run)
+
+    res = runs.reveal(cfg, run["run_id"])
+
+    assert res["stored_at"] == runs.REVEALED_PATCH_FILE
+    path = os.path.join(run["run_dir"], runs.REVEALED_PATCH_FILE)
+    assert os.path.isfile(path), "参考解正文必须写进运行记录目录"
+    assert read(path) == res["patch"]
+    # 复盘与报告窗都从运行记录读，不依赖「当次下发」
+    assert runs.load_revealed_patch(cfg, runs.get_run(cfg, run["run_id"])) == res["patch"]
+    view = runs.run_view(cfg, runs.get_run(cfg, run["run_id"]))
+    assert view["revealed"] is True and view["revealed_patch"] == res["patch"]
+    assert meta["id"] == BACKEND_TASK
+
+
 def _wait_for_grade(cfg, run_id, timeout=240):
     import time
     deadline = time.time() + timeout
@@ -190,7 +239,11 @@ def test_grade_is_async_and_blocks_double_start(cfg, log):
 # ---------------------------------------------------------------- Wilson
 
 def test_wilson_interval_math():
-    """Wilson 区间要与手算一致，样本为 0 时退化成 [0,1]。"""
+    """Wilson 区间要与手算一致，样本为 0 时退化成 [0,1]。
+
+    区间本身已随「结束」语义收敛退出记分板（台账条目不等于通过的样本），
+    校准队列仍在用它，所以这条公式继续锁着。
+    """
     low, high = runs.wilson_interval(0, 10)
     assert low == 0.0 and 0.2 < high < 0.35
     low, high = runs.wilson_interval(10, 10)
@@ -213,10 +266,10 @@ def test_wilson_is_not_normal_approximation():
 # ---------------------------------------------------------------- 记分板
 
 def test_scoreboard_matrix_rows_and_columns(cfg):
-    """行=任务、列=模型，单元格统计 pass@1 与区间。"""
-    store_run(cfg, "TEST-01__A__20260101-000001", BACKEND_TASK, "A", True, 100.0)
-    store_run(cfg, "TEST-01__A__20260101-000002", BACKEND_TASK, "A", False, 33.3)
-    store_run(cfg, "TEST-01__B__20260101-000001", BACKEND_TASK, "B", False, 16.7)
+    """行=任务、列=模型，单元格是台账条目的统计。"""
+    ledger(cfg, BACKEND_TASK, "A", score=100.0, passed=True, pass1=True)
+    ledger(cfg, BACKEND_TASK, "A", score=33.3, passed=False, pass1=False)
+    ledger(cfg, BACKEND_TASK, "B", score=16.7, passed=False, pass1=False)
 
     board = runs.scoreboard(cfg)
     assert set(board["models"]) >= {"A", "B"}
@@ -226,161 +279,49 @@ def test_scoreboard_matrix_rows_and_columns(cfg):
     assert row["tier"] == "medium"
 
     cell = row["cells"]["A"]
-    assert cell["trials"] == 2
+    assert cell["attempts"] == 2
     assert cell["pass1"] == 1
     assert cell["pass_rate"] == 0.5
-    assert cell["ci_low"] < 0.5 < cell["ci_high"]
+    assert cell["best_score"] == 100.0
     assert cell["avg_score"] == pytest.approx(66.7, abs=0.1)
-    assert board["totals"]["trials"] == 3
-    assert board["totals"]["pass1"] == 1
+    assert "ci_low" not in cell and "ci_high" not in cell, "Wilson 已随旧口径废弃"
+    assert board["totals"] == {"attempts": 3, "pass1": 1, "pass_rate": pytest.approx(0.333, abs=0.001)}
 
 
-def test_task_leaderboard_prioritizes_rounds_then_elapsed_time(cfg):
-    """题目排行榜只列有效未揭晓的成功记录，先比通过轮次，再比总耗时。"""
-    slower = store_run(cfg, "TEST-01__慢模型__20260101-000001", BACKEND_TASK, "慢模型", True, 100.0)
-    slower["rounds"][0]["graded_at"] = "2026-01-01T00:00:20"
-    runs.save_run(cfg, slower)
-
-    faster = store_run(cfg, "TEST-01__快模型__20260101-000001", BACKEND_TASK, "快模型", True, 100.0)
-    faster["rounds"][0]["graded_at"] = "2026-01-01T00:00:05"
-    runs.save_run(cfg, faster)
-
-    later_round = store_run(cfg, "TEST-01__两轮模型__20260101-000001", BACKEND_TASK, "两轮模型", True, 100.0, attempts=2)
-    later_round["rounds"][0]["passed"] = False
-    later_round["rounds"][0]["score"] = 50.0
-    later_round["rounds"][1]["passed"] = True
-    later_round["rounds"][1]["graded_at"] = "2026-01-01T00:00:01"
-    runs.save_run(cfg, later_round)
-
-    invalidated = store_run(cfg, "TEST-01__作废模型__20260101-000001", BACKEND_TASK, "作废模型", True, 100.0)
-    invalidated["rounds"][0]["invalidated"] = True
-    runs.save_run(cfg, invalidated)
-    store_run(cfg, "TEST-01__揭晓模型__20260101-000001", BACKEND_TASK, "揭晓模型", True, 100.0, revealed=True)
-
-    result = runs.task_leaderboard(cfg, BACKEND_TASK)
-    assert [entry["model"] for entry in result["entries"]] == ["快模型", "慢模型", "两轮模型"]
-    assert [entry["rank"] for entry in result["entries"]] == [1, 2, 3]
-    assert [entry["rounds"] for entry in result["entries"]] == [1, 1, 2]
-    assert result["entries"][0]["duration_s"] == 5.0
-
-
-def test_leaderboard_ranks_by_model_work_time_not_wall_clock(cfg):
-    """排行榜排的是"模型干了多久"，不是"从建号到交卷挂了多久"。
-
-    墙钟口径会让挂机比干活更快：一条 3 秒交卷但模型实际跑了 15 分钟的记录，
-    不该赢过一条挂了半小时、模型只干了 1 分钟的记录。
-    """
-    idle = store_run(cfg, "TEST-01__挂机模型__20260101-000001", BACKEND_TASK, "挂机模型", True, 100.0)
-    idle["rounds"][0]["graded_at"] = "2026-01-01T00:00:03"
-    idle["rounds"][0]["model_work_seconds"] = 900.0
-    runs.save_run(cfg, idle)
-
-    busy = store_run(cfg, "TEST-01__干活模型__20260101-000001", BACKEND_TASK, "干活模型", True, 100.0)
-    busy["rounds"][0]["graded_at"] = "2026-01-01T00:30:00"
-    busy["rounds"][0]["model_work_seconds"] = 60.0
-    runs.save_run(cfg, busy)
-
-    entries = runs.task_leaderboard(cfg, BACKEND_TASK)["entries"]
-    assert [e["model"] for e in entries] == ["干活模型", "挂机模型"]
-    assert entries[0]["duration_s"] == 60.0
-    assert entries[0]["wall_seconds"] == 1800.0, "墙钟口径要留着做对照，不能悄悄丢掉"
-
-
-def test_revealed_rounds_are_excluded_from_main_stats(cfg):
-    """揭晓过的轮次不进通过率，但要单独计数并出现在 CSV 的已揭晓块。"""
-    store_run(cfg, "TEST-01__A__20260101-000001", BACKEND_TASK, "A", True, 100.0)
-    store_run(cfg, "TEST-01__A__20260101-000002", BACKEND_TASK, "A", True, 100.0, revealed=True)
-
-    board = runs.scoreboard(cfg)
-    row = next(r for r in board["matrix"] if r["task"] == BACKEND_TASK)
-    cell = row["cells"]["A"]
-    assert cell["trials"] == 1, "已揭晓的那轮不计入分母"
-    assert cell["pass1"] == 1
-    assert cell["revealed"] == 1
-
-    csv = runs.scoreboard_csv(board)
-    main_block, revealed_block = csv.split("# 已揭晓轮次")
-    assert "TEST-01" in main_block
-    assert "TEST-01,A,1" in revealed_block
-    assert csv.startswith("任务,档位,")
-
-
-def test_scoreboard_trials_exclude_never_graded_runs(cfg):
-    """建了记录但从未进入评分流程的 run 不进 trials 分母（不稀释通过率）。"""
+def test_scoreboard_only_counts_ended_runs(cfg):
+    """还没结束的记录不在榜上——成绩要等收尾才落账。"""
     store_run(cfg, "TEST-01__真跑模型__20260101-000001", BACKEND_TASK, "真跑模型", True, 100.0)
-    idle = make_run(cfg, BACKEND_TASK, "真跑模型", run_id="TEST-01__真跑模型__20260101-000002")
-    idle["status"] = "ready"
-    idle["rounds"] = []
-    idle["last_score"] = None
-    runs.save_run(cfg, idle)
+    never = store_run(cfg, "TEST-01__没结束__20260101-000002", BACKEND_TASK, "真跑模型", False, 10.0)
+    never["rounds"] = []             # 建了记录但一次校验都没跑过
+    never["last_score"] = None
+    runs.save_run(cfg, never)
 
+    assert "真跑模型" not in runs.scoreboard(cfg)["models"], \
+        "记录还在、没点结束，就连列都不该有"
+    assert runs.scoreboard(cfg)["totals"]["attempts"] == 0
+
+    out = runs.backfill_ledger(cfg)   # 回填把在册成绩按新口径写成条目
+    assert out["added"] == 1 and out["skipped"] == 1
+    assert cell_of(cfg, BACKEND_TASK, "真跑模型")["attempts"] == 1
+
+
+def test_scoreboard_csv_drops_the_revealed_block(cfg):
+    """CSV 与记分板同源：只有一张矩阵，没有「已揭晓轮次」那块了。"""
+    ledger(cfg, BACKEND_TASK, "A", score=100.0)
+    ledger(cfg, BACKEND_TASK, "B", score=50.0, passed=False, pass1=False)
+
+    csv = runs.scoreboard_csv(runs.scoreboard(cfg))
+
+    assert csv.startswith("任务,档位,")
+    assert "# 已揭晓轮次" not in csv
+    assert "A(结束次数" in csv
+    assert "台账" in csv, "导出口径要写清数据源"
+
+
+def test_scoreboard_with_no_ledger_is_empty_not_error(cfg):
+    """台账为空时返回空矩阵，不报错。"""
     board = runs.scoreboard(cfg)
-    row = next(r for r in board["matrix"] if r["task"] == BACKEND_TASK)
-    cell = row["cells"]["真跑模型"]
-    assert cell["trials"] == 1, "只备好沙箱、一次校验都没跑过的记录不算一次尝试"
-    assert cell["pass1"] == 1 and cell["pass_rate"] == 1.0
-
-
-def test_scoreboard_trials_exclude_fully_invalidated_runs(cfg):
-    """所有轮次都被判无效/作废的 run 同样不进分母：本轮不作数就是不作数。"""
-    voided = store_run(cfg, "TEST-01__全作废__20260101-000001", BACKEND_TASK, "全作废", True, 100.0)
-    voided["rounds"][0]["invalidated"] = True
-    runs.save_run(cfg, voided)
-    store_run(cfg, "TEST-01__全作废__20260101-000002", BACKEND_TASK, "全作废", False, 40.0)
-
-    cell = runs._cell_stats([r for r in runs.list_runs(cfg) if r.get("model") == "全作废"])
-    assert cell["trials"] == 1
-    assert cell["pass1"] == 0
-    assert cell["avg_score"] == 40.0
-
-
-def test_scoreboard_avg_counts_each_run_once(cfg):
-    """均分口径与排行榜对齐：一条 run 只贡献一个代表分（其作数轮的最高分）。
-
-    同一档案对同一题多次尝试时各算一次；一条 run 内部的多轮不再逐轮摊进平均。
-    """
-    run = {
-        "run_id": "TEST-01__多轮模型__20260101-000001", "task": BACKEND_TASK, "model": "多轮模型",
-        "attempt": 2, "status": "graded", "created_at": "2026-01-01T00:00:00",
-        "revealed": False, "rounds": [
-            {"attempt": 1, "score": 20.0, "passed": False, "graded_at": "x"},
-            {"attempt": 2, "score": 80.0, "passed": False, "graded_at": "x"},
-        ],
-        "last_score": 80.0,
-    }
-    runs.save_run(cfg, run)
-    store_run(cfg, "TEST-01__多轮模型__20260101-000002", BACKEND_TASK, "多轮模型", False, 60.0)
-
-    cell = runs._cell_stats([r for r in runs.list_runs(cfg) if r.get("model") == "多轮模型"])
-    assert cell["trials"] == 2
-    # (80 + 60) / 2 = 70；逐轮摊薄会是 (20 + 80 + 60) / 3 ≈ 53.3
-    assert cell["avg_score"] == 70.0
-
-
-def test_pass_at_k_counts_any_green_round(cfg):
-    """pass@k：前 k 轮里有一轮全绿就算通过。"""
-    run = {
-        "run_id": "TEST-01__C__20260101-000001", "task": BACKEND_TASK, "model": "C",
-        "attempt": 2, "status": "graded", "created_at": "2026-01-01T00:00:00",
-        "revealed": False, "rounds": [
-            {"attempt": 1, "score": 33.3, "passed": False, "graded_at": "x"},
-            {"attempt": 2, "score": 100.0, "passed": True, "graded_at": "x"},
-        ],
-        "last_score": 100.0,
-    }
-    runs.save_run(cfg, run)
-    board = runs.scoreboard(cfg)
-    row = next(r for r in board["matrix"] if r["task"] == BACKEND_TASK)
-    cell = row["cells"]["C"]
-    assert cell["pass1"] == 0, "第 1 轮没全绿"
-    assert cell["pass_any"] == 1, "第 2 轮全绿，pass@2 应算通过"
-
-
-def test_scoreboard_with_no_runs_is_empty_not_error(cfg):
-    """一条记录都没有时返回空矩阵，不报错。"""
-    board = runs.scoreboard(cfg)
-    assert board["totals"]["trials"] == 0
-    assert board["totals"]["ci_low"] == 0.0 and board["totals"]["ci_high"] == 1.0
+    assert board["totals"] == {"attempts": 0, "pass1": 0, "pass_rate": 0.0}
     assert isinstance(board["matrix"], list)
 
 
@@ -402,20 +343,127 @@ def test_list_runs_ignores_quarantined_and_blind_trees(cfg):
     assert canonical["run_id"] in listed
 
 
-def test_scoreboard_skips_runs_without_task_or_model(cfg):
-    """缺 task/model 的坏记录不建幽灵行列（曾出现重复的 None 列）。"""
-    kept = store_run(cfg, "TEST-01__正常模型__20260101-000004", BACKEND_TASK, "正常模型", True, 100.0)
-    broken = dict(kept)
-    broken["run_id"] = "TEST-01__坏记录__20260101-000005"
-    broken["model"] = None
-    broken["task"] = None
-    runs.save_run(cfg, broken)
+# ---------------------------------------------------------------- 模型身份归并
+
+def test_scoreboard_merges_legacy_model_ids_into_current_column(cfg):
+    """同一真实模型的两种身份聚成一列：老档案 id 与限定名条目并入当前模型列。
+
+    供应商重构前后的记录（old-arch / m1 / prov::m1）必须进同一个格子，
+    数字合起来算；老名字不能再单列，否则成绩被劈开。
+    """
+    install_providers(cfg, [{
+        "id": "prov", "display_name": "prov", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [{"id": "m1", "name": "old-arch", "note": ""}],
+        "legacy_ids": ["old-arch"],
+    }])
+    ledger(cfg, BACKEND_TASK, "old-arch", score=100.0, passed=True, pass1=True)
+    ledger(cfg, BACKEND_TASK, "m1", score=80.0, passed=True, pass1=True)
+    ledger(cfg, BACKEND_TASK, "prov::m1", score=40.0, passed=False, pass1=False)
 
     board = runs.scoreboard(cfg)
-    assert "None" not in board["models"]
-    assert "" not in board["models"]
-    assert "None" not in board["tasks"]
-    assert board["matrix"][0]["cells"]["正常模型"]["trials"] == 1
+    assert "old-arch" not in board["models"], "老档案 id 不能再单列"
+    assert "prov::m1" not in board["models"]
+    assert "m1" in board["models"]
+    cell = board["matrix"][next(i for i, r in enumerate(board["matrix"])
+                                if r["task"] == BACKEND_TASK)]["cells"]["m1"]
+    assert cell["attempts"] == 3, "三条条目都该进同一格"
+    assert cell["pass1"] == 2
+    assert cell["avg_score"] == pytest.approx((100.0 + 80.0 + 40.0) / 3, abs=0.1)
+    assert len(cell["entry_ids"]) == 3
+
+    csv = runs.scoreboard_csv(board)
+    main_block = csv.split("#")[0]
+    assert "old-arch" not in main_block, "CSV 导出要与记分板同一套列名"
+    assert "m1(" in main_block
+
+
+def test_scoreboard_keeps_orphaned_entries_unmerged(cfg):
+    """档案已删（没有任何现存档案认领）的条目不归并：保持原名单列，数字不挪。"""
+    install_providers(cfg, [{
+        "id": "prov", "display_name": "prov", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [{"id": "m1", "name": "old-arch", "note": ""}],
+        "legacy_ids": ["old-arch"],
+    }])
+    ledger(cfg, BACKEND_TASK, "old-arch", score=100.0, passed=True, pass1=True)
+    ledger(cfg, BACKEND_TASK, "cbcn-gone", score=40.0, passed=False, pass1=False)
+
+    board = runs.scoreboard(cfg)
+    assert "cbcn-gone" in board["models"], "命中不到现存档案的老名字保持原名（model_gone 语义）"
+    assert cell_of(cfg, BACKEND_TASK, "cbcn-gone")["attempts"] == 1
+    assert cell_of(cfg, BACKEND_TASK, "cbcn-gone")["pass1"] == 0
+    assert cell_of(cfg, BACKEND_TASK, "cbcn-gone")["avg_score"] == 40.0
+    assert cell_of(cfg, BACKEND_TASK, "m1")["attempts"] == 1, "能认领的归并照常进行"
+
+
+def test_scoreboard_will_not_guess_ambiguous_legacy_id(cfg):
+    """供应商下有多个模型时，认不出属于谁的 legacy id 不乱归并（fail-closed）。
+
+    猜错等于把一个模型的成绩记到另一个模型头上，比留着单列更糟。
+    """
+    install_providers(cfg, [{
+        "id": "prov", "display_name": "prov", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [
+            {"id": "m1", "name": "改名一", "note": ""},
+            {"id": "m2", "name": "改名二", "note": ""},
+        ],
+        "legacy_ids": ["old-arch", "改名一", "改名二"],
+    }])
+    ledger(cfg, BACKEND_TASK, "old-arch", score=100.0)
+    ledger(cfg, BACKEND_TASK, "m1", score=40.0, passed=False, pass1=False)
+
+    board = runs.scoreboard(cfg)
+    assert "old-arch" in board["models"], "归属无歧义前不许归并"
+    assert cell_of(cfg, BACKEND_TASK, "old-arch")["attempts"] == 1
+    assert cell_of(cfg, BACKEND_TASK, "m1")["attempts"] == 1
+    # 通过模型 name（同时出现在 legacy_ids 里）认领的不受影响
+    ledger(cfg, BACKEND_TASK, "改名一", score=90.0)
+    board = runs.scoreboard(cfg)
+    assert "改名一" not in board["models"]
+    assert cell_of(cfg, BACKEND_TASK, "m1")["attempts"] == 2
+
+
+def test_scoreboard_maps_legacy_id_of_single_model_provider(cfg):
+    """供应商下恰好一个模型时，legacy_ids 里的老档案 id 归属无歧义，直接归并。"""
+    install_providers(cfg, [{
+        "id": "solo", "display_name": "solo", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://solo.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [{"id": "s1", "name": "展示名不是身份", "note": ""}],
+        "legacy_ids": ["solo-old"],
+    }])
+    ledger(cfg, BACKEND_TASK, "solo-old", score=100.0)
+
+    board = runs.scoreboard(cfg)
+    assert "solo-old" not in board["models"]
+    assert "s1" in board["models"]
+    assert cell_of(cfg, BACKEND_TASK, "s1")["attempts"] == 1
+    assert runs.canonical_model(cfg, "solo-old") == "s1"
+    assert runs.canonical_model(cfg, "谁也不认识") == "谁也不认识"
+
+
+def test_task_leaderboard_merges_legacy_model_ids(cfg):
+    """排行榜与记分板同口径（红线）：老档案 id 的条目以当前档案身份参赛。"""
+    install_providers(cfg, [{
+        "id": "prov", "display_name": "prov", "protocol": "openai",
+        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
+        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
+        "models": [{"id": "m1", "name": "old-arch", "note": ""}],
+        "legacy_ids": ["old-arch"],
+    }])
+    ledger(cfg, BACKEND_TASK, "old-arch", score=70.0)
+    ledger(cfg, BACKEND_TASK, "m1", score=100.0)
+
+    result = runs.task_leaderboard(cfg, BACKEND_TASK)
+    assert [e["model"] for e in result["entries"]] == ["m1"], \
+        "同一模型的两种身份不能在排行榜各占一行"
+    assert result["entries"][0]["attempts"] == 2
+    assert result["entries"][0]["score"] == 100.0
 
 
 def test_delete_run_purges_everything_it_owns(cfg):
@@ -501,69 +549,6 @@ def test_delete_run_refuses_while_chat_lock_held(cfg):
         holder.join(timeout=5)
     out = runs.delete_run(cfg, run["run_id"])
     assert out["deleted"] is True
-
-
-def test_delete_model_with_runs_purges_records(cfg, monkeypatch, tmp_path):
-    """删除档案可连带真删名下运行记录；不带 with_runs 时记录保留。"""
-    store_run(cfg, "TEST-01__全删模型__20260101-000008", BACKEND_TASK, "全删模型", True, 100.0)
-    store_run(cfg, "TEST-01__全删模型__20260101-000009", BACKEND_TASK, "全删模型", False, 20.0)
-    shadow = tmp_path / "config.json"
-    shadow.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(runs.config, "CONFIG_PATH", str(shadow))
-    cfg["models"] = [{"id": "全删模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
-
-    out = runs.delete_model(cfg, "全删模型", with_runs=True)
-    assert out["deleted"] is True
-    assert sorted(out["removed_runs"]) == [
-        "TEST-01__全删模型__20260101-000008", "TEST-01__全删模型__20260101-000009",
-    ]
-    assert out["remaining"] == 0
-    assert all(not os.path.exists(p) for p in out["purged_paths"]), "说好的真删，路径得真的没了"
-    assert all(r.get("model") != "全删模型" for r in runs.list_runs(cfg))
-    import json as _json
-    assert _json.loads(shadow.read_text(encoding="utf-8"))["models"] == []
-
-    # 不带 with_runs：只删档案，记录保留
-    store_run(cfg, "TEST-01__留档模型__20260101-000010", BACKEND_TASK, "留档模型", True, 80.0)
-    cfg["models"] = [{"id": "留档模型", "protocol": "custom", "base_url": "", "model": "m", "key_masked": "", "note": ""}]
-    out2 = runs.delete_model(cfg, "留档模型")
-    assert out2["deleted"] is True
-    assert out2["removed_runs"] == []
-    assert any(r.get("model") == "留档模型" for r in runs.list_runs(cfg))
-
-
-def test_delete_provider_with_runs_purges_records(cfg, monkeypatch, tmp_path):
-    """删除供应商可连带真删名下运行记录：限定名前缀与老裸 id 两种形态都算名下。"""
-    store_run(cfg, "TEST-01__prov-m1__20260101-000011", BACKEND_TASK, "prov::m1", True, 90.0)
-    store_run(cfg, "TEST-01__prov-m2__20260101-000012", BACKEND_TASK, "prov::m2", False, 10.0)
-    store_run(cfg, "TEST-01__01__20260101-000013", BACKEND_TASK, "01", True, 70.0)
-    store_run(cfg, "TEST-01__别家__20260101-000014", BACKEND_TASK, "别家", False, 0.0)
-    shadow = tmp_path / "config.json"
-    shadow.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(runs.config, "CONFIG_PATH", str(shadow))
-    cfg["providers"] = [{
-        "id": "prov", "display_name": "prov", "protocol": "openai",
-        "api_mode": "chat_completions", "base_url": "https://prov.test/v1",
-        "default_context_window": 262144, "default_max_tokens": 32768, "note": "",
-        "models": [
-            {"id": "m1", "name": "m1", "context_window": 262144, "max_tokens": 32768, "note": ""},
-            {"id": "m2", "name": "m2", "context_window": 262144, "max_tokens": 32768, "note": ""},
-        ],
-        "legacy_ids": ["01"],
-    }]
-
-    out = runs.delete_provider(cfg, "prov", with_runs=True)
-    assert out["deleted"] is True
-    assert sorted(out["removed_runs"]) == [
-        "TEST-01__01__20260101-000013", "TEST-01__prov-m1__20260101-000011",
-        "TEST-01__prov-m2__20260101-000012",
-    ]
-    assert out["remaining"] == 0
-    assert all(not os.path.exists(p) for p in out["purged_paths"]), "说好的真删，路径得真的没了"
-    remaining_models = [r.get("model") for r in runs.list_runs(cfg)]
-    assert remaining_models == ["别家"], "别家供应商的记录不能被牵连"
-    import json as _json
-    assert _json.loads(shadow.read_text(encoding="utf-8"))["providers"] == []
 
 
 # ---------------------------------------------------------------- 校准

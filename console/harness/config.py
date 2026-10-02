@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import threading
@@ -106,33 +107,125 @@ def _defaults(overrides: dict) -> dict:
                               ("grade", default_grade),
                               ("chat", DEFAULT_CHAT)):
         override = overrides.get(section)
-        if override is not None and not isinstance(override, dict):
-            continue            # 类型不对就交给下面的校验报错，这里不悄悄兜底
+        # 缺这一节（None）或类型不对都不参与合并：merged 本来就是 defaults，
+        # 不动它就是"用兜底值"。少了 isinstance 这半个条件，
+        # 手写一份没带 timeouts 的最小 config.json 会直接 TypeError 起不来。
+        if not isinstance(override, dict):
+            continue
         merged = dict(defaults)
         merged.update(override)
         base[section] = merged
     return base
 
 
-def _provider_id_from_url(base_url: str, fallback: str) -> str:
-    """从端点推一个供应商 id（迁移老配置时用）。
+#: 回环地址（整台机器自己）。中转站跑在本机时推不出厂商名，只能按端口认人。
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
-    取主机名的**主域部分**（api.example.com → example），IP 与 localhost 推不出
-    有意义的名字，直接用兜底值（老档案 id）——127-0-0-1 这种 id 没法读。
-    """
+
+def _endpoint_host_port(base_url: str) -> tuple:
+    """拆端点：返回 (小写主机名, 端口)。地址不合法就两个空值，不抛。"""
     try:
         from urllib.parse import urlsplit
-        host = urlsplit(str(base_url or "")).hostname or ""
-    except ValueError:
-        host = ""
+        parts = urlsplit(str(base_url or ""))
+        port = int(parts.port or 0)     # 端口写了但不是数字时这里会抛
+    except (ValueError, TypeError):
+        return "", 0
+    return (parts.hostname or "").lower(), port
+
+
+def _is_loopback(host: str) -> bool:
+    return host in _LOOPBACK_HOSTS or host.startswith("127.")
+
+
+def _is_private_host(host: str) -> bool:
+    """回环 / RFC1918 / 链路本地：不是厂商，是本机或内网里的中转。"""
+    if _is_loopback(host):
+        return True
+    if host.startswith(("10.", "192.168.", "169.254.")):
+        return True
+    match = re.match(r"^172\.(\d{1,3})\.", host)
+    return bool(match and 16 <= int(match.group(1)) <= 31)
+
+
+def _slug(text: str) -> str:
+    """可读 id 片段：小写字母数字，非字母数字一律压成连字符。"""
+    return re.sub(r"[^A-Za-z0-9]+", "-", str(text or "")).strip("-").lower()
+
+
+def _provider_identity(base_url: str) -> tuple:
+    """从端点推 ``(供应商 id, 显示名, 类别)``，类别为 vendor / relay / unknown。
+
+    名字**只由 base_url 决定**：同一个端点迁移多少次、模型按什么顺序排、
+    排在第几位，推出来的名字都一样。掺进档案 id 或序号就会漂——同一个中转站
+    因为"第一个模型叫什么"顶着不同的名字，用户不手动改就一直认错供应商。
+
+    - 真实厂商取域名核心段：``api.deepseek.com`` → ``deepseek``。
+    - 本机中转：``http://127.0.0.1:20128/v1`` → ``local-20128``，
+      显示名写明「本机中转 127.0.0.1:20128」（ip 推不出厂商名）。
+    - 内网中转：``192.168.1.50:8080`` → ``lan-192-168-1-50-8080``，
+      与本机中转分开，免得两台机器上的同端口中转撞成一个名字。
+    - 地址为空（老档案没填 base_url）推不出名字，回落由调用方按档案 id 决定。
+    """
+    host, port = _endpoint_host_port(base_url)
+    if not host:
+        return "", "", "unknown"
+    if _is_private_host(host):
+        loopback = _is_loopback(host)
+        stem = "local" if loopback else "lan-" + _slug(host)
+        where = "%s:%d" % (host, port) if port else host
+        return ("%s-%d" % (stem, port) if port else stem,
+                "%s %s" % ("本机中转" if loopback else "内网中转", where),
+                "relay")
     parts = [p for p in host.split(".") if p]
-    # 纯数字（IP）或本机地址：没有可读名字，用兜底
-    if not parts or all(p.isdigit() for p in parts) or host in ("localhost", ""):
-        return fallback
     # 取倒数第二段（api.example.com → example；example.com → example）
-    candidate = parts[-2] if len(parts) >= 2 else parts[0]
-    cleaned = re.sub(r"[^A-Za-z0-9]+", "-", candidate).strip("-").lower()
-    return cleaned or fallback
+    label = _slug(parts[-2] if len(parts) >= 2 else parts[0])
+    if not label:
+        return "", "", "unknown"
+    if label[0].isdigit():
+        label = "p-" + label       # 与前端 suggestId 同口径：数字开头补个前缀
+    return label, label, "vendor"
+
+
+def _assign_provider_names(grouped: dict, order: list) -> None:
+    """给每个分组定 id 与显示名：先各自按端点推导，重名的再加稳定短后缀。
+
+    后缀取端点自己的哈希而不是"第几个撞车"：两个都叫 deepseek 的端点里，
+    后加进来的那个不会把先前那个的名字改掉；同一份配置迁移几次结果都一样。
+    没有端点的老档案推不出名字，沿用档案 id（这也是它唯一的稳定标识）。
+    """
+    for key in order:
+        item = grouped[key]
+        pid, display, _kind = _provider_identity(item["base_url"])
+        if not pid:
+            pid = (item["legacy_ids"] or ["provider"])[0]
+            display = pid
+        item["id"] = pid
+        item["display_name"] = display
+
+    counts: dict = {}
+    for key in order:
+        counts[grouped[key]["id"]] = counts.get(grouped[key]["id"], 0) + 1
+    dupes = {pid for pid, n in counts.items() if n > 1}
+    if not dupes:
+        return
+    used = {grouped[k]["id"] for k in order if grouped[k]["id"] not in dupes}
+    for key in order:
+        item = grouped[key]
+        if item["id"] not in dupes:
+            continue
+        digest = hashlib.sha1((item["base_url"] or key).encode("utf-8")).hexdigest()
+        for size in (4, 6, 8, 16):
+            candidate = "%s-%s" % (item["id"], digest[:size])
+            if candidate not in used:
+                item["id"] = candidate
+                break
+        else:
+            item["id"] = "%s-%s" % (item["id"], digest)
+        used.add(item["id"])
+        # 显示名跟着区分开：显示名不掺哈希，写成「名字（端点）」还能一眼认出是哪家
+        host, _port = _endpoint_host_port(item["base_url"])
+        if host and host not in item["display_name"]:
+            item["display_name"] = "%s（%s）" % (item["display_name"], host)
 
 
 def _normalize_provider(raw: dict, index: int) -> dict:
@@ -189,6 +282,10 @@ def _providers_from_legacy_models(models: list) -> list:
 
     老结构里每个模型各自重复写 base_url / protocol / api_mode，
     同端点的档案合并成一个供应商——这正是重构要消除的重复。
+
+    供应商的名字从**端点**推导（见 ``_provider_identity``），不从第一个老档案的
+    id 推：中转站里第一个模型往往只是碰巧排在前面，用它当供应商名会让整张卡
+    顶着某个模型的名字，看上去像"这个供应商就这一个模型"。
     """
     grouped = {}
     order = []
@@ -202,7 +299,7 @@ def _providers_from_legacy_models(models: list) -> list:
         key = base_url or "__no_url_%s" % mid
         if key not in grouped:
             grouped[key] = {
-                "id": _provider_id_from_url(base_url, mid),
+                "id": "",
                 "display_name": "",
                 "protocol": item.get("protocol") or "openai",
                 "api_mode": item.get("api_mode") or "",
@@ -227,6 +324,7 @@ def _providers_from_legacy_models(models: list) -> list:
             "name": mid,
             "note": str(item.get("note") or ""),
         })
+    _assign_provider_names(grouped, order)
     return [grouped[k] for k in order]
 
 
@@ -247,11 +345,16 @@ def expand_models(providers: list) -> list:
     每个档案带上它所属供应商的端点、协议与容量兜底，于是下游读
     ``model["base_url"]`` 的代码一行都不用改；同时带 ``provider_id``
     与 ``qualified_id``（``provider/model``），run 记录用后者区分同名模型。
+
+    ``legacy_ids`` 也一起带下来：迁移来的供应商 id 是从端点推的，与当年存档的
+    老档案 id 不同，而本机密钥文件里的密钥仍挂在老档案名下。少了这一段，
+    ``chat._stored_key`` 只会按新 id 去查 → 取不到 → 「明明存过密钥却发无密钥请求」。
     """
     out = []
     for p in providers:
+        legacy = [str(x) for x in (p.get("legacy_ids") or []) if str(x).strip()]
         for m in p.get("models") or []:
-            out.append({
+            item = {
                 "id": m["id"],
                 "name": m.get("name") or m["id"],
                 "provider_id": p["id"],
@@ -267,7 +370,10 @@ def expand_models(providers: list) -> list:
                 "note": m.get("note") or "",
                 # 老字段名保留：chat.py 的 is_supported_model 等按 "model" 读请求名。
                 "model": m["id"],
-            })
+            }
+            if legacy:
+                item["legacy_ids"] = list(legacy)
+            out.append(item)
     return out
 
 

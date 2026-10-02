@@ -188,12 +188,17 @@ def messages(run: dict) -> List[dict]:
 def key_candidates(model: dict) -> List[str]:
     """按优先级返回服务端会依次查询的密钥**环境变量名**（不含任何取值）。
 
-    优先级：``<供应商 ID 大写>_API_KEY`` → ``MODEL_<模型 ID 大写>_API_KEY``
+    优先级：``<供应商 ID 大写>_API_KEY`` → ``<老档案 ID 大写>_API_KEY``（仅读时迁移
+    来的供应商，见 ``key_owner_candidates``）→ ``MODEL_<模型 ID 大写>_API_KEY``
     → ``OPENAI_API_KEY``（仅 openai 协议）。
 
     2026-10-01 重构：去掉了档案自带的 ``key_env`` 字段。密钥现在有两条路——
     本机密钥文件（页面粘贴，按供应商存）与环境变量；再多一个"自定义变量名"
     字段只会让人不知道该填哪个。这是唯一的口径出处，UI 与诊断接口都读它。
+
+    老档案 ID 排在新供应商 ID 之后、模型专属变量之前：迁移把 id 换成了从端点推的
+    名字，按老名字配过的环境变量不该就此失联；它又更贴近"这一家共用一把"的意思，
+    所以排在比模型更专属的那个变量前面。
     """
     provider_id = str(model.get("provider_id") or "").strip()
     candidates: List[str] = []
@@ -201,6 +206,10 @@ def key_candidates(model: dict) -> List[str]:
         safe_provider = re.sub(r"[^A-Za-z0-9]+", "_", provider_id).strip("_").upper()
         if safe_provider:
             candidates.append("%s_API_KEY" % safe_provider)
+    for legacy in model.get("legacy_ids") or []:
+        safe_legacy = re.sub(r"[^A-Za-z0-9]+", "_", str(legacy or "")).strip("_").upper()
+        if safe_legacy:
+            candidates.append("%s_API_KEY" % safe_legacy)
     safe_id = re.sub(r"[^A-Za-z0-9]+", "_", str(model.get("id") or "MODEL")).strip("_").upper()
     if safe_id:
         candidates.append("MODEL_%s_API_KEY" % safe_id)
@@ -244,7 +253,7 @@ def _stored_key(model: dict) -> str:
     老配置迁移出的供应商其密钥仍挂在老档案名下。两处都查，
     避免「页面上明明保存过密钥，体检却说没配」。
     """
-    for candidate in _key_owner_candidates(
+    for candidate in key_owner_candidates(
             _key_owner(model), model.get("legacy_ids") or []):
         value = keyring.get_key(candidate)
         if value:
@@ -394,13 +403,16 @@ def _post_json(url: str, payload: dict, key: str, timeout: float) -> dict:
     return value
 
 
-def _key_owner_candidates(provider_id: str, legacy_ids: Optional[List[str]] = None) -> List[str]:
-    """本机密钥文件里，这个供应商的密钥可能挂在哪些 key 下。
+def key_owner_candidates(provider_id: str, legacy_ids: Optional[List[str]] = None) -> List[str]:
+    """本机密钥文件里，这个供应商的密钥可能挂在哪些 key 下（按顺序试）。
 
     模型配置重构把 keyring 的 key 从 model_id 换成了 provider_id；老配置
-    读时迁移出的供应商，其密钥仍挂在**老档案 id** 名下（迁移时记进了
-    ``legacy_ids``）。按「新 id → 老 id」顺序都试一遍，避免
-    「明明存过密钥却发无密钥请求 → 401」。
+    读时迁移出的供应商，其 id 是**从端点推导**的（local-20128、deepseek…），
+    密钥仍挂在**老档案 id** 名下（迁移时记进了 ``legacy_ids``）。按「新 id → 老 id」
+    顺序都试一遍，避免「明明存过密钥却发无密钥请求 → 401」。
+
+    对外公开（不叫私有名）：供应商卡的密钥状态也要走这条链，只按新 id 查会把
+    「✓ 已存密钥」显示成「未配置密钥」，用户以为密钥丢了去重填一把。
     """
     pid = str(provider_id or "").strip()
     out: List[str] = []
@@ -437,7 +449,7 @@ def list_remote_models(base_url: str, protocol: str = "openai",
     # 其密钥还挂在老档案名下（如 "01"），只按新 id 查会取不到 → 发无密钥请求 → 401。
     key = str(api_key or "").strip()
     if not key and provider_id:
-        for candidate in _key_owner_candidates(provider_id, legacy_ids):
+        for candidate in key_owner_candidates(provider_id, legacy_ids):
             key = keyring.get_key(candidate)
             if key:
                 break

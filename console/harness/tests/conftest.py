@@ -86,24 +86,49 @@ def reclaim_workspaces():
 
 @pytest.fixture(autouse=True)
 def forbid_writing_real_config(monkeypatch):
-    """保险丝：测试绝不允许写真实的 config.json 与密钥文件。
+    """保险丝：测试绝不允许写真实的 config.json、密钥文件、runs/ 与 sandboxes/。
 
     起因（2026-10-01）：模型配置重构后，几个走 HTTP 的用例只 patch 了「读配置」
     的入口，写路径仍然指向真实 console/config.json —— 一次全量测试把用户的
     3 个模型档案替换成了测试数据。写路径必须默认被挡住，用例要写就自己
     patch 到 tmp_path，而不是靠每个用例自觉。
+
+    2026-10-02 追加 runs/ 与 sandboxes/ 的同款保险丝。起因是一次真实数据事故：
+    ``test_provider_migration`` 只 patch 了 ``config.CONFIG_PATH``，没有覆盖
+    ``runs_root``/``sandbox_root``，于是 ``config.load()`` 把它们解析到真实的
+    ``runs/`` 与 ``sandboxes/``；该用例又调用 ``runs.delete_provider(cfg, "local-20128")``。
+    此前 ``delete_provider`` 的 ``with_runs`` 默认为 False，它只在密钥上生效，
+    属于**侥幸安全**；一旦级联变成默认行为（删档案即彻底删除），同一个用例就
+    真删了本机在册的四条运行记录（含对话、报告、diff 与沙箱）。
+
+    教训比这条断言更重要：**「读侧 patch 了配置」不等于「写侧落在临时目录」**。
+    凡是会删除或覆写的路径，一律在这里默认被挡住。
     """
     from harness import config as harness_config
     from harness import keyring as harness_keyring
 
     real_config = os.path.abspath(harness_config.CONFIG_PATH)
     real_keys = os.path.abspath(harness_keyring.path())
+    real_runs = os.path.abspath(os.path.join(EVAL_ROOT, "runs"))
+    real_sandboxes = os.path.abspath(os.path.join(EVAL_ROOT, "sandboxes"))
+
+    def _is_under(child, parent):
+        child = os.path.normpath(child)
+        parent = os.path.normpath(parent)
+        return child == parent or child.startswith(parent + os.sep)
 
     def _guard(path, kind):
         target = os.path.abspath(str(path))
         if target in (real_config, real_keys):
             raise AssertionError(
                 "测试试图写真实%s（%s）。把写路径 patch 到 tmp_path 再跑。" % (kind, target))
+        for root, name in ((real_runs, "runs/"), (real_sandboxes, "sandboxes/")):
+            if _is_under(target, root):
+                raise AssertionError(
+                    "测试试图写真实的%s（%s）。该路径必须落在 EVAL_PYTEST_TMP 之下——"
+                    "只 patch config.CONFIG_PATH 是不够的，runs_root / sandbox_root "
+                    "要一起覆盖，否则删除类用例会真删本机的运行记录。"
+                    % (name, target))
 
     for name in ("save", "update_models", "update_providers"):
         original = getattr(harness_config, name)
@@ -119,6 +144,40 @@ def forbid_writing_real_config(monkeypatch):
             (lambda orig: lambda *a, **kw: _guard(
                 harness_keyring.path(), "密钥文件") or orig(*a, **kw))(original),
             raising=False)
+
+    # 删除类操作（级联删档案 / 真删记录 / 清沙箱）拿到的路径来自
+    # cfg["runs_root"] / cfg["sandbox_root"]。检查必须放在**入口**而不是 purge_run：
+    # 级联删是先 list_runs 再逐条 purge 的，真实 runs/ 空了的话 purge 一次都不会被调到，
+    # 挂在 purge 上的检查就成了摆设——那正是它第一次失效的方式。
+    from harness import runs as harness_runs
+    from harness import sandbox as harness_sandbox
+
+    def _check_roots(cfg, why):
+        for key, name, root in (("runs_root", "runs/", real_runs),
+                                ("sandbox_root", "sandboxes/", real_sandboxes)):
+            value = str((cfg or {}).get(key) or "")
+            if value and _is_under(os.path.abspath(value), root):
+                raise AssertionError(
+                    "用例%s让 cfg[%s] 指回真实的%s（%s）。删除是不可逆的，"
+                    "每个删除类用例都必须把 runs_root 与 sandbox_root 一起指到 tmp_path。"
+                    % (why, key, name, value))
+
+    def _guard_callable(orig, why):
+        def _wrapped(cfg, *args, **kwargs):
+            _check_roots(cfg, why)
+            return orig(cfg, *args, **kwargs)
+        return _wrapped
+
+    for target, why in ((harness_runs, "调用 runs.delete_provider"),
+                        (harness_runs, "调用 runs.delete_model"),
+                        (harness_runs, "调用 runs.purge_run"),
+                        (harness_runs, "调用 runs.delete_run"),
+                        (harness_sandbox, "调用 sandbox.destroy")):
+        for name in ("delete_provider", "delete_model", "purge_run", "delete_run", "destroy"):
+            original = getattr(target, name, None)
+            if original is None:
+                continue
+            monkeypatch.setattr(target, name, _guard_callable(original, why), raising=False)
     yield
 
 

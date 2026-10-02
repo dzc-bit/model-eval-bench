@@ -34,3 +34,4 @@ console/harness/tests/
 | `test_api.py` | `/api/health`、`/api/tasks`（空题包返回空列表）、缺失静态文件的中文 404 |
 | `test_scoreboard.py` | 记��与统计：Wilson 区间、CSV、revealed 单独成块 |
 | `test_selfcheck.py` | 静态自检：真代码里的危险命令能被抓出来，前端 js 规则能跑通 |
+| `test_provider_migration.py` | 老平铺配置读时迁移：供应商名来自端点而非老档案 id、同端点幂等、重名消解、密钥候选链覆盖老档案 id、`providers` 新结构不被迁移触碰 |

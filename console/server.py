@@ -27,7 +27,9 @@ from typing import Callable, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harness import calibrate, checks, chat as chat_mod, config, errors, packs, report as report_mod  # noqa: E402
+from harness import calibrate, checks, chat as chat_mod, config, errors, packs  # noqa: E402
+from harness import report as report_mod  # noqa: E402
+from harness import results as results_ledger  # noqa: E402
 from harness import batch as batch_mod  # noqa: E402
 from harness import runs, sandbox as sandbox_mod, selfcheck, util  # noqa: E402
 
@@ -190,20 +192,45 @@ def api_tasks(cfg: dict, query: dict) -> dict:
 
 
 def _task_history(cfg: dict) -> dict:
-    """每道题的历史成绩（跑过几轮、最高分、最近一次）。"""
+    """每道题的历史成绩：台账里已结束的尝试 + 还在跑的记录。
+
+    两边都要在：台账是「已经收尾的成绩」，还在跑的记录是「正在做的事」。
+    只看台账会让人以为刚跑完的题从没跑过，只看记录又和记分板对不上号。
+    """
     out: dict = {}
+
+    def slot(task: str) -> dict:
+        return out.setdefault(task, {
+            "runs": 0, "ended": 0, "active": 0,
+            "models": [], "best_score": 0.0, "last_at": "",
+        })
+
+    for entry in results_ledger.load_entries(cfg):
+        task = str(entry.get("task") or "")
+        if not task:
+            continue
+        item = slot(task)
+        item["ended"] += 1
+        model = str(entry.get("model_raw") or entry.get("model") or "")
+        if model and model not in item["models"]:
+            item["models"].append(model)
+        item["best_score"] = max(item["best_score"], float(entry.get("score") or 0))
+        item["last_at"] = max(item["last_at"], str(entry.get("ended_at") or ""))
+
     for run in runs.list_runs(cfg):
         task = run.get("task")
         if not task:
             continue
-        entry = out.setdefault(task, {"runs": 0, "models": [], "best_score": 0.0, "last_at": ""})
-        entry["runs"] += 1
-        if run.get("model") not in entry["models"]:
-            entry["models"].append(str(run.get("model")))
-        score = float(run.get("last_score") or 0)
-        entry["best_score"] = max(entry["best_score"], score)
-        stamp = str(run.get("updated_at") or "")
-        entry["last_at"] = max(entry["last_at"], stamp)
+        item = slot(str(task))
+        item["active"] += 1
+        model = str(run.get("model") or "")
+        if model and model not in item["models"]:
+            item["models"].append(model)
+        item["best_score"] = max(item["best_score"], float(run.get("last_score") or 0))
+        item["last_at"] = max(item["last_at"], str(run.get("updated_at") or ""))
+
+    for item in out.values():
+        item["runs"] = item["ended"] + item["active"]
     return out
 
 
@@ -458,6 +485,9 @@ def build_router() -> Router:
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reopen", lambda ctx: (runs.reopen(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/release",
           lambda ctx: (runs.release_sandbox(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
+    # 结束本轮：先记台账再真删记录（工作台唯一的收尾出口）
+    r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/finish",
+          lambda ctx: (runs.finish_round(ctx["cfg"], ctx["run_id"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/promote", lambda ctx: (
           _guard_then(ctx, "进入下一轮", runs.promote), "application/json; charset=utf-8"))
     r.add("POST", r"/api/runs/(?P<run_id>[^/]+)/reveal", lambda ctx: (
@@ -477,13 +507,13 @@ def build_router() -> Router:
     r.add("POST", r"/api/models/test", lambda ctx: (api_model_doctor(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("POST", r"/api/providers", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("PATCH", r"/api/providers", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("DELETE", r"/api/providers", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/providers", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or "")), "application/json; charset=utf-8"))
     # 从端点拉取可用模型（候选，不落盘）：对齐 DSH 的 discovery 语义
     r.add("POST", r"/api/providers/discover", lambda ctx: (runs.discover_models(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     # 兼容旧前端：/api/models 的写接口转到 provider 粒度（老前端不会传 models 数组）
     r.add("POST", r"/api/models", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
     r.add("PATCH", r"/api/models", lambda ctx: (runs.upsert_provider(ctx["cfg"], ctx["body"]), "application/json; charset=utf-8"))
-    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or ""), with_runs=str(ctx["query"].get("with_runs") or "") == "1"), "application/json; charset=utf-8"))
+    r.add("DELETE", r"/api/models", lambda ctx: (runs.delete_provider(ctx["cfg"], str(ctx["query"].get("id") or ctx["body"].get("id") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration", lambda ctx: (calibrate.enqueue(ctx["cfg"], str(ctx["body"].get("task") or ""), str(ctx["body"].get("model") or ""), _as_int(ctx["body"].get("trials"), 5)), "application/json; charset=utf-8"))
     r.add("GET", r"/api/calibration", lambda ctx: (calibrate.queue_status(ctx["cfg"], str(ctx["query"].get("task") or ""), str(ctx["query"].get("model") or "")), "application/json; charset=utf-8"))
     r.add("POST", r"/api/calibration/cancel", lambda ctx: (calibrate.cancel(ctx["cfg"], str(ctx["body"].get("run_id") or "")), "application/json; charset=utf-8"))

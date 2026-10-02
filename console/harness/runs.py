@@ -11,6 +11,11 @@
 
 一条 run = 一次「选题 + 选模型」的完整评测会话，可以有多轮（attempt）。
 pass@1 取第 1 轮成绩，pass@k 取前 k 轮里有没有全绿。
+
+**记分板与排行榜不再从这里的记录现算**（2026-10-02）：工作台点「结束本轮」时
+先把成绩写进 `results` 台账（runs/_results/ledger.json），再真删这条记录。
+台账与记录脱钩，所以记录没了榜单还有数；反过来「废弃本轮」什么都不写。
+只有还在跑、还没结束的记录不参与统计——成绩要等收尾才落账。
 """
 
 from __future__ import annotations
@@ -24,7 +29,10 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
-from . import chat, config, errors, grade, keyring, packs, report as report_mod, sandbox, util
+from . import chat, config, errors, grade, keyring, packs
+from . import report as report_mod
+from . import results as results_ledger
+from . import sandbox, util
 
 Log = Callable[[str], None]
 
@@ -458,13 +466,40 @@ def _reveal_locked(cfg: dict, run_id: str) -> dict:
             text = util.decode_output(fh.read())
     except OSError as exc:
         raise errors.HarnessError(errors.E_TASK_INVALID, "参考解读取失败。", str(exc))
+    # 补丁落盘到运行记录目录：以前只在当次把正文下发给前端，刷新就没了，
+    # 报告窗与复盘都拿不回参考解。写在 run 目录里，真删时随记录一起被 purge_run
+    # 带走，不需要为它单开删除分支。
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+    revealed_path = os.path.join(run_dir_path, REVEALED_PATCH_FILE)
+    try:
+        util.write_text_atomic(revealed_path, text)
+    except OSError as exc:
+        raise errors.HarnessError(
+            errors.E_INTERNAL,
+            "参考解没能存进运行记录目录，已揭晓未生效。请检查磁盘是否可写。",
+            str(exc),
+        )
     run["revealed"] = True
     save_run(cfg, run)
     return {
         "run_id": run_id,
         "patch": text,
+        "stored_at": REVEALED_PATCH_FILE,
         "notice": "该轮已标记为「已揭晓」，按规则不计入通过率统计。",
     }
+
+
+def load_revealed_patch(cfg: dict, run: dict) -> str:
+    """读运行记录里落盘的参考解正文（没有就返回空串）。
+
+    报告窗与复盘从这里取，刷新页面后参考解仍在，不再依赖「当次下发」。
+    """
+    run_dir_path = run.get("run_dir") or _run_dir_of(cfg, str(run.get("run_id") or ""))
+    try:
+        with open(os.path.join(run_dir_path, REVEALED_PATCH_FILE), "rb") as fh:
+            return util.decode_output(fh.read())
+    except OSError:
+        return ""
 
 
 def _archive_report(run_dir_path: str) -> str:
@@ -485,6 +520,9 @@ def _archive_report(run_dir_path: str) -> str:
 #: chat.jsonl 必须在列：`chat._model_history()` 全量回放它，不归档就等于把
 #: 上一个模型的提示词、回答、工具原文结果和思考一起喂给下一个模型。
 EPOCH_ARTIFACTS = ("report.json", "diff.patch", "notes.md", "grade.log", "chat.jsonl")
+
+#: 揭晓参考解时落盘的补丁文件名（写进运行记录目录，随记录一起被真删）。
+REVEALED_PATCH_FILE = "revealed.patch"
 
 
 def _archive_artifacts(run_dir_path: str, names: list, label: str = "epoch") -> str:
@@ -610,8 +648,8 @@ def reopen(cfg: dict, run_id: str) -> dict:
 def release_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
     """回收这一轮的工作区目录：只删沙箱，runs/ 里的记录、报告、diff 全部保留。
 
-    批次跑完会自动释放，但服务重启会带走监控线程，校验完的沙箱就一直占着磁盘；
-    工作台单轮 run 更是从来没有释放入口（只有清空改动与重建）。这个口子补上两者。
+    批次跑完会自动释放，服务重启也会带走监控线程。**工作台不再用这个口子**：
+    单轮收尾统一走 finish_round（记台账 + 真删记录），这里只留给跑批与批量回收。
     """
     logger = log or (lambda m: None)
     with chat.exclusive(run_id, blocking=False) as acquired:
@@ -630,6 +668,161 @@ def release_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
         save_run(cfg, run)
         return {"run_id": run_id, "released": True, "sandbox": "",
                 "message": "沙箱工作区已回收；成绩与报告仍在 runs/ 里。"}
+
+
+# --------------------------------------------------------------------------
+# 成绩台账与「结束本轮」（2026-10-02 收尾语义收敛）
+# --------------------------------------------------------------------------
+
+def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dict]:
+    """把一条运行记录的作数轮写成台账条目；没有可记的成绩时返回 None。
+
+    口径与旧记分板逐条对齐（回填后榜单数字必须一模一样）：
+    - 只收 ``_counted_rounds``：被「继续对话（本轮分数作废）」作废的轮次，
+      以及越界/回归判无效的轮次，一条都不进台账；
+    - 整轮已揭晓参考解的运行一条都不收——揭晓等于看过答案；
+    - 代表分 = 作数轮里的最高分；``pass1`` 看第 1 轮有没有全绿；
+    - 同一条记录已经有条目（回填之后又点一次结束）就不再写，避免重复计数。
+    """
+    run_id = str(run.get("run_id") or "")
+    if run_id and results_ledger.has_source_run(cfg, run_id):
+        return None
+    if run.get("revealed"):
+        return None
+    counted = _counted_rounds(run)
+    if not counted:
+        return None
+
+    def _score(rnd: dict) -> float:
+        try:
+            return float(rnd.get("score") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    best = max(counted, key=lambda r: (_score(r), -_round_no(r)))
+    raw_model = str(run.get("model") or "")
+    start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
+    finish_s = _timestamp_seconds(best.get("graded_at"))
+    wall = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
+    work = best.get("model_work_seconds")
+    try:
+        work = float(work) if work is not None else None
+    except (TypeError, ValueError):
+        work = None
+    if not work:
+        try:
+            work = model_work_seconds(cfg, run) or None
+        except errors.HarnessError:
+            work = None
+
+    return results_ledger.make_entry(
+        run.get("task"), canonical_model(cfg, raw_model), raw_model,
+        source_run_id=run_id, origin=origin,
+        rounds=len(counted), best_round=_round_no(best),
+        score=_score(best),
+        passed=any(r.get("passed") is True for r in counted),
+        pass1=any(_round_no(r) == 1 and r.get("passed") is True for r in counted),
+        model_work_seconds=work, wall_seconds=wall,
+        graded_at=best.get("graded_at"),
+    )
+
+
+def _round_no(rnd: dict) -> int:
+    try:
+        return int(rnd.get("attempt") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def finish_round(cfg: dict, run_id: str, log: Log = None) -> dict:
+    """结束本轮：成绩先写入台账，然后真删整条运行记录。
+
+    这是工作台唯一的收尾出口（2026-10-02）。两件事的顺序不能反：
+    先删记录再记账，成绩就跟着记录一起没了——而榜单要的正是「记录没了还有数」。
+
+    没有可计入台账的成绩时（没跑校验 / 全被作废 / 已揭晓参考解）照样结束，
+    只是不写条目：这次尝试连同过程一起丢掉，正是「结束本轮」在没成绩时的样子。
+    """
+    logger = log or (lambda m: None)
+    with chat.exclusive(run_id, blocking=False) as acquired:
+        if not acquired:
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "模型正在处理这一轮，等当前消息完成后再结束本轮。",
+                run_id,
+            )
+        run = get_run(cfg, run_id)
+        if _GRADING.get(run_id) or run.get("status") == "grading":
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "这一轮正在校验中，等校验结束后再结束本轮。",
+                run_id,
+            )
+        if run.get("status") == "preparing":
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY,
+                "沙箱还在准备中，等它就绪再结束本轮。",
+                run_id,
+            )
+        run_dir_path = run.get("run_dir") or _run_dir_of(cfg, run_id)
+        if not os.path.isdir(run_dir_path):
+            raise errors.HarnessError(
+                errors.E_RUN_NOT_FOUND,
+                "运行记录目录不存在，可能已经被删除过了。",
+                run_id,
+            )
+        # 锁内记账 + 删除：purge_run 的约定就是调用方持着这一轮的会话锁。
+        entry = record_run_result(cfg, run)
+        logger("结束本轮：%s" % ("成绩已记入台账 %s" % entry["entry_id"] if entry else "没有可计入台账的成绩"))
+        if entry:
+            results_ledger.append_entry(cfg, entry)
+        else:
+            entry = None
+        purged = purge_run(cfg, run)
+    notice = ("本轮成绩已记入台账，记分板与排行榜按最高分那条展示；"
+              "运行记录、对话与沙箱已彻底删除，下次再跑是全新一轮。"
+              if entry else
+              "这一轮没有可计入台账的成绩（未校验 / 已作废 / 已揭晓参考解），"
+              "记录、对话与沙箱已彻底删除，不留成绩。")
+    return {
+        "run_id": run_id,
+        "finished": True,
+        "ledgered": bool(entry),
+        "entry": entry,
+        "purged": purged,
+        "notice": notice,
+    }
+
+
+def backfill_ledger(cfg: dict, dry_run: bool = False) -> dict:
+    """一次性回填：按新口径把 runs/ 里在册的记录写成台账条目（记录本身保留）。
+
+    回填不删任何记录——迁移的是「成绩的读取来源」，不是数据本身。已有条目的
+    记录会被跳过，所以重复执行不会把同一次尝试数两遍。
+
+    回填后的数字必须与回填前完全一致（T1-01/T1-02 100、T1-03 0、T2-05 83.3），
+    这条由 tests/test_results_ledger.py 的 ``test_backfill_matches_legacy_numbers`` 锁住。
+    """
+    added: List[str] = []
+    skipped: List[str] = []
+    for run in list_runs(cfg):
+        run_id = str(run.get("run_id") or "")
+        if results_ledger.has_source_run(cfg, run_id):
+            skipped.append(run_id)
+            continue
+        entry = record_run_result(cfg, run, origin="backfill")
+        if entry is None:
+            skipped.append(run_id)
+            continue
+        if not dry_run:
+            entry = results_ledger.append_entry(cfg, entry)
+        added.append(entry["entry_id"] or run_id)
+    return {
+        "added": len(added),
+        "skipped": len(skipped),
+        "dry_run": bool(dry_run),
+        "ledger": results_ledger.ledger_path(cfg),
+    }
 
 
 def set_note(cfg: dict, run_id: str, note: str) -> dict:
@@ -857,6 +1050,9 @@ def run_view(cfg: dict, run: dict, log_tail: int = 200) -> dict:
         "created_at": run.get("created_at"),
         "updated_at": run.get("updated_at"),
         "revealed": bool(run.get("revealed")),
+        # 揭晓过的参考解从运行记录目录读：刷新页面后报告窗还能再看到它，
+        # 不再依赖「揭晓那一次把正文下发给前端」。
+        "revealed_patch": load_revealed_patch(cfg, run) if run.get("revealed") else "",
         "calibration": bool(run.get("calibration")),
         "note": run.get("note", ""),
         "rounds": run.get("rounds") or [],
@@ -899,16 +1095,81 @@ def wilson_interval(passes: int, trials: int, z: float = _Z) -> tuple:
     return (max(0.0, center - margin), min(1.0, center + margin))
 
 
+def _model_alias_index(cfg: dict) -> Dict[str, str]:
+    """历史档案身份 → 当前模型 id 的归并索引（只读换算，不改任何记录）。
+
+    供应商重构后同一个真实模型有两种身份：老记录的 run.model 是老档案 id
+    （读时迁移记进了供应商的 legacy_ids，并随 expand_models 带到每个扁平档案上），
+    新记录是当前的扁平模型 id。归并依据分三层，精确的优先、模糊的不猜：
+
+    1. 模型自身的 id 与 qualified_id（provider::model）——本来就是当前身份；
+    2. 读时迁移把老档案 id 记成了模型 name，且该 name 确实出现在 legacy_ids
+       里（防止用户手填的展示名被误当成身份别名）；
+    3. legacy_ids 里剩下的老档案 id：只有供应商下恰好一个模型时归属才无歧义，
+       此时才归并；多个模型时不猜——猜错等于把成绩记到别的模型头上。
+
+    命中不到任何现存档案的老名字不进索引，调用方按原名处理（model_gone 语义）。
+    """
+    index: Dict[str, str] = {}
+    providers = {str(p.get("id") or ""): p
+                 for p in cfg.get("providers", []) if isinstance(p, dict)}
+    for item in cfg.get("models", []):
+        if not isinstance(item, dict):
+            continue
+        mid = str(item.get("id") or "").strip()
+        if not mid:
+            continue
+        index.setdefault(mid, mid)
+        qualified = str(item.get("qualified_id") or "").strip()
+        if qualified:
+            index.setdefault(qualified, mid)
+        provider = providers.get(str(item.get("provider_id") or ""))
+        legacy = {str(x or "").strip() for x in (item.get("legacy_ids") or [])}
+        legacy.update(str(x or "").strip() for x in (provider or {}).get("legacy_ids") or [])
+        legacy.discard("")
+        name = str(item.get("name") or "").strip()
+        if name and name in legacy:
+            index.setdefault(name, mid)
+    for provider in providers.values():
+        legacy = [str(x or "").strip() for x in provider.get("legacy_ids") or []]
+        owned = [str(m.get("id") or "").strip() for m in provider.get("models") or []
+                 if isinstance(m, dict) and str(m.get("id") or "").strip()]
+        if len(owned) != 1:
+            continue
+        for old in legacy:
+            if old:
+                index.setdefault(old, owned[0])
+    return index
+
+
+def canonical_model(cfg: dict, model: object, index: Optional[Dict[str, str]] = None) -> str:
+    """run.model 的统计身份：命中现存档案的归到当前模型 id，命中不到的原样返回。
+
+    run.model 是历史事实，本函数只给 scoreboard / task_leaderboard 换算分组键，
+    从不改写记录；档案已删的老名字走原名单列，不并进任何现行列。
+    """
+    raw = str(model or "")
+    if not raw:
+        return ""
+    if index is None:
+        index = _model_alias_index(cfg)
+    return index.get(raw, raw)
+
+
 def scoreboard(cfg: dict) -> dict:
-    """行=任务、列=模型的记分板矩阵；揭晓过的轮次单列，不进主统计。"""
-    runs = list_runs(cfg)
+    """行=任务、列=模型的记分板矩阵。数据源是成绩台账，不是 runs/ 里的记录。
+
+    只有「结束」过的尝试在这里——成绩等收尾才落账，还 在跑、或已废弃的尝试
+    一律不进统计。列按「模型身份」分组：台账存的是写入当时的档案原名，读的
+    时候经 canonical_model 归并到当前档案 id，同一真实模型不裂成两列。
+    """
+    alias_index = _model_alias_index(cfg)
+    grouped = results_ledger.group_by_cell(
+        cfg, lambda name: canonical_model(cfg, name, alias_index))
+
     models: List[str] = []
     tasks: List[str] = []
-    for run in runs:
-        model = str(run.get("model") or "")
-        task = str(run.get("task") or "")
-        if not model or not task:
-            continue  # 缺 task/model 的坏记录不建幽灵行列
+    for (task, model) in grouped:
         if model not in models:
             models.append(model)
         if task not in tasks:
@@ -918,17 +1179,14 @@ def scoreboard(cfg: dict) -> dict:
         if task["id"] not in tasks:
             tasks.append(task["id"])
     for model in cfg.get("models", []):
-        mid = str(model.get("id"))
-        if mid not in models:
+        mid = str(model.get("id") or "")
+        if mid and mid not in models:
             models.append(mid)
 
     cells = {}
     for task in tasks:
-        row = {}
-        for model in models:
-            pair = [r for r in runs if r.get("task") == task and str(r.get("model")) == model]
-            row[model] = _cell_stats(pair)
-        cells[task] = row
+        cells[task] = {model: _cell_stats(grouped.get((task, model)) or [])
+                       for model in models}
 
     task_meta_index = {t["id"]: t for t in packs.list_tasks(cfg)}
     matrix = []
@@ -948,8 +1206,10 @@ def scoreboard(cfg: dict) -> dict:
         "models": models,
         "matrix": matrix,
         "totals": _totals(matrix),
-        "note": "单元格 = pass@1 通过数/作数尝试数，均分取各尝试最佳轮的均值；"
-                "建了记录但从未跑完校验的尝试不进分母；「已揭晓」区不计入通过率。",
+        "note": "数据源是成绩台账（runs/_results/ledger.json）：只有点过「结束本轮」"
+                "的尝试才在这里，每次结束各留一条，单元格展示最高分那条；"
+                "pass@1 = 第 1 轮就全绿的条目数 / 条目数；作废轮、判无效轮与"
+                "已揭晓参考解的尝试永不进台账；还在跑或已废弃的记录不计入。",
     }
 
 
@@ -1051,99 +1311,68 @@ def _counted_rounds(run: dict) -> List[dict]:
     return [rnd for rnd in _live_rounds(run) if not rnd.get("invalidated")]
 
 
-def _cell_stats(pair: List[dict]) -> dict:
-    """一个 (任务 × 模型) 单元格的统计。
+def _cell_stats(entries: List[dict]) -> dict:
+    """一个 (任务 × 模型) 单元格的统计，数据源是台账条目。
 
-    口径（与排行榜同口径）：
-    - trials 分母 = **真实跑过的尝试数**：建了记录但从未进入评分流程、或所有轮次
-      都被作废/判无效的 run 不进分母（旧实现把它们记成一次失败尝试，通过率被稀释）。
-    - pass@1 = 作数尝试里第 1 轮全绿的数量。
-    - 均分 = 每条 run 只贡献一个代表分（其作数轮的最高分）在全部作数尝试上的均值——
-      同一档案对同一题的多次尝试各算一次，不再把每一轮都摊进平均（重复计入），
-      与排行榜「一条记录一个代表成绩」的口径对齐。
+    台账里**每次结束都留一条**，所以口径比旧记分板更简单也更诚实：
+    - ``attempts`` = 结束的尝试数（一条条目一次尝试）。建了记录但没结束的
+      （还在跑、已废弃）根本不进台账，不会稀释通过率。
+    - ``pass1`` = 其中第 1 轮就全绿的条目数；``pass_rate`` = pass1 / attempts。
+    - ``best_score`` = 分数最高那条的分数（榜单展示的就是它）；
+      ``avg_score`` = 各条代表分的均值，两者一起给才看得出"是稳还是撞了一次"。
+    - Wilson 区间随旧口径一起废弃：条目不再等于"通过的样本"，分母混着失败的
+      尝试，硬算区间只会在一行样本上给出假精确。
     """
-    def _score(rnd: dict) -> float:
+    def _score(entry: dict) -> float:
         try:
-            return float(rnd.get("score") or 0)
+            return float(entry.get("score") or 0)
         except (TypeError, ValueError):
             return 0.0
 
-    scored = [r for r in pair if not r.get("revealed")]
-    revealed = [r for r in pair if r.get("revealed")]
-    counted = [r for r in scored if _counted_rounds(r)]
-    trials = len(counted)
-    first_round_passes = 0
-    for run in counted:
-        for rnd in _counted_rounds(run):
-            if int(rnd.get("attempt") or 0) == 1:
-                if rnd.get("passed"):
-                    first_round_passes += 1
-                break
-    any_pass = 0
-    scores: List[float] = []
-    for run in counted:
-        best = None
-        run_passed = False
-        for rnd in _counted_rounds(run):
-            value = _score(rnd)
-            best = value if best is None else max(best, value)
-            if rnd.get("passed"):
-                run_passed = True
-        if run_passed:
-            any_pass += 1
-        if best is not None:
-            scores.append(best)
-    low, high = wilson_interval(first_round_passes, trials)
-    avg = round(sum(scores) / len(scores), 1) if scores else 0.0
+    attempts = len(entries)
+    scores = [_score(e) for e in entries]
+    best_entry = results_ledger.best_of(entries)
+    pass1 = sum(1 for e in entries if e.get("pass1"))
+    last_at = max((str(e.get("ended_at") or "") for e in entries), default="")
     return {
-        "trials": trials,
-        "pass1": first_round_passes,
-        "pass_any": any_pass,
-        "pass_rate": round(first_round_passes / trials, 3) if trials else 0.0,
-        "avg_score": avg,
-        "ci_low": round(low, 3),
-        "ci_high": round(high, 3),
-        "revealed": len(revealed),
-        # 供记分板「删除记录」入口列出这一格背后的运行
-        "run_ids": [str(r.get("run_id") or "") for r in pair if r.get("run_id")],
+        "attempts": attempts,
+        "pass1": pass1,
+        "pass_rate": round(pass1 / attempts, 3) if attempts else 0.0,
+        "best_score": round(_score(best_entry), 1) if best_entry else 0.0,
+        "best_rounds": int(best_entry.get("rounds") or 1) if best_entry else 0,
+        "avg_score": round(sum(scores) / len(scores), 1) if scores else 0.0,
+        "last_at": last_at,
+        # 台账条目 id：台账是成绩不是记录，没有「回工作台打开」这条路，
+        # 唯一的去处是删掉这个档案（连台账条目一起清）。
+        "entry_ids": [str(e.get("entry_id") or "") for e in entries],
     }
 
 
 def _totals(matrix: List[dict]) -> dict:
-    trials = sum(cell["trials"] for row in matrix for cell in row["cells"].values())
+    attempts = sum(cell["attempts"] for row in matrix for cell in row["cells"].values())
     passes = sum(cell["pass1"] for row in matrix for cell in row["cells"].values())
-    low, high = wilson_interval(passes, trials)
     return {
-        "trials": trials,
+        "attempts": attempts,
         "pass1": passes,
-        "pass_rate": round(passes / trials, 3) if trials else 0.0,
-        "ci_low": round(low, 3),
-        "ci_high": round(high, 3),
-        "revealed": sum(cell["revealed"] for row in matrix for cell in row["cells"].values()),
+        "pass_rate": round(passes / attempts, 3) if attempts else 0.0,
     }
 
 
 def scoreboard_csv(board: dict) -> str:
-    """导出 CSV：主矩阵一块，已揭晓单列一块。"""
-    tasks = board["tasks"]
+    """导出 CSV：一张矩阵，一行一个 (任务 × 模型) 的台账统计。"""
     models = board["models"]
-    out = ["任务,档位," + ",".join("%s(pass@1/作数尝试数,均分,Wilson95%%)" % m for m in models)]
+    out = ["任务,档位," + ",".join("%s(结束次数,pass@1/次数,最高分,均分)" % m for m in models)]
     for row in board["matrix"]:
         cells = []
         for model in models:
-            cell = row["cells"].get(model) or {"trials": 0, "pass1": 0, "avg_score": 0,
-                                              "ci_low": 0, "ci_high": 0}
-            cells.append("%d/%d,%.1f,[%.2f,%.2f]" % (
-                cell["pass1"], cell["trials"], cell["avg_score"], cell["ci_low"], cell["ci_high"]))
+            cell = row["cells"].get(model) or {}
+            cells.append("%d,%d/%d,%.1f,%.1f" % (
+                cell.get("attempts", 0), cell.get("pass1", 0), cell.get("attempts", 0),
+                cell.get("best_score", 0.0), cell.get("avg_score", 0.0)))
         out.append("%s,%s,%s" % (row["task"], row["tier"], ",".join(cells)))
     out.append("")
-    out.append("# 已揭晓轮次（不计入通过率主统计）")
-    out.append("任务,模型,已揭晓轮数")
-    for row in board["matrix"]:
-        for model in models:
-            cell = row["cells"].get(model) or {}
-            if cell.get("revealed"):
-                out.append("%s,%s,%d" % (row["task"], model, cell["revealed"]))
+    out.append("# 数据源：成绩台账 runs/_results/ledger.json（点过「结束本轮」的尝试；"
+               "作废轮、判无效轮与已揭晓参考解的尝试永不进台账）")
     return "\n".join(out) + "\n"
 
 
@@ -1161,72 +1390,72 @@ def _timestamp_seconds(value: object) -> Optional[float]:
 
 
 def task_leaderboard(cfg: dict, task_id: str) -> dict:
-    """返回该题未揭晓、未作废且通过的记录，按轮数和用时升序。"""
-    meta = packs.load_meta(cfg, task_id)
-    entries = []
-    for run in list_runs(cfg):
-        if run.get("task") != meta["id"] or run.get("revealed"):
-            continue
-        passed_rounds = []
-        for result in run.get("rounds") or []:
-            if not isinstance(result, dict) or result.get("passed") is not True:
-                continue
-            # 作废轮（用户点「作废本轮」）与越界/回归轮（invalidated）都不算成绩，
-            # 排行榜以前只挡后者，满分轮被作废之后仍然排第 1。
-            if result.get("invalidated") or result.get("voided"):
-                continue
-            try:
-                attempt = int(result.get("attempt") or 0)
-            except (TypeError, ValueError):
-                continue
-            if attempt > 0:
-                passed_rounds.append((attempt, result))
-        if not passed_rounds:
-            continue
+    """该题的排行榜：同一模型取台账里分数最高的那一条。
 
-        attempt, result = min(passed_rounds, key=lambda pair: pair[0])
-        completed_at = result.get("graded_at")
-        # 墙钟用时（本轮起点 → 交卷）只作为兜底与对照：里面混着挂机与思考。
-        start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
-        finish_s = _timestamp_seconds(completed_at)
-        wall_s = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
-        # 排名口径 = 模型实际工作时间：优先用轮次记录里落盘的那一份（就是那一轮的
-        # 跨度），老记录没这个字段就按本轮起点现算，再算不出来才退回墙钟。
-        work_s = result.get("model_work_seconds")
+    数据源与记分板同源（同一份台账、同一条模型身份归并规则），口径按新模型
+    收敛为「先看最高分，再看用了几个轮次，最后看模型工作时间」：
+
+    1. 分数高的在前——榜单展示的就是这个模型在这道题上最好的一次；
+    2. 同分比轮数：一次就全绿的比改了三次才全绿的强；
+    3. 再比模型实际工作时间（挂机不算）；墙钟只作为对照下发给前端做 tooltip。
+
+    台账保留了每一次结束的条目，所以 ``attempts`` 一并下发，用户能看出
+    「最高分那条」是稳出来的还是撞出来的。
+    """
+    meta = packs.load_meta(cfg, task_id)
+    alias_index = _model_alias_index(cfg)
+    grouped = results_ledger.group_by_cell(
+        cfg, lambda name: canonical_model(cfg, name, alias_index))
+
+    by_model: Dict[str, List[dict]] = {}
+    for (task, model), items in grouped.items():
+        if task != meta["id"]:
+            continue
+        by_model.setdefault(model, []).extend(items)
+
+    entries = []
+    for model, items in by_model.items():
+        best = results_ledger.best_of(items)
+        if best is None:
+            continue
+        work = best.get("model_work_seconds")
         try:
-            work_s = float(work_s) if work_s is not None else None
+            work = float(work) if work is not None else None
         except (TypeError, ValueError):
-            work_s = None
-        if not work_s:
-            fresh = model_work_seconds(cfg, run)
-            work_s = fresh if fresh else None
+            work = None
+        wall = best.get("wall_seconds")
         try:
-            score = float(result.get("score") or 0)
+            wall = float(wall) if wall is not None else None
+        except (TypeError, ValueError):
+            wall = None
+        try:
+            score = float(best.get("score") or 0)
         except (TypeError, ValueError):
             score = 0.0
         entries.append({
-            "run_id": run.get("run_id", ""),
-            "model": str(run.get("model") or ""),
-            "rounds": attempt,
-            "duration_s": round(work_s, 3) if work_s is not None else (
-                round(wall_s, 3) if wall_s is not None else None),
+            "entry_id": str(best.get("entry_id") or ""),
+            "model": model,
+            "attempts": len(items),
+            "score": score,
+            "rounds": int(best.get("rounds") or 1),
+            "duration_s": round(work, 3) if work is not None else (
+                round(wall, 3) if wall is not None else None),
             # 两个口径都下发：排行榜排的是模型工作时间，墙钟留着做对照，
             # 否则"挂机两小时"和"模型干两小时"看起来是同一个成绩。
-            "model_work_seconds": round(work_s, 3) if work_s is not None else None,
-            "wall_seconds": round(wall_s, 3) if wall_s is not None else None,
-            "completed_at": completed_at,
-            "score": score,
+            "model_work_seconds": round(work, 3) if work is not None else None,
+            "wall_seconds": round(wall, 3) if wall is not None else None,
+            "completed_at": best.get("graded_at", ""),
+            "ended_at": best.get("ended_at", ""),
         })
 
     def sort_key(entry: dict) -> tuple:
-        completed_s = _timestamp_seconds(entry.get("completed_at"))
         duration = entry.get("duration_s")
         return (
+            -entry["score"],
             entry["rounds"],
             duration if duration is not None else float("inf"),
-            completed_s if completed_s is not None else float("inf"),
+            str(entry.get("completed_at") or ""),
             entry["model"].casefold(),
-            entry["run_id"],
         )
 
     entries.sort(key=sort_key)
@@ -1327,6 +1556,39 @@ def _model_records(cfg: dict) -> List[dict]:
     return [_model_record(m) for m in cfg.get("models", []) if isinstance(m, dict)]
 
 
+def _provider_ownership(provider: dict) -> tuple:
+    """供应商名下的匹配规则：限定名前缀 + 老档案 id 集合。
+
+    删除记录、删除台账条目、``run_count`` 计数**必须共用这一份**——三处各写一遍
+    必然漂移，而漂移的后果是「删完档案还剩一列查无此人的幽灵成绩」。
+    """
+    pid = str(provider.get("id") or "")
+    owned_prefix = "%s::" % pid if pid else ""
+    legacy_ids = {str(m.get("id")) for m in (provider.get("models") or [])
+                  if isinstance(m, dict) and m.get("id")}
+    legacy_ids.add(pid)
+    # 读时迁移记下的老档案 id 也算名下（与 key_owner_candidates 同一份名单）：
+    # 老记录的 model 字段挂的是它们，漏了就会留下删不掉的幽灵记录。
+    for item in (provider.get("legacy_ids") or []):
+        value = str(item or "")
+        if value:
+            legacy_ids.add(value)
+    legacy_ids.discard("")
+    return owned_prefix, legacy_ids
+
+
+def owned_run_ids(cfg: dict, provider: dict) -> List[str]:
+    """该供应商名下的运行记录 run_id（只读，给 run_count 与级联删除共用）。"""
+    owned_prefix, legacy_ids = _provider_ownership(provider)
+    out: List[str] = []
+    for run in list_runs(cfg):
+        model = str(run.get("model") or "")
+        rid = str(run.get("run_id") or "")
+        if rid and model and (model.startswith(owned_prefix) or model in legacy_ids):
+            out.append(rid)
+    return out
+
+
 def _provider_view(provider: dict, cfg: dict) -> dict:
     """供应商条目的对外视图：原始字段 + 只读诊断（密钥是否存在、能否使用）。
 
@@ -1337,9 +1599,15 @@ def _provider_view(provider: dict, cfg: dict) -> dict:
         {k: m.get(k) for k in config.PROVIDER_MODEL_FIELDS if k in m}
         for m in (provider.get("models") or [])
     ]
-    # 密钥状态按供应商算：本机密钥文件 + 环境变量候选
-    probe = {"provider_id": provider.get("id"), "protocol": provider.get("protocol")}
-    stored = bool(keyring.get_key(str(provider.get("id") or "")))
+    # 密钥状态按供应商算：本机密钥文件 + 环境变量候选。
+    # 本机文件要走「新 id → 老档案 id」整条候选链：读时迁移出的供应商 id 是从
+    # 端点推的（local-20128），密钥仍挂在老档案名下，只按新 id 查会把
+    # 「✓ 已存密钥」显示成「未配置密钥」，用户以为密钥丢了去重填一把。
+    legacy_ids = provider.get("legacy_ids") or []
+    probe = {"provider_id": provider.get("id"), "protocol": provider.get("protocol"),
+             "legacy_ids": legacy_ids}
+    owners = chat.key_owner_candidates(provider.get("id"), legacy_ids)
+    stored = any(keyring.get_key(candidate) for candidate in owners)
     status = chat.key_status(probe)
     out["key_present"] = stored or status["present"]
     out["key_stored"] = stored
@@ -1354,6 +1622,12 @@ def _provider_view(provider: dict, cfg: dict) -> dict:
         and chat.has_usable_base_url(first)
         and out["key_present"]
     )
+    # 级联计数由后端下发（只读，无副作用）：删除确认框要显示「连同 N 条记录
+    # 一并删除」，前端以前是自己 GET /api/runs 再按前缀 + 老档案 id 复刻一遍
+    # delete_provider 的匹配逻辑——两份必然漂移，漂了就是删不干净的幽灵成绩。
+    owned_prefix, legacy_ids = _provider_ownership(provider)
+    out["run_count"] = len(owned_run_ids(cfg, provider))
+    out["entry_count"] = results_ledger.count_for_models(cfg, owned_prefix, legacy_ids)
     return out
 
 
@@ -1441,6 +1715,22 @@ def _normalize_provider_payload(payload: dict) -> dict:
     }
 
 
+def _merge_legacy_ids(*sources) -> List[str]:
+    """把几处来源里的老档案 id 合成一份去重名单（保持出现顺序）。
+
+    供应商 id 是从端点推出来的，密钥却仍可能挂在老档案 id 名下；保存一次就
+    把 ``legacy_ids`` 弄丢，等于把密钥锁在门外——所以编辑保存必须原样带走。
+    """
+    out: List[str] = []
+    for source in sources:
+        items = source.get("legacy_ids") if isinstance(source, dict) else source
+        for item in (items or []):
+            value = str(item or "").strip()
+            if value and value not in out:
+                out.append(value)
+    return out
+
+
 def upsert_provider(cfg: dict, payload: dict) -> dict:
     """新增或更新供应商（连同它的模型清单）。
 
@@ -1452,6 +1742,12 @@ def upsert_provider(cfg: dict, payload: dict) -> dict:
     previous_id = util.sanitize_id(payload.get("previous_id"))
 
     providers = [dict(p) for p in cfg.get("providers", [])]
+    # 老档案 id 沿用原条目里的：表单不传这个字段，服务端自己接着走，
+    # 否则迁移来的供应商保存一次就再也找不到它那把密钥。
+    source = next((p for p in providers if str(p.get("id")) == (previous_id or pid)), None)
+    legacy_ids = _merge_legacy_ids(payload.get("legacy_ids"), source)
+    if legacy_ids:
+        entry["legacy_ids"] = legacy_ids
     if previous_id and previous_id != pid:
         # 改编号：旧供应商连同它的密钥一起搬走，不留重复
         providers = [p for p in providers if str(p.get("id")) != previous_id]
@@ -1475,11 +1771,14 @@ def upsert_provider(cfg: dict, payload: dict) -> dict:
     return entry
 
 
-def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dict:
-    """删除供应商（连同已存密钥与其下所有模型）；with_runs=True 时名下运行记录一并真删。
+def delete_provider(cfg: dict, provider_id: str, with_runs: bool = True) -> dict:
+    """删除供应商（连同已存密钥、其下所有模型、名下运行记录与台账条目）。
 
-    记录目录、沙箱副本、评分树随「供应商 + 名下记录」一起消失，不可恢复；
-    正被对话/校验占用的运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    **级联是默认且唯一的语义**（2026-10-02）：删档案就是彻底删除，前端不再有
+    级联勾选项。``with_runs`` 参数只为兼容旧调用保留，恒按 True 执行——
+    留着「不删记录」那条路就等于让记分板上出现查无此人的幽灵列。
+
+    正被对话/校验占用的运行记录会跳过并列入 skipped_busy；台账条目照删。
     """
     providers = [dict(p) for p in cfg.get("providers", [])]
     target = next((p for p in providers if str(p.get("id")) == str(provider_id)), None)
@@ -1488,44 +1787,51 @@ def delete_provider(cfg: dict, provider_id: str, with_runs: bool = False) -> dic
             errors.E_MODEL_NOT_FOUND, "找不到供应商 %s，删除失败。" % provider_id, str(provider_id))
     remaining = [p for p in providers if str(p.get("id")) != str(provider_id)]
     config.update_providers(remaining)
-    keyring.remove_key(provider_id)
 
-    # 名下运行记录按「限定名前缀」或「老档案 id」两种形态匹配：
-    # 老记录里 model 字段是档案 id，重构后是 provider::model。
-    owned_prefix = "%s::" % provider_id
-    legacy_ids = {str(m.get("id")) for m in (target.get("models") or [])}
-    legacy_ids.add(str(provider_id))
-    # 读时迁移记下的老档案 id 也算名下（与 _key_owner_candidates 同一份名单）：
-    # 老记录的 model 字段挂的是它们，漏了就会留下删不掉的幽灵记录。
-    for item in (target.get("legacy_ids") or []):
-        legacy_ids.add(str(item or ""))
+    # 名下归属口径与 run_count / 台账清理共用同一份（见 _provider_ownership）
+    owned_prefix, legacy_ids = _provider_ownership(target)
+
+    # 密钥按「新 id → 老档案 id」整条链清：迁移来的供应商 id 是从端点推的，
+    # 密钥多半还挂在老档案名下，只删新 id 会把明文密钥永远留在本机。
+    # 别删到别人的：名单与其它供应商（含它们的老档案 id）重叠时跳过。
+    still_used = {str(p.get("id")) for p in remaining}
+    for p in remaining:
+        still_used.update(str(x) for x in (p.get("legacy_ids") or []))
+    for owner in chat.key_owner_candidates(provider_id, target.get("legacy_ids") or []):
+        if owner and owner not in still_used:
+            keyring.remove_key(owner)
 
     removed_runs: List[str] = []
     purged_paths: List[str] = []
     skipped_busy: List[str] = []
-    if with_runs:
-        for run in list_runs(cfg):
-            model = str(run.get("model") or "")
-            if not (model.startswith(owned_prefix) or model in legacy_ids):
+    for run in list_runs(cfg):
+        model = str(run.get("model") or "")
+        if not (model.startswith(owned_prefix) or model in legacy_ids):
+            continue
+        rid = str(run.get("run_id") or "")
+        if not rid or chat.send_active(rid):
+            if rid:
+                skipped_busy.append(rid)
+            continue
+        if _GRADING.get(rid):
+            skipped_busy.append(rid)
+            continue
+        with chat.exclusive(rid, blocking=False) as acquired:
+            if not acquired:
+                skipped_busy.append(rid)
                 continue
-            rid = str(run.get("run_id") or "")
-            if not rid or chat.send_active(rid):
-                if rid:
-                    skipped_busy.append(rid)
-                continue
-            with chat.exclusive(rid, blocking=False) as acquired:
-                if not acquired:
-                    skipped_busy.append(rid)
-                    continue
-                purged_paths.extend(purge_run(cfg, run))
-                removed_runs.append(rid)
+            purged_paths.extend(purge_run(cfg, run))
+            removed_runs.append(rid)
+    removed_entries = results_ledger.remove_for_models(cfg, owned_prefix, legacy_ids)
     return {
         "id": provider_id,
         "deleted": True,
         "remaining": len(remaining),
         # 与 delete_model 同一口径：removed_runs 是名下 run_id（给"删了几条"用），
-        # purged_paths 是实际抹掉的目录（排障时核对到底动了哪些路径）。
+        # purged_paths 是实际抹掉的目录（排障时核对到底动了哪些路径），
+        # removed_entries 是被清掉的台账条目（记分板上那一列随之消失）。
         "removed_runs": removed_runs,
+        "removed_entries": removed_entries,
         "purged_paths": purged_paths,
         "skipped_busy": skipped_busy,
     }
@@ -1564,11 +1870,10 @@ def discover_models(cfg: dict, payload: dict) -> dict:
 
 
 
-def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
-    """删除模型档案（连同已存密钥）；with_runs=True 时名下运行记录一并真删。
+def delete_model(cfg: dict, model_id: str, with_runs: bool = True) -> dict:
+    """删除模型档案（连同已存密钥、名下运行记录与台账条目）。
 
-    记录目录、沙箱副本、评分树随「档案本身 + 名下记录」一起消失，不可恢复；
-    正被对话/校验占用的运行记录会跳过并列入 skipped_busy，不阻塞整体删除。
+    与 delete_provider 同一语义：级联是真删，没有"只删档案留记录"的选项。
     """
     models = _model_records(cfg)
     remaining = [m for m in models if str(m.get("id")) != str(model_id)]
@@ -1580,21 +1885,21 @@ def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
     removed_runs: List[str] = []
     purged_paths: List[str] = []
     skipped_busy: List[str] = []
-    if with_runs:
-        for run in list_runs(cfg):
-            if str(run.get("model") or "") != str(model_id):
+    for run in list_runs(cfg):
+        if str(run.get("model") or "") != str(model_id):
+            continue
+        rid = str(run.get("run_id") or "")
+        if not rid or chat.send_active(rid) or _GRADING.get(rid):
+            if rid:
+                skipped_busy.append(rid)
+            continue
+        with chat.exclusive(rid, blocking=False) as acquired:
+            if not acquired:
+                skipped_busy.append(rid)
                 continue
-            rid = str(run.get("run_id") or "")
-            if not rid or chat.send_active(rid):
-                if rid:
-                    skipped_busy.append(rid)
-                continue
-            with chat.exclusive(rid, blocking=False) as acquired:
-                if not acquired:
-                    skipped_busy.append(rid)
-                    continue
-                purged_paths.extend(purge_run(cfg, run))
-                removed_runs.append(rid)
+            purged_paths.extend(purge_run(cfg, run))
+            removed_runs.append(rid)
+    removed_entries = results_ledger.remove_for_models(cfg, "", {str(model_id)})
     return {
         "id": model_id,
         "deleted": True,
@@ -1602,6 +1907,7 @@ def delete_model(cfg: dict, model_id: str, with_runs: bool = False) -> dict:
         # removed_runs 是档案名下的 run_id（给"删了几条"这句话用），
         # purged_paths 是实际被抹掉的目录（排障时要能核对到底动了哪些路径）。
         "removed_runs": removed_runs,
+        "removed_entries": removed_entries,
         "purged_paths": purged_paths,
         "skipped_busy": skipped_busy,
     }
