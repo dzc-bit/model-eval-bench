@@ -1,50 +1,116 @@
 {
   "task": "T2-05",
   "state": "baseline",
-  "repo": "D:\\New project 6",
   "patches": [],
-  "touched_files": [],
-  "forbidden_overlap": [],
   "runs": [
     {
       "score": 100.0,
-      "weight_passed": 6,
-      "weight_total": 6,
+      "raw_score": 100.0,
       "groups": [
         {
           "id": "admission_exit",
-          "weight": 1,
+          "weight": 1.0,
           "passed": true,
-          "failed_tests": [],
-          "missing_tests": []
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_serial_identical_submissions_reuse_in_flight_job",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
         },
         {
           "id": "heartbeat_exit",
-          "weight": 1,
+          "weight": 1.0,
           "passed": true,
-          "failed_tests": [],
-          "missing_tests": []
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_progress_writeback_prolongs_job_lifecycle",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_recent_read_protects_job_from_stale_reap",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
         },
         {
           "id": "reclaim_exit",
-          "weight": 1,
+          "weight": 1.0,
           "passed": true,
-          "failed_tests": [],
-          "missing_tests": []
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
         },
         {
           "id": "consumer_exit",
-          "weight": 1,
+          "weight": 1.0,
           "passed": true,
-          "failed_tests": [],
-          "missing_tests": []
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_reports_running_jobs",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
         },
         {
           "id": "coherence",
-          "weight": 2,
+          "weight": 2.0,
           "passed": true,
-          "failed_tests": [],
-          "missing_tests": []
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
         }
       ],
       "p2p_failures": [],
@@ -56,5 +122,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-10-02T23:14:07"
+  "finished_at": "2026-10-03T05:55:12"
 }

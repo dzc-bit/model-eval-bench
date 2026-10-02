@@ -145,7 +145,7 @@
       "gate": {
         "baseline": 100.0,
         "fixed": 100.0,
-        "partial": 33.33,
+        "partial": 16.67,
         "injected_x20": "stable 0.0"
       },
       "packcheck_red": 0
@@ -327,6 +327,40 @@
         "injected_x20": "stable 0.0"
       },
       "packcheck_red": 0,
+      "target_metric": "pass_at_3",
+      "calibrated": false
+    },
+    {
+      "id": "T4-12",
+      "tier": "king",
+      "status": "draft",
+      "attempts": 3,
+      "title": "后台引擎与寻优台同时失去准头",
+      "target_band": [
+        0.0,
+        0.02
+      ],
+      "prune_count": 14,
+      "p2p_count": 176,
+      "hidden_groups": [
+        "recycle_window_exit",
+        "insight_throttle_exit",
+        "digest_freshness_exit",
+        "digest_publish_exit",
+        "optimizer_validation_exit",
+        "optimizer_rank_exit",
+        "overfit_verdict_exit",
+        "optimize_http_exit",
+        "coherence",
+        "p2p"
+      ],
+      "gate": {
+        "baseline": 91.3,
+        "fixed": 91.3,
+        "partial": 17.39,
+        "injected_x20": null
+      },
+      "packcheck_red": 1,
       "target_metric": "pass_at_3",
       "calibrated": false
     }
