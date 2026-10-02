@@ -27,6 +27,9 @@
 }
 
 /* ============================ 顶部状态栏 ============================ */
+/* 上下内边距是替 .app-main 补的：那条 padding 已经在 views.css 里为工作台归零，
+   间距改由两条粘性栏自带，于是 top:0 / bottom:0 才真的贴在视口上下沿
+   （否则对话内容会从 24px / 56px 的缝里滚过去，见 views.css 同名说明）。 */
 .ws .ws-statusbar {
   position: sticky;
   top: 0;
@@ -35,7 +38,8 @@
   align-items: center;
   gap: var(--space-3) var(--space-4);
   flex-wrap: wrap;
-  padding: var(--space-2) 0;
+  /* 上内边距 = 容器原来的 --space-6 + 自身原来的 --space-2，未滚动时的版面与从前一致 */
+  padding: calc(var(--space-6) + var(--space-2)) 0 var(--space-2);
   background: var(--color-bg);
   border-bottom: var(--border-width) solid var(--color-border);
 }
@@ -172,12 +176,13 @@
   border: var(--border-width) dashed var(--color-border-strong);
 }
 
-/* 收尾总结：留在时间线末尾，只加强调不做 sticky（红线）。 */
+/* 收尾总结：留在时间线末尾，不做 sticky（红线）。
+   刻意不给它上强调色——总结和普通模型正文用的是同一个面（.ws-msg 的 surface-2），
+   「这是收尾」由 .ws-msg__meta 里的「收尾总结」四个字承担，不由底色承担：
+   满屏对话里只有最后一条顶着暖色块，读起来像一条报错或一条高亮引用。 */
 .ws .ws-msg--final {
   align-self: stretch;
   min-width: 0;
-  border: var(--border-width) solid var(--color-accent-border);
-  background: var(--color-accent-tint-solid);
 }
 
 .ws .ws-msg__meta {
@@ -745,7 +750,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-3) 0 var(--space-4);
+  /* 下内边距 = 容器原来的 --space-9 + 自身原来的 --space-4，同上：补的是让出去的间距 */
+  padding: var(--space-3) 0 calc(var(--space-9) + var(--space-4));
   background: var(--color-bg);
   border-top: var(--border-width) solid var(--color-border);
 }

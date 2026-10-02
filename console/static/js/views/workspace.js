@@ -799,6 +799,9 @@ export function createWorkspace(props = {}) {
                 : '',
       });
       chatStream.update({ run: next.run, pickedModelId: next.modelId });
+      // 状态一变就可能长高（结果条、运行详情、任务节点展开）：对话在飞时把末尾带回来。
+      // 跟不跟、跟到哪里全由 chatStream 判断，这里只负责喊一声。
+      chatStream.followLatest();
       // newResult 只在翻转成 true 时下发：false 会把结果节点上「新结果」标记提前冲掉
       const reportState = {
         run: next.run,

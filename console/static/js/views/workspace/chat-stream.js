@@ -367,13 +367,58 @@ export function createChatStream(handlers = {}) {
     return container.scrollHeight - container.scrollTop - container.clientHeight < 200;
   }
 
-  /** 把对话流末尾滚进视野（发送成功 / 新内容到达且本来就在底部时）。 */
+  /**
+   * 对话流真正可读的那条带：顶部状态栏下沿 → 底部操作栏上沿。
+   *
+   * 两条栏都 position:sticky 钉在滚动容器上，铺在最上层；所以「滚动容器底」并不等于
+   * 「最后一条能看见的地方」。这里量出两条栏各自实际占了多少，只认**真的钉住了**的
+   * 那种（顶边贴住容器上沿 / 底边贴住容器下沿），内容短、它们还停在自然位置时不算。
+   */
+  function readableBand() {
+    const scroller = streamRoot.closest('.app-main') || document.scrollingElement;
+    if (!scroller) return null;
+    const view = streamRoot.closest('.view');
+    const scrollerRect = scroller.getBoundingClientRect();
+    if (!scrollerRect.height) return null;
+    const topBar = view ? view.querySelector('.ws-statusbar') : null;
+    const bottomBar = view ? view.querySelector('.ws-bottom') : null;
+    const topRect = topBar ? topBar.getBoundingClientRect() : null;
+    const bottomRect = bottomBar ? bottomBar.getBoundingClientRect() : null;
+    const topInset = topRect && topRect.height && topRect.top <= scrollerRect.top + 1
+      ? topRect.bottom - scrollerRect.top
+      : 0;
+    const bottomInset = bottomRect && bottomRect.height && bottomRect.bottom >= scrollerRect.bottom - 1
+      ? scrollerRect.bottom - bottomRect.top
+      : 0;
+    return {
+      scroller,
+      top: Math.max(0, Math.min(topInset, scrollerRect.height)),
+      bottom: Math.max(0, Math.min(bottomInset, scrollerRect.height - topInset)),
+    };
+  }
+
+  /**
+   * 把对话流末尾滚进**可读区**（发送成功 / 新内容到达且本来就在底部时）。
+   *
+   * 不用 scrollIntoView({block:'end'})：那只认滚动容器的下沿，于是新消息的底边正好
+   * 压在操作栏上沿之下——一条 36px 的普通回复会整条落进 312px 高的操作栏底下，
+   * 一个像素都看不见（自动跟滚等于没跟）。这里改成把末条消息的底边对齐到可读区下沿。
+   */
   function scrollToEnd() {
     window.requestAnimationFrame(() => {
       const last = messageList.lastElementChild;
-      if (last && typeof last.scrollIntoView === 'function') {
-        last.scrollIntoView({ block: 'end', behavior: 'auto' });
-      }
+      if (!last) return;
+      const band = readableBand();
+      if (!band) return;
+      const { scroller } = band;
+      const scrollerRect = scroller.getBoundingClientRect();
+      const gap = 12;
+      const bottom = band.bottom + (band.bottom < gap ? 0 : gap);
+      const next = scroller.scrollTop
+        + (last.getBoundingClientRect().bottom - scrollerRect.top)
+        - bottom;
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      scroller.scrollTop = Math.min(Math.max(0, next), max);
     });
   }
 
@@ -866,6 +911,17 @@ export function createChatStream(handlers = {}) {
     /** 焦点送进输入框（「去对话里追问」等引导用）。 */
     focusComposer() {
       draft.focus();
+    },
+    /**
+     * 跟到最新内容（编排层在状态变化时调）。
+     * 跟不跟由这里自己判断：翻历史时不拽，用户本来就在底部才跟。
+     * 编排层不再自己算 scrollTop——两份「什么时候跟、跟到哪里」的判断迟早漂移，
+     * 而漂了就是「有时候跟、有时候把新消息塞进操作栏底下」。
+     */
+    followLatest() {
+      if (!currentRunId || !messages.length || !nearBottom()) return false;
+      scrollToEnd();
+      return true;
     },
     destroy() {
       clearTimeout(progressTimer);
