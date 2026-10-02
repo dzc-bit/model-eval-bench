@@ -14,7 +14,7 @@
  * 风格：24×24 网格、1.5 描边、圆头圆角、无填充、无阴影、无渐变。
  *
  * 依赖：无（不依赖 core/dom.js）。
- * 导出：createIcon(name, opts) → SVGSVGElement、ICON_NAMES、DEFAULT_ICON、hasIcon、resolveIcon
+ * 导出：createIcon(name, opts) → SVGSVGElement、DEFAULT_ICON、hasIcon、resolveIcon
  */
 
 /** SVG 命名空间。 */
@@ -152,9 +152,6 @@ const ICON_SPECS = {
   ],
 };
 
-/** 可用的图标名（渲染顺序即定义顺序）。 */
-export const ICON_NAMES = Object.keys(ICON_SPECS);
-
 /**
  * 这个名字有没有对应图形。
  * @param {unknown} name
@@ -193,7 +190,7 @@ function svg(tag, attrs = {}) {
  *
  * 尺寸优先用 CSS（外层类名控制 `width/height`），`size` 只是给没有 CSS 时的兜底。
  *
- * @param {string} [name] ICON_NAMES 之一；认不出来的名字回落 inbox
+ * @param {string} [name] 图标名（见 ICON_SPECS）；认不出来的名字回落 inbox
  * @param {{
  *   size?: number, class?: string, label?: string
  * }} [opts] `label` 存在时图标不再 aria-hidden，改由 aria-label 承载语义

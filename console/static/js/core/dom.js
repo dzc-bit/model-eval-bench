@@ -5,10 +5,10 @@
  *   1. `el(tag, props, ...children)` 元素工厂：文本一律 textContent，属性白名单，事件自动挂。
  *   2. `patchList(container, items, keyFn, create, update)` key 化列表复用：避免整表重建，
  *      轮询时不会丢焦点、丢滚动（§11.2 #3、#14）。
- *   3. `frag()` / `clear()` / `on()` 三个小工具。
+ *   3. `clear()` / `on()` 两个小工具。
  *
  * 依赖：无。
- * 导出：el, frag, clear, patchList, setText, setAttr, on, text
+ * 导出：el, clear, patchList, setText, on, text
  *
  * 安全纪律（§10.3 / §11.2 #5）：
  *   - 禁止用业务数据拼 innerHTML。本模块**不提供任何写入 innerHTML 的入口**，
@@ -152,19 +152,6 @@ export function el(tag, props = null, ...children) {
 }
 
 /**
- * 创建文档片段，把一批子节点收成一段（批量插入只触发一次重排）。
- * @param {...unknown} children
- * @returns {DocumentFragment}
- */
-export function frag(...children) {
-  const f = document.createDocumentFragment();
-  const out = [];
-  children.forEach((c) => appendChild(c, out));
-  out.forEach((c) => f.appendChild(c));
-  return f;
-}
-
-/**
  * 清空容器（只摘子节点，不动容器本身）。
  * @param {Element} container
  */
@@ -181,20 +168,6 @@ export function clear(container) {
  */
 export function setText(node, value) {
   if (node) node.textContent = value === null || value === undefined ? '' : String(value);
-  return node;
-}
-
-/**
- * 设置属性；值为 null/undefined/false 时移除属性。
- * @param {Element} node
- * @param {string} name
- * @param {unknown} value
- * @returns {Element} node
- */
-export function setAttr(node, name, value) {
-  if (!node) return node;
-  if (value === null || value === undefined || value === false) node.removeAttribute(name);
-  else node.setAttribute(name, value === true ? '' : String(value));
   return node;
 }
 

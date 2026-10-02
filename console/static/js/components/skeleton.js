@@ -9,7 +9,7 @@
  *   - 动画由 CSS `prefers-reduced-motion: reduce` 统一收敛（§12.13）。
  *
  * 依赖：core/dom.js、core/strings.js
- * 导出：createSkeleton(props) → { el, update, destroy }, skeletonList(n, variant)
+ * 导出：createSkeleton(props) → { el, update, destroy }
  */
 
 import { el } from '../core/dom.js';
@@ -68,14 +68,4 @@ export function createSkeleton(props = {}) {
     /** 纯展示组件，无需解绑。 */
     destroy() {},
   };
-}
-
-/**
- * 快捷：造 n 个骨架行。
- * @param {number} n
- * @param {string} [variant]
- * @returns {HTMLElement}
- */
-export function skeletonList(n = 3, variant = 'row') {
-  return createSkeleton({ rows: n, variant }).el;
 }

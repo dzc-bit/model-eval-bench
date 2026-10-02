@@ -222,12 +222,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "passed",
               "message": ""
             }
@@ -265,5 +265,5 @@
   "score_min": 94.44,
   "score_max": 94.44,
   "stable": true,
-  "finished_at": "2026-09-30T14:11:57"
+  "finished_at": "2026-10-02T02:43:20"
 }

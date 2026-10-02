@@ -13,7 +13,7 @@
  *   - 两者不重叠：showToast 内部**不再**调 a11y.announce，避免同一句话被读两遍。
  *
  * 依赖：core/dom.js、core/strings.js
- * 导出：createToastHost, showToast, destroyToastHost
+ * 导出：createToastHost, showToast
  */
 
 import { el, setText, on } from '../core/dom.js';
@@ -34,15 +34,6 @@ export function createToastHost() {
   host = el('div', { class: 'toast-host', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'false' });
   document.body.appendChild(host);
   return host;
-}
-
-/**
- * 销毁宿主（测试与页面卸载用）。
- * @returns {void}
- */
-export function destroyToastHost() {
-  if (host && host.parentNode) host.parentNode.removeChild(host);
-  host = null;
 }
 
 /** 各类图标的文字符号（与颜色一起构成三重编码，§12.8）。 */

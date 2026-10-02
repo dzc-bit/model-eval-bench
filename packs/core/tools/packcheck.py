@@ -186,6 +186,24 @@ def is_unified_diff(patch_text: str) -> tuple[bool, str]:
     return True, ""
 
 
+def patch_change_volume(patch_text: str) -> int:
+    """补丁的改动体量：实际增删行数（不含 +++/--- 文件头）。
+
+    用于「半成品必须是锚解的真子集」判据的同文件兜底：当锚解与半成品
+    恰好落在同一批文件里（单文件锚解不存在更小的文件集合），改比
+    改动行数——半成品的增删体量必须严格小于锚解。这比文件集合比较弱，
+    只能证明"半成品做得更少"，证明不了"它只做了一部分端口"；所以仅当
+    文件集合判据结构上不可满足时才启用，并在结论里写明降级理由。
+    """
+    volume = 0
+    for line in patch_text.splitlines():
+        if line.startswith("+++") or line.startswith("---"):
+            continue
+        if line.startswith("+") or line.startswith("-"):
+            volume += 1
+    return volume
+
+
 # --------------------------------------------------------------------------
 # 名词泄露词表
 # --------------------------------------------------------------------------
@@ -440,10 +458,28 @@ def check_paths(task_dir: Path, meta: dict, repo: Path | None, report: Report) -
 
     fix_targets = patch_targets(read_text(task_dir / "reference" / "fix.patch")) if (task_dir / "reference" / "fix.patch").is_file() else []
     partial_targets = patch_targets(read_text(task_dir / "reference" / "partial.patch")) if (task_dir / "reference" / "partial.patch").is_file() else []
-    if fix_targets and partial_targets and not set(partial_targets) < set(fix_targets):
-        report.bad("参考解", "半成品应当只修锚解的一部分", f"fix={fix_targets} partial={partial_targets}")
-    else:
-        report.ok("参考解", f"锚解改 {len(fix_targets)} 个文件，半成品只改 {len(partial_targets)} 个")
+    if fix_targets and partial_targets:
+        if set(partial_targets) < set(fix_targets):
+            report.ok("参考解", f"锚解改 {len(fix_targets)} 个文件，半成品只改 {len(partial_targets)} 个")
+        elif set(partial_targets) <= set(fix_targets):
+            # 同一文件集合（典型：锚解只落一个文件，不存在更小的真子集）——
+            # 降级为改动体量比较：半成品的增删行数必须严格小于锚解。
+            fix_volume = patch_change_volume(read_text(task_dir / "reference" / "fix.patch"))
+            partial_volume = patch_change_volume(read_text(task_dir / "reference" / "partial.patch"))
+            if partial_volume < fix_volume:
+                report.ok(
+                    "参考解",
+                    f"锚解与半成品同落 {len(fix_targets)} 个文件；半成品改动 {partial_volume} 行 < 锚解 {fix_volume} 行（体量判据）",
+                    "文件集合判据结构上不可满足（单文件锚解），降级为改动行数比较",
+                )
+            else:
+                report.bad(
+                    "参考解",
+                    "半成品与锚解同文件集合，且改动体量不小于锚解",
+                    f"partial={partial_volume} 行 vs fix={fix_volume} 行；半成品应当只修锚解的一部分",
+                )
+        else:
+            report.bad("参考解", "半成品触碰了锚解之外的文件", f"fix={fix_targets} partial={partial_targets}")
 
 
 def check_groups(task_dir: Path, report: Report, tier: str = "") -> None:
@@ -727,7 +763,8 @@ def check_calibration(task_dir: Path, meta: dict, report: Report) -> None:
     if anchor is not None:
         score = anchor.get("score_min")
         if score == 100.0 and anchor.get("score_max") == 100.0:
-            report.ok("门禁", f"锚解 100/100（{anchor.get('weight_passed')}/{anchor.get('weight_total')} 权重）")
+            weight_passed, weight_total = _gate_weights(anchor)
+            report.ok("门禁", f"锚解 100/100（{weight_passed}/{weight_total} 权重）")
         else:
             report.bad("门禁", f"锚解不是 100 分", f"min={anchor.get('score_min')} max={anchor.get('score_max')}")
         if anchor.get("forbidden_overlap"):
@@ -784,6 +821,24 @@ def _load_gate(path: Path) -> dict | None:
         return None
 
 
+def _gate_weights(gate: dict) -> tuple[object, object]:
+    """取门禁报告的权重口径：selfgrade 写在顶层，packgate 只有逐组明细。
+
+    两者都没有就据 groups 明细现算，再算不出就原样显示 None（不伪造）。
+    """
+    passed = gate.get("weight_passed")
+    total = gate.get("weight_total")
+    if passed is None and gate.get("runs"):
+        passed = gate["runs"][0].get("weight_passed")
+        total = gate["runs"][0].get("weight_total")
+    if passed is None and gate.get("runs"):
+        groups = gate["runs"][0].get("groups") or []
+        if groups:
+            total = sum(float(g.get("weight", 0)) for g in groups)
+            passed = sum(float(g.get("weight", 0)) for g in groups if g.get("passed"))
+    return passed, total
+
+
 def _p2p_failures(run: dict) -> list | None:
     for key in ("p2p_failures", "p2p_broken", "p2p_fail"):
         if isinstance(run.get(key), list):
@@ -796,7 +851,7 @@ def _p2p_failures(run: dict) -> list | None:
 # --------------------------------------------------------------------------
 
 
-def check_task(task_dir: Path, repo: Path | None) -> Report:
+def check_task(task_dir: Path, repo: Path | None, full: bool = False) -> Report:
     report = Report(task=task_dir.name)
     meta_path = task_dir / "meta.json"
     if not meta_path.is_file():
@@ -808,8 +863,14 @@ def check_task(task_dir: Path, repo: Path | None) -> Report:
         report.bad("meta", "meta.json 不是合法 JSON", str(error))
         return report
 
-    if meta.get("status") == "draft":
+    if meta.get("status") == "draft" and not full:
         return _check_draft(task_dir, meta, report)
+    if meta.get("status") == "draft" and full:
+        report.warn(
+            "草稿",
+            "status=draft，按 --full 强制执行成品级检查",
+            "draft 的默认语义是跳过成品级检查；本报告是强制检查的结果，不代表题目已转正",
+        )
 
     check_layout(task_dir, report)
     check_meta(task_dir, meta, report)
@@ -853,6 +914,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task", default="", help="只检查某一题，如 T1-01")
     parser.add_argument("--repo", default="", help="受测仓库根目录，给了就做交叉核对")
     parser.add_argument("--out", default="", help="把 JSON 报告写到这里")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="对 status=draft 的题目也强制执行成品级检查（默认草稿只查骨架）",
+    )
     args = parser.parse_args(argv)
 
     for stream in (sys.stdout, sys.stderr):
@@ -877,7 +943,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{pack_root} 下没有任务", file=sys.stderr)
         return 2
 
-    reports = [check_task(task_dir, repo) for task_dir in tasks]
+    reports = [check_task(task_dir, repo, full=args.full) for task_dir in tasks]
     payload = {
         "pack": posix(pack_root),
         "repo": posix(repo) if repo else None,

@@ -47,14 +47,6 @@ TIER_ALIASES = {
 }
 
 
-def _pack_root(cfg: dict, repo_id: str | None = None) -> str:
-    """按 repo_id 定位任务包目录；不指定就用 packs/core。"""
-    root = cfg["packs_root"]
-    if repo_id:
-        return os.path.join(root, util.sanitize_id(repo_id))
-    return os.path.join(root, "core")
-
-
 def find_pack(cfg: dict, task_id: str) -> str:
     """在全部分包下找任务目录，返回其绝对路径。"""
     packs_root = cfg["packs_root"]
@@ -299,12 +291,6 @@ def _overlay_layer(meta: dict, hidden_rel: str, hidden_dir: str) -> tuple:
     return "hidden", hidden_dir
 
 
-def load_hidden(meta: dict) -> dict:
-    """读第一条 check 的隐藏测试配置（便捷入口）。"""
-    checks = meta.get("checks") or [{}]
-    return load_hidden_for(meta, checks[0])
-
-
 #: 注入补丁的候选目录（按优先级）。真实题包用 `inject/patches/`（README §6 与出题
 #: 流水线的 inject_edits.py 都写这里），早期 fixture 与设计文档 §8 写的是 `patches/`。
 #: 两个都认，避免"补丁在盘上、代码读不到、于是静默按未注入骨架出题"的假通过。
@@ -345,21 +331,8 @@ def load_inject_plan(meta: dict) -> list:
     return [s for s in steps if isinstance(s, dict)]
 
 
-def load_p2p(meta: dict) -> list:
-    path = os.path.join(meta["pack_dir"], "p2p.json")
-    doc = util.read_json(path, default={}) or {}
-    if isinstance(doc, list):
-        return [str(t) for t in doc]
-    return [str(t) for t in (doc.get("tests") or [])]
-
-
 def allowed_match(rel: str, patterns: list) -> bool:
     """相对路径是否落在 allowed_paths 内（支持 `**`）。"""
-    return util.match_any(rel, patterns)
-
-
-def forbidden_match(rel: str, patterns: list) -> bool:
-    """相对路径是否命中 forbidden_paths。"""
     return util.match_any(rel, patterns)
 
 

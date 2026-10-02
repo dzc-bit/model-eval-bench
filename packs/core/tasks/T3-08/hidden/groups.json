@@ -52,9 +52,10 @@
     {
       "id": "coherence",
       "weight": 2,
-      "port": "合取：记得的只多不少 + 发送体积受控 + 配对完整，在同一组长会话里同时成立",
+      "port": "合取：记得的只多不少 + 发送体积受控 + 配对完整，在同一组长会话里同时成立（渐进顶爆与中断残留两场景）",
       "tests": [
-        "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once"
+        "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
+        "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises"
       ]
     },
     {

@@ -93,6 +93,10 @@ const T = {
   DELETE_TITLE: '删除供应商「{id}」？',
   DELETE_BODY_1: '它下面的 {n} 个模型会一起消失，已粘贴的密钥也会清除。',
   DELETE_BODY_2: '历史记录仍然保留，但记分板会把它当作未知档案。这不能撤销。',
+  DELETE_BODY_2_WITH_RUNS: '它名下有 {n} 条运行记录。默认只删供应商与已存密钥，记录保留（记分板会显示为未知档案）；勾选下方选项后这些记录一并真删。这不能撤销。',
+  DELETE_CASCADE: '连同其下 {n} 条运行记录一起删除（真删，不可恢复）',
+  DELETED_WITH_RUNS: '已删除，连同 {n} 条运行记录。',
+  DELETE_SKIPPED_BUSY: '{n} 条记录正在对话或校验，没有删除。',
   FORM_NEW: '新增供应商',
   FORM_EDIT: '编辑供应商',
   MIGRATED: '旧版按模型平铺的配置已按接口地址合并成供应商，保存后新结构生效。',
@@ -983,24 +987,59 @@ export function createModels(props = {}) {
 
   /**
    * 删除供应商（连同它的模型与密钥）。
+   * 名下有运行记录时给级联勾选项：默认记录保留，勾选后随供应商一起真删。
    * @param {object} p
    */
   async function remove(p) {
     const n = (p.models || []).length;
+    // 先数名下运行记录（与后端 delete_provider 同一口径：限定名前缀 + 老档案 id）。
+    // 数不出来就不弹确认框——删供应商不可恢复，不能凭猜。
+    let runCount = 0;
+    try {
+      const res = await api.get('/runs', { scope });
+      const owned = new Set([String(p.id)]);
+      (p.models || []).forEach((m) => owned.add(String(m.id)));
+      (p.legacy_ids || []).forEach((x) => owned.add(String(x)));
+      const prefix = `${p.id}::`;
+      runCount = ((res && res.runs) || []).filter((r) => {
+        const rm = String(r.model || '');
+        return rm.startsWith(prefix) || owned.has(rm);
+      }).length;
+    } catch (err) {
+      announce(errorTitle(err && err.code ? err.code : 'INTERNAL'), { assertive: true });
+      return;
+    }
+    let cascadeBox = null;
+    const extras = [];
+    if (runCount > 0) {
+      cascadeBox = el('input', { type: 'checkbox', id: 'provider-delete-cascade' });
+      extras.push(el(
+        'label',
+        { class: 'models__cascade', for: 'provider-delete-cascade' },
+        cascadeBox,
+        el('span', {}, t(T.DELETE_CASCADE, { n: runCount })),
+      ));
+    }
     const ok = await confirmDialog({
       title: t(T.DELETE_TITLE, { id: p.display_name || p.id }),
       messages: [
         t(T.DELETE_BODY_1, { n }),
-        T.DELETE_BODY_2,
+        runCount > 0 ? t(T.DELETE_BODY_2_WITH_RUNS, { n: runCount }) : T.DELETE_BODY_2,
       ],
+      extras,
       confirmLabel: S.ACTION_DELETE,
       danger: true,
     });
     if (!ok) return;
     try {
-      await api.del('/providers', { scope, params: { id: p.id } });
+      const params = { id: p.id };
+      if (cascadeBox && cascadeBox.checked) params.with_runs = '1';
+      const res = await api.del('/providers', { scope, params });
       await load();
-      announce(S.MODELS_DELETED);
+      const removed = res && Array.isArray(res.removed_runs) ? res.removed_runs.length : 0;
+      const skipped = res && Array.isArray(res.skipped_busy) ? res.skipped_busy : [];
+      announce(removed > 0 ? t(T.DELETED_WITH_RUNS, { n: removed }) : S.MODELS_DELETED);
+      if (skipped.length) announce(t(T.DELETE_SKIPPED_BUSY, { n: skipped.length }), { assertive: true });
     } catch (err) {
       announce(errorTitle(err && err.code ? err.code : 'INTERNAL'), { assertive: true });
     }

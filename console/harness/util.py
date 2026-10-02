@@ -117,22 +117,6 @@ def is_junction(path: str) -> bool:
         return False
 
 
-def junction_target(path: str) -> str:
-    """读出联接指向的真实目录；不是联接则返回空串。
-
-    os.readlink 在 Windows 上返回 `\\\\?\\` 前缀的规范路径，剥掉再用。
-    """
-    if not is_junction(path):
-        return ""
-    try:
-        target = os.readlink(path)
-    except OSError:
-        return ""
-    if target.startswith("\\\\?\\"):
-        target = target[4:]
-    return norm(target)
-
-
 def remove_junction(path: str) -> bool:
     """单独移除一个目录联接。
 

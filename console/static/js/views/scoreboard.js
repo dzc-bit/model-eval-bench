@@ -19,6 +19,11 @@ import { confirmDialog } from '../components/confirm-dialog.js';
 import { tierBadge } from '../components/badge.js';
 import { percent } from '../core/format.js';
 
+/** 本视图新增文案（strings.js 冻结，新增一律走本地常量）。 */
+const T = {
+  SB_CELL_NEVER_GRADED: '{n} 条记录还没跑过校验',
+};
+
 /**
  * 创建记分板。
  * @param {{navigate?: Function, modelId?: string}} [props]
@@ -185,7 +190,28 @@ export function createScoreboard(props = {}) {
           el('span', { class: 'badge badge--muted' }, t(S.SB_CELL_REVEALED, { n: cell.revealed })),
         );
       }
-      return el('div', { class: 'sb__cell' }, el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA));
+      // trials 分母只计真实跑过的尝试（2026-10-02 口径修复）：格子里有记录但从未
+      // 进入评分流程时，要明说并保留删除出口，不能让这些记录变成看不见删不掉的幽灵。
+      const strayIds = (cell && cell.run_ids) || [];
+      const node = el(
+        'div',
+        { class: 'sb__cell' },
+        el('span', { class: 'u-faint' }, strayIds.length
+          ? t(T.SB_CELL_NEVER_GRADED, { n: strayIds.length })
+          : S.SB_CELL_NO_DATA),
+      );
+      if (strayIds.length) {
+        node.appendChild(
+          createButton({
+            label: S.SB_RUN_DELETE || '删除记录',
+            variant: 'ghost',
+            size: 'sm',
+            ariaLabel: `${S.SB_RUN_DELETE || '删除记录'}：${row.task} × ${modelId}`,
+            onClick: () => deleteCellRuns(row, cell),
+          }).el,
+        );
+      }
+      return node;
     }
     const offband = isOffBand(row, cell);
     const node = el(

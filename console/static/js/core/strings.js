@@ -8,7 +8,7 @@
  *
  * 依赖：无（core 层最底层）。
  * 导出：S（文案表）、ERROR_CODES（错误码映射）、TIER_NAMES、PROTOCOL_NAMES、
- *       t(key, vars)、S_UNKNOWN_ERROR。
+ *       t(key, vars)。
  *
  * 文案风格（§14）：动词开头、短句、不用感叹号、不卖萌；同一动作全站用同一词。
  * 术语表：沙箱、校验、提示词、轮次、组、部分分、记分板、揭晓、基线。
@@ -42,9 +42,6 @@ export function t(keyOrText, vars) {
   const value = typeof byKey === 'string' ? byKey : keyOrText;
   return fill(value, vars);
 }
-
-/** 未知错误码的兜底文案模板，{code} 为后端原始错误码。 */
-export const S_UNKNOWN_ERROR = '操作未完成（错误码 {code}）。请稍后重试；若反复出现，请查看帮助页的排障说明。';
 
 export const S = {
   // ==================== 应用与导航 ====================
@@ -451,7 +448,7 @@ export const S = {
   SB_PROFILE_DESC: '一次只看一个模型的成绩。',
   SB_PROFILE_EMPTY: '还没有模型档案',
   SB_PROFILE_EMPTY_DESC: '先到模型档案页加一个档案。',
-  SB_PROFILE_TRIALS: '{pass} 次通过 / {trials} 轮',
+  SB_PROFILE_TRIALS: '{pass} 次通过 / {trials} 次尝试',
   SB_PROFILE_RATE: '通过率 {rate}',
   SB_PROFILE_AVG: '平均分 {score}',
   SB_TOOLBAR_EXPORT: '导出 CSV',
@@ -461,15 +458,15 @@ export const S = {
   SB_CELL_PASS: '一次通过',
   SB_CELL_NO_PASS: '未通过',
   SB_CELL_TRIES: '{n} 次通过',
-  SB_CELL_TRIES_TOTAL: '共 {n} 轮',
+  SB_CELL_TRIES_TOTAL: '共 {n} 次尝试',
   SB_CELL_WILSON: '区间 {low}~{high}',
-  SB_CELL_REVEALED: '{n} 轮已揭晓',
+  SB_CELL_REVEALED: '{n} 次尝试已揭晓',
   SB_CELL_NO_DATA: '—',
   SB_TOTAL_LABEL: '当前档案合计',
   SB_OFFBAND: '偏离目标带',
   SB_OFFBAND_DESC: '真实通过率落在目标带 {low}~{high} 之外，可以考虑加码或降档（§6.4）。',
   SB_LEGEND_PASS: '一次通过记 pass@1',
-  SB_LEGEND_REVEAL: '揭晓轮不计入统计',
+  SB_LEGEND_REVEAL: '已揭晓的尝试不计入统计',
   SB_EXPORT_DONE: '记分板已导出为 CSV。',
   SB_LOADING_DESC: '正在汇总当前档案的成绩。',
   LIB_CARD_LEADERBOARD: '查看排行榜',
@@ -608,7 +605,7 @@ export const S = {
   HELP_STEP_3: '点「发送当前提示词」，把接线说明和第 1 级提示词直接交给工作台内置对话。',
   HELP_STEP_4: '模型通过受限工具在当前沙箱里改代码。改完点「运行校验」。',
   HELP_STEP_5: '看分组结果：全绿记 pass@1；有红但还有轮次就点「进入下一轮」；轮次用尽才看参考解。',
-  HELP_STEP_6: '换个模型重来时，点「清空改动」——沙箱回到基线，成绩保留。',
+  HELP_STEP_6: '想让模型重写一遍，点「清空改动」：沙箱回到基线，本轮成绩作废（证据归档保留，不计入通过率）。想换模型，在状态栏换档案就是全新一轮。',
   HELP_SANDBOX_TITLE: '沙箱到底是什么',
   HELP_SANDBOX_DESC: '沙箱 = 受测仓库的一份拷贝，经过脱敏（删文档里点名答案的段落、隐藏守卫测试），放在 sandbox_root 下的普通文件夹里。沙箱里 git 只有一个基线提交，没有历史可查。',
   HELP_SANDBOX_WHY_1: '模型改不动测试：校验不在沙箱里跑，而是拼一棵「评分树」，用仓库的原始测试文件加隐藏测试。',
@@ -689,13 +686,13 @@ export const S = {
   CONFIRM_DEFAULT_OK: '确定',
   CONFIRM_RESET_TITLE: '清空沙箱改动？',
   CONFIRM_RESET_BODY_1: '沙箱会回到基线状态：模型写的代码、删掉的文件都会被丢弃。',
-  CONFIRM_RESET_BODY_2: '评测记录不会被删除 —— 报告、diff、得分、备注全部保留。',
-  CONFIRM_RESET_BODY_3: '这不能撤销。清空后可以换模型，从第 1 级提示词重新开始。',
-  CONFIRM_RESET_DONE: '沙箱已清空，模型的工作被丢弃，评测记录保留。可以换模型，从第 1 级提示词重新开始。',
-  CONFIRM_RESET_DONE_HINT: '只重置沙箱，不动任何评测记录：记分板里这一轮的成绩原样保留。想让另一个模型试同一道题，就在下面的「本轮信息」区换档案，再点一次「准备沙箱」。',
+  CONFIRM_RESET_BODY_2: '本轮成绩会作废并归档：报告、diff、对话、备注都留着复盘，但不再计入通过率与记分板。',
+  CONFIRM_RESET_BODY_3: '这不能撤销。清空后从第 1 级提示词重新开始。',
+  CONFIRM_RESET_DONE: '沙箱已清空，模型的工作被丢弃，本轮成绩作废并归档。可以从第 1 级提示词重新开始。',
+  CONFIRM_RESET_DONE_HINT: '只重置沙箱，不删评测记录：本轮成绩不再计入记分板。想让另一个模型试同一道题，在状态栏的档案下拉里换一个，再点「准备沙箱」。',
   CONFIRM_REBUILD_TITLE: '重建沙箱？',
   CONFIRM_REBUILD_BODY_1: '会删掉当前沙箱整棵目录，重新从仓库快照生成一份普通文件夹工作区。',
-  CONFIRM_REBUILD_BODY_2: '模型这一轮写在沙箱里的所有内容都会丢失；评测记录、沙箱日志、报告都保留。',
+  CONFIRM_REBUILD_BODY_2: '模型这一轮写在沙箱里的所有内容都会丢失；已有成绩作废并归档，评测记录、沙箱日志、报告都保留。',
   CONFIRM_REBUILD_BODY_3: '通常一秒内完成。如果只是想让模型重写一遍，用「清空改动」就够了，不必重建。',
   CONFIRM_REBUILD_DONE: '沙箱已重建，可以把提示词再给模型一次。',
   CONFIRM_RESET_BUSY: '正在清空改动',

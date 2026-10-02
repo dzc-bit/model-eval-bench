@@ -14,7 +14,8 @@
 - 后端（纯标准库，无框架）：`console/harness/{runs,grade,chat,packs,sandbox,config,calibrate,server}.py`，
   检查器在 `console/harness/checks/{pytest,vitest}.py`，工具自检 `console/harness/selfcheck.py`。
 - 前端：原生 ES module，入口 `console/static/js/main.js`，视图 `console/static/js/views/**`，
-  工作台按面板拆成 `views/workspace/{chat,sandbox,grade,prompt,run}-panel.js`；样式令牌在 `static/css/tokens.css`。
+  工作台 = `views/workspace.js`（编排）+ `views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js`；
+  样式令牌在 `static/css/tokens.css`。
 - 设计文档 `设计文档.md` 是规则源，用户手册 `README.md`，出题纪律 `packs/core/README.md`。
   三处与代码冲突时，先判"是实现错还是规则源过期"，两边都可能要改。
 
@@ -55,7 +56,8 @@
 - `runs/_quarantine/` 只剩改造前的旧归档，新删除不再往里写任何东西。
 
 `DELETE /api/models?id=…&with_runs=1` 才会级联删名下记录；不带 `with_runs` 时记录保留并
-在 `skipped_busy` 里说明哪些因为正在对话没删掉。
+在 `skipped_busy` 里说明哪些因为正在对话没删掉。模型档案页的删除确认框已带「连同其下运行
+记录一起删除」勾选项（默认不勾，确认前列出名下记录数，2026-10-02 落地）。
 
 **幽灵列的成因**：记分板的列 = `config.json` 里的档案 ∪ 记录目录里出现过的档案名。
 所以"档案不存在了但列还在"= 有记录没有档案；"档案在但列空"= 有档案没有记录。
@@ -68,6 +70,9 @@
   tooltip 里说清墙钟含挂机与思考。
 - 记分板与排行榜必须同口径：`voided` / `invalidated` 轮既不计通过也不进均分。历史上两套视图
   给过互相矛盾的结论，别再分叉。
+- 记分板 `trials` 分母 = **真实跑过的尝试数**：建了记录但从未进入评分流程、或所有轮次都被
+  作废/判无效的 run 不进分母（2026-10-02 修复，见 `runs._counted_rounds`）；均分 = 每条 run
+  只贡献一个代表分（其作数轮的最高分）在作数尝试上的均值，同一档案多次尝试各算一次。
 - 检查器**没真正跑起来**（找不到 node、找不到 vitest、报告解析失败、零用例）一律
   `CheckResult.executed = False` → 记 `run_error` 并中断，绝不给 0 分冒充"跑过了"；
   组权重全零同样是 fail-closed，不发满分。
@@ -82,6 +87,16 @@
 - 回基线（重建沙箱）必须作废旧成绩，旧错误列表必须跟着消失。
 - 只有网络调用进 `try`：删除已经落盘成功，收尾步骤出岔子不能报成「删除失败」。
 - 地址栏是书签：记录被删后要把 `run_id` 段摘掉，否则刷新生成的是指向空记录的空书签。
+
+## 工作台形态（2026-10-02 对话流改版）
+
+工作台是单列对话流：顶部一条粘性状态栏（任务 · 档位 · 轮次 · 档案下拉 · 状态一句话），
+主轴依次是「任务与提示词」折叠节点 → 消息流（思考默认折叠成一行；工具调用是默认折叠的
+紧凑卡，展开看每次调用的入参/返回）→ 校验结果内联节点 → 运行详情 / 本轮备注折叠节点；
+底部粘性区 = 操作栏（**每时刻一个主按钮** + 显式「结束本轮并回收沙箱」 + ⋯ 更多操作菜单，
+菜单项常列、禁用项写原因）+ 输入区。编排层在 `views/workspace.js`，节点实现按
+`views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js` 拆分；
+区域锚点 `#ws-region-{prompt,chat,sandbox,grade,run}` 是书签契约，改名要同步路由。
 
 两个真实踩过的 JS 坑，写代码时先想起来：
 
@@ -115,10 +130,9 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
 
 这些已经报过，等他点头再动：
 
-- 档案删除的 UI 目前不传 `with_runs`，所以级联删记录这条码路只有 API 能走到。
-- 记分板 `trials` 分母含"建了记录但从未跑"的轮；平均分在同档案多次尝试上是否重复计入。
 - 批次视图不渲染 `started_at` / `finished_at`；跑批与工作台对"同一组合"的措辞还没统一。
-- `T4-11` 的隐藏前端用例与 `T3-09` 完全相同；前端题的 node-ID 前缀约定还没定稿。
-- `packgate.py` 仍留 private 兜底；`selfgrade.py` 不认识 vitest，前端题自校会假绿。
-- `T2-05` 还是 `draft`：`allowed_paths` 只有 2 个文件、`coherence` 组只有 1 条断言。
+- `packgate.py` 的补丁应用仍借用 `selfgrade.apply_patch`，与 harness 自带的 `_apply_unified`
+  是两份实现（2026-10-02 复核：`selfgrade.py` 不认识 vitest 一条已修——声明了非 pytest 检查的题
+  现在 fail-closed；T4-11 与 T3-09 用例重复、node-ID 前缀约定两条也已随题库修复定稿，
+  前缀约定见 `packs/core/README.md` 步骤 3）。
 - 真实外部服务商调用仍未验证（本机没有有效密钥）；难度校准本轮明确不执行。

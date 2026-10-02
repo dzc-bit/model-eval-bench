@@ -121,7 +121,7 @@
     {
       "id": "T2-05",
       "tier": "medium",
-      "status": "draft",
+      "status": "active",
       "attempts": 2,
       "title": "同一批数据反复起 worker；偶发 409 后再也起不来",
       "target_band": [
@@ -143,7 +143,7 @@
         "partial": 33.33,
         "injected_x20": "stable 0.0"
       },
-      "packcheck_red": 2
+      "packcheck_red": 0
     },
     {
       "id": "T2-06",
@@ -201,7 +201,7 @@
     {
       "id": "T3-08",
       "tier": "hard",
-      "status": "draft",
+      "status": "active",
       "attempts": 3,
       "title": "长对话的两难：存不住，删不掉，预算不干活",
       "target_band": [
@@ -224,7 +224,7 @@
         "partial": 14.29,
         "injected_x20": "stable 0.0"
       },
-      "packcheck_red": 2
+      "packcheck_red": 0
     },
     {
       "id": "T3-09",

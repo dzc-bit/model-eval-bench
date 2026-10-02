@@ -1,5 +1,6 @@
 /**
- * prompt-panel.js — 工作台「任务与提示词」折叠卡（2026-10-01 改版）
+ * task-node.js — 对话流顶部的「任务与提示词」折叠节点（2026-10-02 对话流改版；
+ * 由旧 prompt-panel 迁移而来，从侧栏卡片变成对话流的第一个节点）
  *
  * 职责：
  *   1. 题目一段话简介：默认 3 行截断 + [展开]。
@@ -12,9 +13,10 @@
  *   - 正文展开/收起与简介展开状态不被轮询覆盖，只在换轮时把正文收回默认（收起）。
  *   - 复制内容与当前轮次严格对应：切轮次后旧的「已复制」态作废。
  *   - 内置对话只发提示词正文（工作区约束由服务端注入）；「复制」才是导出全量的路径。
+ *   - 默认开合由编排层控制（没跑起来的一轮默认展开），用户手动开合不被轮询覆盖。
  *
  * 依赖：core/*、components/*
- * 导出：createPromptPanel(handlers) → { el, update, destroy, setOpen, copyPrompt, getPrompt }
+ * 导出：createTaskNode(handlers) → { el, update, destroy, setOpen, copyPrompt, getPrompt }
  */
 
 import { el, setText, clear } from '../../core/dom.js';
@@ -27,37 +29,45 @@ import { createSkeleton } from '../../components/skeleton.js';
 import { createButton } from '../../components/button.js';
 import { createDetailsCard } from '../../components/details-card.js';
 
-/** 本轮改版新增文案（strings.js 冻结，新增一律走本地常量）。 */
+/** 本节点新增文案（strings.js 冻结，新增一律走本地常量）。 */
 const T = {
   CARD_TITLE: '任务与提示词',
-  // 说明行：说清"这一步你要做什么"（规格 §2.1）
-  DESC: '题目背景与分级提示词。不知道从哪下手就用第 1 级。',
   SEND_TO_CHAT: '发送到对话',
   EXPAND_BODY: '展开查看',
   COLLAPSE_BODY: '收起正文',
-  // 卡头摘要：只有动态事实（第几级 + 多少字），不复述卡内的提示词小标题。
-  ASIDE_LEVEL: '第 {n} 级 · {chars} 字',
   CHARS: '· {n} 字',
   EXTERNAL_HINT: '复制提示词，到模型官网的对话里粘贴使用；回来后把改动同步进沙箱即可。',
   NO_PROMPT: '这一轮还没有可用的提示词。',
-  NO_SANDBOX_ASIDE: '还没有沙箱',
+  NO_RUN_ASIDE: '还没有沙箱',
+  SEND_NO_PROMPT: '这一轮还没有可用的提示词。',
+  SEND_NO_SANDBOX: '先准备沙箱，再把提示词发给模型。',
+  SEND_BUSY: '模型仍在处理上一条消息。',
+  SEND_GONE: '这一轮绑定的模型档案已被删除。',
   // ponytail: 是否需要「展开」用字数估算（90 字 ≈ 3 行 × 30 字），没做 DOM 测量；
   // 要更准可在 rAF 后比较 scrollHeight 与 clientHeight。
   BRIEF_CLAMP_CHARS: 90,
 };
 
 /**
- * 创建「任务与提示词」卡。
+ * 创建「任务与提示词」节点。
  * @param {{
  *   onRoundChange: (n: number) => void,
- *   onGoSandbox: () => void,
- *   onSendToChat: () => void,
- *   onReload: () => void
+ *   onSendPrompt: (text: string) => void,
+ *   onReload: () => void,
  * }} handlers
  * @returns {{el: HTMLElement, update: Function, destroy: Function, setOpen: Function, copyPrompt: Function, getPrompt: Function}}
  */
-export function createPromptPanel(handlers) {
-  let current = { loading: true, run: null, task: null, round: 1, error: null };
+export function createTaskNode(handlers) {
+  let current = {
+    loading: true,
+    run: null,
+    task: null,
+    round: 1,
+    error: null,
+    /** 发送是否可用与原因（对话在飞 / 档案已删 / 没有沙箱），由编排层算好。 */
+    sendDisabled: true,
+    sendReason: '',
+  };
   /** 上一次渲染的轮次：换轮时提示词正文收回收起态，旧的「已复制」态作废。 */
   let lastRound = 1;
   /** 提示词正文是否展开（用户的选择，轮询不覆盖）。 */
@@ -105,7 +115,7 @@ export function createPromptPanel(handlers) {
     label: T.SEND_TO_CHAT,
     size: 'sm',
     disabled: true,
-    onClick: () => handlers.onSendToChat(),
+    onClick: () => handlers.onSendPrompt(bodyText()),
   });
   const bodyToggle = createButton({
     label: T.EXPAND_BODY,
@@ -174,36 +184,21 @@ export function createPromptPanel(handlers) {
     ),
   });
 
-  // ---- 卡片骨架：details/summary，卡头即折叠开关 ----
-  // 卡头（规格 §3.4）第 1 行 = 标题 …… 第 n 级 · 953 字 ›，
-  //                 第 2 行 = 说明行（整行铺开，收起时也读得到这张卡在做什么）。
-  const title = el('h2', { class: 'ws-card__title' }, T.CARD_TITLE);
-  const cardAside = el('span', { class: 'ws-card__aside u-faint u-truncate' });
-  const chevron = el('span', { class: 'ws-card__chevron', 'aria-hidden': 'true' }, '›');
-  const cardBody = el('div', { class: 'ws-card__body' });
+  // ---- 节点骨架：details/summary，卡头即折叠开关 ----
+  const cardAside = el('span', { class: 'ws-node__aside u-faint u-truncate' });
+  const chevron = el('span', { class: 'ws-node__chevron', 'aria-hidden': 'true' }, '›');
+  const cardBody = el('div', { class: 'ws-node__body' });
   const root = el(
     'details',
-    { class: 'ws-card ws-region', id: 'ws-region-prompt' },
-    el(
-      'summary',
-      { class: 'ws-card__summary' },
-      title,
+    { class: 'ws-node ws-tasknode ws-region', id: 'ws-region-prompt' },
+    el('summary', { class: 'ws-node__summary' },
+      el('span', { class: 'ws-node__title' }, T.CARD_TITLE),
       el('span', { class: 'u-spacer' }),
       cardAside,
-      chevron,
-      el('p', { class: 'ws-card__desc' }, T.DESC),
-    ),
+      chevron),
     cardBody,
   );
 
-  const emptyState = createEmptyState({
-    title: S.PROMPT_EMPTY,
-    desc: S.PROMPT_EMPTY_DESC,
-    // 这颗按钮只负责跳到沙箱区，不准备任何东西：标签必须和沙箱区那颗
-    // 真「准备沙箱」区分开，否则点了以后界面毫无反应。样式保持幽灵态——
-    // 全页的实心强调留给沙箱卡里真正的「准备沙箱」。
-    actions: [createButton({ label: S.PROMPT_GO_SANDBOX, variant: 'ghost', onClick: () => handlers.onGoSandbox() }).el],
-  });
   const skeleton = createSkeleton({ rows: 2, variant: 'card', label: S.STATE_LOADING });
   const errorState = createEmptyState({
     title: S.ERR_LOAD,
@@ -293,20 +288,16 @@ export function createPromptPanel(handlers) {
       externalCopyBtn.update({ getText: composeAll });
     }
 
-    // 卡头摘要（收起时也读得到）：只放**动态事实** —— 当前第几级、多少字。
-    // 不再重复"第 n 级提示词（症状级）"这个本卡内小标题（那属于卡内 .ws-prompt-row__title），
-    // 同一句话在卡头与卡身各说一遍正是用户说的"信息重复"（规格 §2.2）。
-    if (current.error) setText(cardAside, '');
-    else if (current.loading) setText(cardAside, '');
-    else if (!current.run || !current.task) setText(cardAside, T.NO_SANDBOX_ASIDE);
-    else {
-      const text = bodyText();
-      setText(cardAside, text ? t(T.ASIDE_LEVEL, { n: current.round, chars: text.length }) : T.NO_PROMPT);
-    }
+    // 卡头摘要行：收起时也能读到当前轮与字数
+    const text = bodyText();
+    if (current.error) setText(cardAside, S.ERR_LOAD);
+    else if (current.loading) setText(cardAside, S.STATE_LOADING);
+    else if (!current.task) setText(cardAside, '');
+    else setText(cardAside, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_RUN_ASIDE);
 
     clear(cardBody);
     if (current.error) {
-      // 错误不能藏在收起的卡里
+      // 错误不能藏在收起的节点里
       root.open = true;
       errorState.update({});
       cardBody.appendChild(errorState.el);
@@ -316,21 +307,18 @@ export function createPromptPanel(handlers) {
       cardBody.appendChild(skeleton.el);
       return;
     }
-    if (!current.run || !current.task) {
-      emptyState.update({});
-      cardBody.appendChild(emptyState.el);
-      return;
-    }
 
     renderBrief();
     cardBody.appendChild(briefWrap);
     tabs.update({ tabs: tabDefs(), selected: String(current.round), label: S.PROMPT_ROUND_TAB });
     cardBody.appendChild(tabs.el);
 
-    const text = bodyText();
     setText(promptTitle, text ? `${levelTitle(current.round)} ${t(T.CHARS, { n: text.length })}` : T.NO_PROMPT);
     // 禁用必须带原因：只把按钮变灰，用户读到的是「这个按钮坏了」
-    sendBtn.update({ disabled: !text, reason: text ? '' : T.NO_PROMPT });
+    sendBtn.update({
+      disabled: !text || Boolean(current.sendDisabled),
+      reason: !text ? T.SEND_NO_PROMPT : current.sendReason || '',
+    });
     renderPromptBody();
     cardBody.appendChild(promptRow);
     cardBody.appendChild(promptBody);
@@ -346,7 +334,7 @@ export function createPromptPanel(handlers) {
   return {
     el: root,
     update,
-    /** 展开/收起卡片（焦点跳转前先展开，别把人滚到一张关着的卡上）。 */
+    /** 展开/收起节点（焦点跳转前先展开，别把人滚到一个关着的节点上）。 */
     setOpen(open) {
       root.open = Boolean(open);
     },
@@ -364,7 +352,6 @@ export function createPromptPanel(handlers) {
       briefBtn.destroy();
       sendBtn.destroy();
       bodyToggle.destroy();
-      emptyState.destroy();
       errorState.destroy();
       skeleton.destroy();
     },

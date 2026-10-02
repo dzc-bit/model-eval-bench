@@ -22,7 +22,7 @@
  */
 
 import { el, clear, setText } from '../core/dom.js';
-import { S } from '../core/strings.js';
+import { S, TIER_NAMES } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { announce } from '../core/a11y.js';
 import { createButton } from '../components/button.js';
@@ -307,8 +307,10 @@ export function createBatch(props = {}) {
     clear(taskListEl);
     clear(modelListEl);
     tasks.forEach((task) => {
+      // 档位走全站术语表（初级/中级/高级/王者），不把后端枚举值直接甩给用户
+      const tierName = (TIER_NAMES[task.tier] || {}).label || task.tier || '';
       taskListEl.appendChild(pickRow(
-        { id: task.id, label: task.title || '', sub: task.tier || '' }, selectedTasks));
+        { id: task.id, label: task.title || '', sub: tierName }, selectedTasks));
     });
     models.forEach((model) => {
       modelListEl.appendChild(pickRow(

@@ -65,6 +65,12 @@ packs/core/
    而不是"叫什么"。否则评分考的是猜锚解的命名，不是设计与修复。
    判别力不受影响的判断方法：注入态的产物里也不得出现那个信息（如 409 的在途任务编号，
    基线文案只报数量不报编号，则"编号可查"仍然是红）。
+7. 隐藏用例**可以触达仓库既有的私有结构**（`_admit` 这类下划线方法/属性），前提是
+   该结构在注入态与基线态就存在、且仓库自己的可见测试也是这个风格——这断言的是
+   "既有协议的行为"，不是"锚解的命名"。代价要自知：这事实上把"保留现有内部结构"
+   变成了隐含要求，模型重写内部实现但行为全对也会判红。**中级及以下可接受；
+   高级/王者题应优先走公开出口与跨出口一致性断言**，只有协议本体（如配对、生命周期）
+   没有公开出口时才允许触达私有结构，并须在 notes.md 里写明这个取舍。
 
 ---
 
@@ -115,6 +121,13 @@ packs/core/
   只断言"多出口对同一事实口径一致"；`p2p` 组 `weight: 0, mode: regression`。
 - 附录 B 的四出口结构是缺口一致性题的参照（coverage / per_symbol / sync_pool
   / flow / coherence / p2p）。
+- **用例 ID 前缀约定（2026-10-02 定稿）**：`tests` 字段里两种写法都合法——
+  `tests_hidden/x.py::t`（相对 hidden/ 层，历史规范形态）与
+  `hidden/tests_hidden/x.py::t`（相对评分树根）。harness 的
+  `packs.py:_qualify_node_id` 会把第一种补成第二种；`selfgrade.py` 选文件时
+  会把第二种剥回第一种。**新题统一写 `hidden/tests_hidden/…` 形态**（与评分树
+  实际布局一致，引擎内零改写），存量题两种混用不改、不重跑门禁。vitest 侧
+  同理：`tests_hidden_fe/x.test.ts::标题` 会被补成 `src/tests_hidden_fe/…`。
 
 ### 步骤 4 · p2p 白名单
 
@@ -161,11 +174,14 @@ p2p 断裂 → 本轮作废 0 分，所以宁缺毋滥。
 ### 步骤 7 · 门禁自验（§5.3，输出进 calibration/）
 
 ```
-cd packs/core/tools
+cd packs\core\tools
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state fixed   --timeout 900 --out ..\tasks\T1-01\calibration\gate_fixed.json
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state partial --timeout 900 --out ..\tasks\T1-01\calibration\gate_partial.json
 python selfgrade.py --task T1-01 --repo "D:\New project 6" --state injected --repeat 20 --timeout 900 --out ..\tasks\T1-01\calibration\gate_injected_x20.json
 ```
+
+（selfgrade 只懂 pytest；含 vitest 检查的前端题/组合题会 fail-closed，
+这类题一律用 `runs/blind/tools/packgate.py` 跑同样的三态。）
 
 入库门槛：
 
@@ -174,7 +190,14 @@ python selfgrade.py --task T1-01 --repo "D:\New project 6" --state injected --re
 | 锚解 fixed | 100/100；目标组全绿；不触碰 forbidden_paths；p2p 全绿 |
 | 半成品 partial | < 100（只修一个端口必然不满分） |
 | 注入态 ×20 | 全部 0 分、目标组全红、稳定不 flaky、p2p 零断裂 |
-| 基线 | p2p 白名单在未注入快照上全绿（p2p 的定义即来自这一步） |
+| 基线 baseline | p2p 白名单在未注入快照上全绿（p2p 的定义即来自这一步） |
+
+**baseline 门禁是每题的标准产物（2026-10-02 起，推荐项）**：除三态外再留一份
+`calibration/gate_baseline.json`（`--state baseline`，1 次即可）。用途是把
+「基线态就红的目标组」变成显式数据——锚解里凡是"修复基线就已存在的缺陷"
+（而非恢复注入退化）的部分，会在 baseline 上以红组显形，必须在 notes.md 里
+逐条披露（先例：T1-01 §5.1、T3-08 §二、T3-09 §八、T4-11 §七）。
+存量题不强制补跑；新题与重跑门禁的旧题一律留档。
 
 ### 步骤 8 · 入库
 

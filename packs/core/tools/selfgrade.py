@@ -377,6 +377,23 @@ def main(argv: list[str] | None = None) -> int:
     meta = json.loads((task_dir / "meta.json").read_text(encoding="utf-8"))
     repo = Path(args.repo)
 
+    # fail-closed：selfgrade 只懂 pytest。题目声明了 vitest 检查（slim-py+fe 快照）
+    # 时，本脚本拼不出前端评分树，硬跑只会漏掉前端分组、给出虚高的"假绿"分数。
+    # 这类题目一律改用 runs/blind/tools/packgate.py（与生产 harness 同语义）。
+    kinds = {
+        str(check.get("kind") or "pytest").lower()
+        for check in (meta.get("checks") or [{"kind": "pytest"}])
+    }
+    unsupported = sorted(kinds - {"pytest"})
+    if unsupported:
+        print(
+            f"[{args.task}] selfgrade 只支持 pytest 检查；本题声明了 "
+            f"{', '.join(unsupported)}。请改用 runs/blind/tools/packgate.py 跑门禁，"
+            "不要用本脚本的分数作为入库证据。",
+            file=sys.stderr,
+        )
+        return 2
+
     extra = Path(args.patch) if args.patch else None
     patches = resolve_state_patches(task_dir, meta, args.state, extra)
 
@@ -392,7 +409,12 @@ def main(argv: list[str] | None = None) -> int:
     for group in groups_spec["groups"]:
         node_ids.extend(group.get("tests", []))
     node_ids.extend(p2p_spec.get("tests", []))
-    files = sorted({node.split("::", 1)[0] for node in node_ids})
+    # 用例 ID 两种写法都合法（packs/core/README §七）：`tests_hidden/x.py::t`（相对
+    # hidden/ 层，规范形态）与 `hidden/tests_hidden/x.py::t`（相对评分树根，harness
+    # 的 _qualify_node_id 会归一成它）。本脚本的评分树把隐藏测试直接铺在树根的
+    # tests_hidden/ 下，所以选文件时要把 `hidden/` 前缀剥掉；对答案的匹配仍由
+    # _match_outcome 的尾名兜底，两种写法都收得到。
+    files = sorted({_strip_hidden_prefix(node.split("::", 1)[0]) for node in node_ids})
 
     runs = []
     for attempt in range(1, args.repeat + 1):
@@ -432,6 +454,12 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.out).write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[{args.task}/{args.state}] 结果已写入 {args.out}")
     return 0
+
+
+def _strip_hidden_prefix(rel: str) -> str:
+    """剥掉用例 ID 文件部分的 ``hidden/`` 前缀（本脚本树里隐藏层铺在树根）。"""
+    normalized = rel.replace("\\", "/")
+    return normalized[len("hidden/"):] if normalized.startswith("hidden/") else normalized
 
 
 def _forbidden_matches(forbidden: list[str], touched: list[str]) -> set[str]:

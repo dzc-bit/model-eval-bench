@@ -108,6 +108,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -219,6 +224,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -330,6 +340,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -441,6 +456,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -552,6 +572,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -663,6 +688,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -774,6 +804,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -885,6 +920,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -996,6 +1036,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1107,6 +1152,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1218,6 +1268,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1329,6 +1384,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1440,6 +1500,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1551,6 +1616,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1662,6 +1732,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1773,6 +1848,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1884,6 +1964,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -1995,6 +2080,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -2106,6 +2196,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -2217,6 +2312,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "failed",
               "message": "AssertionError: MARK-R1 从会话里凭空消失了\nassert 'MARK-R1' in '第 2 轮问题 MARK-Q2\\n\\n查询结果 MARK-R2 数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数数...话历史：\\nuser: 第 1 轮问题 MARK-Q1\\nassistant:  probe_tool\\nassistant: 第一轮结论 MARK-A1 论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论论'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "failed",
+              "message": "AssertionError: 悬空调用未先补齐就发出了请求：['第 2 条 user 消息打断了未配对的调用']\nassert ['第 2 条 user 消息打断了未配对的调用'] == []\n  \n  Left contains one more item: '第 2 条 user 消息打断了未配对的调用'\n  Use -v to get more diff"
             }
           ]
         }
@@ -2230,5 +2330,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T01:37:22"
+  "finished_at": "2026-10-02T02:10:19"
 }

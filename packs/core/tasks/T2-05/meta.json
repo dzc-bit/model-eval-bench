@@ -11,6 +11,7 @@
   },
   "allowed_paths": [
     "backend/astock_backtester/data/sync.py",
+    "backend/astock_backtester/data/operations.py",
     "backend/astock_backtester/service.py"
   ],
   "forbidden_paths": [

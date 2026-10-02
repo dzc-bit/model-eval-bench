@@ -1,26 +1,30 @@
 /**
- * workspace.js — 工作台视图（2026-10-01 信息架构改版）
+ * workspace.js — 工作台编排层（2026-10-02 对话流改版）
  *
- * 目标结构（specs/ui-revamp-2026-10-01.md §一）：
- *   [题头条]  任务编号+标题 · 档位徽标 · 第 n 轮/共 m 次 · 沙箱状态一句话
- *             右侧 [查看改动]——路径/哈希/运行编号一律不进题头。
- *   [步骤条]  ① 对话改代码 → ② 运行校验 → ③ 结果与下一轮；当前步高亮、完成打勾，
- *             点击滚动到对应卡片（取代旧「跳转到」分段控件）。
- *   [两栏]    主栏 = 内置对话卡（模型档案下拉在卡头）；侧栏 = 任务与提示词 / 沙箱 /
- *             校验 / 本轮备注 四张折叠卡。
+ * 目标形态（对话流为主轴）：
+ *   [状态栏]   一条细的常驻栏：任务编号+标题 · 档位徽标 · 第 n 轮/共 m 次 ·
+ *              模型档案下拉 · 运行状态一句话。路径/哈希/运行编号一律不进状态栏。
+ *   [改动正文] 菜单「查看改动」弹出的内联区（按需拉取，不轮询）。
+ *   [对话流]   页面主轴：任务与提示词节点 → 用户/模型消息 → 工具调用紧凑行 →
+ *              校验结果条（轻量一行，完整报告在「校验报告」独立窗口）→
+ *              运行详情 / 本轮备注（折叠节点）。
+ *   [底部]     操作栏（每时刻一个主按钮 + 显式「结束本轮并回收沙箱」 + ⋯ 更多操作）
+ *              + 对话输入区。
  *
- * 职责：
- *   1. 编排全部后端动作：准备 / 清空 / 重建 / 校验 / 下一轮 / 揭晓 / 导出 / 备注 / 看改动。
- *   2. 轮询只 patch 变化的 region；页面隐藏自动暂停（core/poller）。
- *   3. 快捷键 C / G / R / 1 / 2 / 3（? 与 Esc 属于全局，在 main.js）。
- *   4. 状态持久化：上次查看轮次、每任务的 run_id 与滚动位置（§13.5）。
- *   5. 校验完成的结果提醒：toast + 展开校验卡；焦点在输入框里时不抢焦点。
+ * 职责（编排，不写展示细节）：
+ *   1. 全部后端动作：准备 / 清空 / 重建 / 校验 / 下一轮 / 揭晓 / 作废 / 回收 / 废弃 /
+ *      导出 / 备注 / 看改动。
+ *   2. 状态机 → dock：每个时刻算出一个主按钮与全量次级菜单（菜单项常列，不可用的
+ *      禁用并把原因写在项里——出口不许条件隐藏）。
+ *   3. 轮询只 patch 变化的区域；页面隐藏自动暂停（core/poller）。
+ *   4. 快捷键 C / G / R / 1 / 2 / 3（? 与 Esc 属于全局，在 main.js）。
+ *   5. 状态持久化：上次查看轮次、每任务×档案的 run_id、任务节点开合与滚动位置。
  *
  * 生命周期（§10.4）：createWorkspace(props) → { el, destroy, focusRegion, ... }
  *
  * ── 契约要点（对照 console/server.py 与 harness/runs.py）────────────────
  *   POST /api/runs                     同步，阻塞到沙箱铺好为止 → 用 api.longPost
- *   GET  /api/runs/{id}                run_view：sandbox/drive/baseline_digest 都是字符串
+ *   GET  /api/runs/{id}                run_view：sandbox/baseline_digest 都是字符串
  *   POST /api/runs/{id}/grade          异步，立刻返回 {status:'grading'} → 靠轮询看结果
  *   POST /api/runs/{id}/promote        {run_id, attempt, can_promote}
  *   POST /api/runs/{id}/reveal         {run_id, patch, notice}
@@ -31,7 +35,7 @@
  * ──────────────────────────────────────────────────────────────────────
  */
 
-import { el, setText, on, clear } from '../core/dom.js';
+import { el, setText, on } from '../core/dom.js';
 import { S, t } from '../core/strings.js';
 import { api, ApiError, errorTitle, errorBody } from '../core/api.js';
 import { createPoller } from '../core/poller.js';
@@ -50,11 +54,14 @@ import { confirmDialog } from '../components/confirm-dialog.js';
 import { showToast } from '../components/toast.js';
 import { createButton } from '../components/button.js';
 import { createDetailsCard } from '../components/details-card.js';
-import { createPromptPanel } from './workspace/prompt-panel.js';
-import { createChatPanel } from './workspace/chat-panel.js';
-import { createSandboxPanel } from './workspace/sandbox-panel.js';
-import { createGradePanel } from './workspace/grade-panel.js';
-import { createRunBar } from './workspace/run-bar.js';
+import { createField } from '../components/field.js';
+import { createStatusDot } from '../components/status-dot.js';
+import { createTaskNode } from './workspace/task-node.js';
+import { createChatStream } from './workspace/chat-stream.js';
+import { createReportNode } from './workspace/report-node.js';
+import { openReportModal } from './workspace/report-modal.js';
+import { createRunDetails } from './workspace/run-details.js';
+import { createDock } from './workspace/dock.js';
 
 /**
  * 服务端「还在忙」的运行状态：只有这些状态才轮询（§13.6）。
@@ -62,15 +69,8 @@ import { createRunBar } from './workspace/run-bar.js';
  */
 const BUSY_STATUS = new Set(['preparing', 'grading', 'queued']);
 
-/** 服务端 status → 中文状态词。 */
-const STATUS_TEXT = {
-  preparing: () => S.RUN_STATUS_PREPARING,
-  ready: () => S.RUN_STATUS_READY,
-  grading: () => S.RUN_STATUS_GRADING,
-  graded: () => S.RUN_STATUS_GRADED,
-  queued: () => S.RUN_STATUS_QUEUED,
-  error: () => S.RUN_STATUS_ERROR,
-};
+/** 沙箱可用（模型可以动手 / 可以校验）的服务端状态。 */
+const SANDBOX_OK = new Set(['ready', 'graded']);
 
 /** 心跳间隔（毫秒）：驱动长操作的「已用时间」。 */
 const TICK_MS = 1000;
@@ -79,43 +79,65 @@ const TICK_MS = 1000;
 const T = {
   ROUND_N_OF_M: '第 {n} 轮 / 共 {m} 次',
   ATTEMPTS_ONLY: '共 {m} 次机会',
-  STEPS_LABEL: '评测步骤',
-  STEP_CHAT: '对话改代码',
-  STEP_GRADE: '运行校验',
-  STEP_NEXT: '结果与下一轮',
   SHOW_DIFF: '查看改动',
+  HIDE_DIFF: '收起改动',
   GRADE_DONE_TOAST: '校验完成：通过 {pass}/{total}',
   RELEASE_TITLE: '回收这一轮的工作区？',
-  RELEASE_BODY: '只删沙箱目录，成绩、报告、对话记录都留在 runs/ 里；要再跑一轮就点「重建沙箱」。',
+  RELEASE_BODY: '只删沙箱目录，成绩、报告、对话记录都留在 runs/ 里；要再跑一轮就用「重建沙箱」。',
   RESTART_TITLE: '用现存档案重开一轮？',
   RESTART_BODY: '这一轮绑定的档案已删除，改不了它的归属：会用你选的档案为这道题新建一轮记录，'
-    + '旧记录留在记分板里，可以先点「作废本轮成绩」把它从统计里摘掉。',
+    + '旧记录留在记分板里，可以先点「继续对话（本轮分数作废）」把它从统计里摘掉。',
   RESTART_DONE: '新一轮已就绪，可以在对话里发提示词了',
-  // 「下一步」行动条：把散在四张卡里、按状态才渲染的出口收成一个常驻位置
-  NEXT_GROUP: '下一步',
-  NEXT_PREPARE: '准备沙箱',
-  NEXT_PREPARING: '正在准备沙箱…',
-  NEXT_SEND_PROMPT: '发送当前提示词',
-  NEXT_ASK: '去对话里追问',
-  NEXT_GRADE: '运行校验',
-  NEXT_REGRADE: '重新校验',
-  NEXT_GRADING: '校验进行中',
-  NEXT_GRADING_REASON: '服务端正在跑隐藏用例，跑完自动出分。',
-  NEXT_PROMOTE: '进入第 {n} 轮',
-  NEXT_REVEAL: '查看参考解',
-  NEXT_VOID: '作废本轮成绩',  NEXT_RELEASE: '回收沙箱',
-  NEXT_FINISH: '结束本轮并回收沙箱',
-  NEXT_REMOTE_BUSY: '模型仍在处理上一条消息：等它停下再校验，否则评的是写了一半的沙箱。',
-  NEXT_REBUILD: '重建沙箱',
-  NEXT_BACK_TASKS: '换一题',
-  NEXT_NEED_MODEL: '先在对话卡头选一个现存档案。',
-  NEXT_NO_SANDBOX: '这一轮的工作区已经回收了。',
-  NEXT_DISCARD: '废弃本轮（真删）',
+  // 状态栏状态词
+  ST_IDLE: '还没开始',
+  ST_FOREIGN: '当前查看的记录属于档案「{model}」，与所选档案不一致，只能看不能改',
+  ST_REVEALED: '已揭晓参考解，成绩不进排行榜',
+  // 主按钮（每时刻一个；其余出口在 ⋯ 菜单）
+  P_PREPARE: '准备沙箱',
+  P_PREPARING: '正在准备沙箱…',
+  P_PREPARING_REASON: '首次准备会铺开整个沙箱副本，一般几秒到几十秒。',
+  P_SEND_PROMPT: '发送当前提示词',
+  P_GRADE: '运行校验',
+  P_REGRADING: '校验进行中…',
+  P_GRADING_REASON: '服务端正在跑隐藏用例，跑完自动出分。',
+  P_PROMOTE: '进入第 {n} 轮',
+  P_REVEAL: '查看参考解',
+  P_BACK_TASKS: '换一题',
+  P_REBUILD: '重建沙箱',
+  P_RELOAD: '重新载入',
+  P_LOADING: '正在载入…',
+  P_NEED_MODEL: '先在顶部状态栏选择一个模型档案。',
+  P_REMOTE_BUSY: '模型仍在处理上一条消息：等它停下再继续，否则评的是写了一半的沙箱。',
+  P_LOCAL_BUSY: '有操作正在进行，稍等。',
+  P_NEED_SANDBOX: '沙箱还没就绪。',
+  P_NEED_ACT: '模型还没有动过手：先把提示词发给它，改动落进沙箱后再校验。',
+  P_FOREIGN: '这条记录属于档案「{model}」，不是当前选中的那个',
+  // 「结束本轮」常驻按钮
+  FINISH: '结束本轮并回收沙箱',
+  FINISH_NO_RUN: '还没有运行记录。',
+  FINISH_NO_SANDBOX: '沙箱已回收；记录、对话与报告保留，仍可复盘。',
+  FINISH_BUSY: '有操作正在进行，稍等。',
+  // ⋯ 菜单
+  M_COPY_PATH: '复制沙箱路径',
+  M_RESET: '清空改动',
+  M_REBUILD: '重建沙箱（回到基线）',
+  M_REBUILD_REASON: '会作废已有成绩并归档本轮证据。',
+  M_REGRADE: '重新校验',
+  M_REOPEN: '继续对话（本轮分数作废）',
+  M_REVEAL: '查看参考解',
+  M_EXPORT: '导出报告 JSON',
+  M_DISCARD: '废弃本轮（真删）',
+  M_NO_RUN: '还没有运行记录。',
+  M_NO_SANDBOX: '沙箱不存在或已回收。',
+  M_NO_REPORT: '还没有校验报告。',
+  M_ALREADY_REVEALED: '已揭晓过参考解。',
+  M_DISCARD_BUSY: '对话或校验进行中，等它停下再删除。',
   DISCARD_TITLE: '废弃并彻底删除这一轮？',
   DISCARD_BODY: '运行记录、对话（含纪元归档）、评分报告与 diff、沙箱与评分树全部删除，'
     + '不留隔离副本，不可恢复。这道题下次用同一档案打开会回到初始界面。',
   DISCARDED: '这一轮已彻底删除',
-  NEXT_BUSY: '有操作正在进行，稍等。',
+  MODEL_NOTE_NONE: '还没有模型档案。先到「模型档案」页新增一个，再回来选。',
+  MODEL_NOTE_LOAD_FAILED: '模型档案读取失败：{reason}。可以点「重试」再读一次。',
 };
 
 /**
@@ -161,7 +183,7 @@ export function createWorkspace(props = {}) {
     modelsError,
     modelId: storage.get('last-model', ''),
     round: 1,
-    /** 本机长操作：prepare / reset / rebuild / grade / notes */
+    /** 本机长操作：prepare / reset / rebuild / grade / release / discard / notes */
     busy: '',
     error: null,
     /** 沙箱区日志：本机真实发过的每一步（后端不提供沙箱日志，见 NOTES.md） */
@@ -171,6 +193,8 @@ export function createWorkspace(props = {}) {
     newResult: false,
     /** 查看参考解的返回：{patch, notice} */
     revealed: null,
+    /** 「查看改动」内联区是否展开 */
+    diffOpen: false,
   });
 
   const wsStore = storage.scoped('ws', taskId);
@@ -202,210 +226,434 @@ export function createWorkspace(props = {}) {
   if (typeof subscribeModels === 'function') {
     offHandlers.push(
       subscribeModels((list, code) => {
-        patch({ models: Array.isArray(list) ? list : [], modelsError: code || '' });
+        const next = { models: Array.isArray(list) ? list : [], modelsError: code || '' };
+        // 能默认的默认：只有一个档案时直接选上，从选题到开聊少一步
+        const current = store.getState().modelId;
+        if (!current && next.models.length === 1) {
+          next.modelId = String(next.models[0].id || '');
+          storage.set('last-model', next.modelId);
+        }
+        patch(next);
       }),
     );
   }
 
-  // ==================== 题头条 ====================
-  const h1 = el('h1', { tabindex: '-1' });
-  const tierHost = el('span');
-  const roundText = el('span', { class: 'ws-round' });
+  // ==================== 状态栏 ====================
+  const h1 = el('h1', { class: 'ws-statusbar__title', tabindex: '-1' });
+  const tierHost = el('span', { class: 'ws-statusbar__tier' });
+  const roundText = el('span', { class: 'ws-statusbar__round' });
 
-  // 改动正文查看器：题头按钮的弹出区（路径/哈希按规格收进沙箱详情，改动正文挂题头）
-  const diffText = el('pre', { class: 'code-block__pre ws-diff__pre', tabindex: '0', role: 'region' });
-  diffText.setAttribute('aria-label', S.RUN_DIFF_BODY);
-  const diffCard = createDetailsCard({ title: S.RUN_DIFF_TITLE, content: diffText, open: false });
-  const diffWrap = el('div', { class: 'ws-diff', hidden: true }, diffCard.el);
-  const diffBtn = createButton({
-    label: T.SHOW_DIFF,
-    variant: 'ghost',
-    size: 'sm',
-    disabled: true,
-    onClick: () => toggleDiff(),
+  const modelField = createField({
+    label: S.RUN_MODEL_LABEL,
+    name: 'ws-model',
+    type: 'select',
+    options: [{ value: '', label: S.RUN_MODEL_EMPTY }],
+    onChange: (value) => {
+      store.setState({ modelId: value });
+      storage.set('last-model', value);
+      adoptModelRun(value);
+    },
   });
+  modelField.el.classList.add('ws-statusbar__model');
+  const modelNote = el('p', { class: 'u-faint ws-statusbar__model-note', role: 'status' });
+  modelNote.hidden = true;
+  const modelRetryBtn = createButton({
+    label: S.ACTION_RETRY,
+    size: 'sm',
+    variant: 'ghost',
+    onClick: () => {
+      if (typeof reloadModels !== 'function') return;
+      // 重读是一次网络请求，按钮自己担一个忙态，免得点完看着没反应又点一次。
+      modelRetryBtn.update({ loading: true, busyLabel: S.ACTION_LOADING });
+      Promise.resolve(reloadModels())
+        .catch(() => {})
+        .finally(() => modelRetryBtn.update({ loading: false }));
+    },
+  });
+  // createButton 根节点自带 inline-flex，直接 hidden 藏不掉：套一层容器再整体切
+  const modelRetryHost = el('span', { class: 'ws-statusbar__model-retry' }, modelRetryBtn.el);
+  modelRetryHost.hidden = true;
 
-  const head = el(
+  const statusDot = createStatusDot({ kind: 'idle', text: T.ST_IDLE });
+  const statusBar = el(
     'header',
-    { class: 'ws-head' },
-    el(
-      'div',
-      { class: 'ws-head__main' },
+    { class: 'ws-statusbar' },
+    el('div', { class: 'ws-statusbar__main' },
       h1,
-      // 沙箱状态点归沙箱卡（那里才有对应动作）；题头只留档位与轮次，
-      // 同一个状态在两个地方各说一遍只会让人先找「哪个才是真的」。
-      el('div', { class: 'ws-head__meta' }, tierHost, roundText),
-    ),
-    el('div', { class: 'ws-head__actions' }, diffBtn.el),
+      el('div', { class: 'ws-statusbar__meta' }, tierHost, roundText)),
+    el('div', { class: 'ws-statusbar__side' },
+      modelField.el,
+      modelRetryHost,
+      statusDot.el),
+    modelNote,
   );
 
-  // ==================== 步骤条（取代旧「跳转到」分段控件） ====================
-  const STEP_GLYPHS = ['①', '②', '③'];
-  const stepDefs = [
-    { key: 1, label: T.STEP_CHAT, target: 'chat' },
-    { key: 2, label: T.STEP_GRADE, target: 'grade' },
-    { key: 3, label: T.STEP_NEXT, target: 'grade' },
-  ];
-  const stepBtns = stepDefs.map((def) => {
-    const glyph = el('span', { class: 'ws-step__glyph', 'aria-hidden': 'true' }, STEP_GLYPHS[def.key - 1]);
-    const btn = el(
-      'button',
-      { type: 'button', class: 'ws-step', onClick: () => focusRegion(def.target) },
-      glyph,
-      el('span', {}, def.label),
-    );
-    return { key: def.key, glyph, btn };
+  // ==================== 改动正文（菜单「查看改动」弹出的内联区） ====================
+  const diffText = el('pre', { class: 'code-block__pre ws-diff__pre', tabindex: '0', role: 'region' });
+  diffText.setAttribute('aria-label', S.RUN_DIFF_BODY);
+  const diffCard = createDetailsCard({ title: S.RUN_DIFF_TITLE, content: diffText, open: true });
+  const diffWrap = el('div', { class: 'ws-diff', hidden: true }, diffCard.el);
+
+  // ==================== 任务节点 / 对话流 / 结果节点 / 详情 / 操作栏 ====================
+  const taskNode = createTaskNode({
+    onRoundChange: (n) => doRoundChange(n),
+    onSendPrompt: (text) => chatStream.sendText(text),
+    onReload: () => reloadState(),
   });
-  const stepsNav = el('nav', { class: 'ws-steps', 'aria-label': T.STEPS_LABEL }, stepBtns.map((s) => s.btn));
+  const chatStream = createChatStream({
+    scope,
+    onPrepare: () => doPrepare(),
+    // 空态与「填入当前提示词」共用任务节点的当前轮正文
+    onSendPrompt: () => chatStream.sendText(taskNode.getPrompt()),
+    onFillPrompt: () => chatStream.setDraft(taskNode.getPrompt()),
+    onRestartWithModel: (preferredId) => doRestartWithModel(preferredId),
+  });
+  const reportNode = createReportNode({
+    onOpenReport: () => openReport(),
+  });
+  const runDetails = createRunDetails({
+    onNotesSave: (note) => saveNote(note),
+  });
+  const dock = createDock();
 
-  /**
-   * 「下一步」行动条：按当前状态给出唯一主行动 + 最多两个次行动。
-   *
-   * 面板里的动作大多是「按状态才渲染」而不是「禁用」，于是要把四张卡挨个展开
-   * 才找得到出口（一条 run 的页面里 26 个按钮只有 20 个可见）。这里常驻一行，
-   * 两处指向同一批 handler，卡内按钮保持原样不动。
-   */
-  const nextHost = el('div', { class: 'ws-next', role: 'group', 'aria-label': T.NEXT_GROUP });
-  const stepsRow = el('div', { class: 'ws-steps-row' }, stepsNav, el('span', { class: 'u-spacer' }), nextHost);
-  let nextSignature = '';
+  const bottom = el('div', { class: 'ws-bottom' }, dock.el, chatStream.composerEl);
 
+  const root = el(
+    'div',
+    { class: 'view ws' },
+    statusBar,
+    diffWrap,
+    taskNode.el,
+    chatStream.el,
+    reportNode.el,
+    runDetails.el,
+    bottom,
+  );
+
+  // ==================== 状态机 → dock ====================
   /**
+   * 每个时刻算出一个主按钮：准备沙箱 → 发送提示词 → 运行校验 → 进入下一轮/查看参考解。
+   * 不可用时禁用并把原因写在按钮上（出口不许条件隐藏）。
    * @param {object} s store 快照
-   * @returns {Array<{label: string, kind: string, onClick?: Function, disabled?: boolean, reason?: string}>}
+   * @returns {{label: string, onClick?: Function, disabled?: boolean, reason?: string, loading?: boolean, busyLabel?: string, kbd?: string}}
    */
-  function nextActions(s) {
+  function primaryAction(s) {
     const run = s.run;
-    if (!run) return [{ label: T.NEXT_PREPARE, kind: 'primary', onClick: () => doPrepare() }];
+    if (s.loading && !run) return { label: T.P_LOADING, disabled: true };
+    if (s.error && !run) return { label: T.P_RELOAD, onClick: () => reloadState() };
+    if (!run) {
+      return {
+        label: T.P_PREPARE,
+        onClick: () => doPrepare(),
+        disabled: !s.modelId || Boolean(s.busy),
+        loading: s.busy === 'prepare',
+        busyLabel: T.P_PREPARING,
+        reason: !s.modelId ? T.P_NEED_MODEL : s.busy ? T.P_LOCAL_BUSY : '',
+      };
+    }
+    const chatBusy = Boolean(run.chat_busy);
     const grading = s.busy === 'grade' || run.status === 'grading';
     const preparing = s.busy === 'prepare' || run.status === 'preparing';
     const acted = run.model_acted !== false;
     const attempt = Number(run.attempt) || 1;
     const allowed = Number(run.attempts_allowed) || attempt;
-    // 服务端还有发送线程在跑：这一步什么都别做，并说清为什么点不动
-    const busyReason = run.chat_busy
-      ? T.NEXT_REMOTE_BUSY
-      : grading ? T.NEXT_GRADING_REASON : preparing ? T.NEXT_PREPARING : '';
-    const finish = {
-      label: T.NEXT_FINISH,
-      kind: 'ghost',
-      onClick: () => doRelease(),
-      disabled: !run.sandbox,
-      reason: run.sandbox ? '' : T.NEXT_NO_SANDBOX,
-    };
-    // 废弃 = 真删整条记录：成绩、对话、沙箱一起走，下次同档案打开回到初始界面。
-    const discard = { label: T.NEXT_DISCARD, kind: 'danger', onClick: () => doDiscard() };
+    const revealed = Boolean(run.revealed) || Boolean(s.revealed);
+    // 沙箱可用 = 状态就绪且目录真实存在：已回收的 run 状态仍停在 ready/graded，
+    // 但 sandbox 字段已清空，只看状态会把「回收后」的出口错放出来
+    const sandboxOk = SANDBOX_OK.has(run.status) && Boolean(run.sandbox);
+    const sandboxReason = run.sandbox ? T.P_NEED_SANDBOX : T.M_NO_SANDBOX;
+    const localBusy = Boolean(s.busy);
+
     if (run.status === 'error' || run.status === 'cancelled') {
-      return [
-        { label: T.NEXT_REBUILD, kind: 'primary', onClick: () => doRebuild() },
-        finish,
-        discard,
-      ];
+      return { label: T.P_REBUILD, onClick: () => doRebuild(), disabled: localBusy, reason: localBusy ? T.P_LOCAL_BUSY : '' };
     }
-    if (preparing) return [{ label: T.NEXT_PREPARING, kind: 'primary', disabled: true, reason: T.NEXT_BUSY }];
-    if (grading) return [{ label: T.NEXT_GRADING, kind: 'primary', disabled: true, reason: T.NEXT_GRADING_REASON }];
-    if (run.revealed) {
-      return [
-        { label: T.NEXT_BACK_TASKS, kind: 'primary', onClick: () => navigate('tasks') },
-        finish,
-      ];
-    }
+    if (preparing) return { label: T.P_PREPARING, disabled: true, reason: T.P_PREPARING_REASON };
+    if (grading) return { label: T.P_REGRADING, disabled: true, reason: T.P_GRADING_REASON, loading: true, busyLabel: T.P_REGRADING };
+    if (revealed) return { label: T.P_BACK_TASKS, onClick: () => navigate('tasks') };
+    const busyReason = chatBusy ? T.P_REMOTE_BUSY : localBusy ? T.P_LOCAL_BUSY : '';
     if (run.report) {
-      const out = [];
       if (!acted) {
         // 报告在、模型却没动手：那份 0 分是误点出来的，第一步是让它真的开工
-        out.push({
-          label: T.NEXT_SEND_PROMPT,
-          kind: 'primary',
-          onClick: () => chatPanel.sendText(promptPanel.getPrompt()),
+        return {
+          label: T.P_SEND_PROMPT,
+          onClick: () => chatStream.sendText(taskNode.getPrompt()),
           disabled: !s.modelId || Boolean(busyReason),
-          reason: busyReason || (s.modelId ? '' : T.NEXT_NEED_MODEL),
-        });
-      } else if (attempt < allowed) {
-        out.push({
-          label: t(T.NEXT_PROMOTE, { n: attempt + 1 }),
-          kind: 'primary',
+          reason: busyReason || (s.modelId ? '' : T.P_NEED_MODEL),
+        };
+      }
+      if (attempt < allowed) {
+        return {
+          label: t(T.P_PROMOTE, { n: attempt + 1 }),
           onClick: () => doPromote(),
           disabled: Boolean(busyReason),
           reason: busyReason,
-        });
-      } else {
-        out.push({ label: T.NEXT_REVEAL, kind: 'primary', onClick: () => doReveal() });
+        };
       }
-      out.push({
-        label: T.NEXT_REGRADE,
-        kind: 'ghost',
-        onClick: () => doGrade(),
-        disabled: !acted || Boolean(busyReason),
-        reason: busyReason || (acted ? '' : S.GRADE_NEED_MODEL_FIRST),
-      });
-      out.push({ label: T.NEXT_VOID, kind: 'ghost', onClick: () => doReopen() });
-      out.push(finish);
-      out.push(discard);
-      return out;
+      return {
+        label: T.P_REVEAL,
+        onClick: () => doReveal(),
+        disabled: Boolean(busyReason),
+        reason: busyReason,
+      };
     }
     if (!acted) {
-      return [
-        {
-          label: T.NEXT_SEND_PROMPT,
-          kind: 'primary',
-          onClick: () => chatPanel.sendText(promptPanel.getPrompt()),
-          disabled: !s.modelId,
-          reason: s.modelId ? '' : T.NEXT_NEED_MODEL,
-        },
-        { label: T.NEXT_GRADE, kind: 'ghost', disabled: true, reason: S.GRADE_NEED_MODEL_FIRST },
-        finish,
-        discard,
-      ];
+      return {
+        label: T.P_SEND_PROMPT,
+        onClick: () => chatStream.sendText(taskNode.getPrompt()),
+          disabled: !s.modelId || !sandboxOk || Boolean(busyReason),
+          reason: busyReason || (!s.modelId ? T.P_NEED_MODEL : !sandboxOk ? sandboxReason : ''),
+      };
     }
-    return [
-      {
-        label: T.NEXT_GRADE,
-        kind: 'primary',
-        onClick: () => doGrade(),
-        disabled: Boolean(s.busy) || Boolean(busyReason),
-        reason: busyReason || (s.busy ? T.NEXT_BUSY : ''),
-      },
-      { label: T.NEXT_ASK, kind: 'ghost', onClick: () => focusRegion('chat') },
-      finish,
-      discard,
-    ];
-  }
-
-  /** 只在「这一步该做什么」真的变了时才重建，避免每次轮询都吞掉按钮焦点。 */
-  function renderNextAction(next) {
-    const actions = nextActions(next);
-    const sig = actions.map((a) => `${a.label}|${a.kind}|${a.disabled ? 1 : 0}|${a.reason || ''}`).join('#');
-    if (sig === nextSignature) return;
-    nextSignature = sig;
-    clear(nextHost);
-    actions.forEach((a) => {
-      const btn = createButton({
-        label: a.label,
-        variant: a.kind === 'primary' ? 'primary' : 'ghost',
-        onClick: a.onClick || (() => {}),
-      });
-      btn.update({ disabled: Boolean(a.disabled), reason: a.reason || '' });
-      nextHost.appendChild(btn.el);
-    });
+    return {
+      label: T.P_GRADE,
+      kbd: 'G',
+      onClick: () => doGrade(),
+      disabled: Boolean(busyReason),
+      reason: busyReason,
+    };
   }
 
   /**
-   * 轮询驱动的每一步推进都反映到这里：②在跑、③出了结果。
-   * @param {object} next store 快照
+   * 显式的「结束本轮并回收沙箱」（红线：不能只留折叠起来的回收）。
+   * @param {object} s store 快照
    */
-  function renderSteps(next) {
-    const run = next.run;
-    const running = next.busy === 'grade' || Boolean(run && run.status === 'grading');
+  function finishAction(s) {
+    const run = s.run;
+    const chatBusy = Boolean(run && run.chat_busy);
+    const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
+    const disabled = !run || !run.sandbox || Boolean(s.busy) || grading || chatBusy;
+    return {
+      label: T.FINISH,
+      onClick: () => doRelease(),
+      disabled,
+      loading: s.busy === 'release',
+      reason: !run
+        ? T.FINISH_NO_RUN
+        : !run.sandbox
+          ? T.FINISH_NO_SANDBOX
+          : chatBusy
+            ? T.P_REMOTE_BUSY
+            : grading
+              ? T.P_GRADING_REASON
+              : s.busy
+                ? T.FINISH_BUSY
+                : '',
+    };
+  }
+
+  /**
+   * ⋯ 菜单：全量次级出口常列，不可用的禁用 + 原因写在项里。
+   * @param {object} s store 快照
+   * @returns {Array}
+   */
+  function menuItems(s) {
+    const run = s.run;
+    const chatBusy = Boolean(run && run.chat_busy);
+    const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
+    const preparing = Boolean(run && (s.busy === 'prepare' || run.status === 'preparing'));
+    const mutating = ['reset', 'rebuild', 'release', 'discard'].includes(s.busy);
+    const acted = run ? run.model_acted !== false : false;
     const hasReport = Boolean(run && run.report);
-    const currentStep = !run ? 1 : running ? 2 : hasReport ? 3 : 1;
-    const done = !run ? [] : running ? [1] : hasReport ? [1, 2] : [];
-    stepBtns.forEach((step) => {
-      const state = done.includes(step.key) ? 'done' : step.key === currentStep ? 'current' : 'todo';
-      step.btn.dataset.state = state;
-      setText(step.glyph, state === 'done' ? '✓' : STEP_GLYPHS[step.key - 1]);
-      if (state === 'current') step.btn.setAttribute('aria-current', 'step');
-      else step.btn.removeAttribute('aria-current');
-    });
+    const revealed = Boolean(run && run.revealed) || Boolean(s.revealed);
+    const sandboxOk = Boolean(run && SANDBOX_OK.has(run.status) && run.sandbox);
+    const foreign = Boolean(s.modelMismatch);
+    const foreignReason = foreign ? t(T.P_FOREIGN, { model: (run && run.model) || '（空）' }) : '';
+    // 同 primaryAction：已回收的 run 状态还是 ready/graded，必须看 sandbox 字段
+    const sandboxGoneReason = run && !run.sandbox ? T.M_NO_SANDBOX : T.P_NEED_SANDBOX;
+    const busyReason = chatBusy
+      ? T.P_REMOTE_BUSY
+      : grading
+        ? T.P_GRADING_REASON
+        : preparing || mutating
+          ? T.P_LOCAL_BUSY
+          : '';
+    return [
+      {
+        key: 'diff',
+        label: s.diffOpen ? T.HIDE_DIFF : T.SHOW_DIFF,
+        disabled: !run,
+        reason: run ? '' : T.M_NO_RUN,
+        onClick: () => toggleDiff(),
+      },
+      {
+        key: 'copy-path',
+        label: T.M_COPY_PATH,
+        disabled: !run || !run.sandbox,
+        reason: !run ? T.M_NO_RUN : !run.sandbox ? T.M_NO_SANDBOX : '',
+        onClick: () => doOpenDir(),
+      },
+      {
+        key: 'reset',
+        label: T.M_RESET,
+        disabled: !run || !sandboxOk || Boolean(busyReason) || foreign,
+        reason: foreignReason || (!run ? T.M_NO_RUN : !sandboxOk ? sandboxGoneReason : busyReason),
+        onClick: () => doReset(),
+      },
+      {
+        key: 'rebuild',
+        label: T.M_REBUILD,
+        disabled: !run || Boolean(busyReason) || foreign,
+        reason: foreignReason || (!run ? T.M_NO_RUN : busyReason || T.M_REBUILD_REASON),
+        onClick: () => doRebuild(),
+      },
+      {
+        key: 'regrade',
+        label: T.M_REGRADE,
+        disabled: !run || foreign || !sandboxOk || !acted || Boolean(busyReason),
+        reason: foreignReason || (!run ? T.M_NO_RUN : busyReason || (!acted ? T.P_NEED_ACT : !sandboxOk ? sandboxGoneReason : '')),
+        onClick: () => doGrade(),
+      },
+      {
+        key: 'reopen',
+        label: T.M_REOPEN,
+        disabled: !run || foreign || !hasReport || revealed || Boolean(busyReason),
+        reason: foreignReason || (!run ? T.M_NO_RUN : revealed ? T.M_ALREADY_REVEALED : !hasReport ? T.M_NO_REPORT : busyReason),
+        onClick: () => doReopen(),
+      },
+      {
+        key: 'reveal',
+        label: T.M_REVEAL,
+        disabled: !run || foreign || !hasReport || revealed || Boolean(busyReason),
+        reason: foreignReason || (!run ? T.M_NO_RUN : revealed ? T.M_ALREADY_REVEALED : !hasReport ? T.M_NO_REPORT : busyReason),
+        onClick: () => doReveal(),
+      },
+      {
+        key: 'export',
+        label: T.M_EXPORT,
+        disabled: !hasReport,
+        reason: hasReport ? '' : T.M_NO_REPORT,
+        onClick: () => doExport(),
+      },
+      {
+        key: 'discard',
+        label: T.M_DISCARD,
+        danger: true,
+        disabled: !run || Boolean(busyReason),
+        reason: !run ? T.M_NO_RUN : busyReason ? T.M_DISCARD_BUSY : '',
+        onClick: () => doDiscard(),
+      },
+    ];
+  }
+
+  /** 状态机签名没变就不重推 dock（轮询不吞按钮焦点）。 */
+  let dockSignature = '';
+
+  /**
+   * 渲染 dock（主按钮 + 结束本轮 + ⋯ 菜单）。
+   * @param {object} s store 快照
+   */
+  function renderDock(s) {
+    const primary = primaryAction(s);
+    const finish = finishAction(s);
+    const items = menuItems(s);
+    const sig = [
+      primary.label, primary.disabled ? 1 : 0, primary.reason || '', primary.loading ? 1 : 0,
+      finish.disabled ? 1 : 0, finish.reason || '', finish.loading ? 1 : 0,
+      items.map((i) => `${i.key}|${i.label}|${i.disabled ? 1 : 0}|${i.reason || ''}`).join('#'),
+    ].join('|');
+    if (sig === dockSignature) return;
+    dockSignature = sig;
+    dock.update({ primary, finish, menuItems: items });
+  }
+
+  // ==================== 状态栏渲染 ====================
+  /**
+   * 服务端状态 → 状态栏的一句话。对话在飞优先于一切（它在解释「为什么都点不动」）。
+   * @param {object} s store 快照
+   */
+  function statusInfo(s) {
+    const run = s.run;
+    if (!run) {
+      if (s.busy === 'prepare') return { kind: 'busy', text: T.P_PREPARING };
+      return { kind: 'idle', text: T.ST_IDLE };
+    }
+    if (run.chat_busy) return { kind: 'busy', text: S.CHAT_REMOTE_BUSY };
+    if (s.busy === 'grade' || run.status === 'grading') return { kind: 'busy', text: S.RUN_STATUS_GRADING };
+    if (s.busy === 'prepare' || run.status === 'preparing') return { kind: 'busy', text: S.RUN_STATUS_PREPARING };
+    if (run.status === 'queued') return { kind: 'busy', text: S.RUN_STATUS_QUEUED };
+    if (run.status === 'error') return { kind: 'error', text: S.RUN_STATUS_ERROR };
+    if (s.modelMismatch) return { kind: 'warn', text: t(T.ST_FOREIGN, { model: run.model || '（空）' }) };
+    if (run.revealed || s.revealed) return { kind: 'warn', text: T.ST_REVEALED };
+    if (run.status === 'graded') {
+      const score = run.report && typeof run.report.score === 'number' ? ` · ${Math.round(run.report.score)} 分` : '';
+      return { kind: 'ok', text: `${S.RUN_STATUS_GRADED}${score}` };
+    }
+    return { kind: 'ok', text: S.RUN_STATUS_READY };
+  }
+
+  /**
+   * 同步模型档案下拉选项。选项集合没变就不动 select，避免打断键盘选择（§11.2 #14）。
+   * @param {Array} list
+   * @param {string} selected
+   */
+  function syncModelOptions(list, selected) {
+    const options = [{ value: '', label: S.RUN_MODEL_EMPTY }].concat(
+      (list || []).map((m) => {
+        // 详情取第一个与 id 不同名的字段：model → 显示名 → 供应商名 → 备注。
+        // id 本身就是模型全名时（供应商结构下 id==model 是常态），别再补「未配置」——
+        // 它已经配置好了，那四个字只会误导。
+        const detail = (m.model && m.model !== m.id && m.model)
+          || (m.name && m.name !== m.id && m.name)
+          || m.provider_name
+          || m.note
+          || '';
+        return { value: m.id, label: detail ? `${m.id}（${detail}）` : m.id };
+      }),
+    );
+    const sig = options.map((o) => o.value).join('|');
+    if (sig === modelField.__sig) {
+      if (selected !== undefined && selected !== modelField.getValue()) modelField.setValue(selected);
+      return;
+    }
+    modelField.__sig = sig;
+    modelField.update({ options, value: selected ?? '' });
+  }
+
+  /**
+   * 档案下拉为空时把原因摊开：读取失败 ≠ 真的没有档案，两种情况给不同的话与出口。
+   * 首屏数据没落定（工作台还在取数）时先别下「没有档案」的结论。
+   */
+  function renderModelNote(s) {
+    const count = (s.models || []).length;
+    const failed = Boolean(s.modelsError);
+    const pending = s.loading && !failed;
+    if (count === 0 && !pending) {
+      setText(modelNote, failed
+        ? t(T.MODEL_NOTE_LOAD_FAILED, { reason: errorTitle(s.modelsError) })
+        : T.MODEL_NOTE_NONE);
+      modelNote.hidden = false;
+    } else {
+      setText(modelNote, '');
+      modelNote.hidden = true;
+    }
+    // 只有「读取失败」才值得原地重试；确实一个档案都没有该去模型页新增
+    modelRetryHost.hidden = !(failed && count === 0);
+  }
+
+  /**
+   * 渲染状态栏（轮询带来的每次状态变化都会走到这里）。
+   * @param {object} s store 快照
+   */
+  function renderStatusBar(s) {
+    const task = s.task;
+    const run = s.run;
+    setText(h1, task ? `${task.id} · ${task.title}` : taskId);
+    tierHost.textContent = '';
+    tierHost.appendChild(tierBadge(task ? task.tier : '', { attempts: task ? task.attempts : 0 }).el);
+
+    // 第 n 轮 / 共 m 次：数字走 tabular-nums。
+    // 还没准备沙箱时没有「轮」可言，只报这题总共几次机会。
+    const max = run ? run.attempts_allowed : task ? task.attempts : 1;
+    setText(roundText, run ? t(T.ROUND_N_OF_M, { n: run.attempt, m: max }) : t(T.ATTEMPTS_ONLY, { m: max }));
+
+    syncModelOptions(s.models, s.modelId);
+    // 模型档案是准备沙箱的前提，没选就常驻写在字段上：以前只在点准备沙箱时
+    // 闪一条 toast，用户回头找不到自己漏了什么。
+    modelField.update({ error: s.modelId ? '' : S.RUN_MODEL_REQUIRED });
+    renderModelNote(s);
+
+    const info = statusInfo(s);
+    statusDot.update({ kind: info.kind, text: info.text });
   }
 
   // ==================== 动作绑定 ====================
@@ -418,77 +666,6 @@ export function createWorkspace(props = {}) {
   function reloadState() {
     return load();
   }
-
-  /** @type {{onPrepare: Function, onReset: Function, onRebuild: Function, onOpenDir: Function, onReload: Function}} */
-  const sandboxHandlers = {
-    onPrepare: () => doPrepare(),
-    onReset: () => doReset(),
-    onRebuild: () => doRebuild(),
-    onRelease: () => doRelease(),
-    onOpenDir: () => doOpenDir(),
-    onReload: () => reloadState(),
-  };
-  /** @type {{onRoundChange: Function, onGoSandbox: Function, onSendToChat: Function, onReload: Function}} */
-  const promptHandlers = {
-    onRoundChange: (n) => doRoundChange(n),
-    onGoSandbox: () => focusRegion('sandbox'),
-    onSendToChat: () => chatPanel.sendText(promptPanel.getPrompt()),
-    onReload: () => reloadState(),
-  };
-  /** @type {{onGrade: Function, onPromote: Function, onReveal: Function, onExport: Function, onGoChat: Function, onReload: Function}} */
-  const gradeHandlers = {
-    onGrade: () => doGrade(),
-    onPromote: () => doPromote(),
-    onReveal: () => doReveal(),
-    onReopen: () => doReopen(),
-    onExport: () => doExport(),
-    onGoChat: () => focusRegion('chat'),
-    onReload: () => reloadState(),
-  };
-  /** @type {{onNotesSave: Function}} */
-  const notesHandlers = {
-    onNotesSave: (note) => saveNote(note),
-  };
-  /** @type {{scope: object, onUsePrompt: Function, onModelChange: Function, onReloadModels: Function, onGoSandbox: Function}} */
-  const chatHandlers = {
-    scope,
-    onUsePrompt: () => chatPanel.sendText(promptPanel.getPrompt()),
-    onModelChange: (id) => {
-      store.setState({ modelId: id });
-      storage.set('last-model', id);
-      adoptModelRun(id);
-    },
-    // 档案读取失败后由对话卡头给一个重读按钮：只 GET /api/models，不写任何东西
-    onReloadModels: () => (typeof reloadModels === 'function' ? reloadModels() : reloadState()),
-    // 本轮档案已被删除：用当前选中的现存档案重开一轮（对话卡空态的唯一出口）
-    onRestartWithModel: (preferredId) => doRestartWithModel(preferredId),
-    onGoSandbox: () => focusRegion('sandbox'),
-  };
-
-  const promptPanel = createPromptPanel(promptHandlers);
-  const chatPanel = createChatPanel(chatHandlers);
-  const sandboxPanel = createSandboxPanel(sandboxHandlers);
-  const gradePanel = createGradePanel(gradeHandlers);
-  const notesCard = createRunBar(notesHandlers);
-
-  // 两栏：主栏 = 内置对话（视觉主角）；侧栏 = 提示词 / 沙箱 / 校验 / 本轮备注
-  const layout = el(
-    'div',
-    { class: 'ws-layout' },
-    el('div', { class: 'ws-main' }, chatPanel.el),
-    el(
-      'div',
-      { class: 'ws-side' },
-      promptPanel.el,
-      sandboxPanel.el,
-      gradePanel.el,
-      notesCard.el,
-    ),
-  );
-  const root = el('div', { class: 'view ws' }, head, diffWrap, stepsRow, layout);
-
-  /** 收起状态的折叠卡 ↔ focusRegion：跳过去之前先展开，别把人滚到一张关着的卡上。 */
-  const REGION_CARDS = { prompt: promptPanel, sandbox: sandboxPanel, grade: gradePanel, run: notesCard };
 
   // ==================== 心跳（长操作的已用时间，§13.2） ====================
   /**
@@ -526,29 +703,6 @@ export function createWorkspace(props = {}) {
     patch({ opLog: lines.slice(-200) });
   }
 
-  // ==================== 题头渲染 ====================
-  /**
-   * 渲染题头（含步骤条）。轮询带来的每次状态变化都会走到这里。
-   * @param {object} next
-   */
-  function renderHead(next) {
-    const task = next.task;
-    const run = next.run;
-    setText(h1, task ? `${task.id} · ${task.title}` : taskId);
-    tierHost.textContent = '';
-    tierHost.appendChild(tierBadge(task ? task.tier : '', { attempts: task ? task.attempts : 0 }).el);
-
-    // 第 n 轮 / 共 m 次：数字走 tabular-nums（样式在 workspace.css 的 .ws-round）。
-    // 还没准备沙箱时没有「轮」可言，只报这题总共几次机会。
-    const max = run ? run.attempts_allowed : task ? task.attempts : 1;
-    setText(roundText, run ? t(T.ROUND_N_OF_M, { n: run.attempt, m: max }) : t(T.ATTEMPTS_ONLY, { m: max }));
-
-    diffBtn.update({ disabled: !run });
-
-    renderSteps(next);
-    renderNextAction(next);
-  }
-
   // ==================== 轮询 ====================
   /**
    * 拉一次运行状态。
@@ -574,7 +728,7 @@ export function createWorkspace(props = {}) {
       return Boolean(s.run) && BUSY_STATUS.has(s.run.status);
     },
     onError: (err, times) => {
-      // 题头不再有状态点，轮询失败改为 toast 报错（连接状态另有全局连接条负责）
+      // 状态栏没有独立的轮询错误位，轮询失败改为 toast 报错（连接状态另有全局连接条负责）
       if (err instanceof ApiError && err.code === 'OFFLINE') {
         if (times === 1) {
           showToast({ message: errorTitle('OFFLINE'), detail: errorBody('OFFLINE'), kind: 'error', duration: 8000 });
@@ -588,7 +742,8 @@ export function createWorkspace(props = {}) {
   // ==================== 状态订阅（区域级，§10.5） ====================
   offHandlers.push(
     store.subscribe(null, (next, prev) => {
-      renderHead(next);
+      renderStatusBar(next);
+      renderDock(next);
 
       const runChanged = next.run !== prev.run;
       const busyChanged = next.busy !== prev.busy;
@@ -596,50 +751,52 @@ export function createWorkspace(props = {}) {
       const errorChanged = next.error !== prev.error;
       const revealedChanged = next.revealed !== prev.revealed;
       const newResultChanged = next.newResult !== prev.newResult;
-      const modelChanged = next.modelId !== prev.modelId
-        || next.models !== prev.models
-        || next.modelsError !== prev.modelsError;
       // 心跳只推进进度数字：不重建任何输入控件（§11.2 #14）
       const tickOnly = next.elapsed !== prev.elapsed
         && !runChanged && !busyChanged && !loadingChanged && !errorChanged
-        && !revealedChanged && !newResultChanged && !modelChanged;
+        && !revealedChanged && !newResultChanged;
 
       if (tickOnly) {
-        sandboxPanel.update({ elapsed: next.elapsed, busy: next.busy });
-        gradePanel.update({ elapsed: next.elapsed, busy: next.busy, run: next.run, modelMismatch: next.modelMismatch });
+        reportNode.update({ elapsed: next.elapsed, busy: next.busy, run: next.run });
         return;
       }
 
-      // 非心跳变化全量下发：各面板自己 diff，root/输入控件不会被重建
-      promptPanel.update({ loading: next.loading, error: next.error, run: next.run, task: next.task, round: next.round });
-      chatPanel.update({
+      // 任务节点：还没开始的一轮默认展开（这是唯一的下一步），跑起来后收起到一行摘要；
+      // 用户手动开合过之后不再覆盖（setOpen 只在 run 有无翻转时调用）。
+      if (runChanged && Boolean(prev.run) !== Boolean(next.run)) {
+        taskNode.setOpen(!next.run && wsStore.get('taskOpen', '') !== 'closed');
+      }
+      const runForSend = next.run;
+      const chatOk = runForSend && (runForSend.status === 'ready' || runForSend.status === 'graded');
+      taskNode.update({
+        task: next.task,
         run: next.run,
-        models: next.models,
-        modelId: next.modelId,
-        modelsError: next.modelsError,
-        loading: next.loading,
-      });
-      sandboxPanel.update({
+        round: next.round,
         loading: next.loading,
         error: next.error,
-        run: next.run,
-        busy: next.busy,
-        opLog: next.opLog,
-        elapsed: next.elapsed,
+        sendDisabled: !runForSend || !chatOk || Boolean(runForSend.chat_busy) || Boolean(runForSend.model_gone),
+        sendReason: !runForSend
+          ? '先准备沙箱，再把提示词发给模型。'
+          : runForSend.model_gone
+            ? '这一轮绑定的模型档案已被删除。'
+            : runForSend.chat_busy
+              ? S.CHAT_REMOTE_BUSY
+              : !chatOk
+                ? '这一轮还不能对话：沙箱没就绪或已经收束。'
+                : '',
       });
-      // newResult 只在翻转成 true 时下发：false 会把校验卡上「新结果」标记提前冲掉
-      const gradeState = {
-        loading: next.loading,
-        error: next.error,
+      chatStream.update({ run: next.run, pickedModelId: next.modelId });
+      // newResult 只在翻转成 true 时下发：false 会把结果节点上「新结果」标记提前冲掉
+      const reportState = {
         run: next.run,
         busy: next.busy,
         elapsed: next.elapsed,
         revealed: next.revealed,
         modelMismatch: next.modelMismatch,
       };
-      if (next.newResult) gradeState.newResult = true;
-      gradePanel.update(gradeState);
-      notesCard.update({ run: next.run, busy: next.busy, loading: next.loading });
+      if (next.newResult) reportState.newResult = true;
+      reportNode.update(reportState);
+      runDetails.update({ run: next.run, busy: next.busy, loading: next.loading, opLog: next.opLog });
     }),
   );
 
@@ -682,7 +839,7 @@ export function createWorkspace(props = {}) {
     const s = store.getState();
     if (!s.modelId) {
       showToast({ message: S.RUN_MODEL_REQUIRED, kind: 'warn', duration: 5000 });
-      focusRegion('chat'); // 档案选择器现在住在对话卡头
+      modelField.focus();
       return;
     }
     if (s.busy) return;
@@ -807,13 +964,61 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 校验完成的结果提醒：展开校验卡并滚过去（规格 §一「结果必须在这张卡里跳出来」）。
+   * 打开「校验报告」独立窗口（结果条上「查看完整报告」的唯一去向）。
+   * footer 出口（作废 / 揭晓 / 导出）直接复用 ⋯ 菜单的同一套状态机判定：
+   * 禁用态与原因两边永远一致，不会出现「菜单里禁用了、窗口里还能点」的分叉。
+   */
+  function openReport() {
+    const s = store.getState();
+    if (!s.run || !s.run.report) return;
+    const items = menuItems(s);
+    const pick = (key) => items.find((i) => i.key === key) || {};
+    const reopen = pick('reopen');
+    const reveal = pick('reveal');
+    const exportItem = pick('export');
+    openReportModal({
+      run: s.run,
+      revealed: s.revealed,
+      newResult: Boolean(s.newResult),
+      actions: [
+        {
+          key: 'reopen',
+          label: reopen.label || T.M_REOPEN,
+          disabled: Boolean(reopen.disabled),
+          reason: reopen.reason || '',
+          variant: 'default',
+          onClick: () => doReopen(),
+        },
+        {
+          key: 'reveal',
+          label: reveal.label || T.M_REVEAL,
+          disabled: Boolean(reveal.disabled),
+          reason: reveal.reason || '',
+          variant: 'default',
+          onClick: () => doReveal(),
+        },
+        {
+          key: 'export',
+          label: exportItem.label || T.M_EXPORT,
+          disabled: Boolean(exportItem.disabled),
+          reason: exportItem.reason || '',
+          variant: 'ghost',
+          keepOpen: true,
+          onClick: () => doExport(),
+        },
+      ],
+    });
+  }
+
+  /**
+   * 校验完成的结果提醒：滚到对话流里的结果条并聚焦它（红线：结果条内联在流里；
+   * 完整报告在独立窗口，校验完成不自动弹窗、不抢焦点，§13.2）。
    * 焦点在输入框里时不抢焦点——toast 已经报了分数，不打断正在打字的人。
    */
   function guideToResult() {
-    gradePanel.setOpen(true);
     if (isEditableTarget(document.activeElement)) return;
     focusRegion('grade');
+    reportNode.focusResult();
   }
 
   /**
@@ -866,6 +1071,8 @@ export function createWorkspace(props = {}) {
 
   /**
    * 重建沙箱（带二次确认）。
+   * 回基线必须作废旧成绩：服务端 _archive_epoch + _void_rounds 之后，旧报告不再随
+   * run_view 下发，对话流里的旧结果节点与旧错误列表跟着消失（红线 4）。
    */
   async function doRebuild() {
     const s = store.getState();
@@ -917,7 +1124,6 @@ export function createWorkspace(props = {}) {
     const s = store.getState();
     if (!s.run) {
       showToast({ message: S.ERR_NO_SANDBOX, detail: S.ERR_NO_SANDBOX_BODY, kind: 'warn', duration: 6000 });
-      focusRegion('sandbox');
       return;
     }
     if (s.busy) return;
@@ -926,7 +1132,7 @@ export function createWorkspace(props = {}) {
     const runBefore = s.run;
     if (s.run.chat_busy) {
       showToast({ message: S.CHAT_REMOTE_BUSY, detail: S.CHAT_REMOTE_BUSY_DETAIL, kind: 'warn', duration: 8000 });
-      focusRegion('chat');
+      chatStream.focusComposer();
       return;
     }
     patch({ busy: 'grade', newResult: false, elapsed: 0, run: { ...s.run, status: 'grading' } });
@@ -1006,9 +1212,6 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 查看参考解（必须写明「已揭晓、不计入通过率统计」，§13.3）。
-   */
-  /**
    * 误校验的补救：作废本轮分数，退回可继续对话的状态。
    * 沙箱与模型已做的改动都保留，改完重新校验会记作新一轮结果。
    */
@@ -1081,7 +1284,7 @@ export function createWorkspace(props = {}) {
     const ok = await confirmDialog({
       title: T.DISCARD_TITLE,
       messages: [T.DISCARD_BODY, `将删除：${runId}`],
-      confirmLabel: T.NEXT_DISCARD,
+      confirmLabel: T.M_DISCARD,
       cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
       danger: true,
     });
@@ -1107,17 +1310,17 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 用现存档案为这道题重开一轮（对话卡在「档案已删除」时给出的出口）。
+   * 用现存档案为这道题重开一轮（对话流在「档案已删除」时给出的出口）。
    *
    * 不改写旧记录的 model 归属：run_id 与 runs/<任务>/<档案>/ 目录名里都带着档案名，
-   * 改了就会让记录躺在死档案下却被算成活档案的成绩。旧记录交给「作废本轮成绩」处理。
+   * 改了就会让记录躺在死档案下却被算成活档案的成绩。旧记录交给「继续对话（本轮分数作废）」处理。
    */
   async function doRestartWithModel(preferredId) {
     const s = store.getState();
     const modelId = String(preferredId || s.modelId || '');
     if (!modelId) {
       showToast({ message: S.RUN_MODEL_REQUIRED, kind: 'warn', duration: 5000 });
-      focusRegion('chat');
+      modelField.focus();
       return;
     }
     if (s.busy) return;
@@ -1142,6 +1345,9 @@ export function createWorkspace(props = {}) {
     }
   }
 
+  /**
+   * 查看参考解（必须写明「已揭晓、不计入通过率统计」，§13.3）。
+   */
   async function doReveal() {
     const s = store.getState();
     if (!s.run) return;
@@ -1160,6 +1366,9 @@ export function createWorkspace(props = {}) {
       patch({ revealed: { patch: res.patch || '', notice: res.notice || '' }, busy: '' });
       await loadRun(s.run.run_id);
       showToast({ message: S.GRADE_REVEAL_DONE, kind: 'warn', duration: 8000 });
+      // 参考解正文随校验报告住在独立窗口里：这次点击要的就是它，直接把窗口呈上来
+      // （这是用户主动动作的即时结果，不是校验完成那种被动事件，不违反 §13.2）。
+      openReport();
     } catch (err) {
       reportError(err, '查看参考解');
     }
@@ -1223,19 +1432,20 @@ export function createWorkspace(props = {}) {
     diffToken = '';
     setText(diffText, '');
     diffCard.update({ hint: '' });
-    diffCard.setOpen(false);
     diffWrap.hidden = true;
-    diffBtn.getButton().setAttribute('aria-expanded', 'false');
+    if (store.getState().diffOpen) patch({ diffOpen: false });
   }
 
   /**
-   * 题头 [查看改动]：开合改动正文。展开时按需拉取一次（不轮询）。
+   * 菜单「查看改动」：开合改动正文。展开时按需拉取一次（不轮询）。
    */
   function toggleDiff() {
-    const open = !diffCard.isOpen();
-    diffCard.setOpen(open);
+    const s = store.getState();
+    if (!s.run) return;
+    const open = !s.diffOpen;
+    patch({ diffOpen: open });
     diffWrap.hidden = !open;
-    diffBtn.getButton().setAttribute('aria-expanded', String(open));
+    diffCard.setOpen(true);
     if (open) doShowDiff();
   }
 
@@ -1271,8 +1481,8 @@ export function createWorkspace(props = {}) {
   }
 
   /**
-   * 打开沙箱目录。
-   * 契约缺口：后端没有这个接口，所以不做注定 404 的请求，
+   * 复制沙箱路径。
+   * 契约缺口：后端没有「打开目录」接口，所以不做注定 404 的请求，
    * 改为「复制路径 + 说明怎么手动打开」（见 NOTES.md）。
    */
   function doOpenDir() {
@@ -1285,7 +1495,7 @@ export function createWorkspace(props = {}) {
       kind: 'warn',
       duration: 10000,
     });
-    void sandboxPanel.copyPath(path);
+    void runDetails.copyPath(path);
   }
 
   /**
@@ -1339,9 +1549,11 @@ export function createWorkspace(props = {}) {
   function focusRegion(region) {
     const node = root.querySelector(`#ws-region-${region}`);
     if (!node) return;
-    const card = REGION_CARDS[region];
-    if (card && typeof card.setOpen === 'function') card.setOpen(true);
-    const target = node.querySelector('h2') || node;
+    // 折叠节点先展开再跳，别把人滚到一个关着的节点上
+    if (region === 'prompt') taskNode.setOpen(true);
+    if (region === 'sandbox') runDetails.setDetailsOpen(true);
+    if (region === 'run') runDetails.setNotesOpen(true);
+    const target = node.querySelector('h1, h2, summary') || node;
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
     scrollBelowStickyHeader(node);
@@ -1353,6 +1565,15 @@ export function createWorkspace(props = {}) {
     if (region === 'chat' && (activeRunId || urlRunId)) params.runId = activeRunId || urlRunId;
     if (navigate) navigate('workspace', params, { replace: true });
   }
+
+  // 任务节点开合由用户掌控：手动开合记进 wsStore，轮询不覆盖
+  offHandlers.push(
+    on(root, 'toggle', (event) => {
+      if (event.target && event.target.id === 'ws-region-prompt') {
+        wsStore.set('taskOpen', event.target.open ? 'open' : 'closed');
+      }
+    }, { capture: true }),
+  );
 
   // ==================== 快捷键（§13.4） ====================
   /**
@@ -1376,7 +1597,7 @@ export function createWorkspace(props = {}) {
     if (key === 'c') {
       if (!s.run) return;
       event.preventDefault();
-      promptPanel.copyPrompt();
+      taskNode.copyPrompt();
     } else if (key === 'g') {
       if (!s.run || s.busy) return;
       event.preventDefault();
@@ -1390,7 +1611,7 @@ export function createWorkspace(props = {}) {
   offHandlers.push(on(document, 'keydown', onKeydown));
 
   // ==================== 滚动位置持久化（§13.5） ====================
-  // 外壳现在是「主内容区自己滚动」（.app-main 带 overflow），而 scroll 事件
+  // 外壳是「主内容区自己滚动」（.app-main 带 overflow），而 scroll 事件
   // 不冒泡。用捕获阶段挂在 document 上才能同时收到窗口滚动和容器滚动，
   // 否则刷新后「回到上次位置」会静默失效。
   offHandlers.push(
@@ -1452,6 +1673,10 @@ export function createWorkspace(props = {}) {
 
   load();
 
+  // 初始 dock / 状态栏（store 订阅在首次 patch 前就要有一版界面）
+  renderStatusBar(store.getState());
+  renderDock(store.getState());
+
   // ==================== 对外 ====================
   return {
     el: root,
@@ -1494,12 +1719,15 @@ export function createWorkspace(props = {}) {
         tickTimer = null;
       }
       scope.cancelAll();
-      promptPanel.destroy();
-      chatPanel.destroy();
-      sandboxPanel.destroy();
-      gradePanel.destroy();
-      notesCard.destroy();
-      diffBtn.destroy();
+      taskNode.destroy();
+      chatStream.destroy();
+      reportNode.destroy();
+      runDetails.destroy();
+      dock.destroy();
+      modelField.destroy();
+      modelRetryBtn.destroy();
+      statusDot.destroy();
+      diffCard.destroy();
     },
   };
 }

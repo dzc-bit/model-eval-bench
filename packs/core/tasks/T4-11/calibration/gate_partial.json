@@ -147,7 +147,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x0000026F6B1B96D0>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001F206DAB650>.cached_symbol_count"
             }
           ]
         },
@@ -230,14 +230,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_write_invalidates_the_pool_the_realtime_guard_checks_against",
               "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "message": "AssertionError: 写入之后行情侧仍引用写前的旧股票池（4）做宽度校验：写入侧的失效协议没有打穿到行情侧\nassert '本地股票池=4' not in '已使用本地最近交易日 ...0%，已隐藏该宽度统计。'\n  \n  '本地股票池=4' is contained here:\n    t total=5，本地股票池=4，比例=125.0%，已隐藏该宽度统计。\n  ?           +++++++"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_cross_chain_coherence.py::test_external_write_reaches_health_and_market_exits_with_the_same_fact",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
+              "message": "AssertionError: 外部写入之后健康口径报的只数必须等于盘上真实只数，实际：{'dataset': 'daily_bars', 'symbols': 0, 'start_date': None, 'end_date': None, 'missing_rows': 0, 'suspension_rows': 0}\nassert 0 == 4"
             }
           ]
         },
@@ -273,5 +273,5 @@
   "score_min": 27.78,
   "score_max": 27.78,
   "stable": true,
-  "finished_at": "2026-09-30T14:14:59"
+  "finished_at": "2026-10-02T02:42:19"
 }

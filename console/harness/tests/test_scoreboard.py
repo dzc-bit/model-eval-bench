@@ -305,6 +305,58 @@ def test_revealed_rounds_are_excluded_from_main_stats(cfg):
     assert csv.startswith("任务,档位,")
 
 
+def test_scoreboard_trials_exclude_never_graded_runs(cfg):
+    """建了记录但从未进入评分流程的 run 不进 trials 分母（不稀释通过率）。"""
+    store_run(cfg, "TEST-01__真跑模型__20260101-000001", BACKEND_TASK, "真跑模型", True, 100.0)
+    idle = make_run(cfg, BACKEND_TASK, "真跑模型", run_id="TEST-01__真跑模型__20260101-000002")
+    idle["status"] = "ready"
+    idle["rounds"] = []
+    idle["last_score"] = None
+    runs.save_run(cfg, idle)
+
+    board = runs.scoreboard(cfg)
+    row = next(r for r in board["matrix"] if r["task"] == BACKEND_TASK)
+    cell = row["cells"]["真跑模型"]
+    assert cell["trials"] == 1, "只备好沙箱、一次校验都没跑过的记录不算一次尝试"
+    assert cell["pass1"] == 1 and cell["pass_rate"] == 1.0
+
+
+def test_scoreboard_trials_exclude_fully_invalidated_runs(cfg):
+    """所有轮次都被判无效/作废的 run 同样不进分母：本轮不作数就是不作数。"""
+    voided = store_run(cfg, "TEST-01__全作废__20260101-000001", BACKEND_TASK, "全作废", True, 100.0)
+    voided["rounds"][0]["invalidated"] = True
+    runs.save_run(cfg, voided)
+    store_run(cfg, "TEST-01__全作废__20260101-000002", BACKEND_TASK, "全作废", False, 40.0)
+
+    cell = runs._cell_stats([r for r in runs.list_runs(cfg) if r.get("model") == "全作废"])
+    assert cell["trials"] == 1
+    assert cell["pass1"] == 0
+    assert cell["avg_score"] == 40.0
+
+
+def test_scoreboard_avg_counts_each_run_once(cfg):
+    """均分口径与排行榜对齐：一条 run 只贡献一个代表分（其作数轮的最高分）。
+
+    同一档案对同一题多次尝试时各算一次；一条 run 内部的多轮不再逐轮摊进平均。
+    """
+    run = {
+        "run_id": "TEST-01__多轮模型__20260101-000001", "task": BACKEND_TASK, "model": "多轮模型",
+        "attempt": 2, "status": "graded", "created_at": "2026-01-01T00:00:00",
+        "revealed": False, "rounds": [
+            {"attempt": 1, "score": 20.0, "passed": False, "graded_at": "x"},
+            {"attempt": 2, "score": 80.0, "passed": False, "graded_at": "x"},
+        ],
+        "last_score": 80.0,
+    }
+    runs.save_run(cfg, run)
+    store_run(cfg, "TEST-01__多轮模型__20260101-000002", BACKEND_TASK, "多轮模型", False, 60.0)
+
+    cell = runs._cell_stats([r for r in runs.list_runs(cfg) if r.get("model") == "多轮模型"])
+    assert cell["trials"] == 2
+    # (80 + 60) / 2 = 70；逐轮摊薄会是 (20 + 80 + 60) / 3 ≈ 53.3
+    assert cell["avg_score"] == 70.0
+
+
 def test_pass_at_k_counts_any_green_round(cfg):
     """pass@k：前 k 轮里有一轮全绿就算通过。"""
     run = {

@@ -106,6 +106,28 @@
 | 泄漏兜底 | 题包全目录 grep 无受测仓库路径/敏感目录名；注入树构建时 `assert_no_leak` 通过 |
 | 沙箱可见红测试 | 0（3 条点名用例已裁剪，见下） |
 
+## 六·补、2026-10-02 体检修复记录（两道 packcheck 红清零）
+
+本轮体检（runs/audit/2026-10-02）发现两道红并修复：
+
+1. **coherence 组只有 1 条断言** → 新增第二数据场景
+   `test_interrupted_overflowing_session_keeps_all_promises`：中断残留（悬空调用）
+   + 参数体驱动的字符超限，在同一会话里同时压修复前置、安全切点、完整搬运与
+   真实体积口径四条边。逐态实测：fixed 绿、partial（只修端口②）红（修复前置
+   缺失 → 配对断言红）、injected 红（悬空 + 口径双杀）。coherence 组现有 2 条。
+2. **「半成品应是锚解真子集」判据在单文件锚解上结构上不可满足**（fix 与 partial
+   都只落 `agent.py`，单元素集合不存在真子集）→ 修 `packcheck.py`：同一文件
+   集合时降级为改动体量比较（半成品 25 行 < 锚解 58 行），非子集仍然判红。
+
+修复后门禁重跑（packgate，2026-10-02，结果已写回 `calibration/`）：
+
+| 门禁 | 结果 |
+| --- | --- |
+| fixed | **100.0**，6 组全绿（含新 coherence 场景），p2p 30/30 绿 |
+| partial | **14.29**（不变），coherence 仍红 |
+| injected ×20 | **稳定 0.0**（20/20），6 组全红，p2p 0 破坏 |
+| packcheck | **0 红 0 黄** → meta.json 摘除 `status: draft` |
+
 隐藏测试确定性纪律：模型全部脚本化（FakeModel/ExplodingModel）、常量全部
 monkeypatch、零网络零 sleep；性能硬约束（整理动作的模型调用 O(1)/轮）用**计数器
 断言**（`test_tidy_keeps_model_calls_batched_per_turn` 与 coherence 组的压缩调用

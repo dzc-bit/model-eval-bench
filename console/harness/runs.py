@@ -155,12 +155,6 @@ def get_run(cfg: dict, run_id: str) -> dict:
     )
 
 
-def reserved_drives(cfg: dict, exclude: str = "") -> dict:
-    """兼容旧调用方；文件夹沙箱不需要全局盘符预留。"""
-    del cfg, exclude
-    return {}
-
-
 # --------------------------------------------------------------------------
 # 生命周期
 # --------------------------------------------------------------------------
@@ -174,8 +168,9 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
     若有同一题同模型的排队中校准沙箱（§6.4 盲测排队），直接认领一个，
     这样校准排了 N 个名额后，真正使用时才创建文件夹沙箱。
 
-    :param wait_s: 保留旧调用签名；文件夹沙箱不等待盘符。
+    :param wait_s: 保留旧调用签名（跑批仍传 30s）；文件夹沙箱没有盘符可等，值被忽略。
     """
+    del wait_s
     meta = packs.load_meta(cfg, task)
     config.find_model(cfg, model)          # 模型档案不存在就直接报错
     attempt = max(1, int(attempt or 1))
@@ -248,8 +243,6 @@ def create_run(cfg: dict, task: str, model: str, attempt: int = 1,
         return claimed
 
     prepare_kwargs = {
-        "reserved": reserved_drives(cfg, exclude=run_id),
-        "wait_s": wait_s,
         "log": logger,
     }
     if cancel_event is not None:
@@ -282,8 +275,7 @@ def _claim_queued(cfg: dict, task: str, model: str, log: Log,
             run["status"] = "preparing"
             save_run(cfg, run)
             try:
-                sandbox.prepare(cfg, run, meta,
-                                reserved=reserved_drives(cfg, exclude=run["run_id"]), log=log)
+                sandbox.prepare(cfg, run, meta, log=log)
             except errors.HarnessError:
                 run["status"] = "queued"
                 save_run(cfg, run)
@@ -367,7 +359,7 @@ def rebuild_sandbox(cfg: dict, task: str, run_id: str = "", log: Log = None) -> 
             raise errors.HarnessError(errors.E_RUN_CANCELLED, "这一轮已被取消，不能重建沙箱。", target_id)
         meta = packs.load_meta(cfg, task)
         logger("开始重建沙箱：%s" % run["run_id"])
-        sandbox.rebuild(cfg, run, meta, reserved=reserved_drives(cfg, exclude=run["run_id"]), log=logger)
+        sandbox.rebuild(cfg, run, meta, log=logger)
         run["status"] = "ready"
         # 重建是新纪元：旧对话、旧改动证据与旧轮次记录整体归档。轮次只作废不删除
         # （记录目录与 run_id 都不变，删了就没法复盘上一个模型到底做了什么）。
@@ -956,8 +948,8 @@ def scoreboard(cfg: dict) -> dict:
         "models": models,
         "matrix": matrix,
         "totals": _totals(matrix),
-        "note": "单元格 = 通过轮数/总轮数（pass@1），括号内是平均得分与 Wilson 95% 区间；"
-                "「已揭晓」区不计入通过率。",
+        "note": "单元格 = pass@1 通过数/作数尝试数，均分取各尝试最佳轮的均值；"
+                "建了记录但从未跑完校验的尝试不进分母；「已揭晓」区不计入通过率。",
     }
 
 
@@ -1054,12 +1046,21 @@ def _live_rounds(run: dict) -> List[dict]:
     return [rnd for rnd in (run.get("rounds") or []) if isinstance(rnd, dict) and not rnd.get("voided")]
 
 
+def _counted_rounds(run: dict) -> List[dict]:
+    """成绩作数的轮次：作废（voided）与判无效（invalidated：越界/回归/校验出错）都不算。"""
+    return [rnd for rnd in _live_rounds(run) if not rnd.get("invalidated")]
+
+
 def _cell_stats(pair: List[dict]) -> dict:
     """一个 (任务 × 模型) 单元格的统计。
 
-    作废轮（invalidated：越界/回归/校验出错）不计通过、不计分，与排行榜同口径——
-    旧实现把作废轮的 0 分计入平均、把作废轮的 passed 计入通过率，两个视图给出
-    互相矛盾的结论。
+    口径（与排行榜同口径）：
+    - trials 分母 = **真实跑过的尝试数**：建了记录但从未进入评分流程、或所有轮次
+      都被作废/判无效的 run 不进分母（旧实现把它们记成一次失败尝试，通过率被稀释）。
+    - pass@1 = 作数尝试里第 1 轮全绿的数量。
+    - 均分 = 每条 run 只贡献一个代表分（其作数轮的最高分）在全部作数尝试上的均值——
+      同一档案对同一题的多次尝试各算一次，不再把每一轮都摊进平均（重复计入），
+      与排行榜「一条记录一个代表成绩」的口径对齐。
     """
     def _score(rnd: dict) -> float:
         try:
@@ -1069,28 +1070,29 @@ def _cell_stats(pair: List[dict]) -> dict:
 
     scored = [r for r in pair if not r.get("revealed")]
     revealed = [r for r in pair if r.get("revealed")]
-    trials = len(scored)
+    counted = [r for r in scored if _counted_rounds(r)]
+    trials = len(counted)
     first_round_passes = 0
-    for run in scored:
-        for rnd in _live_rounds(run):
+    for run in counted:
+        for rnd in _counted_rounds(run):
             if int(rnd.get("attempt") or 0) == 1:
-                if rnd.get("passed") and not rnd.get("invalidated"):
+                if rnd.get("passed"):
                     first_round_passes += 1
                 break
     any_pass = 0
     scores: List[float] = []
-    for run in scored:
-        best = False
-        # 作废轮（voided，用户点「继续对话」放弃的）与越界轮（invalidated，
-        # 改了测试/配置被拦下的）都不计分、不算通过——两套语义都要排掉。
-        for rnd in _live_rounds(run):
-            if rnd.get("invalidated"):
-                continue
-            scores.append(_score(rnd))
+    for run in counted:
+        best = None
+        run_passed = False
+        for rnd in _counted_rounds(run):
+            value = _score(rnd)
+            best = value if best is None else max(best, value)
             if rnd.get("passed"):
-                best = True
-        if best:
+                run_passed = True
+        if run_passed:
             any_pass += 1
+        if best is not None:
+            scores.append(best)
     low, high = wilson_interval(first_round_passes, trials)
     avg = round(sum(scores) / len(scores), 1) if scores else 0.0
     return {
@@ -1125,7 +1127,7 @@ def scoreboard_csv(board: dict) -> str:
     """导出 CSV：主矩阵一块，已揭晓单列一块。"""
     tasks = board["tasks"]
     models = board["models"]
-    out = ["任务,档位," + ",".join("%s(pass@1/轮数,均分,Wilson95%%)" % m for m in models)]
+    out = ["任务,档位," + ",".join("%s(pass@1/作数尝试数,均分,Wilson95%%)" % m for m in models)]
     for row in board["matrix"]:
         cells = []
         for model in models:

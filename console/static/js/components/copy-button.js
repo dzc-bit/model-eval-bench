@@ -18,7 +18,7 @@
  */
 
 import { el, setText, on } from '../core/dom.js';
-import { S, t } from '../core/strings.js';
+import { S } from '../core/strings.js';
 import { showToast } from './toast.js';
 
 /** 「已复制」态停留时长（毫秒）。 */
@@ -282,9 +282,4 @@ export function createCopyButton(props = {}) {
     /** 当前状态，测试与调试用。 */
     getState: () => state,
   };
-}
-
-/** 便捷：生成「复制第 N 级提示词」的成功文案。 */
-export function promptCopiedMessage(level) {
-  return t(S.COPY_OK_BODY, { n: level });
 }

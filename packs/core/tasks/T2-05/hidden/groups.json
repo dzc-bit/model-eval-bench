@@ -43,9 +43,10 @@
     {
       "id": "coherence",
       "weight": 2,
-      "port": "全生命周期一致性：串行复用→并发竞态只起一个→清理干净→重新准入",
+      "port": "全生命周期一致性：串行复用→并发竞态只起一个→清理干净→重新准入（完成与取消两条路径各一场景）",
       "tests": [
-        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup"
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh"
       ]
     },
     {

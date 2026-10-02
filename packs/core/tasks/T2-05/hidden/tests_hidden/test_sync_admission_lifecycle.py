@@ -375,3 +375,33 @@ def test_full_lifecycle_coherence_across_concurrency_and_cleanup(tmp_path, monke
     admitted_final, is_new_final = manager._admit(final_job, sig)
     assert is_new_final is True
     assert admitted_final.admission == "started"
+
+
+def test_cancel_then_prune_then_resubmit_starts_fresh(tmp_path, monkeypatch):
+    """第二数据场景（取消路径）：取消 → 终态清理 → 同签名重提必须是全新 started。
+
+    与上一条的"完成路径"互补：清理动作必须连去重签名与取消标记一起带走，
+    留下任何一个都会把"停止过的任务"变成幽灵——签名残留让重提被旧记录绊住，
+    取消标记残留让新任务一出生就背着别人的停止令。
+    """
+    import astock_backtester.data.sync as sync_module
+    monkeypatch.setattr(sync_module, "TERMINAL_JOB_RETENTION_SECONDS", 0.0)
+    monkeypatch.setattr(sync_module, "JOB_READ_STALE_SECONDS", 0.0)
+
+    manager = SyncJobManager(warehouse=Warehouse(tmp_path), provider=object(), max_concurrent_jobs=2)
+    sig = "full_market_bootstrap|2015-03-02|2015-03-06|600519"
+    job, is_new = manager._admit(_make_status("cxl-1", "running"), sig)
+    assert is_new is True
+    assert job.admission == "started"
+
+    manager._cancelled.add("cxl-1")  # 用户按下停止
+    manager._store(job.model_copy(deep=True, update={"status": "cancelled"}))
+    manager._prune_locked(time.monotonic())
+
+    assert manager._signatures == {}, "终态清理必须连去重签名一起带走"
+    assert manager._cancelled == set(), "终态清理必须连取消标记一起带走"
+
+    again, is_new_again = manager._admit(_make_status("cxl-2", "running"), sig)
+    assert is_new_again is True
+    assert again.admission == "started"
+    assert "cxl-2" not in manager._cancelled, "新任务不得背着旧任务的取消标记"

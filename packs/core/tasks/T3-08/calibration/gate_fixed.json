@@ -109,6 +109,11 @@
               "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_long_session_keeps_all_three_promises_at_once",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_archive_trilemma.py::test_interrupted_overflowing_session_keeps_all_promises",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         }
@@ -122,5 +127,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-09-30T01:44:51"
+  "finished_at": "2026-10-02T02:06:18"
 }

@@ -2,6 +2,12 @@
 
 > 本文件保留前端实现与历史验收记录；当前重构同时修改了后端和前端，最新验证见 `../harness/VALIDATION.md`。
 > 所有请求只打本机 `/api/*`，无第三方库、字体、CDN，无构建产物。
+>
+> **2026-10-02 工作台改版**：工作台从「四张折叠卡」重做为单列对话流，
+> `views/workspace/{chat,sandbox,grade,prompt}-panel.js` 与 `run-bar.js` 已删除，
+> 由 `views/workspace.js`（编排）+ `views/workspace/{task-node,chat-stream,report-node,run-details,dock}.js`
+> 承载。本文 §3/§4 的落点指针已按新结构更新；§5 是盘符时代的验收记录，仅存档。
+> 改版全貌见 `runs/audit/2026-10-02/前端重构说明.md`。
 
 ---
 
@@ -18,7 +24,7 @@
 | 7 | 表单无 label | `components/field.js`：`<label for>` 强制关联；`aria-describedby` 挂 hint + error | ✅ 所有输入控件都走 `field.js` |
 | 8 | 只用颜色表意 | `components/badge.js` / `status-dot.js`：符号 + 文字 + 颜色三重编码 | ✅ 例如 `✓ 通过` / `✕ 未通过` / `● 正在准备` |
 | 9 | 长操作无反馈 | `components/progress.js` + 心跳（`elapsed` 每秒 +1）+ 可折叠日志 | ✅ 准备/校验/清空/重建都有进度与已用时间 |
-| 10 | 错误只有一句「失败」 | `core/strings.js` `errorTitle()` / `errorBody()`：发生 + 影响 + 下一步 | ✅ 未知码回落 `S_UNKNOWN_ERROR` 并保留原始 code |
+| 10 | 错误只有一句「失败」 | `core/strings.js` `errorTitle()` / `errorBody()`：发生 + 影响 + 下一步 | ✅ 未知码回落 `S.ERR_UNKNOWN` / `S.ERR_UNKNOWN_BODY` 并保留原始 code |
 | 11 | 焦点掉进弹层回不来 | `core/a11y.js` `trapFocus()`（同步聚焦 + 宏任务/一帧双通道重试）+ `restoreFocus()` | ✅ 关闭后焦点还原到触发元素 |
 | 12 | 快捷键在输入框里也触发 | `core/a11y.js` `isEditableTarget()`；`main.js` `onGlobalKeydown` 先判 editable、组合键放行 | ✅ C/G/R/1/2/3/? 在输入框内失效 |
 | 13 | 状态存在组件里刷新就丢 | `core/storage.js`（`localStorage` + 前缀 + 降级容错）；`run_id` / `last-task` / `last-model` / 偏好 / 滚动位置 | ✅ 刷新 `#/workspace/<id>` 回到同一视图与区域 |
@@ -56,13 +62,14 @@
    落点：`views/workspace.js` `doExport()`。
 
 3. **没有沙箱准备/清理日志接口**。
-   `run_view` 的 `log` 只在 `grading / graded / error` 时有值（那是**校验**日志）。沙箱面板的日志改为记录**前端自己真实发过的每一步**（`opLog`：提交准备、沙箱就绪、清空、重建…，带本地时间戳），并在空态时说明这里记录的是本机操作轨迹。
-   落点：`views/workspace.js` `logOp()`、`views/workspace/sandbox-panel.js` `renderLog()`。
+   `run_view` 的 `log` 只在 `grading / graded / error` 时有值（那是**校验**日志）。运行详情节点里的沙箱日志记录的是**前端自己真实发过的每一步**（`opLog`：提交准备、沙箱就绪、清空、重建…，带本地时间戳），并在空态时说明这里记录的是本机操作轨迹。
+   落点：`views/workspace.js` `logOp()`、`views/workspace/run-details.js`（沙箱日志折叠卡）。
 
 4. **`POST /api/runs/{id}/diff` 返回 `{diff: "<文本>"}`**，不是对象。前端按字符串渲染进 `<pre>`。
-   落点：`views/workspace/run-bar.js` `showDiff()`。
+   落点：`views/workspace.js`「更多操作 → 查看改动」内联区。
 
-5. **模型密钥只写不读**：服务只存 `key_masked`，明文密钥由用户改 `console\config.json` 后重启服务。设置页/模型页文案已写明，前端不做密钥编辑框。
+5. **模型密钥**：档案页直接粘贴密钥，服务端写入本机 `console/keys.local.json`（已被 .gitignore 排除），
+   页面与 `config.json` 只回显脱敏值；也支持 `key_env` 环境变量。前端不做明文回显。
 
 6. **档位取值口径**：后端 packs 返回 `primary / medium / hard`，设计文档与 mock 用 `easy` 指初级。前端 `core/strings.js` 提供 `normalizeTier()` 归一后参与筛选与徽章取词，`TIER_NAMES` / `TIER_GLYPHS` 两个键都认。
    （若后端将来统一成 `easy`，只需删掉别名，其余代码不动。）
@@ -99,7 +106,7 @@
 - **剪贴板三级降级**（`components/copy-button.js`）：`navigator.clipboard.writeText` → `document.execCommand('copy')`（离屏 textarea）→ 选中源文本 + 手动 Ctrl+C。第三级在没有「对应源元素」时（比如「复制全部」是把两段拼起来的）会造一个**留在页面里**的只读 textarea 并全选聚焦，焦点离开后自动收掉——不能复制完就摘，否则选区跟着消失，提示就成了空话。
 - **模态焦点时机**：`modal.js` 必须先把浮层 `appendChild` 进 DOM 再调 `trapFocus()`。对游离节点 `focus()` 会落到 `body` 上，插入后焦点不会自己回来。`trapFocus()` 先同步聚焦，失败再走宏任务 + 一帧两条重试通道——只押 `requestAnimationFrame` 的话，后台标签页 / 部分内嵌视图根本不发帧，焦点就永远进不去浮层。
 - **`t()` 两种写法都支持**：`t('KEY', vars)` 与 `t(S.KEY, vars)` 等价（键名是 ASCII 大写下划线、文案是中文，不会撞车）。全站 80 处调用用的是 `t(S.KEY, vars)` 风格。
-- **工作台四区域的排版（2026-09-30 调整）**：提示词 / 沙箱并排，校验区与**运行区**各占整行。运行区原先挤在半栏里，右侧留出 **668px 的空半行**（实测 1440 视口下 1320 网格只用了 652），而且它内部是横向条状信息（模型下拉 + 备注 + diff 统计），改成整行后内部走 `repeat(auto-fit, minmax(260px,1fr))` 多列，页面总高从 1782 → 1482，空半行归零。`.ws-region--run` 这个类名由 `run-bar.js` 挂在根节点上。
+- **工作台形态（2026-10-02 定稿）**：单列对话流——顶部粘性状态栏（任务 · 档位 · 第 n 轮/共 m 次 · 档案下拉 · 状态一句话）→ 任务与提示词折叠节点（`task-node.js`）→ 对话流（`chat-stream.js`：消息 / 模型思考折叠行 / 工具调用紧凑卡 / 内联最终总结）→ 校验结果内联节点（`report-node.js`）→ 运行详情与本轮备注两个折叠节点（`run-details.js`）→ 底部粘性操作栏 + 输入区（`dock.js`，每时刻一个主按钮，其余出口收进「更多操作」常列菜单，禁用项带原因）。旧的四区域排版与 `.ws-region--run` 半栏问题随之废弃。
 
 ## 5. 历史验收记录（盘符版 ?mock=1，非当前版本）
 
