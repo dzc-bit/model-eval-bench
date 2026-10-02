@@ -12,7 +12,7 @@ import pytest
 
 from conftest import (BACKEND_TASK, FRONTEND_TASK, MODEL_FULL_FIX, MODEL_PARTIAL_FIX,
                       make_run, write_in_sandbox)
-from harness import errors, grade, packs, report, sandbox, util
+from harness import errors, grade, packs, report, runs, sandbox, util
 
 GROUP_IDS = ["turnover_exit", "adapter_exit", "engine_exit", "market_cap_exit", "coherence"]
 
@@ -447,6 +447,64 @@ def test_grade_aborts_when_sandbox_deps_emptied(cfg, log):
         assert result["invalidated"] is True
         assert "空目录" in result["invalid_reason"]
         assert result["groups"] == [], "完整性没过就不该有分组分数"
+    finally:
+        sandbox.destroy(cfg, run, log=log)
+
+
+# ------------------------------------------------------------------ 批次释放后继续第二轮
+
+def _graded_run_with_released_sandbox(cfg, log, model, run_id):
+    """造一个「第 1 轮已考 50 分、沙箱被批次 auto_release 回收」的 run。"""
+    meta = packs.load_meta(cfg, BACKEND_TASK)
+    run = make_run(cfg, BACKEND_TASK, model, run_id=run_id)
+    util.ensure_dir(run["run_dir"])
+    sandbox.prepare(cfg, run, meta, log=log)
+    run["attempt"] = 1
+    run["attempts_allowed"] = 3
+    run["rounds"] = [{"attempt": 1, "score": 50.0, "passed": False, "invalidated": False,
+                      "graded_at": "2026-01-01T00:10:00", "report": "round-1.json"}]
+    runs.save_run(cfg, run)
+    # 模拟批次 auto_release：沙箱目录删掉、字段清空、状态留 graded 之前先落盘
+    sandbox.destroy(cfg, run, log=log)
+    run["status"] = "graded"
+    runs.save_run(cfg, run)
+    return meta, run
+
+
+def test_promote_rebuilds_workspace_after_batch_release(cfg, log):
+    """批次回收沙箱后进入第二轮：promote 要把工作区补回来，第 1 轮成绩保留。"""
+    meta, run = _graded_run_with_released_sandbox(
+        cfg, log, "续轮模型", "TEST-08__续轮模型__20260101-000000")
+    try:
+        res = runs.promote(cfg, run["run_id"])
+        assert res["attempt"] == 2
+        fresh = runs.get_run(cfg, run["run_id"])
+        assert os.path.isdir(fresh["sandbox"]), "promote 必须把丢掉的工作区补回来"
+        assert fresh["status"] == "ready"
+        assert [r["score"] for r in fresh["rounds"]] == [50.0], "补建不许作废第 1 轮成绩"
+    finally:
+        sandbox.destroy(cfg, run, log=log)
+
+
+def test_promote_reprepares_when_attempt_already_advanced(cfg, log):
+    """attempt 已推进过而工作区仍缺失：再点一次「进入第二轮」按补建处理，不消耗机会。"""
+    meta, run = _graded_run_with_released_sandbox(
+        cfg, log, "续轮模型二", "TEST-09__续轮模型二__20260101-000000")
+    try:
+        # 第 1 次 promote 推进到第 2 轮（此时还没有补建逻辑留下的状态）
+        assert runs.promote(cfg, run["run_id"])["attempt"] == 2
+        # 模拟批次的回收又发生了一次（或第一次 promote 后被回收）：工作区再次丢失
+        run = runs.get_run(cfg, run["run_id"])   # 先拿到 promote 之后的落盘状态
+        sandbox.destroy(cfg, run, log=log)
+        runs.save_run(cfg, run)
+
+        res = runs.promote(cfg, run["run_id"])
+        assert res["reprepared"] is True
+        assert res["attempt"] == 2, "补建不许再消耗一次轮次"
+        fresh = runs.get_run(cfg, run["run_id"])
+        assert os.path.isdir(fresh["sandbox"])
+        assert fresh["status"] == "ready"
+        assert [r["score"] for r in fresh["rounds"]] == [50.0]
     finally:
         sandbox.destroy(cfg, run, log=log)
 

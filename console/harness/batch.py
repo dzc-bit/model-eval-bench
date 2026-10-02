@@ -226,8 +226,11 @@ def _run_snapshot(cfg: dict, run_id: str) -> dict:
 
 def _write_doc(cfg: dict, doc: dict) -> None:
     try:
+        # 与 _save_batch 同口径：内存态里挂着 _cancel_event 这类不可序列化的
+        # 内部字段，落盘必须走 _public_batch 白名单，否则对一次账就炸一次。
         util.write_json_atomic(
-            os.path.join(_batch_dir(cfg, str(doc.get("batch_id") or "")), "batch.json"), doc)
+            os.path.join(_batch_dir(cfg, str(doc.get("batch_id") or "")), "batch.json"),
+            _public_batch(doc))
     except OSError:
         pass
 
@@ -428,6 +431,8 @@ def _run_batch(cfg: dict, batch_id: str, log) -> None:
     threads: List[threading.Thread] = []
 
     for item in items:
+        if item.get("status") in {"graded", "error", "cancelled"}:
+            continue          # 已落定（含排队中被移除的）：不派发、不重复收尾
         if cancel_event.is_set():
             with _LOCK:
                 _mark_item_cancelled(batch, item, "排队会话已取消")
@@ -492,7 +497,8 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
     cancel_event = cancel_event or _cancel_event(batch)
     try:
         with _LOCK:
-            if cancel_event.is_set():
+            if cancel_event.is_set() or item.get("status") in {"graded", "error", "cancelled"}:
+                # 派发与停止/移除之间的竞态：条目已经不需要跑了，原样退出（幂等）。
                 _mark_item_cancelled(batch, item, "排队会话已取消")
                 return
             item["status"] = "preparing"
@@ -610,6 +616,43 @@ def _run_item(cfg: dict, batch: dict, item: dict, gate: threading.Semaphore, emi
         gate.release()
 
 
+def remove_item(cfg: dict, batch_id: str, index: int) -> dict:
+    """把一个还没开工的排队条目移出批次（2026-10-02 补的口子）。
+
+    只对 pending 生效：已派发的条目（preparing/ready/grading）归工作台自己的
+    出口管，批次侧绝不满地杀；终态条目没有可移除的东西。移除后这条永远不会
+    被派发（调度循环跳过 + _run_item 入口幂等护栏双保险），批次照常等其余
+    条目自然落定。
+    """
+    try:
+        pos = int(index)
+    except (TypeError, ValueError):
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "批次条目序号必须是整数。")
+    with _LOCK:
+        batch = _BATCHES.get(batch_id)
+    doc = batch if batch is not None else get(cfg, batch_id)
+    doc = _reconcile(cfg, doc)
+    items = doc.get("items") or []
+    if not 0 <= pos < len(items):
+        raise errors.HarnessError(errors.E_BAD_REQUEST, "没有这个批次条目。")
+    item = items[pos]
+    if item.get("status") != "pending":
+        raise errors.HarnessError(
+            errors.E_BAD_REQUEST,
+            "只有还没开工的排队条目可以移除，这一条的状态是「%s」；"
+            "已开工的条目请到工作台收尾。" % (item.get("status") or "未知"))
+    item["status"] = "cancelled"
+    item["finished_at"] = _now()
+    doc["updated_at"] = _now()
+    _add_event(item, "排队中移除：这条还没有开工，不会再派发", "cancelled")
+    if batch is None:
+        _write_doc(cfg, doc)
+    else:
+        _save_batch(cfg, batch)
+    return {"batch_id": batch_id, "index": pos, "removed": True,
+            "message": "条目已移出批次；正在跑的条目不受影响。"}
+
+
 def _add_event(item: dict, message: str, kind: str) -> None:
     events = item.setdefault("events", [])
     events.append({"at": _now(), "kind": kind, "message": message})
@@ -635,6 +678,18 @@ def _release_item_sandbox(cfg: dict, batch: dict, run: dict, emit) -> bool:
     工作区被删得只剩残留。在飞时拒绝回收并保留目录，返回 False。
     """
     if not batch.get("auto_release"):
+        return False
+    try:
+        latest = runs.get_run(cfg, run["run_id"])
+    except Exception:
+        latest = {}
+    # 评分落定但轮次还没用完：沙箱里的模型代码是工作台「进入第二轮」的起点，
+    # 这时回收会让 promote 只剩一条空记录（2026-10-02 T2-04 实测）。留给用户
+    # 自己的出口收尾：继续第二轮 / 结束本轮 / 废弃 / 批次视图手动回收。
+    if (latest.get("status") == "graded"
+            and int(latest.get("attempt") or 1) < int(latest.get("attempts_allowed") or 1)):
+        emit("[%s×%s] 轮次还有剩余，沙箱保留供第二轮使用"
+             % (run.get("task"), run.get("model")))
         return False
     try:
         result = runs.release_sandbox(cfg, run["run_id"])

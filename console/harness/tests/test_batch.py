@@ -259,6 +259,31 @@ def test_release_failure_does_not_raise(cfg, monkeypatch):
     assert any("回收沙箱失败" in line for line in logs)
 
 
+def test_auto_release_keeps_sandbox_when_rounds_remain(cfg, monkeypatch):
+    """评分落定但轮次没用完：auto_release 不回收沙箱，留给「进入第二轮」。"""
+    def fail_release(cfg, run_id):
+        pytest.fail("还有剩余轮次的沙箱不许被自动回收")
+
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
+        "run_id": rid, "status": "graded", "attempt": 1, "attempts_allowed": 3,
+        "task": "T", "model": "M",
+    })
+    monkeypatch.setattr(batch.runs, "release_sandbox", fail_release)
+    run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
+    logs = []
+    assert batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append) is False
+    assert run["sandbox"] == "x"
+    assert any("保留" in line for line in logs)
+
+    # 轮次用完 → 照常回收
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: {
+        "run_id": rid, "status": "graded", "attempt": 2, "attempts_allowed": 2,
+        "task": "T", "model": "M", "sandbox": "",
+    })
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
+    assert batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append) is True
+
+
 def test_release_sandbox_refuses_while_send_in_flight(cfg, monkeypatch):
     """在飞闸门：发送没归零时 release_sandbox 不得删工作区，放行后才能回收。"""
     meta = packs.load_meta(cfg, BACKEND_TASK)
@@ -281,6 +306,69 @@ def test_release_sandbox_refuses_while_send_in_flight(cfg, monkeypatch):
         assert not os.path.isdir(run["sandbox"])
     finally:
         sandbox.destroy(cfg, run, log=lambda m: None)
+
+
+def test_remove_item_dequeues_pending_only(cfg, monkeypatch):
+    """排队中的条目可以移出批次；已开工的拒绝移除且原样保留（2026-10-02）。"""
+    doc = {
+        "batch_id": "b-remove", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [
+            {"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+             "status": "pending", "events": []},
+            {"index": 1, "task": "TEST-02", "model": "stub", "attempt": 1,
+             "status": "ready", "run_id": "r-live", "events": []},
+        ],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    try:
+        res = batch.remove_item(cfg, "b-remove", 0)
+        assert res["removed"] is True
+        assert doc["items"][0]["status"] == "cancelled"
+        assert any("移除" in e["message"] for e in doc["items"][0]["events"])
+
+        with pytest.raises(errors.HarnessError) as excinfo:
+            batch.remove_item(cfg, "b-remove", 1)
+        assert "排队" in excinfo.value.message
+        assert doc["items"][1]["status"] == "ready", "已开工的条目不许被移除波及"
+
+        with pytest.raises(errors.HarnessError):
+            batch.remove_item(cfg, "b-remove", 9)
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)
+
+
+def test_run_item_never_starts_a_removed_item(cfg, monkeypatch):
+    """派发与移除之间的竞态护栏：已被移除的条目就算派发了也原样退出，不建沙箱。"""
+    doc = {
+        "batch_id": "b-race", "created_at": "t", "updated_at": "t",
+        "status": "running", "concurrency": 1,
+        "items": [{"index": 0, "task": "TEST-01", "model": "stub", "attempt": 1,
+                   "status": "cancelled", "events": []}],
+        "problems": [], "cancel": False, "_cancel_event": threading.Event(), "auto_release": True,
+    }
+    monkeypatch.setattr(
+        batch.runs, "create_run",
+        lambda *a, **k: pytest.fail("被移除的条目绝不能再进入准备"))
+    monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
+    with batch._LOCK:
+        batch._BATCHES[doc["batch_id"]] = doc
+    gate = threading.Semaphore(0)
+    worker = threading.Thread(target=batch._run_item,
+                              args=(cfg, doc, doc["items"][0], gate, lambda message: None))
+    worker.start()
+    worker.join(2)
+    try:
+        assert not worker.is_alive()
+        assert doc["items"][0]["status"] == "cancelled"
+        assert gate.acquire(blocking=False), "护栏退出也必须释放并发闸门"
+    finally:
+        with batch._LOCK:
+            batch._BATCHES.pop(doc["batch_id"], None)
 
 
 # --------------------------------------------------------------------------

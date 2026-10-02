@@ -41,6 +41,14 @@ const POLL_MS = 2000;
 const T = {
   RELEASE_TITLE: '回收这一条的工作区？',
   RELEASE_BODY: '只删沙箱目录；成绩、报告与对话记录都留在 runs/ 里，需要再看随时能打开。',
+  REMOVE_TITLE: '把这条移出批次？',
+  REMOVE_BODY: '只有还没开工的排队条目可以移除；正在跑的条目不受影响，会照常跑完。',
+  REMOVE_DISABLED_HINT: '只有还没开工的排队条目可以移除；已开工的请到工作台收尾',
+  ITEM_ANSWER_BUSY: '模型作答中…',
+  ITEM_ANSWER_DONE: '作答已结束，等待评分',
+  ITEM_ANSWER_BUSY_REASON: '模型还在作答，等这条消息结束后再启动评分',
+  HEADER_ACTIVE: '作答/校验中',
+  HEADER_AWAITING: '等评分',
 };
 /** 单条状态 → 中文标签与状态点种类。 */
 const ITEM_STATE = {
@@ -403,6 +411,36 @@ export function createBatch(props = {}) {
         }
       },
     });
+    const removeBtn = createButton({
+      label: '移除',
+      size: 'sm',
+      variant: 'ghost',
+      disabled: true,
+      onClick: async () => {
+        const batchId = progressView && progressView.batchId;
+        if (!batchId || current.index === undefined) return;
+        const ok = await confirmDialog({
+          title: T.REMOVE_TITLE,
+          messages: [T.REMOVE_BODY],
+          confirmLabel: '移除',
+          cancelLabel: S.CONFIRM_DEFAULT_CANCEL,
+          danger: true,
+        });
+        if (!ok) return;
+        removeBtn.update({ loading: true, busyLabel: '正在移除' });
+        try {
+          const res = await api.post(`/batches/${encodeURIComponent(batchId)}/remove`,
+            { index: current.index }, { scope });
+          showToast({ message: '已移出批次', detail: res.message || '', kind: 'success' });
+          await load();
+        } catch (err) {
+          const code = err instanceof ApiError ? err.code : 'INTERNAL';
+          showToast({ message: errorTitle(code), detail: errorBody(code), kind: 'error' });
+        } finally {
+          removeBtn.update({ loading: false });
+        }
+      },
+    });
     const promptPre = el('pre', { class: 'code-block__pre', tabindex: '0' });
     const promptCopy = createCopyButton({
       label: '复制当前轮提示词',
@@ -433,7 +471,7 @@ export function createBatch(props = {}) {
     const head = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
       mark.el, main, el('span', { class: 'u-spacer' }), score, statusDot.el);
     const actions = el('div', { class: 'u-row', style: { alignItems: 'center', flexWrap: 'wrap' } },
-      openLink, gradeBtn.el, releaseBtn.el, runId, path);
+      openLink, gradeBtn.el, removeBtn.el, releaseBtn.el, runId, path);
     const card = el('li', {
       class: `batch__item batch__item--${initialItem.status}`,
       style: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', minWidth: '0' },
@@ -445,11 +483,22 @@ export function createBatch(props = {}) {
         current = item;
         const stateNow = ITEM_STATE[item.status] || { text: item.status, kind: 'idle' };
         const done = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
+        // ready 是两件事的合体：「模型还在作答」与「作答已结束、等人工评分」。
+        // chat_busy 由轮询逐条补查；未知（还没查到）时按等待评分显示，不假装在跑。
+        const answerBusy = item.status === 'ready' && item.chat_busy === true;
+        const answerDone = item.status === 'ready' && item.chat_busy === false;
         const markKind = item.status === 'error' ? 'fail'
           : item.status === 'graded' ? (item.passed ? 'pass' : 'fail')
-            : item.status === 'pending' || item.status === 'cancelled' ? 'idle' : 'busy';
+            : item.status === 'ready' ? (answerBusy ? 'busy' : 'idle')
+              : item.status === 'pending' || item.status === 'cancelled' ? 'idle' : 'busy';
         mark.update({ kind: markKind, animate: done, label: '' });
-        statusDot.update({ kind: stateNow.kind, text: stateNow.text });
+        if (answerBusy) {
+          statusDot.update({ kind: 'busy', text: T.ITEM_ANSWER_BUSY });
+        } else if (answerDone) {
+          statusDot.update({ kind: 'ok', text: T.ITEM_ANSWER_DONE });
+        } else {
+          statusDot.update({ kind: stateNow.kind, text: stateNow.text });
+        }
         // 通过/失败必须上类：views.css 的 --pass/--fail 左边框规则靠它生效，
         // 否则完成的行全部同灰，多列网格里成功失败无法扫读。
         const passFail = item.status === 'graded'
@@ -466,7 +515,11 @@ export function createBatch(props = {}) {
           openLink.href = `#/workspace/${encodeURIComponent(item.task)}/chat/${encodeURIComponent(item.run_id)}`;
           if (item.status !== 'ready') gradeRequested = gradeRequested || item.status === 'grading'
             || item.status === 'graded' || item.status === 'error';
-          gradeBtn.update({ disabled: item.status !== 'ready' || gradeRequested });
+          // 对话还在飞时评分必然被后端拒绝：给禁用态 + 原因，别让人点完才知道。
+          gradeBtn.update({
+            disabled: item.status !== 'ready' || gradeRequested || answerBusy,
+            reason: answerBusy && !gradeRequested ? T.ITEM_ANSWER_BUSY_REASON : '',
+          });
         } else {
           gradeBtn.update({ disabled: true });
         }
@@ -474,6 +527,11 @@ export function createBatch(props = {}) {
         // 所以只要这一条已经收束又还有工作区，就给一个手动关掉的入口。
         const terminal = item.status === 'graded' || item.status === 'error' || item.status === 'cancelled';
         releaseBtn.el.hidden = !(terminal && item.sandbox);
+        // 排队中的条目可移出批次；已开工的给禁用态 + 原因（出口不条件隐藏），
+        // 终态条目没有可移除的东西，直接隐藏。
+        removeBtn.el.hidden = terminal;
+        removeBtn.el.title = item.status === 'pending' ? '' : T.REMOVE_DISABLED_HINT;
+        removeBtn.update({ disabled: item.status !== 'pending' });
         promptPre.textContent = item.prompt || '这道题没有配置当前轮提示词。';
         promptCopy.update({ getText: () => String(current.prompt || '') });
         const nextEvents = item.events || [];
@@ -566,15 +624,19 @@ export function createBatch(props = {}) {
     const total = batch.total || 0;
     const done = batch.done || 0;
     const passed = batch.passed || 0;
-    const running = batch.running || 0;
-    const ready = (batch.items || []).filter((item) => item.status === 'ready').length;
+    const items = batch.items || [];
+    // 「作答/校验中」只数真在跑的：准备、校验、对话在飞的作答。ready 而对话
+    // 已结束的是「等评分」，不再冒充进行中（2026-10-02 用户实测的误导）。
+    const activeNow = items.filter((item) => item.status === 'preparing' || item.status === 'grading'
+      || (item.status === 'ready' && item.chat_busy === true)).length;
+    const awaiting = items.filter((item) => item.status === 'ready' && item.chat_busy !== true).length;
     const queued = batch.queued === undefined
-      ? (batch.items || []).filter((item) => item.status === 'pending').length
+      ? items.filter((item) => item.status === 'pending').length
       : batch.queued;
     const pct = total ? Math.round((done / total) * 100) : 0;
     setText(progressView.count, `${done} / ${total}`);
-    setText(progressView.runningValue, `${S.BATCH_RUNNING} ${running}`);
-    setText(progressView.readyValue, `就绪 ${ready}`);
+    setText(progressView.runningValue, `${T.HEADER_ACTIVE} ${active}`);
+    setText(progressView.readyValue, `${T.HEADER_AWAITING} ${awaiting}`);
     setText(progressView.queuedValue, `排队 ${queued}`);
     setText(progressView.passedValue, `${S.BATCH_PASSED} ${passed}`);
     setText(progressView.concurrencyValue, `并发 ${batch.concurrency}`);
@@ -677,6 +739,27 @@ export function createBatch(props = {}) {
   }
 
   /**
+   * 给未落定的条目补上「对话是否在飞」。
+   *
+   * 批次条目的 ready 同时覆盖「模型还在作答」和「作答已结束、等人工评分」两种
+   * 事实，只看批次状态会把前者一直显示成后者（2026-10-02 用户实测）。逐条查
+   * run 视图的 chat_busy——每轮最多并发数个请求，排队条目没有 run_id 不查。
+   * 查失败的条目保持未知，不假装知道。
+   */
+  async function enrichConversationState(items) {
+    const targets = items.filter((item) => item.run_id
+      && (item.status === 'ready' || item.status === 'preparing' || item.status === 'grading'));
+    await Promise.all(targets.map(async (item) => {
+      try {
+        const view = await api.get(`/runs/${encodeURIComponent(item.run_id)}`, { scope });
+        item.chat_busy = Boolean(view.chat_busy);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'ABORTED') return;
+      }
+    }));
+  }
+
+  /**
    * 取一次批次进度。
    */
   async function poll(token = pollToken) {
@@ -689,6 +772,7 @@ export function createBatch(props = {}) {
       // 取消、切批或销毁视图后，旧响应不能覆盖当前状态。
       if (token !== pollToken || !batch || batch.batch_id !== requestedBatchId) return;
       batch = res;
+      await enrichConversationState(batch.items || []);
       renderProgress();
       if (batch.status === 'finished' || batch.status === 'cancelled') {
         stopPolling();

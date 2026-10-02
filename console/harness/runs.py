@@ -402,6 +402,26 @@ def promote(cfg: dict, run_id: str) -> dict:
         return _promote_locked(cfg, run_id)
 
 
+def _workspace_missing(cfg: dict, run: dict) -> bool:
+    """工作区是否已不可用。批次 auto_release 回收评分后的沙箱，就是这种形态。"""
+    workspace = str(run.get("sandbox") or "")
+    return not workspace or not os.path.isdir(workspace)
+
+
+def _prepare_round_workspace(cfg: dict, run: dict, meta: dict) -> None:
+    """给丢了工作区的 run 补建一个全新基线沙箱（不动作轮次与已推进的 attempt）。
+
+    批次 auto_release 会在评分落定后回收沙箱让出磁盘；轮次还有剩余时用户
+    随时可能在工作台「进入第二轮」，promote 在这里把工作区补回来。注意：
+    上一轮模型写的代码已随回收丢失，第二轮从干净基线开始；rounds 里的
+    成绩原样保留，不按「重建」语义作废。
+    """
+    run["status"] = "preparing"
+    save_run(cfg, run)
+    # 成功路径由 prepare 置回 ready 并落盘；失败路径它自己会把 run 判成 error
+    sandbox.prepare(cfg, run, meta, log=lambda m: None)
+
+
 def _promote_locked(cfg: dict, run_id: str) -> dict:
     run = get_run(cfg, run_id)
     meta = packs.load_meta(cfg, run["task"])
@@ -416,12 +436,21 @@ def _promote_locked(cfg: dict, run_id: str) -> dict:
     # 后端不拦的话连点或直调 API 就能跳级，白拿一次提示词等级。
     graded_attempts = {int(r.get("attempt") or 0) for r in (run.get("rounds") or [])
                        if not r.get("voided")}
+    workspace_missing = _workspace_missing(cfg, run)
     if current not in graded_attempts:
-        raise errors.HarnessError(
-            errors.E_BAD_REQUEST,
-            "第 %d 轮还没有校验结果，不能进入下一轮。先运行校验，或点「作废本轮成绩」重来。" % current,
-            run_id,
-        )
+        # attempt 已推进、工作区却被批次回收（T2-04 实测）：再点一次
+        # 「进入第二轮」按补建工作区处理，不重复消耗轮次机会。
+        if not (current > 1 and workspace_missing):
+            raise errors.HarnessError(
+                errors.E_BAD_REQUEST,
+                "第 %d 轮还没有校验结果，不能进入下一轮。先运行校验，或点「作废本轮成绩」重来。" % current,
+                run_id,
+            )
+        _prepare_round_workspace(cfg, run, meta)
+        run = get_run(cfg, run_id)
+        return {"run_id": run_id, "attempt": int(run.get("attempt") or current),
+                "can_promote": int(run.get("attempt") or current) < int(run.get("attempts_allowed") or 1),
+                "reprepared": True}
     if current >= meta["attempts"]:
         raise errors.HarnessError(
             errors.E_BAD_REQUEST,
@@ -438,6 +467,8 @@ def _promote_locked(cfg: dict, run_id: str) -> dict:
     # 新一轮的计时起点：不重置的话，第 2 轮的"用时"里含第 1 轮的对话时间，
     # 排行榜会把两轮的工作量算成一个更快的成绩。
     run["round_started_at"] = util.iso_now()
+    if workspace_missing:
+        _prepare_round_workspace(cfg, run, meta)
     save_run(cfg, run)
     return {"run_id": run_id, "attempt": run["attempt"], "can_promote": run["attempt"] < meta["attempts"]}
 
