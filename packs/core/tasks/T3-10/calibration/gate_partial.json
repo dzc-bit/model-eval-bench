@@ -60,7 +60,7 @@
             {
               "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001E4F5CB6570>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000002A34D98E570>.cached_symbol_count"
             }
           ]
         },
@@ -147,5 +147,5 @@
   "score_min": 37.5,
   "score_max": 37.5,
   "stable": true,
-  "finished_at": "2026-09-30T03:06:52"
+  "finished_at": "2026-10-03T06:33:25"
 }
