@@ -74,17 +74,17 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -100,5 +100,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-09-30T01:56:05"
+  "finished_at": "2026-10-03T05:56:40"
 }

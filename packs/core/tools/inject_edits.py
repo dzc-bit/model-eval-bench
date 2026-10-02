@@ -499,10 +499,320 @@ WRITE_LOCK_RETRY_BACKOFF_SECONDS = 0.5''',
     ],
 }
 
+# ---------------------------------------------------------------------------
+# T4-12 · 后台引擎与寻优台同时失去准头
+#
+# 注入态的"世界模型"：四条互不隶属的自动通道各自把"现在是什么状态"记成两套——
+#   A. 会话回收：忙碌判定只看锁（丢掉引用计数），"已认领、还没 acquire"的窗口
+#      对清理与删除敞开；时间戳读不出来的会话按"最老"参与保留期淘汰。
+#   B. 快讯节流：数量上限的滑动窗口从 1 小时变成 24 小时（达到配额后整天沉默）；
+#      去重键丢掉档位划分（宽度在极端区间之间移动不再有新快讯）。
+#   C. 简报新鲜度与推送：跳过路径（未配置/缺模型/无素材）也推进"上次运行"记账，
+#      配置就绪后的第一次简报被推迟整整一个冷却期；"是否新要点"改按标题原文
+#      比较（空白变体重复推送）；每次运行把全部新要点推成快讯；新闻来源不再包
+#      不可信围栏。
+#   D. 寻优与判定：整数参数的小数候选在网格入口直接判死整次请求（不再进废组合
+#      名单）；排名把零成交组合当有效结果；指标增强每个组合各算一次（写放大）；
+#      过拟合小样本判定把被剔除组合计入样本量；few_trades 的 critical 下限从
+#      5 笔降到 3 笔；结果事件丢掉废组合名单；网格超限不再返回专用错误码。
+#   E. 前端契约：阶段事件被当成终态（断流不再报中断）；最优高亮跟随流落点；
+#      "已拒绝的组合"列表改成前端自己从结果行里算。
+# 联合 coherence 组断言"同一次运行在库存、事件流、过拟合判定与解读上下文里
+# 只有一个口径"——四条链里任何一条没修干净，联合组都拿不到分。
+# 诱饵：MAX_SESSIONS / SESSION_RETENTION_DAYS / INSIGHT_DEDUP_WINDOW_SECONDS /
+#       FRESH_THRESHOLD_SECONDS / MIN_GRID_SAMPLES / MIN_RELIABLE_TRADES /
+#       MAX_GRID_COMBINATIONS 等常量（调它们只是挪阈值）；EventBroker 的
+#       drop-on-full；CancelToken 的组合边界取消（本题注入没有碰它们）。
+# ---------------------------------------------------------------------------
+T4_12: dict[str, list[tuple[str, str]]] = {
+    "backend/astock_backtester/ai/sessions.py": [
+        (
+            """from datetime import UTC, datetime""",
+            """from datetime import UTC, datetime, timedelta""",
+        ),
+        (
+            # 时间戳读不出来按"最老"参与保留期淘汰（正确口径：只参与条数回收）。
+            """            updated = _parse_timestamp(payload.get("updated_at"))
+            # updated_at 不可读时无法判断年龄：按"最旧"参与条数回收，但绝不
+            # 参与保留期淘汰——读不懂时间戳不是销毁文件的理由。
+            if updated is None:
+                undated.append((session_id, path))
+            else:
+                dated.append((session_id, path, updated))""",
+            """            updated = _parse_timestamp(payload.get("updated_at"))
+            # 时间戳读不出来的文件多半是中断留下的残件，年龄按"最老"一档算：
+            # 保留期与条数两条回收规则都适用，否则残件会在目录里永久堆积。
+            dated.append((session_id, path, updated or now - timedelta(days=retention_days + 1)))""",
+        ),
+    ],
+    "backend/astock_backtester/ai/facade.py": [
+        (
+            """        判定必须同时看 ``refs`` 与锁：``chat_stream`` 先 ``retain()`` 再
+        ``acquire()``，"已认领、还没拿到锁"的窗口里 ``lock.locked()`` 是 False，
+        只看锁会把即将开跑的会话判成空闲 —— 那正是本文件 ``_SessionLockEntry``
+        注释里否决过的判定方式（会造成同一会话两把锁 / 生成中的会话被清理）。
+        \"\"\"""",
+            """        以锁的占用状态为准：锁被持有说明上一轮还没结束；锁空闲时调用方
+        要么尚未开跑、要么已经在收尾，此刻清理不会打断任何生成中的工作。
+        \"\"\"""",
+        ),
+        (
+            """        with self._session_locks_guard:
+            entry = self._session_locks.get(session_id)
+            return entry is not None and (entry.refs > 0 or entry.lock.locked())""",
+            """        with self._session_locks_guard:
+            entry = self._session_locks.get(session_id)
+            # 引用计数只是锁淘汰的记账：忙不忙看锁就够了，引用 > 0 而锁空闲
+            # 说明调用方还在准备阶段，此刻回收/删除是安全的。
+            return entry is not None and entry.lock.locked()""",
+        ),
+    ],
+    "backend/astock_backtester/ai/insights.py": [
+        (
+            # 数量上限的滑动窗口从 1 小时变成 24 小时。
+            """        while self._insight_times and now - self._insight_times[0] > 3600:""",
+            """        # 上限按自然日计量：一天最多 insight_max_per_hour 条，跨小时的
+        # 零星触发不再叠加放大全天总量。
+        while self._insight_times and now - self._insight_times[0] > 86400:""",
+        ),
+        (
+            # 去重键丢掉档位划分。
+            """            # 去重键按 5 个百分点分桶：宽度在同一区间内反复震荡时不再连发。
+            bucket = int(round(ratio * 20))""",
+            """            # 同向极端共用一个冷却键：极端就是极端，宽度在极端区间内怎么
+            # 变化都不改变"市场极度单边"这个事实本身。""",
+        ),
+        (
+            """                dedup_key=f"breadth-extreme:{'high' if ratio > 0.5 else 'low'}:{bucket}",""",
+            """                dedup_key=f"breadth-extreme:{'high' if ratio > 0.5 else 'low'}",""",
+        ),
+    ],
+    "backend/astock_backtester/ai/digest.py": [
+        (
+            # 跳过路径也推进"上次运行"记账：配置就绪后的第一次简报被推迟一个冷却期。
+            """            config = self._config_provider()
+            if not config.is_configured():
+                return {"ok": False, "skipped": "not_configured"}
+            model = self._model_provider()
+            if model is None:
+                return {"ok": False, "skipped": "no_model"}
+            data_text = self._gather_sources()
+            if not data_text:
+                return {"ok": False, "skipped": "no_sources"}""",
+            """            config = self._config_provider()
+            if not config.is_configured():
+                # 空转同样要记账：未配置/缺模型时的轮询也是引擎的一次尝试，
+                # 不记账会让它在拿到配置的瞬间以满节奏连跑。
+                self._last_run = time.monotonic()
+                return {"ok": False, "skipped": "not_configured"}
+            model = self._model_provider()
+            if model is None:
+                self._last_run = time.monotonic()
+                return {"ok": False, "skipped": "no_model"}
+            data_text = self._gather_sources()
+            if not data_text:
+                self._last_run = time.monotonic()
+                return {"ok": False, "skipped": "no_sources"}""",
+        ),
+        (
+            # "是否新要点"改按标题原文比较（空白变体重复推送）。
+            """            existing_titles = {re.sub(r"\\s+", "", item.title) for item in self._store.load()}""",
+            """            existing_titles = {item.title for item in self._store.load()}""",
+        ),
+        (
+            """            fresh = [
+                item
+                for item in parsed
+                if re.sub(r"\\s+", "", item.title) not in existing_titles
+            ]
+            for item in fresh[:2]:""",
+            """            fresh = [item for item in parsed if item.title not in existing_titles]
+            for item in fresh:""",
+        ),
+        (
+            # 新闻来源不再包不可信围栏（同一条链路里两套信任口径）。
+            """                sections.append(self._crawled_block("【新闻/电报】", "\\n".join(headlines)))""",
+            """                sections.append("【新闻/电报】\\n" + "\\n".join(headlines))""",
+        ),
+    ],
+    "backend/astock_backtester/ai/optimizer.py": [
+        (
+            # 整数参数的小数候选在网格入口直接判死整次请求。
+            """    if key in INT_GRID_KEYS and number.is_integer():
+        return int(number)
+    return number""",
+            """    if key in INT_GRID_KEYS:
+        if not number.is_integer():
+            # 整数档位收到小数是笔误：与其等回测阶段再把整组合判废，
+            # 不如在校验入口直接拒绝整个网格。
+            raise ValueError(f"参数 {key} 的候选值必须是整数，收到 {number:g}")
+        return int(number)
+    return number""",
+        ),
+        (
+            # 排名把零成交组合当有效结果。
+            '''    """Best combination by total return among those with at least one trade."""
+    candidates = [combo for combo in combinations if combo.get("metrics", {}).get("trade_count", 0) > 0]
+    if not candidates:
+        return None
+
+    def sort_key(combo: dict[str, Any]) -> tuple[float, float]:
+        metrics = combo["metrics"]
+        return (float(metrics.get("total_return_pct", 0.0)), -abs(float(metrics.get("max_drawdown_pct", 0.0))))
+
+    return max(candidates, key=sort_key)''',
+            '''    """Best combination by total return across everything the grid evaluated."""
+    if not combinations:
+        return None
+
+    def sort_key(combo: dict[str, Any]) -> tuple[float, float]:
+        metrics = combo["metrics"]
+        return (float(metrics.get("total_return_pct", 0.0)), -abs(float(metrics.get("max_drawdown_pct", 0.0))))
+
+    return max(combinations, key=sort_key)''',
+        ),
+        (
+            # 指标增强每个组合各算一次（写放大；结果不变，只有成本变）。
+            """    # 指标增强在整个网格里是同一份：网格只扫 settings，不扫条件。
+    prepared = enrich_for_strategy(frame, strategy)
+    index = 0
+    for overrides in combos:
+        if token.cancelled:
+            break
+        index += 1
+        try:
+            combo_settings = merge_settings(settings, overrides)
+            result = run_prepared_backtest(prepared, strategy, combo_settings)""",
+            """    index = 0
+    for overrides in combos:
+        if token.cancelled:
+            break
+        index += 1
+        try:
+            combo_settings = merge_settings(settings, overrides)
+            # 增强跟着合并后的档位走：档位一变，行上缓存的特征值未必还成立，
+            # 每个组合各自增强一次最稳妥。
+            prepared = enrich_for_strategy(frame, strategy)
+            result = run_prepared_backtest(prepared, strategy, combo_settings)""",
+        ),
+    ],
+    "backend/astock_backtester/ai/overfit.py": [
+        (
+            # 小样本判定把被剔除组合计入样本量（措辞里的组数随之虚高）。
+            """    total = len(returns)""",
+            """    # 样本量按送进来的网格规模计：被剔除的非法组合也是网格的一部分，
+    # 只数可比较组合会低估样本，把本来就小的网格再报一次"样本偏少"。
+    total = len(returns) + rejected""",
+        ),
+        (
+            # few_trades 的 critical 下限从 5 笔降到 3 笔。
+            """                "warning" if trade_count >= 5 else "critical",""",
+            """                "warning" if trade_count >= 3 else "critical",""",
+        ),
+    ],
+    "backend/astock_backtester/service.py": [
+        (
+            # 结果事件丢掉废组合名单。
+            """                {
+                    "type": "result",
+                    "result": {**summary, "insight": insight, "insight_error": insight_error},
+                }""",
+            """                {
+                    "type": "result",
+                    # 废组合明细只在服务端日志里看就够了：结果事件带上它只会
+                    # 让前端把不该展示的内部口径渲染出去。
+                    "result": {
+                        **{k: v for k, v in summary.items() if k != "failures"},
+                        "insight": insight,
+                        "insight_error": insight_error,
+                    },
+                }""",
+        ),
+        (
+            # 网格超限不再返回专用错误码（移除随之失效的导入）。
+            """from astock_backtester.ai.optimizer import (
+    GridTooLargeError,
+    build_optimize_insight_context,
+    normalize_grid,
+    run_optimization,
+)""",
+            """from astock_backtester.ai.optimizer import (
+    build_optimize_insight_context,
+    normalize_grid,
+    run_optimization,
+)""",
+        ),
+        (
+            """        except (ValueError, GridTooLargeError) as exc:
+            code = "grid_too_large" if isinstance(exc, GridTooLargeError) else "validation_error"
+            self._send_json({"code": code, "message": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return""",
+            """        except ValueError as exc:
+            # 网格校验失败统一按参数错误回给调用方：细分错误码没有消费方，
+            # 前端对这两类问题的提示文案本来就相同。
+            self._send_json({"code": "validation_error", "message": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return""",
+        ),
+    ],
+    "frontend/src/aiApi.ts": [
+        (
+            # 阶段事件被当成终态：断流不再报中断。
+            """  } else if (event.type === "phase") {
+    handlers.onPhase?.(String(event.phase ?? ""));
+  } else if (event.type === "result") {""",
+            """  } else if (event.type === "phase") {
+    handlers.onPhase?.(String(event.phase ?? ""));
+    // 阶段事件说明服务端已经受理并开始推进：拿到阶段就算流程已被确认，
+    // 后续即使断流也不再按"中断"处理。
+    return true;
+  } else if (event.type === "result") {""",
+        ),
+    ],
+    "frontend/src/components/StrategyOptimizer.tsx": [
+        (
+            # 最优高亮跟随流落点，不再看服务端声明的最优。
+            """  const bestIndex = summary?.best?.index ?? null;""",
+            """  // 流里最后到达的组合就是最终排名的最前：高亮跟随流的落点，避免
+  // 服务端序号与本地流顺序不一致时高亮错位。
+  const bestIndex = combinations.length > 0 ? combinations[combinations.length - 1].index : null;""",
+        ),
+        (
+            # "已拒绝的组合"列表改成前端自己从结果行里算（零成交行）。
+            """      {summary && summary.failures.length > 0 ? (
+        <div className="optimizer-failures" role="status">
+          {summary.failures.map((failure, failureIndex) => (
+            <p className="condition-validation bad" key={`${failureIndex}-${failure.error}`}>
+              已拒绝的组合 {Object.entries(failure.params)
+                .map(([key, value]) => `${OPTIMIZE_PARAM_LABELS[key as OptimizeGridKey] ?? key} ${formatParamValue(key as OptimizeGridKey, value)}`)
+                .join(" / ")}
+              ：{failure.error}
+            </p>
+          ))}
+        </div>
+      ) : null}""",
+            """      {combinations.some((combination) => combination.metrics.trade_count === 0) ? (
+        <div className="optimizer-failures" role="status">
+          {combinations
+            .filter((combination) => combination.metrics.trade_count === 0)
+            .map((combination, failureIndex) => (
+              <p className="condition-validation bad" key={`${failureIndex}-${combination.index}`}>
+                可疑的组合 {Object.entries(combination.params)
+                  .map(([key, value]) => `${OPTIMIZE_PARAM_LABELS[key as OptimizeGridKey] ?? key} ${formatParamValue(key as OptimizeGridKey, value)}`)
+                  .join(" / ")}
+                ：一笔成交都没有，不参与排名也不代表可用。
+              </p>
+            ))}
+        </div>
+      ) : null}""",
+        ),
+    ],
+}
+
 EDIT_SPECS: dict[str, dict[str, list[tuple[str, str]]]] = {
     "T1-01": T1_01,
     "T2-04": T2_04,
     "T3-10": T3_10,
+    "T4-12": T4_12,
 }
 
 

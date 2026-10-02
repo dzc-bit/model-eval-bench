@@ -37,7 +37,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000024860B8C200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002731F3A0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -76,7 +76,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002486096A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002735F644930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -141,7 +141,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002173E598200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000029103480200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -180,7 +180,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002173E33A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000029143690930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -245,7 +245,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001FCD8178200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000023EB6BD0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -284,7 +284,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001FCD7F1E740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000023EF6E70930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -349,7 +349,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001ECA8A58200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000013423810200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -388,7 +388,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001ECA87FA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000013463AC4930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -453,7 +453,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000022157F08200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000238EA2B0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -492,7 +492,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000022157CAE740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000238EA540930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -557,7 +557,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001CBA4478200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000257E9640200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -596,7 +596,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001CBA421A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000257E98F0930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -661,7 +661,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000021BFE608200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000019AFE590200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -700,7 +700,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000021BFE3AA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000019AFE840930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -765,7 +765,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000021DA2D38200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002057E470200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -804,7 +804,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000021DA2ADA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002057E724930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -869,7 +869,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000211FA368200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000021F36370200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -908,7 +908,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000211FA0DA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000021F76620A00>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -973,7 +973,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001E9AC3E8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000025E99E90200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1012,7 +1012,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001E9AC18E740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000025EDA140930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1077,7 +1077,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002D9A1B58200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000147D11A0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1116,7 +1116,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002D9A18FA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000014811450A00>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1181,7 +1181,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001EF71FD8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002BDA7F80200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1220,7 +1220,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001EF71D4A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002BDE8214A00>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1285,7 +1285,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001B4275C8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002942CEC0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1324,7 +1324,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001B42736A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002946D160930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1389,7 +1389,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001AF21848200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000225916E0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1428,7 +1428,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001AF215EA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000225D1990930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1493,7 +1493,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001BA26088200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001FDA0720200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1532,7 +1532,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001BA25E2A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001FDE0970930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1597,7 +1597,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001DF35978200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002C7A4190200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1636,7 +1636,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001DF3571A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002C7E4444A00>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1701,7 +1701,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001E4377A8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000019EEED60200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1740,7 +1740,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001E43754A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000019EEF010930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1805,7 +1805,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000002C5EC658200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x000001F5A19C0200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1844,7 +1844,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000002C5EC3CA740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001F5E1C74930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -1909,7 +1909,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000014779BA8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x0000024522278200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -1948,7 +1948,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001477994A740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x0000024562964930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -2013,7 +2013,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_reader_never_sees_partial_file_during_replace",
               "outcome": "failed",
-              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000173FECF8200>)"
+              "message": "AssertionError: 写入中途读到了非旧非新的内容：[4]\nassert ([4] and False)\n +  where False = all(<generator object test_reader_never_sees_partial_file_during_replace.<locals>.<genexpr> at 0x00000274E4240200>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_failed_write_keeps_previous_partition_intact",
@@ -2052,7 +2052,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000173FEA9E740>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x00000274E44E0930>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -2093,5 +2093,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T02:10:40"
+  "finished_at": "2026-10-03T06:24:39"
 }

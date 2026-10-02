@@ -77,7 +77,7 @@
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
               "outcome": "failed",
-              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001F4C5AC1560>)"
+              "message": "AssertionError: 健康口径没有带上分区级损坏明细：{'healthy': False}\nassert False\n +  where False = any(<generator object test_diagnostics_reports_corrupt_partition_when_present.<locals>.<genexpr> at 0x000001B9F52D1700>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
@@ -118,5 +118,5 @@
   "score_min": 33.33,
   "score_max": 33.33,
   "stable": true,
-  "finished_at": "2026-09-30T02:06:35"
+  "finished_at": "2026-10-03T05:57:51"
 }

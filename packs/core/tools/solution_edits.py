@@ -440,10 +440,37 @@ T3_10_PARTIAL: dict[str, list[tuple[str, str]]] = {
     "scripts/run-full-market-import.py": T3_10_FIX["scripts/run-full-market-import.py"],
 }
 
+# ---------------------------------------------------------------------------
+# T4-12 锚解
+#
+# 注入态把四条自动通道的"状态口径"各劈成两套，锚解就是逐条还原（与注入规格互逆，
+# 逐条倒序，因此一定精确 apply 在注入态之上）：
+#   A. 会话回收：忙碌判定恢复"引用计数 + 锁"双重口径；时间戳不可读只参与条数回收。
+#   B. 快讯节流：上限滑动窗口回到 1 小时；去重键恢复档位划分。
+#   C. 简报：只有真的产出简报才推进记账；新增判定与入库去重共用去空白标题口径；
+#      每次运行最多推送 2 条快讯；新闻来源恢复不可信围栏。
+#   D. 寻优：整数参数的小数候选交给组合评估判废；排名只看有成交的组合；指标增强
+#      整个网格共用一份；过拟合小样本只数可比较组合；critical 下限回到 5 笔；
+#      结果事件带上废组合名单；网格超限返回专用错误码。
+#   E. 前端：阶段事件不算终态；最优高亮跟随服务端声明；拒绝名单按服务端口径展示。
+#
+# partial = 只还原 C（简报链一个端口），A/B/D/E 仍然失真——"只修一个端口必然 <100"
+# 的证明：简报两组绿、联合 coherence 组仍因寻优侧红（预期约 4/23 ≈ 17.4 分）。
+# ---------------------------------------------------------------------------
+T4_12_FIX: dict[str, list[tuple[str, str]]] = {
+    rel_path: [(injected, original) for original, injected in reversed(edits)]
+    for rel_path, edits in EDIT_SPECS["T4-12"].items()
+}
+
+T4_12_PARTIAL: dict[str, list[tuple[str, str]]] = {
+    "backend/astock_backtester/ai/digest.py": T4_12_FIX["backend/astock_backtester/ai/digest.py"],
+}
+
 SOLUTIONS: dict[str, dict[str, dict[str, list[tuple[str, str]]]]] = {
     "T1-01": {"fix": T1_01_FIX, "partial": T1_01_PARTIAL},
     "T2-04": {"fix": T2_04_FIX, "partial": T2_04_PARTIAL},
     "T3-10": {"fix": T3_10_FIX, "partial": T3_10_PARTIAL},
+    "T4-12": {"fix": T4_12_FIX, "partial": T4_12_PARTIAL},
 }
 
 

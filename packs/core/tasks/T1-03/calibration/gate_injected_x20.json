@@ -73,17 +73,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -160,17 +160,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -247,17 +247,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -334,17 +334,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -421,17 +421,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -508,17 +508,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -595,17 +595,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -682,17 +682,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -769,17 +769,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -856,17 +856,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -943,17 +943,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1030,17 +1030,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1117,17 +1117,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1204,17 +1204,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1291,17 +1291,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1378,17 +1378,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1465,17 +1465,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1552,17 +1552,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1639,17 +1639,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1726,17 +1726,17 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::按稳定类别给出三种不同的处理建议",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '设置'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::上游失败保留诊断细节而不是只给通用提示",
               "outcome": "failed",
               "message": "expected 'AI 请求失败，请稍后重试。' to contain '上下文超长'"
             },
             {
-              "node_id": "tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
+              "node_id": "src/tests_hidden_fe/errorCopy.hidden.test.ts::未知类别保留原始说明并为非异常值兜底",
               "outcome": "passed",
               "message": ""
             }
@@ -1752,5 +1752,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-09-30T02:03:16"
+  "finished_at": "2026-10-03T06:20:24"
 }

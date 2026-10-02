@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
@@ -75,6 +76,52 @@ def _spawn(script: str, *args: str) -> subprocess.Popen:
         [sys.executable, "-c", script, str(_BACKEND), *args],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     )
+
+
+def _written_path(path) -> Path | None:
+    """把 ``DataFrame.to_parquet`` 的 ``path`` 实参解析成可比对的路径。
+
+    pandas 的 ``to_parquet`` 明确允许 ``path`` 是"str、路径对象**或文件对象**"
+    （文件对象形态用于自己控制落盘/flush/fsync，是完全正当的写法）。文件对象
+    上做的 ``Path(str(path))`` 只会得到 ``<_io.BufferedWriter name=...>`` 这种
+    字符串，与目标路径永不相等——于是打桩把一次**暂存写**误判成直写目标，
+    再对同一个已打开的流做两次写入（半截 + 完整），两个 parquet 首尾相接，
+    读出来报 ``Column cannot have more than one dictionary``。这是 2026-10-02
+    那次假阴性（要求临时文件名前缀匹配）的同族残留：判据问的是"参数长什么样"，
+    不是"这次落盘是不是作用在目标文件本身"。
+
+    解析不出路径（文件对象、整数 fd）时返回 ``None``，由调用方按
+    "不是目标本身"处理 —— 也就是按暂存写处理，与真实行为一致。
+    """
+    raw = path if isinstance(path, (str, os.PathLike)) else getattr(path, "name", None)
+    if isinstance(raw, int) or not isinstance(raw, (str, bytes)):
+        return None
+    return Path(os.fsdecode(raw))
+
+
+def _reset_destination(path) -> None:
+    """把落盘目标复位，使"两次 ``to_parquet`` 调用"在两种入参下等价。
+
+    ``to_parquet`` 拿到**路径**时，每次调用都以 ``'wb'`` 重新打开（先截断），
+    所以"先写一半、再写完整"这两次调用之间目标是被清空的——这正是模拟
+    "写到一半"的现场所依赖的前提。调用方传**文件对象**时（pandas 文档允许的
+    入参形态）流是开着的，第二次写会直接接在第一次后面：两个 parquet 首尾
+    相接，读出来报 ``Column cannot have more than one dictionary``。那是桩自己
+    把暂存区写坏了，不是被测代码把分区写坏了——目标文件在这两次调用里一个
+    字节都没被动过。
+
+    这里对流做 flush + 截断 + 归位，把桩的模拟还原成"两次独立调用"；对路径
+    入参是空操作（``to_parquet`` 本来就会截断）。
+    """
+    if isinstance(path, (str, os.PathLike)):
+        return
+    reset = getattr(path, "truncate", None)
+    seek = getattr(path, "seek", None)
+    flush = getattr(path, "flush", None)
+    if callable(reset) and callable(seek) and callable(flush):
+        flush()
+        reset(0)
+        seek(0)
 
 
 # ---------------------------------------------------------------------------
@@ -214,11 +261,12 @@ def test_reader_never_sees_partial_file_during_replace(tmp_path, monkeypatch):
     real_to_parquet = pd.DataFrame.to_parquet
 
     def half_then_full(frame, path, *args, **kwargs):
-        where = Path(str(path))
-        if where != target:
+        where = _written_path(path)
+        if where is None or where != target:
             # 先写一半的行（磁盘上真实出现"写到一半"的现场），此时读目标
             real_to_parquet(frame.iloc[: max(1, len(frame) // 2)], path, index=False)
             seen.append(pq.read_table(target).num_rows)
+            _reset_destination(path)
             real_to_parquet(frame, path, index=False)
             return
         return real_to_parquet(frame, path, *args, **kwargs)
@@ -250,8 +298,8 @@ def test_failed_write_keeps_previous_partition_intact(tmp_path, monkeypatch):
     real_to_parquet = pd.DataFrame.to_parquet
 
     def failing_to_parquet(frame, path, *args, **kwargs):
-        where = Path(str(path))
-        if where != target:
+        where = _written_path(path)
+        if where is None or where != target:
             real_to_parquet(frame.iloc[: max(1, len(frame) // 2)], path, index=False)
             raise OSError("disk full")
         return real_to_parquet(frame, path, *args, **kwargs)

@@ -174,7 +174,6 @@ def test_frontend_translator_mirrors_every_declared_ai_error_code():
     source = _AI_TYPES.read_text(encoding="utf-8")
     marker = "export function translateAiError"
     assert marker in source
-    translator = source.split(marker, 1)[1]
     codes = _declared_ai_error_codes()
     assert codes == {
         "request_failed",
@@ -184,5 +183,12 @@ def test_frontend_translator_mirrors_every_declared_ai_error_code():
         "ai_session_not_found",
         "ai_memory_not_found",
     }
-    missing = sorted(code for code in codes if f'"{code}"' not in translator)
+    # 镜像口径看整个翻译模块：逐码分支写在翻译函数里、或放在函数旁的
+    # 带引号查找表里，是行为等价的写法，守卫不耦合定义位置；单双引号
+    # 均可。缺任何一个已声明类别仍然判红（基线态的既有缺口靠它兜住）。
+    missing = sorted(
+        code
+        for code in codes
+        if f'"{code}"' not in source and f"'{code}'" not in source
+    )
     assert not missing, f"页面错误翻译缺少后端已声明类别：{missing}"

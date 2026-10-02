@@ -163,3 +163,77 @@
 
 `calibration/results.json` 为空表，`calibration.calibrated = false`。
 出题模型不做盲测校准（硬纪律）；盲测由非出题模型实例完成。
+
+## 十一、2026-10-03 难度审核（非出题模型盲做 + 出题侧复核）
+
+盲做成绩：**第 1 轮 33.33**（p2p 0 破坏）→ 读第 2 级提示词后 **第 2 轮 100.0**
+（p2p 0/50 破坏）。pass@1 = 0.00，最好成绩 100。四组隐藏用例的红绿归因、
+等价实现复验与本次改动记录如下。
+
+### 11.1 复验：2026-10-02 那次假阴性已根除，但同族残留仍在（已修）
+
+用四种"行为正确、写法不同"的等价实现跑真实隐藏用例（`--state custom`）：
+
+| 变体 | 落盘写法 | 修前 | 修后 |
+| --- | --- | --- | --- |
+| V1 | `tmp = path.with_suffix(".tmp")` 固定名（本仓库 5 处代码的写法） | **100** | 100 |
+| V2 | 临时文件放同卷的另一目录 `.staging/`，固定名 | **100** | 100 |
+| V3 | 临时名带 pid+随机后缀，先清残留、fsync 后才 replace | **100** | 100 |
+| V4 | 临时文件仍同目录，但 `to_parquet` 收**文件对象**而不是路径 | **83.33 红** | **100** |
+
+结论：题面点名的三自由度（**临时文件名 / 存放目录 / 调用顺序**）现在真的自由
+了，V1–V3 全绿，"只改成 `where != target`" 那次修复是有效的。
+
+但 V4 暴露了**同族残留**：`hidden/tests_hidden/test_warehouse_corruption.py`
+两处打桩写的是 `where = Path(str(path))`。`DataFrame.to_parquet` 的 `path`
+文档上明确允许"str、路径对象**或文件对象**"，而文件对象上 `str(path)` 得到的是
+`<_io.BufferedWriter name=...>` 这种字符串，与目标路径永不相等——于是打桩把一次
+**暂存写**误判成直写目标，再对同一个已打开的流做两次写入（半截 + 完整），
+两个 parquet 首尾相接，读出来报 `Column cannot have more than one dictionary`。
+被测代码的目标文件在这两次调用里一个字节都没被动过，是桩自己把暂存区写坏了。
+
+已修（只动 `hidden/`，**没有改任何断言、没有降权重、没有删用例**）：
+
+1. 新增 `_written_path()`：把 `path` 实参解析成可比对的路径；解析不出路径
+   （文件对象、整数 fd）时返回 `None`，按"不是目标本身"处理，即按暂存写处理——
+   与真实行为一致。
+2. 新增 `_reset_destination()`：两次 `to_parquet` 之间对流做
+   flush + 截断 + 归位，把桩的模拟还原成"两次独立调用"。对路径入参是空操作
+   （`to_parquet` 拿到路径本来就以 `'wb'` 重新打开、先截断）。
+
+判别力没有因此下降：`--state injected` 连跑 **5 次恒为 0.0**、`--state fixed`
+仍 100.0、`--state partial` 仍 33.33，三态门禁硬条件全部保持（§八）。
+
+### 11.2 载荷契约未定义：`warehouse_health.corrupt_partitions` 的形态
+
+第 1 轮我把明细下发成 `[{path, error}, ...]`，被判红。查下来：
+用例写的是 `for path in corrupt` + `or {}`，所以**只接受 `list[str]` 或
+`{path: error}` 映射**，不接受 `list[dict]`——三者都是"哪个分区、什么错误"的
+正当编码，两级提示词都没规定形状。这条按"契约未定义"记在案，**没有改用例**
+（`reference/fix.patch` 用的是 `{路径: 错误}` 映射，`ai/tools/local_tools.py`
+用的是 `list[str]`，两种都能过；仓内既有口径本身就不唯一，题面无从推出唯一答案）。
+
+### 11.3 反判别力实测（供后续提难参考）
+
+| 修法 | 得分 | 红组 |
+| --- | --- | --- |
+| `partial.patch`（只修写路径） | 33.33 | corrupt_visibility / health / coherence |
+| 只抛不登记（读侧与登记分叉） | 33.33 | 同上 |
+| 修好三个出口但**完全不碰 `service.py`** | **50.0** | health / coherence |
+| 全修，但健康口径下发**硬编码的假路径**（猜 year=2024/2025/2026） | **100.0** | — |
+
+最后一行是个真洞：§七 打的"硬编码/特判必挂"对 `health_exit` 不成立。
+`health_exit` 只有一个损坏场景（2026），`coherence` 的三口径用例也只有 2025，
+而两条断言都只检查"明细里出现过 `year=YYYY`"，于是猜年份就能满分。
+建议（未实施，等拍板）：把两条断言从"包含该年份"收紧成"上报集合 == 登记集合"，
+用形态无关的归一化（`dict` 取键 / `list[str]` 直接用 / `list[dict]` 取 `path`），
+断言强度上升、难度只增不减，改完重跑三态门禁即可。
+
+### 11.4 一处设计口径观察（与参考解一致，不改）
+
+第 1 轮我给 `_compute_gap_profile` 加了"坏分区按分区跳过"，让画像继续算其余年份。
+复核发现这段**基本是死代码**：`_compute_gap_profile` 在调 `_safe_read_parquet`
+之前先用 `pq.ParquetFile(path).schema_arrow.names` 探 schema，而那里只豁免
+`FileNotFoundError`，坏分区在这一步就抛了。加上 `ai/tools/local_tools.py::data_health_report`
+本就以"`data_gap_profile()` 抛异常"为前提产出 `warehouse_corrupt` 与"先修损坏"的
+hint（§二 陷阱 C 的反面），定稿版已去掉这段隔离，与 `reference/fix.patch` 口径一致。

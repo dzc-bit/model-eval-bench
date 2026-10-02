@@ -59,15 +59,21 @@ def read_text(path: str) -> str:
 
 
 def guess_text(raw: bytes) -> bool:
-    """粗判二进制文件（含 NUL 字节即视为二进制）。"""
+    """粗判二进制文件（含 NUL 字节即视为二进制）。
+
+    解码探测必须用完整内容：固定 4096 字节的探针会把恰好横跨边界的多字节
+    字符截成非法序列，纯文本文件（含中文注释的测试文件就会踩中）被误判成
+    二进制，apply_prune / apply_redactions 于是静默跳过整个文件——裁剪没生效
+    而现场不留任何痕迹（2026-10-03 T4-12 出题门禁实测踩中）。
+    """
     if b"\x00" in raw[:4096]:
         return False
     try:
-        raw[:4096].decode("utf-8")
+        raw.decode("utf-8")
         return True
     except UnicodeDecodeError:
         try:
-            raw[:4096].decode("gbk")
+            raw.decode("gbk")
             return True
         except UnicodeDecodeError:
             return False
