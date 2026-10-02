@@ -589,10 +589,15 @@ export function createWorkspace(props = {}) {
   function syncModelOptions(list, selected) {
     const options = [{ value: '', label: S.RUN_MODEL_EMPTY }].concat(
       (list || []).map((m) => {
-        // 档案只有一个 id 时（config.json 里 id 和 model 同名），下拉只显示光秃秃的
-        // id 没法辨认，补一行备注或明说未配置。
-        const detail = m.model && m.model !== m.id ? m.model : (m.note || '');
-        return { value: m.id, label: detail ? `${m.id}（${detail}）` : `${m.id}（${S.RUN_MODEL_UNSET}）` };
+        // 详情取第一个与 id 不同名的字段：model → 显示名 → 供应商名 → 备注。
+        // id 本身就是模型全名时（供应商结构下 id==model 是常态），别再补「未配置」——
+        // 它已经配置好了，那四个字只会误导。
+        const detail = (m.model && m.model !== m.id && m.model)
+          || (m.name && m.name !== m.id && m.name)
+          || m.provider_name
+          || m.note
+          || '';
+        return { value: m.id, label: detail ? `${m.id}（${detail}）` : m.id };
       }),
     );
     const sig = options.map((o) => o.value).join('|');
