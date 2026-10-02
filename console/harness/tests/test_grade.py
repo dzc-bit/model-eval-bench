@@ -12,7 +12,7 @@ import pytest
 
 from conftest import (BACKEND_TASK, FRONTEND_TASK, MODEL_FULL_FIX, MODEL_PARTIAL_FIX,
                       make_run, write_in_sandbox)
-from harness import grade, packs, report, sandbox, util
+from harness import errors, grade, packs, report, sandbox, util
 
 GROUP_IDS = ["turnover_exit", "adapter_exit", "engine_exit", "market_cap_exit", "coherence"]
 
@@ -371,6 +371,82 @@ def test_frontend_task_uses_entity_node_modules_and_node_guard(cfg, log):
             read(os.path.join(cfg["repo_root"], "frontend", "src", "panel.js")))
         fixed = grade.run_grade(cfg, run, meta, log=log)
         assert fixed["score"] == pytest.approx(100.0, abs=0.1)
+    finally:
+        sandbox.destroy(cfg, run, log=log)
+
+
+def test_prepare_refuses_empty_repo_node_modules(cfg, log):
+    """受测仓库依赖被清空时，准备沙箱必须当场失败并说明补救（2026-10-02 T1-02 事故）。"""
+    meta = packs.load_meta(cfg, FRONTEND_TASK)
+    run = make_run(cfg, FRONTEND_TASK, "空依赖模型",
+                   run_id="TEST-04__空依赖模型__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    deps = os.path.join(cfg["repo_root"], "node_modules")
+    util.remove_tree(deps)
+    util.ensure_dir(deps)   # 留一个空目录：事故的真实形态是「目录在、里面 0 个文件」
+
+    with pytest.raises(errors.HarnessError) as excinfo:
+        sandbox.prepare(cfg, run, meta, log=log)
+    assert "npm install" in excinfo.value.message, "报错要告诉用户怎么补救"
+    assert run["status"] == "error"
+    assert not os.path.exists(os.path.join(run["run_dir"], sandbox._NODE_MODULES_BASELINE)), \
+        "空基线不许留在运行记录目录里"
+
+
+def test_unexecuted_checker_invalidates_the_round(cfg, log, monkeypatch):
+    """checker 一条都没跑起来：整轮作废，报告写真实原因，不给半场分数记名。"""
+    from harness.checks import CheckResult, mark_unexecuted
+
+    meta = packs.load_meta(cfg, FRONTEND_TASK)
+    run = make_run(cfg, FRONTEND_TASK, "坏检查器模型",
+                   run_id="TEST-05__坏检查器模型__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    sandbox.prepare(cfg, run, meta, log=log)
+    try:
+        def broken_checker(ctx):
+            return mark_unexecuted(
+                CheckResult(kind=ctx.kind), ctx.node_ids,
+                "评分树里找不到检查入口（依赖基线可能丢失）")
+
+        monkeypatch.setattr(grade.checks, "get", lambda kind: broken_checker)
+        result = grade.run_grade(cfg, run, meta, log=log)
+
+        assert result["error"], "checker 未执行必须记入 error"
+        assert result["invalidated"] is True, "校验没跑起来的轮次绝不能作数"
+        assert result["invalid_reason"] == "校验过程出错"
+
+        cases = [c for g in result["groups"] for c in g["cases"]]
+        assert cases, "声明的用例仍要出现在分组里"
+        assert all("导入失败" not in c["message"] for c in cases), \
+            "checker 故障不许翻译成「隐藏测试可能导入失败」"
+        assert any("检查入口" in c["message"] for c in cases), "分组要带真实故障原因"
+        assert any("未执行" in (c.get("summary") or "") for c in result["checks"]), \
+            "未执行的 checker 要在 checks 里留证据"
+
+        built = report.build(run, meta, result)
+        assert built["next_hint"]["action"] == report.ACTION_FIX, \
+            "校验环境坏了应引导修环境，而不是「轮次用尽」"
+        assert "重建沙箱" in built["next_hint"]["reason"]
+    finally:
+        sandbox.destroy(cfg, run, log=log)
+
+
+def test_grade_aborts_when_sandbox_deps_emptied(cfg, log):
+    """沙箱里的 node_modules 被外部清空：完整性自检拦下，出作废报告而不是分数。"""
+    meta = packs.load_meta(cfg, FRONTEND_TASK)
+    run = make_run(cfg, FRONTEND_TASK, "被清依赖模型",
+                   run_id="TEST-06__被清依赖模型__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    sandbox.prepare(cfg, run, meta, log=log)
+    try:
+        util.remove_tree(os.path.join(run["sandbox"], "node_modules"))
+        util.ensure_dir(os.path.join(run["sandbox"], "node_modules"))  # 留一个空目录
+
+        result = grade.run_grade(cfg, run, meta, log=log)
+        assert result["error"] == "sandbox_broken"
+        assert result["invalidated"] is True
+        assert "空目录" in result["invalid_reason"]
+        assert result["groups"] == [], "完整性没过就不该有分组分数"
     finally:
         sandbox.destroy(cfg, run, log=log)
 

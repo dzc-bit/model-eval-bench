@@ -550,7 +550,9 @@ def run_grade(cfg: dict, run: dict, meta: dict, log: Log = _noop) -> dict:
 
     # ⑤ 判分
     scoring = compute_score(graded)
-    invalid = bool(violations) or scoring["p2p_broken"]
+    # 校验器故障与越界/回归同样让整轮不作数： checker 没跑起来时那份分数
+    # 只是残测，绝不许以「作数轮」身份进台账（2026-10-02 T1-02 事故）。
+    invalid = bool(violations) or scoring["p2p_broken"] or bool(run_error)
     if violations:
         scoring["score"] = 0.0
 
@@ -592,12 +594,14 @@ def run_grade(cfg: dict, run: dict, meta: dict, log: Log = _noop) -> dict:
 
 
 def _invalid_reason(violations: list, regressions: list, run_error: str) -> str:
+    # 文案不带「本轮作废」字样：前端模板（GRADE_INVALID_REASON / BAR_INVALID）
+    # 与校验日志都会自己加前缀，带上就重复一遍。
     if violations:
-        return "改动越界（%d 项），本轮作废" % len(violations)
+        return "改动越界（%d 项）" % len(violations)
     if regressions:
-        return "破坏了既有通过用例（%d 条），本轮作废" % len(regressions)
+        return "破坏了既有通过用例（%d 条）" % len(regressions)
     if run_error:
-        return "校验过程出错，本轮作废"
+        return "校验过程出错"
     return ""
 
 
@@ -674,6 +678,21 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
             run_error = "checker %s 没有执行任何用例（声明 %d 条）：%s" % (
                 kind, len(node_ids), outcome.notes[-1] if outcome.notes else "详见日志")
             log(run_error)
+            # 整轮即将作废，但报告仍要诚实：组的用例带上真实故障原因，
+            # 不许让 resolver 缺位把它翻译成「隐藏测试可能导入失败」误导排查；
+            # 回归面同理——checker 没跑不等于模型打崩了 p2p。
+            all_p2p.pop()
+            resolve_map[spec_index] = _make_resolver(kind, outcome.cases)
+            check_reports.append({
+                "kind": outcome.kind,
+                "command": outcome.command,
+                "returncode": outcome.returncode,
+                "duration_s": round(outcome.duration_s, 1),
+                "timed_out": outcome.timed_out,
+                "summary": "%s：未执行（声明 %d 条用例一条都没跑）" % (outcome.kind, len(node_ids)),
+                "notes": outcome.notes,
+                "log_tail": (outcome.stdout + "\n" + outcome.stderr)[-8000:],
+            })
             break
 
         check_reports.append({

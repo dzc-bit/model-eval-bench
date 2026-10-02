@@ -225,14 +225,28 @@ def group_by_cell(cfg: dict, canonical: Callable[[str], str]) -> Dict[tuple, Lis
 
 
 def best_of(entries: List[dict]) -> Optional[dict]:
-    """一组条目里取代表那一条：分数最高；同分取轮数少的、再取结束早的。"""
+    """一组条目里取代表那一条：分数最高；同分取轮数少、有时间、用时短、结束早的。
+
+    「有时间优先、用时短优先」是 2026-10-02 补的口径：手工回填的旧条目没有
+    用时（None），按旧的键它会永远压住后来补测出真实时长的同分条目，排行榜
+    第三排序键（模型用时）就落了空。未知用时按无穷大参与比较，与
+    runs.task_leaderboard 的排序键同一个口径。
+    """
     def key(entry: dict):
         try:
             score = float(entry.get("score") or 0)
         except (TypeError, ValueError):
             score = 0.0
+        work = entry.get("model_work_seconds")
+        wall = entry.get("wall_seconds")
+        try:
+            duration = float(work if work is not None else wall)
+        except (TypeError, ValueError):
+            duration = None
         return (-score,
                 int(entry.get("rounds") or 1),
+                0 if duration is not None else 1,
+                duration if duration is not None else float("inf"),
                 str(entry.get("ended_at") or ""),
                 str(entry.get("entry_id") or ""))
 

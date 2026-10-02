@@ -69,6 +69,16 @@ def decide_next(grade_result: dict, meta: dict, revealed: bool = False) -> dict:
             "reason": "破坏了 %d 条原本通过的用例，本轮已作废。请在允许范围内修好再校验。" % len(regressions),
             "can_promote": False,
         }
+    if grade_result.get("error"):
+        # 校验器没跑起来：整轮已作废，剩下的分数是残测不是成绩。
+        # 引导修环境而不是继续做题——报错详情在报告的 error 字段里。
+        return {
+            "action": ACTION_FIX,
+            "label": "先修校验环境",
+            "reason": "校验器没有真正跑起来，本轮作废。这不是模型的成绩：修复评测环境"
+                      "（缺依赖时先在仓库里 npm install），再重建沙箱重新校验。",
+            "can_promote": False,
+        }
     if score >= 100.0:
         return {
             "action": ACTION_COMPLETE,

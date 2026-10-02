@@ -558,3 +558,79 @@ def test_finish_is_refused_while_the_run_is_busy(cfg):
         holder.join(timeout=5)
     assert os.path.exists(run["run_dir"]), "被拒绝的结束不能顺手删掉记录"
     assert entries_for(cfg, BACKEND_TASK, "占忙模型") == []
+
+
+# ==========================================================================
+# 代表条目选取与用时口径（2026-10-02）
+# ==========================================================================
+
+def test_best_of_prefers_measured_time_over_restored_unknown(cfg):
+    """同分同轮数：测出真实用时的条目要顶掉没有用时的旧条目。
+
+    背景：手工回填（origin=restored）的旧台账条目没有时间，按旧键它会永远
+    压住后来补测的同分条目，排行榜第三排序键（模型用时）落空。
+    """
+    seed_entry(cfg, BACKEND_TASK, "计时模型", score=100.0, rounds=1,
+               work=None, wall=None, run_id="r-old")
+    seed_entry(cfg, BACKEND_TASK, "计时模型", score=100.0, rounds=1,
+               work=517.0, wall=553.0, run_id="r-new")
+    seed_entry(cfg, BACKEND_TASK, "计时模型", score=100.0, rounds=2,
+               work=300.0, wall=360.0, run_id="r-new2")
+
+    best = results.best_of(entries_for(cfg, BACKEND_TASK, "计时模型"))
+    assert best["source_run_id"] == "r-new", \
+        "同分之下轮数少者优先，轮数再同则有时间、用时短者优先"
+
+
+def test_best_of_still_prefers_higher_score_and_fewer_rounds(cfg):
+    """时间只是同分同轮数内部的决胜键，分数与轮数的优先级不变。"""
+    seed_entry(cfg, BACKEND_TASK, "口径模型", score=90.0, rounds=1,
+               work=100.0, wall=120.0, run_id="r-fast-low")
+    seed_entry(cfg, BACKEND_TASK, "口径模型", score=100.0, rounds=2,
+               work=900.0, wall=999.0, run_id="r-slow-high")
+    best = results.best_of(entries_for(cfg, BACKEND_TASK, "口径模型"))
+    assert best["source_run_id"] == "r-slow-high", "分数高者优先，哪怕用时更长"
+
+
+def test_wall_seconds_unknown_when_best_round_is_not_current(cfg):
+    """最高分轮不是当前轮：墙钟置回「未知」，不许拿新一轮起点减出假 0。"""
+    run = {
+        "run_id": "T-01__多轮__20260101-000000", "task": BACKEND_TASK,
+        "model": "多轮模型", "attempt": 2, "status": "graded",
+        "created_at": "2026-01-01T00:00:00",
+        "round_started_at": "2026-01-01T00:50:00",   # 当前（第 2）轮的起点
+        "revealed": False, "calibration": False, "note": "",
+        "rounds": [
+            {"attempt": 1, "score": 100.0, "passed": True, "invalidated": False,
+             "graded_at": "2026-01-01T00:05:00", "model_work_seconds": 300.0,
+             "report": "round-1.json"},
+            {"attempt": 2, "score": 50.0, "passed": False, "invalidated": False,
+             "graded_at": "2026-01-01T01:00:00", "model_work_seconds": 600.0,
+             "report": "round-2.json"},
+        ],
+    }
+    entry = runs.record_run_result(cfg, run)
+    assert entry is not None
+    assert entry["score"] == 100.0 and entry["best_round"] == 1
+    assert entry["wall_seconds"] is None, "第 1 轮终点早于第 2 轮起点，差值是假 0，应为未知"
+    assert entry["model_work_seconds"] == 300.0
+
+
+def test_wall_seconds_measured_when_best_round_is_current(cfg):
+    """最高分轮就是当前轮：墙钟按正常起点终点计算。"""
+    run = {
+        "run_id": "T-01__单轮__20260101-000000", "task": BACKEND_TASK,
+        "model": "单轮模型", "attempt": 1, "status": "graded",
+        "created_at": "2026-01-01T00:00:00",
+        "round_started_at": "2026-01-01T00:00:00",
+        "revealed": False, "calibration": False, "note": "",
+        "rounds": [
+            {"attempt": 1, "score": 100.0, "passed": True, "invalidated": False,
+             "graded_at": "2026-01-01T00:10:00", "model_work_seconds": 517.0,
+             "report": "round-1.json"},
+        ],
+    }
+    entry = runs.record_run_result(cfg, run)
+    assert entry is not None
+    assert entry["wall_seconds"] == 600.0
+    assert entry["model_work_seconds"] == 517.0

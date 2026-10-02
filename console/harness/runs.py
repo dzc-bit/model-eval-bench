@@ -656,6 +656,11 @@ def release_sandbox(cfg: dict, run_id: str, log: Log = None) -> dict:
         if not acquired:
             raise errors.HarnessError(
                 errors.E_RUN_BUSY, "模型或评分正在使用这一轮，等它结束再回收沙箱。", run_id)
+        if chat.send_active(run_id):
+            # exclusive 只锁落盘动作，盖不住在飞的发送线程；T2-04 事故里模型
+            # 比回收晚一分钟还在写，工作区被删得只剩残留。
+            raise errors.HarnessError(
+                errors.E_RUN_BUSY, "模型正在输出，等这条消息结束再回收沙箱。", run_id)
         run = get_run(cfg, run_id)
         if run.get("status") in {"preparing", "grading"}:
             raise errors.HarnessError(
@@ -701,15 +706,21 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
 
     best = max(counted, key=lambda r: (_score(r), -_round_no(r)))
     raw_model = str(run.get("model") or "")
-    start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
-    finish_s = _timestamp_seconds(best.get("graded_at"))
-    wall = max(0.0, finish_s - start_s) if start_s is not None and finish_s is not None else None
+    # round_started_at 只描述当前这一轮：最高分轮不是当前轮时（早先轮次拿了
+    # 最高分、后来又 promote 出新一轮），拿当前轮起点去减更早的终点会得出
+    # finish < start 的负差，被 max(0,…) 夹成假 0——不如老老实实置回「未知」。
+    wall = None
+    if _round_no(best) == int(run.get("attempt") or 1):
+        start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
+        finish_s = _timestamp_seconds(best.get("graded_at"))
+        if start_s is not None and finish_s is not None:
+            wall = max(0.0, finish_s - start_s)
     work = best.get("model_work_seconds")
     try:
         work = float(work) if work is not None else None
     except (TypeError, ValueError):
         work = None
-    if not work:
+    if work is None:
         try:
             work = model_work_seconds(cfg, run) or None
         except errors.HarnessError:
@@ -936,7 +947,7 @@ def _grade_worker(cfg: dict, run_id: str) -> None:
             run["status"] = "graded"
             save_run(cfg, run)
         logger("校验完成：得分 %s%s" % (
-            final.get("score"), "（本轮作废：%s）" % final.get("invalid_reason") if final.get("invalidated") else ""))
+            final.get("score"), "（%s）" % final.get("invalid_reason") if final.get("invalidated") else ""))
     except errors.HarnessError as exc:
         logger("校验失败：%s" % exc.message)
         if run is not None:

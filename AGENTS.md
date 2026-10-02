@@ -171,3 +171,31 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
   现在 fail-closed；T4-11 与 T3-09 用例重复、node-ID 前缀约定两条也已随题库修复定稿，
   前缀约定见 `packs/core/README.md` 步骤 3）。
 - 真实外部服务商调用仍未验证（本机没有有效密钥）；难度校准本轮明确不执行。
+
+### 2026-10-02 两起事故的处置记录
+
+- **T1-02 假 60 分**（校验器没跑起来却记成作数轮）已修：`run_error` 现在进 `invalid`
+  （`grade.run_grade`），`executed=False` 的轮次一律 invalidated、永不进台账；报告分组带
+  真实故障原因（不再是"隐藏测试可能导入失败"）。空 `node_modules` 加了两道 fail-closed：
+  基线捕获 0 文件时 prepare 当场报错（提示 npm install），完整性自检认得"空目录"。
+  8899 已于 2026-10-02 17:01 重启加载新后端，并用真实探针验证过：T2-06（纯后端）正常建箱，
+  T1-02（前端）被 409 拒收、报错即上述文案（探针已删）。
+  **那条 60 分的记录是修复前产物（`error` 有值、`invalidated=false`），处置：先 npm install
+  再重建沙箱重测；对它点「结束本轮」仍会把 60 写进台账。**
+- **批次取消毁在飞输出**（交接单 `docs/批次取消后工作台卡死-2026-10-02.md` 的缺陷 D）已修：
+  沙箱回收统一走 `runs.release_sandbox` 门面（独占锁 + `chat.send_active` 在飞闸门 + 状态守卫），
+  `batch._release_item_sandbox` 与手动回收不再自己拆 `sandbox.destroy`；在飞时拒收并保留目录。
+  缺陷 A/B（`statusInfo`/主按钮，前端）由另一会话处理，缺陷 C（取消记录的出路）等拍板。
+- `D:\New project 6` 的 node_modules 于 10-01 晚后被外部清空（目录创建/修改时间被改成
+  2093-12-09 的垃圾值，回收站、npm 日志、Avast 隔离区均排除），**元凶未查明**；
+  同窗口仓库 HEAD 被 reset 过。恢复依赖（npm install）后重测；要定位确切时刻可用
+  管理员跑 `fsutil usn readjournal D: csv`（USN 日志未覆盖的前提下）。
+- **批次停止语义修正（2026-10-02）**：`batch.cancel` 只拦 pending，已派发的条目
+  （准备中/对话中/评分中）自然跑完，`cancel_requested` 不再被写入（旧标志无清除路径，
+  会把 run 变成永久死路；旧记录上残留的标志仍被 runs.* 各闸门识别）。
+  `_release_item_sandbox` 只在条目自然落定后走门面回收。`POST /api/batches` 新透传
+  `auto_release`（默认 True 不变，想让沙箱留到人工复盘可按批关掉）。
+- **台账代表条目补时间口径**：`results.best_of` 在分数、轮数之后加「有时间优先、
+  用时短优先」——同分同轮数时测出真实用时的条目顶掉回填的无时间旧条目（与排行榜
+  第三排序键同口径）；`record_run_result` 的墙钟在最高分轮非当前轮时置 None
+  （旧实现会算出假 0），`model_work_seconds` 为真实 0.0 时不再触发重算。

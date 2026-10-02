@@ -550,8 +550,13 @@ def _create_batch(cfg: dict, body: dict) -> dict:
     concurrency = body.get("concurrency")
     if concurrency is not None:
         concurrency = _as_int(concurrency, batch_mod.max_concurrency(cfg))
-    return batch_mod.start(cfg, items, concurrency=concurrency,
-                           auto_send=bool(body.get("auto_send")))
+    # auto_release 一直有这个参数（评分完就回收沙箱让出槽位），以前没从接口透传：
+    # 想让沙箱留到人工复盘时，可以按批显式关掉；默认不变（True）。
+    auto_release = body.get("auto_release")
+    return batch_mod.start(
+        cfg, items, concurrency=concurrency,
+        auto_release=True if auto_release is None else bool(auto_release),
+        auto_send=bool(body.get("auto_send")))
 
 
 def _list_runs(cfg: dict, query: dict) -> dict:

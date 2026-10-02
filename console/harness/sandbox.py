@@ -138,10 +138,16 @@ def _dependency_dir_problem(path: str, root: str) -> str:
     root_real = util.norm(os.path.realpath(root))
     if not util.path_within(root_real, os.path.realpath(path)):
         return "node_modules 路径解析后越过目录边界"
+    total_files = 0
     for dirpath, dirnames, filenames in os.walk(path, followlinks=False):
         if any(util.is_junction(os.path.join(dirpath, name)) or os.path.islink(os.path.join(dirpath, name))
                for name in dirnames + filenames):
             return "node_modules 内含链接"
+        total_files += len(filenames)
+    if not total_files:
+        # 反正是全树遍历，顺带数一下文件：空目录会让 vitest 静默找不到入口，
+        # 2026-10-02 的事故里它一路混到评分才暴露（T1-02 的假 60 分）。
+        return "node_modules 是空目录（0 个文件，依赖可能被外部清空）"
     return ""
 
 
@@ -163,6 +169,14 @@ def _capture_node_modules_baseline(cfg: dict, run: dict, log: Log,
         raise errors.HarnessError(errors.E_SANDBOX_BROKEN,
                                   "运行记录目录不可用，无法保存 node_modules 本地基线。")
     result = _copy_dependency_tree(repo_node_modules(cfg), baseline, cancel_event)
+    if not result["files"]:
+        # 受测仓库依赖被外部清空时在这里就炸，别让一个注定失败的沙箱开工
+        # （2026-10-02：空基线一路走进评分树，vitest 静默没跑成假成绩）。
+        util.remove_tree(baseline)
+        raise errors.HarnessError(
+            errors.E_SANDBOX_BROKEN,
+            "受测仓库的 node_modules 是空的（0 个文件），前端题无法准备沙箱。"
+            "请先在仓库里安装依赖（npm install），再重建沙箱。")
     run["node_modules_baseline"] = util.norm(baseline)
     log("已保存 node_modules 本地基线：%d 个文件" % result["files"])
     return baseline
@@ -173,6 +187,11 @@ def copy_node_modules(source: str, workdir: str, log: Log = _noop,
     """把本地依赖基线复制为 workdir/node_modules 实体目录。"""
     dest = os.path.join(workdir, "node_modules")
     result = _copy_dependency_tree(source, dest, cancel_event)
+    if not result["files"]:
+        util.remove_tree(dest)
+        raise errors.HarnessError(
+            errors.E_SANDBOX_BROKEN,
+            "依赖基线是空的（0 个文件），工作区没有可用的 node_modules。请重建沙箱。")
     log("已复制 node_modules：%d 个文件（实体目录）" % result["files"])
     return result
 

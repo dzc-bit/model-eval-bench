@@ -20,7 +20,8 @@ import threading
 
 import pytest
 
-from harness import batch, errors
+from harness import batch, errors, packs, runs as runs_mod, sandbox, util
+from conftest import BACKEND_TASK, make_run
 
 
 # --------------------------------------------------------------------------
@@ -202,60 +203,48 @@ def test_release_item_sandbox_respects_auto_release(cfg, monkeypatch):
     """auto_release=False 时绝不能动沙箱（用户可能要留着改代码）。"""
     called = {"n": 0}
 
-    def fake_destroy(*a, **k):
+    def fake_release(*a, **k):
         called["n"] += 1
+        return {"released": True}
 
-    monkeypatch.setattr(batch.sandbox, "destroy", fake_destroy)
+    monkeypatch.setattr(batch.runs, "release_sandbox", fake_release)
     run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
 
-    batch._release_item_sandbox(cfg, {"auto_release": False}, run, lambda m: None)
+    assert batch._release_item_sandbox(cfg, {"auto_release": False}, run, lambda m: None) is False
     assert called["n"] == 0
     assert run["sandbox"] == "x" and run["drive"] == "Q:"
 
 
-def test_release_item_sandbox_frees_drive(cfg, monkeypatch):
-    """auto_release=True 时要释放盘符、清空沙箱字段，并落盘。"""
-    monkeypatch.setattr(batch.sandbox, "destroy",
-                        lambda c, r, log=None: (r.update({"sandbox": "", "drive": ""}), None)[1])
-    saved = []
+def test_release_item_sandbox_frees_the_workspace(cfg, monkeypatch):
+    """auto_release=True 且门面放行：清空沙箱字段、用最新记录刷新调用方快照。"""
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, run_id: {"released": True})
     monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: {
-        "run_id": run_id, "status": "ready", "sandbox": "x", "drive": "Q:",
-        "task": "T", "model": "M",
+        "run_id": run_id, "status": "ready", "sandbox": "", "drive": "",
+        "task": "T", "model": "M", "last_score": 88.0,
     })
-    monkeypatch.setattr(batch.runs, "save_run", lambda c, r: saved.append(dict(r)))
 
     run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
     logs = []
-    batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append)
+    assert batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append) is True
 
     assert run["sandbox"] == "" and run["drive"] == ""
-    assert saved and saved[0]["drive"] == ""
-    assert any("回收" in line for line in logs)
+    assert run["last_score"] == 88.0, "回收后要用最新落盘记录刷新，不许留陈旧快照"
+    assert any("已回收" in line for line in logs)
 
 
-def test_release_item_sandbox_preserves_latest_run_state(cfg, monkeypatch):
-    """回收时不能把旧 run 快照写回，覆盖评分结果或用户备注。"""
-    stale = {
-        "run_id": "r", "status": "ready", "note": "",
-        "sandbox": "x", "drive": "Q:", "task": "T", "model": "M",
-    }
-    latest = {
-        **stale, "status": "graded", "note": "人工摘要",
-        "last_score": 88.0, "last_passed": True,
-    }
-    saved = []
-    monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: dict(latest))
-    monkeypatch.setattr(batch.sandbox, "destroy",
-                        lambda c, run, log=None: run.update({"sandbox": "", "drive": ""}))
-    monkeypatch.setattr(batch.runs, "save_run", lambda c, run: saved.append(dict(run)))
+def test_release_item_sandbox_refused_while_model_sends(cfg, monkeypatch):
+    """在飞闸门拒绝回收：目录与字段都保留，事件说明原因（2026-10-02 T2-04 事故）。"""
+    def busy(cfg, run_id):
+        raise errors.HarnessError(
+            errors.E_RUN_BUSY, "模型正在输出，等这条消息结束再回收沙箱。", run_id)
 
-    batch._release_item_sandbox(cfg, {"auto_release": True}, stale, lambda message: None)
+    monkeypatch.setattr(batch.runs, "release_sandbox", busy)
+    run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
+    logs = []
 
-    assert saved[0]["status"] == "graded"
-    assert saved[0]["note"] == "人工摘要"
-    assert saved[0]["last_score"] == 88.0
-    assert saved[0]["last_passed"] is True
-    assert saved[0]["sandbox"] == "" and saved[0]["drive"] == ""
+    assert batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append) is False
+    assert run["sandbox"] == "x", "在飞被拒时绝不能清掉工作区字段"
+    assert any("暂不回收" in line for line in logs)
 
 
 def test_release_failure_does_not_raise(cfg, monkeypatch):
@@ -263,15 +252,35 @@ def test_release_failure_does_not_raise(cfg, monkeypatch):
     def boom(*a, **k):
         raise OSError("删不掉")
 
-    monkeypatch.setattr(batch.runs, "get_run", lambda c, run_id: {
-        "run_id": run_id, "status": "ready", "sandbox": "x", "drive": "Q:",
-        "task": "T", "model": "M",
-    })
-    monkeypatch.setattr(batch.sandbox, "destroy", boom)
+    monkeypatch.setattr(batch.runs, "release_sandbox", boom)
     run = {"run_id": "r", "sandbox": "x", "drive": "Q:", "task": "T", "model": "M"}
     logs = []
-    batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append)   # 不抛
+    assert batch._release_item_sandbox(cfg, {"auto_release": True}, run, logs.append) is False
     assert any("回收沙箱失败" in line for line in logs)
+
+
+def test_release_sandbox_refuses_while_send_in_flight(cfg, monkeypatch):
+    """在飞闸门：发送没归零时 release_sandbox 不得删工作区，放行后才能回收。"""
+    meta = packs.load_meta(cfg, BACKEND_TASK)
+    run = make_run(cfg, BACKEND_TASK, "在飞模型",
+                   run_id="TEST-07__在飞模型__20260101-000000",
+                   run_dir=runs_mod.dir_of_run_id(cfg, "TEST-07__在飞模型__20260101-000000"))
+    util.ensure_dir(run["run_dir"])
+    sandbox.prepare(cfg, run, meta, log=lambda m: None)
+    try:
+        runs_mod.save_run(cfg, run)
+        monkeypatch.setattr(runs_mod.chat, "send_active", lambda run_id: True)
+        with pytest.raises(errors.HarnessError) as excinfo:
+            runs_mod.release_sandbox(cfg, run["run_id"])
+        assert "模型正在输出" in excinfo.value.message
+        assert os.path.isdir(run["sandbox"]), "在飞时工作区必须原封不动"
+
+        monkeypatch.setattr(runs_mod.chat, "send_active", lambda run_id: False)
+        result = runs_mod.release_sandbox(cfg, run["run_id"])
+        assert result["released"] is True
+        assert not os.path.isdir(run["sandbox"])
+    finally:
+        sandbox.destroy(cfg, run, log=lambda m: None)
 
 
 # --------------------------------------------------------------------------
@@ -331,7 +340,7 @@ def test_batch_parallel_same_task_sessions_wait_for_user_grading(cfg, monkeypatc
         "run_id": rid, "status": run_status[rid], "last_score": 42.0, "last_passed": False,
     })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda c, r, log=None: None)
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
 
     items = [
         {"task": "TEST-01", "model": "model-a"},
@@ -401,7 +410,7 @@ def test_batch_survives_single_item_failure(cfg, monkeypatch):
         "run_id": rid, "status": run_status[rid], "last_score": 10.0, "last_passed": False,
     })
     monkeypatch.setattr(batch.runs, "save_run", lambda c, r: None)
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda c, r, log=None: None)
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
 
     view = batch.start(cfg, [
         {"task": "TEST-01", "model": "stub"},
@@ -452,15 +461,16 @@ def test_cancel_marks_batch_cancelling(cfg):
             batch._BATCHES.pop("b-cancel", None)
 
 
-def test_cancel_ready_session_releases_its_sandbox(cfg, monkeypatch):
-    """取消一个尚未评分的会话会结束等待并归还它占用的工作区槽位。"""
+def test_cancel_spares_ready_session_until_it_settles(cfg, monkeypatch):
+    """停止不打扰已开工的条目：ready 的会话原地保留，评分后自然落定（2026-10-02 语义）。"""
     run_state = {"run_id": "r-cancel", "task": "TEST-01", "model": "stub",
                  "status": "ready", "sandbox": "sandbox", "drive": ""}
-    destroyed = []
+    released = []
     monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(run_state))
     monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(run_state))
     monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state.update(run))
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda c, run, log=None: destroyed.append(run["run_id"]))
+    monkeypatch.setattr(batch.runs, "release_sandbox",
+                        lambda c, rid: released.append(rid) or {"released": True})
     monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
     doc = {
         "batch_id": "b-cancel-ready", "created_at": "t", "updated_at": "t",
@@ -480,32 +490,46 @@ def test_cancel_ready_session_releases_its_sandbox(cfg, monkeypatch):
         time.sleep(0.01)
     assert doc["items"][0]["status"] == "ready"
     assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+
+    # 停止之后：条目不被判死、run 不被改写、沙箱不回收
+    time.sleep(0.3)
+    assert doc["items"][0]["status"] == "ready"
+    assert run_state.get("status") == "ready"
+    assert "cancel_requested" not in run_state
+    assert not released
+
+    # 用户在工作台正常评分 → 条目自然落定，工作区照常回收
+    run_state.update({"status": "graded", "last_score": 90.0, "last_passed": True})
     worker.join(2)
     assert not worker.is_alive()
-
     item = doc["items"][0]
-    assert item["status"] == "cancelled"
-    assert not item["sandbox"] and not item["drive"]
-    assert destroyed == ["r-cancel"]
-    assert run_state["status"] == "cancelled"
+    assert item["status"] == "graded"
+    assert item["score"] == 90.0
+    assert released == ["r-cancel"]
+    assert not item["sandbox"]
     assert gate.acquire(blocking=False)
     with batch._LOCK:
         batch._BATCHES.pop(doc["batch_id"], None)
 
 
-def test_cancel_during_preparation_releases_gate(cfg, monkeypatch):
-    """准备线程收到取消事件后退出，不能永久占住并发闸门。"""
+def test_cancel_during_preparation_lets_it_finish(cfg, monkeypatch):
+    """准备中的条目不再被停止杀掉：沙箱建完、条目就绪，之后照常走完生命周期。"""
     started = threading.Event()
-    destroyed = []
+    hold = threading.Event()
 
-    def fake_create_run(*args, cancel_event=None, **kwargs):
+    def slow_create_run(c, task, model, attempt=1, **kwargs):
         started.set()
-        while not cancel_event.is_set():
-            cancel_event.wait(0.01)
-        raise errors.HarnessError(errors.E_RUN_CANCELLED, "批次已取消")
+        hold.wait(2)                      # 让 cancel 落在准备窗口内
+        return {"run_id": "r-prep", "task": task, "model": model, "status": "ready",
+                "sandbox": "sandbox", "drive": ""}
 
-    monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: destroyed.append(True))
+    run_state = {"r-prep": {"run_id": "r-prep", "task": "TEST-01", "model": "stub",
+                            "status": "ready", "sandbox": "sandbox", "drive": ""}}
+    released = []
+    monkeypatch.setattr(batch.runs, "create_run", slow_create_run)
+    monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: dict(run_state[rid]))
+    monkeypatch.setattr(batch.runs, "release_sandbox",
+                        lambda c, rid: released.append(rid) or {"released": True})
     monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
     doc = {
         "batch_id": "b-cancel-preparing", "created_at": "t", "updated_at": "t",
@@ -522,11 +546,22 @@ def test_cancel_during_preparation_releases_gate(cfg, monkeypatch):
     worker.start()
     assert started.wait(2)
     assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
-    worker.join(2)
+    hold.set()
+    deadline = time.time() + 2
+    while time.time() < deadline and doc["items"][0]["status"] != "ready":
+        time.sleep(0.01)
+    assert doc["items"][0]["status"] == "ready", "准备中的条目不许被停止判死"
+    assert "cancel_requested" not in run_state["r-prep"]
+    assert not released
+
+    # 用户在工作台正常评分 → 条目自然落定，闸门释放
+    run_state["r-prep"].update({"status": "graded", "last_score": 50.0, "last_passed": False})
+    worker.join(3)
+    assert not worker.is_alive()
     try:
-        assert not worker.is_alive()
-        assert doc["items"][0]["status"] == "cancelled"
-        assert not destroyed
+        assert doc["items"][0]["status"] == "graded"
+        assert doc["items"][0]["score"] == 50.0
+        assert released == ["r-prep"]
         assert gate.acquire(blocking=False)
     finally:
         with batch._LOCK:
@@ -550,7 +585,7 @@ def test_cancel_while_gate_waiting_does_not_block_batch(cfg, monkeypatch):
     monkeypatch.setattr(batch.runs, "create_run", fake_create_run)
     monkeypatch.setattr(batch.runs, "get_run", lambda c, rid: dict(run_state[rid]))
     monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state[run["run_id"]].update(run))
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: None)
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
     monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
     doc = {
         "batch_id": "b-cancel-gate", "created_at": "t", "updated_at": "t",
@@ -574,11 +609,14 @@ def test_cancel_while_gate_waiting_does_not_block_batch(cfg, monkeypatch):
     assert doc["items"][0]["status"] == "ready"
     assert doc["items"][1]["status"] == "pending"
     assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
+    # 已开工的条目继续活着；还没轮到的条目被拦下
+    assert doc["items"][1]["status"] == "cancelled"
+    run_state["r-gate-1"].update({"status": "graded", "last_score": 66.0, "last_passed": True})
     scheduler.join(3)
     try:
         assert not scheduler.is_alive()
         assert doc["status"] == "cancelled"
-        assert [item["status"] for item in doc["items"]] == ["cancelled", "cancelled"]
+        assert [item["status"] for item in doc["items"]] == ["graded", "cancelled"]
     finally:
         with batch._LOCK:
             batch._BATCHES.pop(doc["batch_id"], None)
@@ -594,7 +632,7 @@ def test_cancel_during_grading_keeps_result_but_cancels_batch(cfg, monkeypatch):
     monkeypatch.setattr(batch.runs, "create_run", lambda *a, **k: dict(run_state))
     monkeypatch.setattr(batch.runs, "get_run", lambda *a, **k: dict(run_state))
     monkeypatch.setattr(batch.runs, "save_run", lambda c, run: run_state.update(run))
-    monkeypatch.setattr(batch.sandbox, "destroy", lambda *a, **k: None)
+    monkeypatch.setattr(batch.runs, "release_sandbox", lambda c, rid: {"released": True})
     monkeypatch.setattr(batch, "_save_batch", lambda *a, **k: None)
     doc = {
         "batch_id": "b-cancel-grading", "created_at": "t", "updated_at": "t",
@@ -618,7 +656,7 @@ def test_cancel_during_grading_keeps_result_but_cancels_batch(cfg, monkeypatch):
         time.sleep(0.01)
     assert doc["items"][0]["status"] == "grading"
     assert batch.cancel(cfg, doc["batch_id"])["status"] == "cancelling"
-    assert run_state["cancel_requested"] is True
+    assert "cancel_requested" not in run_state, "停止不许再往 run 上写取消标志"
     run_state.update({"status": "graded", "last_score": 77.0, "last_passed": True})
     scheduler.join(3)
     try:
