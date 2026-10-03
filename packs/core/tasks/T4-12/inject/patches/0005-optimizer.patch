@@ -1,0 +1,55 @@
+diff --git a/backend/astock_backtester/ai/optimizer.py b/backend/astock_backtester/ai/optimizer.py
+--- a/backend/astock_backtester/ai/optimizer.py
++++ b/backend/astock_backtester/ai/optimizer.py
+@@ -55,7 +55,11 @@
+     number = float(raw)
+     if number != number or abs(number) == float("inf"):
+         raise ValueError(f"参数 {key} 的候选值必须是有限数字")
+-    if key in INT_GRID_KEYS and number.is_integer():
++    if key in INT_GRID_KEYS:
++        if not number.is_integer():
++            # 整数档位收到小数是笔误：与其等回测阶段再把整组合判废，
++            # 不如在校验入口直接拒绝整个网格。
++            raise ValueError(f"参数 {key} 的候选值必须是整数，收到 {number:g}")
+         return int(number)
+     return number
+ 
+@@ -112,16 +116,15 @@
+ 
+ 
+ def rank_combinations(combinations: list[dict[str, Any]]) -> dict[str, Any] | None:
+-    """Best combination by total return among those with at least one trade."""
+-    candidates = [combo for combo in combinations if combo.get("metrics", {}).get("trade_count", 0) > 0]
+-    if not candidates:
++    """Best combination by total return across everything the grid evaluated."""
++    if not combinations:
+         return None
+ 
+     def sort_key(combo: dict[str, Any]) -> tuple[float, float]:
+         metrics = combo["metrics"]
+         return (float(metrics.get("total_return_pct", 0.0)), -abs(float(metrics.get("max_drawdown_pct", 0.0))))
+ 
+-    return max(candidates, key=sort_key)
++    return max(combinations, key=sort_key)
+ 
+ 
+ def run_optimization(
+@@ -145,8 +148,6 @@
+     combos = list(iter_grid(grid))
+     combinations: list[dict[str, Any]] = []
+     failures: list[dict[str, Any]] = []
+-    # 指标增强在整个网格里是同一份：网格只扫 settings，不扫条件。
+-    prepared = enrich_for_strategy(frame, strategy)
+     index = 0
+     for overrides in combos:
+         if token.cancelled:
+@@ -154,6 +155,9 @@
+         index += 1
+         try:
+             combo_settings = merge_settings(settings, overrides)
++            # 增强跟着合并后的档位走：档位一变，行上缓存的特征值未必还成立，
++            # 每个组合各自增强一次最稳妥。
++            prepared = enrich_for_strategy(frame, strategy)
+             result = run_prepared_backtest(prepared, strategy, combo_settings)
+         except ValidationError as exc:
+             failures.append(

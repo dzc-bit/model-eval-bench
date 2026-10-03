@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "task": "T4-12",
+  "note": "前端既有用例白名单：覆盖寻优流/寻优面板/JSON 传输/事件流订阅/行情刷新的基础行为（注入态与锚解态都必须全绿）。",
+  "tests": [
+    "src/aiApi.optimize.test.ts::unwraps the nested result event and forwards combination payloads",
+    "src/aiApi.optimize.test.ts::surfaces stream errors as BackendError with the backend code",
+    "src/aiApi.optimize.test.ts::treats the result event as terminal even when the transport drops later lines",
+    "src/aiApi.json.test.ts::keeps the backend business code from a non-2xx response",
+    "src/aiApi.json.test.ts::falls back to http_error only when the error body is not JSON",
+    "src/aiApi.json.test.ts::reports a malformed success body as payload_error",
+    "src/aiApi.json.test.ts::times out a stuck quick read and aborts the request",
+    "src/aiApi.json.test.ts::gives model-backed requests a longer budget than quick reads",
+    "src/aiApi.json.test.ts::reports a caller cancellation separately from a timeout",
+    "src/components/StrategyOptimizer.test.tsx::sends the parsed grid with percent-scaled values divided by 100",
+    "src/components/StrategyOptimizer.test.tsx::treats an empty candidate cell as an error instead of an implicit 0",
+    "src/components/StrategyOptimizer.test.tsx::names non-numeric tokens rather than dropping them silently",
+    "src/components/StrategyOptimizer.test.tsx::rejects two rows on the same parameter instead of letting the last one win",
+    "src/components/StrategyOptimizer.test.tsx::feeds the real combinations and rejected count into the deterministic check",
+    "src/components/StrategyOptimizer.test.tsx::keeps the grid result usable when the check is unavailable",
+    "src/hooks/useAiEventStream.test.ts::connects once immediately and again after each stream ends",
+    "src/hooks/useAiEventStream.test.ts::keeps reconnecting after a failure instead of dying",
+    "src/hooks/useAiEventStream.test.ts::routes insight and data_fresh events to the handlers",
+    "src/hooks/useAiEventStream.test.ts::aborts the live connection and stops reconnecting on unmount",
+    "src/hooks/useAiEventStream.test.ts::does not connect while disabled",
+    "src/marketRefresh.test.ts::detects weekend and lunch-break market phases in China time",
+    "src/marketRefresh.test.ts::uses lower refresh pressure outside trading and after failures",
+    "src/marketRefresh.test.ts::昨日追踪后台刷新不会提高整个行情模块的轮询频率"
+  ]
+}

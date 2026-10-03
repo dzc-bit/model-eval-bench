@@ -1,0 +1,13 @@
+diff --git a/frontend/src/aiApi.ts b/frontend/src/aiApi.ts
+--- a/frontend/src/aiApi.ts
++++ b/frontend/src/aiApi.ts
+@@ -300,6 +300,9 @@
+     });
+   } else if (event.type === "phase") {
+     handlers.onPhase?.(String(event.phase ?? ""));
++    // 阶段事件说明服务端已经受理并开始推进：拿到阶段就算流程已被确认，
++    // 后续即使断流也不再按"中断"处理。
++    return true;
+   } else if (event.type === "result") {
+     handlers.onResult?.((event.result ?? {}) as unknown as OptimizeSummary);
+     return true;

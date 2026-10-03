@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "id": "T4-12",
+  "tier": "king",
+  "attempts": 3,
+  "status": "draft",
+  "title": "后台引擎与寻优台同时失去准头",
+  "summary": "压轴题：会话回收窗口、快讯节流、简报新鲜度与推送、寻优校验/排名/过拟合判定、前端寻优流契约必须同时保持一致。",
+  "symptom": "对话记录会被误清、快讯刷屏或整天沉默、简报迟迟不出且重复推送、寻优把零成交组合捧成最优且废组合口径三处各说各话。",
+  "repo": {
+    "id": "core",
+    "snapshot": "slim-py+fe",
+    "commit": "6192aa25c2791be655dd11783c77683b9cb2aa7b"
+  },
+  "allowed_paths": [
+    "backend/astock_backtester/ai/sessions.py",
+    "backend/astock_backtester/ai/facade.py",
+    "backend/astock_backtester/ai/insights.py",
+    "backend/astock_backtester/ai/digest.py",
+    "backend/astock_backtester/ai/optimizer.py",
+    "backend/astock_backtester/ai/overfit.py",
+    "backend/astock_backtester/service.py",
+    "frontend/src/aiApi.ts",
+    "frontend/src/components/StrategyOptimizer.tsx"
+  ],
+  "forbidden_paths": [
+    "tests/**",
+    "pyproject.toml",
+    "**/conftest.py",
+    "frontend/vitest.config.ts",
+    "frontend/src/hooks/**",
+    "backend/astock_backtester/data/**",
+    "backend/astock_backtester/models.py",
+    "backend/astock_backtester/backtest_runner.py",
+    "backend/astock_backtester/conditions.py",
+    "backend/astock_backtester/engine.py",
+    "backend/astock_backtester/ai/agent.py",
+    "backend/astock_backtester/ai/cancel.py",
+    "backend/astock_backtester/ai/context.py",
+    "backend/astock_backtester/ai/memory.py",
+    "backend/astock_backtester/ai/prompts.py",
+    "backend/astock_backtester/ai/llm_client.py",
+    "backend/astock_backtester/ai/config.py",
+    "backend/astock_backtester/ai/models.py",
+    "backend/astock_backtester/ai/errors.py",
+    "backend/astock_backtester/ai/oneshot.py",
+    "backend/astock_backtester/ai/condition_dsl.py",
+    "backend/astock_backtester/ai/reports.py",
+    "backend/astock_backtester/ai/rag/**",
+    "backend/astock_backtester/ai/tools/**",
+    "scripts/**",
+    "packs/**",
+    "console/**"
+  ],
+  "visible": {
+    "prune": [
+      "tests/test_ai_sessions.py::test_session_busy_covers_the_claimed_but_not_yet_acquired_window",
+      "tests/test_ai_sessions.py::test_prune_never_removes_a_session_in_the_claimed_window",
+      "tests/test_ai_sessions.py::test_prune_keeps_unreadable_timestamps_unless_count_cap_forces_it",
+      "tests/test_ai_insights.py::test_insight_same_breadth_bucket_is_deduped",
+      "tests/test_ai_overfit.py::test_thin_grid_is_labelled_as_small_sample",
+      "tests/test_ai_overfit.py::test_rejected_combinations_are_visible_in_the_dispersion_wording",
+      "tests/test_ai_overfit.py::test_very_few_trades_is_critical",
+      "tests/test_ai_units_v150.py::test_normalize_grid_keeps_integer_knobs_integral_and_ratios_fractional",
+      "tests/test_ai_units_v150.py::test_optimize_rejects_combinations_the_settings_model_itself_rejects",
+      "tests/test_ai_units_v150.py::test_optimize_prepares_indicators_once_per_run",
+      "tests/test_ai_routes_v150.py::test_optimize_validates_grid_before_streaming",
+      "tests/test_ai_routes_v150.py::test_optimize_reports_illegal_combinations_as_failures_over_http",
+      "frontend/src/aiApi.optimize.test.ts::reports interruption when the grid stream ends without a result event",
+      "frontend/src/components/StrategyOptimizer.test.tsx::shows rejected combinations outside the ranking table"
+    ]
+  },
+  "redactions": [
+    {
+      "file": "AGENTS.md",
+      "sections": [
+        "4",
+        "15",
+        "16"
+      ]
+    },
+    {
+      "file": "CHANGELOG.md",
+      "versions": [
+        "1.5.0",
+        "1.5.1",
+        "1.5.2",
+        "1.6.0",
+        "1.6.1"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "kind": "pytest",
+      "hidden": "hidden/tests_hidden",
+      "groups": "hidden/groups.json",
+      "p2p": "p2p.json"
+    },
+    {
+      "kind": "vitest",
+      "hidden": "hidden-fe/tests_hidden_fe",
+      "groups": "hidden-fe/groups_fe.json",
+      "p2p": "p2p-fe.json"
+    }
+  ],
+  "budget": {
+    "grade_timeout_s": 480,
+    "diff_line_cap": 6000
+  },
+  "calibration": {
+    "target_band": [
+      0.0,
+      0.02
+    ],
+    "target_metric": "pass_at_3",
+    "calibrated": false
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "task": "T4-12",
+  "state": "custom",
+  "patches": [
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0001-sessions.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0002-facade.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0003-insights.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0004-digest.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0005-optimizer.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0006-overfit.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0007-service.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0008-aiApi.ts.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-12\\inject\\patches\\0009-StrategyOptimizer.tsx.patch",
+    "D:\\tmp\\t4probe\\model.patch"
+  ],
+  "runs": [
+    {
+      "score": 60.87,
+      "raw_score": 60.87,
+      "groups": [
+        {
+          "id": "recycle_window_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_session_recycle.py::test_prune_spares_a_session_whose_turn_is_claimed_but_not_started",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_session_recycle.py::test_delete_refuses_in_the_same_claimed_window_prune_spares",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_session_recycle.py::test_unreadable_timestamp_survives_the_retention_sweep",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "insight_throttle_exit",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_insight_throttle.py::test_insight_cap_window_recovers_within_the_hour",
+              "outcome": "failed",
+              "message": "AssertionError: assert 1 == 2\n +  where 1 = len([{'insight': {'created_at': '2026-10-03T04:33:19.474108Z', 'digest': '市场宽度异常，注意情绪退潮风险', 'disclaimer': 'AI 生成内容，仅供辅助观察，...', 'id': '27b7b7a39e36448db7bb970f0f515137', ...}, 'timestamp': '2026-10-03T04:33:19.474168+00:00', 'type': 'insight'}])"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_insight_throttle.py::test_width_leaving_one_extreme_bucket_realerts",
+              "outcome": "failed",
+              "message": "AssertionError: 档位之间的移动不得被旧档位的冷却吞掉\nassert 1 == 2\n +  where 1 = len([{'insight': {'created_at': '2026-10-03T04:33:19.668450Z', 'digest': '市场宽度异常，注意情绪退潮风险', 'disclaimer': 'AI 生成内容，仅供辅助观察，...', 'id': 'b9d7f812205b4af48b28c5382ff433df', ...}, 'timestamp': '2026-10-03T04:33:19.668491+00:00', 'type': 'insight'}])"
+            }
+          ]
+        },
+        {
+          "id": "digest_freshness_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_digest_freshness.py::test_unconfigured_period_does_not_delay_the_first_real_run",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_digest_freshness.py::test_missing_model_period_does_not_delay_the_first_real_run",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "digest_publish_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_digest_publish.py::test_whitespace_variant_title_does_not_republish",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_digest_publish.py::test_fresh_push_is_capped_per_run",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_digest_publish.py::test_news_section_stays_fenced_in_gathered_context",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "optimizer_validation_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_optimizer_grid.py::test_fractional_integer_candidate_is_reported_not_fatal",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_optimizer_grid.py::test_grid_validation_still_enforces_whitelist_and_finiteness",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "optimizer_rank_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_optimizer_ranking.py::test_zero_trade_combination_is_never_the_best",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_optimizer_ranking.py::test_all_tradeless_grid_has_no_best",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_optimizer_ranking.py::test_indicator_enrichment_runs_once_per_grid",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "overfit_verdict_exit",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_overfit_verdicts.py::test_small_sample_counts_only_comparable_combinations",
+              "outcome": "failed",
+              "message": "AssertionError: 只有 3 组可比较结果，必须提示样本偏少\nassert 'grid_small_sample' in {'grid_partial_failures'}\n +  where {'grid_partial_failures'} = _codes({'findings': [{'code': 'grid_partial_failures', 'level': 'info', 'message': '网格里有 3 个参数组合不合法、已被剔除，下面的分布判断只覆盖剩下的组合。'}], 'level': 'info'})"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_overfit_verdicts.py::test_small_sample_not_triggered_when_grid_is_large_enough",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_overfit_verdicts.py::test_few_trades_severity_floor_stays_at_five",
+              "outcome": "failed",
+              "message": "AssertionError: 不足 5 笔的样本统计意义不足，必须评 critical\nassert 'warning' == 'critical'\n  \n  - critical\n  + warning"
+            }
+          ]
+        },
+        {
+          "id": "optimize_http_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_optimize_http.py::test_result_event_carries_failures_and_evaluated",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_optimize_http.py::test_oversized_grid_reports_grid_too_large_code",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "coherence",
+          "weight": 3.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_cross_engine_coherence.py::test_one_optimize_run_reports_one_truth_to_overfit_and_insight_context",
+              "outcome": "failed",
+              "message": "AssertionError: 样本措辞不得把废组合计入：网格只有 2 组可比结果，样本偏少，以下关于分布的判断仅供参考。\nassert '只有 1 组可比结果' in '网格只有 2 组可比结果，样本偏少，以下关于分布的判断仅供参考。'"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_cross_engine_coherence.py::test_one_digest_run_reaches_store_and_event_stream_with_the_same_fact",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "optimize_stream_exit",
+          "weight": 2.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "src/tests_hidden_fe/optimizeStreamContract.hidden.test.ts::仅收到阶段事件就结束的寻优流必须按中断处理",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/optimizeStreamContract.hidden.test.ts::组合与进度事件后断流仍按中断处理",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/optimizeStreamContract.hidden.test.ts::错误事件保留后端的稳定错误码",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "optimizer_panel_exit",
+          "weight": 2.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "src/tests_hidden_fe/optimizerPanel.hidden.test.tsx::最优行高亮跟随服务端声明的最优组合",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/optimizerPanel.hidden.test.tsx::拒绝名单按服务端口径原样展示",
+              "outcome": "failed",
+              "message": "\u001b[2mexpect(\u001b[22m\u001b[31melement\u001b[39m\u001b[2m).toHaveTextContent()\u001b[22m"
+            },
+            {
+              "node_id": "src/tests_hidden_fe/optimizerPanel.hidden.test.tsx::网格解析保留重复行拒绝，不发请求",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        }
+      ],
+      "p2p_failures": [],
+      "p2p_total": 176,
+      "attempt": 1
+    }
+  ],
+  "repeat": 1,
+  "score_min": 60.87,
+  "score_max": 60.87,
+  "stable": true,
+  "finished_at": "2026-10-03T12:33:50"
+}

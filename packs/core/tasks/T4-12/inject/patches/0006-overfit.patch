@@ -1,0 +1,23 @@
+diff --git a/backend/astock_backtester/ai/overfit.py b/backend/astock_backtester/ai/overfit.py
+--- a/backend/astock_backtester/ai/overfit.py
++++ b/backend/astock_backtester/ai/overfit.py
+@@ -71,7 +71,9 @@
+         )
+         return findings
+ 
+-    total = len(returns)
++    # 样本量按送进来的网格规模计：被剔除的非法组合也是网格的一部分，
++    # 只数可比较组合会低估样本，把本来就小的网格再报一次"样本偏少"。
++    total = len(returns) + rejected
+     positive = sum(1 for value in returns if value > 0)
+     best = max(returns)
+     if total < MIN_GRID_SAMPLES:
+@@ -137,7 +139,7 @@
+     if isinstance(trade_count, (int, float)) and trade_count < MIN_RELIABLE_TRADES:
+         findings.append(
+             _finding(
+-                "warning" if trade_count >= 5 else "critical",
++                "warning" if trade_count >= 3 else "critical",
+                 "few_trades",
+                 f"仅 {int(trade_count)} 笔交易，样本太少，收益/胜率统计意义不足；建议拉长回测区间或放宽条件。",
+             )

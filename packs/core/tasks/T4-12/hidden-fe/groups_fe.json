@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "task": "T4-12",
+  "note": "king vitest hidden",
+  "groups": [
+    {
+      "id": "optimize_stream_exit",
+      "weight": 2,
+      "port": "前端寻优流契约：只有最终结果事件算完成，断流必须按中断上报；错误事件保留后端稳定码",
+      "tests": [
+        "tests_hidden_fe/optimizeStreamContract.hidden.test.ts::仅收到阶段事件就结束的寻优流必须按中断处理",
+        "tests_hidden_fe/optimizeStreamContract.hidden.test.ts::组合与进度事件后断流仍按中断处理",
+        "tests_hidden_fe/optimizeStreamContract.hidden.test.ts::错误事件保留后端的稳定错误码"
+      ]
+    },
+    {
+      "id": "optimizer_panel_exit",
+      "weight": 2,
+      "port": "寻优面板口径以服务端声明为准：最优高亮跟随服务端声明的最优组合；拒绝名单按服务端废组合口径原样展示",
+      "tests": [
+        "tests_hidden_fe/optimizerPanel.hidden.test.tsx::最优行高亮跟随服务端声明的最优组合",
+        "tests_hidden_fe/optimizerPanel.hidden.test.tsx::拒绝名单按服务端口径原样展示",
+        "tests_hidden_fe/optimizerPanel.hidden.test.tsx::网格解析保留重复行拒绝，不发请求"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "前端既有用例白名单见任务根 p2p-fe.json。"
+    }
+  ]
+}

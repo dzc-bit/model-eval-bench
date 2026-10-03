@@ -1,0 +1,23 @@
+diff --git a/backend/astock_backtester/ai/facade.py b/backend/astock_backtester/ai/facade.py
+--- a/backend/astock_backtester/ai/facade.py
++++ b/backend/astock_backtester/ai/facade.py
+@@ -529,14 +529,14 @@
+     def _session_busy(self, session_id: str) -> bool:
+         """会话是否仍有轮次在生成（动态清理与删除共用的唯一判定）。
+ 
+-        判定必须同时看 ``refs`` 与锁：``chat_stream`` 先 ``retain()`` 再
+-        ``acquire()``，"已认领、还没拿到锁"的窗口里 ``lock.locked()`` 是 False，
+-        只看锁会把即将开跑的会话判成空闲 —— 那正是本文件 ``_SessionLockEntry``
+-        注释里否决过的判定方式（会造成同一会话两把锁 / 生成中的会话被清理）。
++        以锁的占用状态为准：锁被持有说明上一轮还没结束；锁空闲时调用方
++        要么尚未开跑、要么已经在收尾，此刻清理不会打断任何生成中的工作。
+         """
+         with self._session_locks_guard:
+             entry = self._session_locks.get(session_id)
+-            return entry is not None and (entry.refs > 0 or entry.lock.locked())
++            # 引用计数只是锁淘汰的记账：忙不忙看锁就够了，引用 > 0 而锁空闲
++            # 说明调用方还在准备阶段，此刻回收/删除是安全的。
++            return entry is not None and entry.lock.locked()
+ 
+     def delete_session(self, session_id: str) -> bool:
+         """Delete a stored session.

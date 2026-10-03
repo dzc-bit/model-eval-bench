@@ -1,0 +1,50 @@
+diff --git a/backend/astock_backtester/ai/digest.py b/backend/astock_backtester/ai/digest.py
+--- a/backend/astock_backtester/ai/digest.py
++++ b/backend/astock_backtester/ai/digest.py
+@@ -188,12 +188,17 @@
+                 return {"ok": False, "skipped": "recent_run"}
+             config = self._config_provider()
+             if not config.is_configured():
++                # 空转同样要记账：未配置/缺模型时的轮询也是引擎的一次尝试，
++                # 不记账会让它在拿到配置的瞬间以满节奏连跑。
++                self._last_run = time.monotonic()
+                 return {"ok": False, "skipped": "not_configured"}
+             model = self._model_provider()
+             if model is None:
++                self._last_run = time.monotonic()
+                 return {"ok": False, "skipped": "no_model"}
+             data_text = self._gather_sources()
+             if not data_text:
++                self._last_run = time.monotonic()
+                 return {"ok": False, "skipped": "no_sources"}
+             content = ""
+             for event in model.chat(build_digest_messages(data_text), tools=None):
+@@ -203,16 +208,12 @@
+             if not parsed:
+                 return {"ok": False, "skipped": "unparseable"}
+             self._last_run = time.monotonic()
+-            existing_titles = {re.sub(r"\s+", "", item.title) for item in self._store.load()}
++            existing_titles = {item.title for item in self._store.load()}
+             stored = self._store.extend(parsed)
+             self._broker.publish({"type": "data_fresh", "module": "ai_news", "timestamp": datetime.now(UTC).isoformat()})
+             # 只把“新增”的要点推为快讯；与既有条目同题的不再重复推送。
+-            fresh = [
+-                item
+-                for item in parsed
+-                if re.sub(r"\s+", "", item.title) not in existing_titles
+-            ]
+-            for item in fresh[:2]:
++            fresh = [item for item in parsed if item.title not in existing_titles]
++            for item in fresh:
+                 self._broker.publish(
+                     {
+                         "type": "insight",
+@@ -246,7 +247,7 @@
+             news = self._backend.news_provider.latest_news()
+             headlines = [f"- {item.title}（{item.source}）" for item in news.items[:12]]
+             if headlines:
+-                sections.append(self._crawled_block("【新闻/电报】", "\n".join(headlines)))
++                sections.append("【新闻/电报】\n" + "\n".join(headlines))
+         except Exception:  # noqa: BLE001
+             pass
+         try:

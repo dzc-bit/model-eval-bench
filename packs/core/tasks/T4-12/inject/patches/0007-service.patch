@@ -1,0 +1,40 @@
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -23,7 +23,6 @@
+ from astock_backtester.ai.errors import AiError
+ from astock_backtester.ai.models import AiChatRequest, AiConfigUpdate
+ from astock_backtester.ai.optimizer import (
+-    GridTooLargeError,
+     build_optimize_insight_context,
+     normalize_grid,
+     run_optimization,
+@@ -649,9 +648,10 @@
+         except KeyError as exc:
+             self._send_json({"code": "payload_error", "message": f"missing request field: {exc}"}, HTTPStatus.BAD_REQUEST)
+             return
+-        except (ValueError, GridTooLargeError) as exc:
+-            code = "grid_too_large" if isinstance(exc, GridTooLargeError) else "validation_error"
+-            self._send_json({"code": code, "message": str(exc)}, HTTPStatus.BAD_REQUEST)
++        except ValueError as exc:
++            # 网格校验失败统一按参数错误回给调用方：细分错误码没有消费方，
++            # 前端对这两类问题的提示文案本来就相同。
++            self._send_json({"code": "validation_error", "message": str(exc)}, HTTPStatus.BAD_REQUEST)
+             return
+         write_lock = Lock()
+         stop_heartbeat = Event()
+@@ -709,7 +709,13 @@
+             write_event(
+                 {
+                     "type": "result",
+-                    "result": {**summary, "insight": insight, "insight_error": insight_error},
++                    # 废组合明细只在服务端日志里看就够了：结果事件带上它只会
++                    # 让前端把不该展示的内部口径渲染出去。
++                    "result": {
++                        **{k: v for k, v in summary.items() if k != "failures"},
++                        "insight": insight,
++                        "insight_error": insight_error,
++                    },
+                 }
+             )
+         except ClientDisconnected:

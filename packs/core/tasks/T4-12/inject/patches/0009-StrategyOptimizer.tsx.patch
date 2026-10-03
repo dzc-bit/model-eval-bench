@@ -1,0 +1,42 @@
+diff --git a/frontend/src/components/StrategyOptimizer.tsx b/frontend/src/components/StrategyOptimizer.tsx
+--- a/frontend/src/components/StrategyOptimizer.tsx
++++ b/frontend/src/components/StrategyOptimizer.tsx
+@@ -147,7 +147,9 @@
+     }
+   };
+ 
+-  const bestIndex = summary?.best?.index ?? null;
++  // 流里最后到达的组合就是最终排名的最前：高亮跟随流的落点，避免
++  // 服务端序号与本地流顺序不一致时高亮错位。
++  const bestIndex = combinations.length > 0 ? combinations[combinations.length - 1].index : null;
+ 
+   return (
+     <div className="optimizer-panel" aria-label="AI 参数寻优">
+@@ -270,16 +272,18 @@
+           </table>
+         </div>
+       ) : null}
+-      {summary && summary.failures.length > 0 ? (
++      {combinations.some((combination) => combination.metrics.trade_count === 0) ? (
+         <div className="optimizer-failures" role="status">
+-          {summary.failures.map((failure, failureIndex) => (
+-            <p className="condition-validation bad" key={`${failureIndex}-${failure.error}`}>
+-              已拒绝的组合 {Object.entries(failure.params)
+-                .map(([key, value]) => `${OPTIMIZE_PARAM_LABELS[key as OptimizeGridKey] ?? key} ${formatParamValue(key as OptimizeGridKey, value)}`)
+-                .join(" / ")}
+-              ：{failure.error}
+-            </p>
+-          ))}
++          {combinations
++            .filter((combination) => combination.metrics.trade_count === 0)
++            .map((combination, failureIndex) => (
++              <p className="condition-validation bad" key={`${failureIndex}-${combination.index}`}>
++                可疑的组合 {Object.entries(combination.params)
++                  .map(([key, value]) => `${OPTIMIZE_PARAM_LABELS[key as OptimizeGridKey] ?? key} ${formatParamValue(key as OptimizeGridKey, value)}`)
++                  .join(" / ")}
++                ：一笔成交都没有，不参与排名也不代表可用。
++              </p>
++            ))}
+         </div>
+       ) : null}
+       <OverfitStrip assessment={overfit} />

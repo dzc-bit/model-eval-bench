@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "task": "T4-12",
+  "note": "king composite",
+  "groups": [
+    {
+      "id": "recycle_window_exit",
+      "weight": 2,
+      "port": "会话占用判定单一化：自动清理与显式删除共用同一判定，且覆盖认领窗口；时间戳不可读不触发保留期淘汰",
+      "tests": [
+        "hidden/tests_hidden/test_session_recycle.py::test_prune_spares_a_session_whose_turn_is_claimed_but_not_started",
+        "hidden/tests_hidden/test_session_recycle.py::test_delete_refuses_in_the_same_claimed_window_prune_spares",
+        "hidden/tests_hidden/test_session_recycle.py::test_unreadable_timestamp_survives_the_retention_sweep"
+      ]
+    },
+    {
+      "id": "insight_throttle_exit",
+      "weight": 2,
+      "port": "快讯节流：数量上限按一小时滑动窗口记账；去重键保留档位划分，档位之间的移动是新的触发",
+      "tests": [
+        "hidden/tests_hidden/test_insight_throttle.py::test_insight_cap_window_recovers_within_the_hour",
+        "hidden/tests_hidden/test_insight_throttle.py::test_width_leaving_one_extreme_bucket_realerts"
+      ]
+    },
+    {
+      "id": "digest_freshness_exit",
+      "weight": 2,
+      "port": "简报新鲜度只认成功：跳过路径不得推进记账，配置/模型就绪后的第一次运行立刻可跑",
+      "tests": [
+        "hidden/tests_hidden/test_digest_freshness.py::test_unconfigured_period_does_not_delay_the_first_real_run",
+        "hidden/tests_hidden/test_digest_freshness.py::test_missing_model_period_does_not_delay_the_first_real_run"
+      ]
+    },
+    {
+      "id": "digest_publish_exit",
+      "weight": 2,
+      "port": "简报新增判定与推送：标题口径统一去空白比较；单次运行推送封顶两条；每段抓取内容必须带不可信围栏",
+      "tests": [
+        "hidden/tests_hidden/test_digest_publish.py::test_whitespace_variant_title_does_not_republish",
+        "hidden/tests_hidden/test_digest_publish.py::test_fresh_push_is_capped_per_run",
+        "hidden/tests_hidden/test_digest_publish.py::test_news_section_stays_fenced_in_gathered_context"
+      ]
+    },
+    {
+      "id": "optimizer_validation_exit",
+      "weight": 2,
+      "port": "网格校验的归宿：小数候选由组合评估判废并计入废组合名单，结构性错误仍在入口拒绝",
+      "tests": [
+        "hidden/tests_hidden/test_optimizer_grid.py::test_fractional_integer_candidate_is_reported_not_fatal",
+        "hidden/tests_hidden/test_optimizer_grid.py::test_grid_validation_still_enforces_whitelist_and_finiteness"
+      ]
+    },
+    {
+      "id": "optimizer_rank_exit",
+      "weight": 2,
+      "port": "排名与成本：零成交组合不参与最优评选；指标增强整个网格只算一次",
+      "tests": [
+        "hidden/tests_hidden/test_optimizer_ranking.py::test_zero_trade_combination_is_never_the_best",
+        "hidden/tests_hidden/test_optimizer_ranking.py::test_all_tradeless_grid_has_no_best",
+        "hidden/tests_hidden/test_optimizer_ranking.py::test_indicator_enrichment_runs_once_per_grid"
+      ]
+    },
+    {
+      "id": "overfit_verdict_exit",
+      "weight": 2,
+      "port": "过拟合判定：小样本只数可比较组合（措辞不虚高）；交易笔数的 critical 下限维持在 5 笔",
+      "tests": [
+        "hidden/tests_hidden/test_overfit_verdicts.py::test_small_sample_counts_only_comparable_combinations",
+        "hidden/tests_hidden/test_overfit_verdicts.py::test_small_sample_not_triggered_when_grid_is_large_enough",
+        "hidden/tests_hidden/test_overfit_verdicts.py::test_few_trades_severity_floor_stays_at_five"
+      ]
+    },
+    {
+      "id": "optimize_http_exit",
+      "weight": 2,
+      "port": "寻优 HTTP 契约：结果事件携带废组合名单与已评估数；网格超限返回专用错误码",
+      "tests": [
+        "hidden/tests_hidden/test_optimize_http.py::test_result_event_carries_failures_and_evaluated",
+        "hidden/tests_hidden/test_optimize_http.py::test_oversized_grid_reports_grid_too_large_code"
+      ]
+    },
+    {
+      "id": "coherence",
+      "weight": 3,
+      "port": "跨链联合一致性：同一次运行在汇总、过拟合判定、解读上下文、库存与事件流里只有一个口径（真实相互作用，不是合取记账）",
+      "tests": [
+        "hidden/tests_hidden/test_cross_engine_coherence.py::test_one_optimize_run_reports_one_truth_to_overfit_and_insight_context",
+        "hidden/tests_hidden/test_cross_engine_coherence.py::test_one_digest_run_reaches_store_and_event_stream_with_the_same_fact"
+      ]
+    },
+    {
+      "id": "p2p",
+      "weight": 0,
+      "mode": "regression",
+      "note": "pytest and vitest regression"
+    }
+  ]
+}

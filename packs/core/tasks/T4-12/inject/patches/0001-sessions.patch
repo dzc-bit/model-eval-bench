@@ -1,0 +1,28 @@
+diff --git a/backend/astock_backtester/ai/sessions.py b/backend/astock_backtester/ai/sessions.py
+--- a/backend/astock_backtester/ai/sessions.py
++++ b/backend/astock_backtester/ai/sessions.py
+@@ -16,7 +16,7 @@
+ import os
+ import re
+ from collections.abc import Callable, Iterable
+-from datetime import UTC, datetime
++from datetime import UTC, datetime, timedelta
+ from pathlib import Path
+ from typing import Any
+ from uuid import uuid4
+@@ -216,12 +216,9 @@
+             if not _looks_like_session(payload):
+                 continue
+             updated = _parse_timestamp(payload.get("updated_at"))
+-            # updated_at 不可读时无法判断年龄：按"最旧"参与条数回收，但绝不
+-            # 参与保留期淘汰——读不懂时间戳不是销毁文件的理由。
+-            if updated is None:
+-                undated.append((session_id, path))
+-            else:
+-                dated.append((session_id, path, updated))
++            # 时间戳读不出来的文件多半是中断留下的残件，年龄按"最老"一档算：
++            # 保留期与条数两条回收规则都适用，否则残件会在目录里永久堆积。
++            dated.append((session_id, path, updated or now - timedelta(days=retention_days + 1)))
+         removed: list[str] = []
+         survivors: list[tuple[str, Path, datetime]] = []
+         for session_id, path, updated in dated:

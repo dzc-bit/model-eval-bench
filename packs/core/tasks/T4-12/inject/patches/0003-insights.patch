@@ -1,0 +1,31 @@
+diff --git a/backend/astock_backtester/ai/insights.py b/backend/astock_backtester/ai/insights.py
+--- a/backend/astock_backtester/ai/insights.py
++++ b/backend/astock_backtester/ai/insights.py
+@@ -143,13 +143,13 @@
+         self._last_breadth_ratio = ratio
+         extreme = ratio < 0.25 or ratio > 0.75
+         if extreme:
+-            # 去重键按 5 个百分点分桶：宽度在同一区间内反复震荡时不再连发。
+-            bucket = int(round(ratio * 20))
++            # 同向极端共用一个冷却键：极端就是极端，宽度在极端区间内怎么
++            # 变化都不改变"市场极度单边"这个事实本身。
+             self._maybe_generate_insight(
+                 level="warning",
+                 title=f"市场宽度异常：红盘占比 {ratio:.0%}",
+                 data=f"红盘 {breadth.up} / 全市场 {breadth.total}（占比 {ratio:.0%}），来源 {breadth.source}，状态 {snapshot.status}",
+-                dedup_key=f"breadth-extreme:{'high' if ratio > 0.5 else 'low'}:{bucket}",
++                dedup_key=f"breadth-extreme:{'high' if ratio > 0.5 else 'low'}",
+             )
+ 
+     def _check_risk(self) -> None:
+@@ -165,7 +165,9 @@
+     # -------------------------------------------------------------- insights
+     def _insight_cap_reached(self, config: AiConfig) -> bool:
+         now = time.monotonic()
+-        while self._insight_times and now - self._insight_times[0] > 3600:
++        # 上限按自然日计量：一天最多 insight_max_per_hour 条，跨小时的
++        # 零星触发不再叠加放大全天总量。
++        while self._insight_times and now - self._insight_times[0] > 86400:
+             self._insight_times.popleft()
+         return len(self._insight_times) >= config.insight_max_per_hour
+ 
