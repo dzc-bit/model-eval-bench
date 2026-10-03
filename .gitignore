@@ -40,6 +40,7 @@ desktop.ini
 
 # ---- 本地 agent 工具状态 ----
 .zcode/
+.workbuddy-ai/
 
 # ---- 密钥与凭据（本仓库不含，防止误提交）----
 .env

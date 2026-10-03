@@ -504,17 +504,6 @@ def update_providers(providers: list) -> None:
         util.write_json_atomic(CONFIG_PATH, raw)
 
 
-def find_provider(cfg: dict, provider_id: str) -> dict:
-    """按 id 找供应商；找不到报可操作的错误码。"""
-    for item in cfg.get("providers", []):
-        if isinstance(item, dict) and str(item.get("id")) == str(provider_id):
-            return item
-    raise errors.HarnessError(
-        errors.E_MODEL_NOT_FOUND,
-        "找不到供应商 %s。请到「模型档案」页新建后再试。" % provider_id,
-    )
-
-
 def find_model(cfg: dict, model_id: str) -> dict:
     """按 id 找模型档案；找不到就报可操作的错误码。"""
     for item in cfg.get("models", []):
