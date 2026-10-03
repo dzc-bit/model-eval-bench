@@ -55,14 +55,25 @@
         "failed_groups": [],
         "p2p_broken": 0,
         "notes": "原始 1 级题面（= git HEAD）；保真探针；77 步 / 76 次工具调用，一轮满分。另一个模型独立复现了「1 级题面一轮满分」——与台账里 deepseek 的 100 分互相印证，说明 T3-09 确实高于 target_band 上沿。（该轮完成后该模型当日配额也用尽，故只有 1 轮。）"
+      },
+      {
+        "run_id": "blind-2026-10-03-hardened-hunyuan-t1",
+        "model": "codebuddy-cn/hy4-preview",
+        "tier": "hard",
+        "prompt_level": 1,
+        "pass@1": true,
+        "score": 100.0,
+        "failed_groups": [],
+        "p2p_broken": 0,
+        "notes": "**加固后**的 1 级题面（prompt_sha256_16=f0ca8a20fd9dea18，与仓库当前 prompts/1.md 逐字节一致）；保真探针；123 步 / 122 次工具调用；6 个计分组全绿、p2p 0 破坏。结论：删掉题面里的机制与验收不变量清单之后，该模型仍能一轮满分——说明本题偏易的主因不只是题面越权，注入形态本身也留了路标（审核报告指出注入补丁保留了正确规则注释与 sibling 模板）。下一根杠杆是改注入形态（审核 P2/P3），不是继续削题面。"
       }
     ]
   },
   "summary": {
-    "runs": 2,
+    "runs": 3,
     "pass_at_1": null,
     "confidence_interval": null,
     "in_band": null,
-    "conclusion": "两个模型各自独立地在这道题上用原始 1 级题面拿到一轮满分（deepseek 100.0、hunyuan 100.0），另有 deepseek 一轮 14.29，合计 n=3。样本量仍不足以判定 target_band，但方向明确：1 级题面加固前，T3-09 明显高于 [0.05, 0.25] 上沿。加固后题面的 pass@1 未测——两个模型当日配额均已耗尽（hunyuan 重置 2026-10-03 08:00、deepseek 重置 2026-10-04 00:52 UTC+8），按 §6.4 不填造、不外推，故 pass_at_1 置 null。"
+    "conclusion": "两个模型在**加固前**题面上各拿到一轮满分（deepseek 100.0、hunyuan 100.0），hunyuan 在**加固后**题面上仍是一轮满分（100.0，prompt 指纹 f0ca8a20fd9dea18）——共 n=4，全部 pass。对 target_band [0.05, 0.25] 而言，本题**明显偏易**，且**题面加固不是足够的杠杆**：真正的原因是注入形态留了路标（审核报告实测：注入补丁保留了正确规则的注释与同文件内的正确模板，模型顺着矛盾即可定位，不需要自己设计机制）。下一步应改注入形态（审核 P2 昨日池后台刷新卡死 / P3 CLS home waiter 陈旧缓存放行，两者都不撞 T3-10 注入面），改完须重跑四态门禁。样本量仍小（n=4），且未做多轮独立采样，故 pass_at_1 置 null，不填造区间。"
   }
 }
