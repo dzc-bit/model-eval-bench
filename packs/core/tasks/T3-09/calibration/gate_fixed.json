@@ -93,6 +93,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         },
@@ -162,5 +167,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-10-03T11:41:11"
+  "finished_at": "2026-10-03T11:58:11"
 }

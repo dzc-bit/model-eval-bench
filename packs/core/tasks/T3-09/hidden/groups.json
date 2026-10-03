@@ -45,7 +45,8 @@
       "port": "全局快照一致性：并发、迟到与失败交织下，对外保留的快照始终保持权威与隔离",
       "tests": [
         "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated"
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy"
       ]
     },
     {

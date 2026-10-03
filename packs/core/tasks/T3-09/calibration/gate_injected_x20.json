@@ -18,7 +18,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000238646A9080>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E9858B8E10>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -69,7 +69,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023864790EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E9857446C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -92,6 +92,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001E9857472A0>)"
             }
           ]
         },
@@ -103,7 +108,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002386474C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E985735220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -168,7 +173,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E6F3F392F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000017C60BC93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -219,7 +224,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6F4020EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000017C60A69BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -242,6 +247,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000017C60A6A8E0>)"
             }
           ]
         },
@@ -253,7 +263,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E6F3FDC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000017C60A45220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -318,7 +328,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CBF85192F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000023A760993C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -369,7 +379,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CBF839BC60>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023A76176400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -392,6 +402,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000023A76175A40>)"
             }
           ]
         },
@@ -403,7 +418,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001CBF837C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000023A760D1220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -468,7 +483,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E9B20592F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024FDA3A93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -519,7 +534,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E9B2144EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024FDA2557D0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -542,6 +557,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000024FDA255D80>)"
             }
           ]
         },
@@ -553,7 +573,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E9B2100050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000024FDA3B5220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -618,7 +638,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000207FFC592F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022BAC5293C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -669,7 +689,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000207FFD34EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022BAC3BE0C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -692,6 +712,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000022BAC3BF9F0>)"
             }
           ]
         },
@@ -703,7 +728,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x00000207FFC94050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000022BAC355220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -768,7 +793,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024B36FB92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000021A239D93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -819,7 +844,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024B36E55490>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000021A2309E330>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -842,6 +867,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000021A2309D970>)"
             }
           ]
         },
@@ -853,7 +883,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000024B36E48050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000021A230ED220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -918,7 +948,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A747DF92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001770C3B93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -969,7 +999,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A747C7BC60>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001770C2446C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -992,6 +1022,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001770C2472A0>)"
             }
           ]
         },
@@ -1003,7 +1038,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001A747C5C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001770C259220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1068,7 +1103,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001DEB1F192F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024126D393C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1119,7 +1154,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001DEB2000EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024126BD20C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1142,6 +1177,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000024126BD39F0>)"
             }
           ]
         },
@@ -1153,7 +1193,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001DEB1FBC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000024126BB5220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1218,7 +1258,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E6878C92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002531AA293C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1269,7 +1309,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6879B0EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002531AB06400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1292,6 +1332,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000002531AB05A40>)"
             }
           ]
         },
@@ -1303,7 +1348,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E68796C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002531AA69220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1368,7 +1413,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000025AB0F092F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001DC59CE93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1419,7 +1464,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000025AB0DA5490>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001DC59B917D0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1442,6 +1487,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001DC59B91D80>)"
             }
           ]
         },
@@ -1453,7 +1503,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000025AB0D98050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001DC59B65220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1518,7 +1568,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B21CEF92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000015892D893C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1534,8 +1584,8 @@
           "cases": [
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
-              "outcome": "failed",
-              "message": "AssertionError: 迟到 worker 诊断泄漏进了对外共享状态\nassert 'late-private-diagnostic-probe' not in ['实时红绿家数接口超时：0.03秒，已继续返回可用行情。', 'late-private-diagnostic-probe']"
+              "outcome": "passed",
+              "message": ""
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
@@ -1569,7 +1619,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B21CD8E0C0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000015892C16190>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1592,6 +1642,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000015892C16F60>)"
             }
           ]
         },
@@ -1603,7 +1658,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001B21CD5C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000015892BD09B0>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1668,7 +1723,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A2118092F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B5BBC193C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1719,7 +1774,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A2118F4EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B5BBAB5BE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1742,6 +1797,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001B5BBAB68E0>)"
             }
           ]
         },
@@ -1753,7 +1813,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001A2118B0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001B5BB309220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1818,7 +1878,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022C452C92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A0CDC493C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1869,7 +1929,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022C453ACEE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A0CDD22400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1892,6 +1952,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001A0CDD21A40>)"
             }
           ]
         },
@@ -1903,7 +1968,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000022C452FC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001A0CDC65220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -1968,7 +2033,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016B256992F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000174524393C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2019,7 +2084,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016B25780EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000174522CE0C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2042,6 +2107,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x00000174522CF9F0>)"
             }
           ]
         },
@@ -2053,7 +2123,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000016B2573C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001745229D220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2118,7 +2188,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E95E6D92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002BA63C393C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2169,7 +2239,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E95E565220>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002BA63D16400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2192,6 +2262,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000002BA63D15A40>)"
             }
           ]
         },
@@ -2203,7 +2278,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E95E5E8050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002BA63C55220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2268,7 +2343,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001FA8F5B92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022C67A193C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2319,7 +2394,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001FA8F698EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022C6701A400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2342,6 +2417,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000022C67019A40>)"
             }
           ]
         },
@@ -2353,7 +2433,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001FA8F5F0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000022C67091220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2418,7 +2498,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000023391F492F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000014518E993C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2469,7 +2549,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023391DDF510>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000014518F76400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2492,6 +2572,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000014518F75A40>)"
             }
           ]
         },
@@ -2503,7 +2588,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000023391DD0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000014518EB5220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2568,7 +2653,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002197C8992F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001F4F8ED93C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2619,7 +2704,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002197C978EE0>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001F4F8FB6400>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2642,6 +2727,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x000001F4F8FB5A40>)"
             }
           ]
         },
@@ -2653,7 +2743,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002197C8D0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001F4F8F19220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2718,7 +2808,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B839C392F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000018BFCA993C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2769,7 +2859,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B839AD5490>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000018BFC13A810>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2792,6 +2882,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000018BFC13A0C0>)"
             }
           ]
         },
@@ -2803,7 +2898,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001B839AC0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000018BFC198D70>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -2868,7 +2963,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001F60F7B92F0>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000019E88C793C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2919,7 +3014,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001F60F655490>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000019E88B046C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2942,6 +3037,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "assert False\n +  where False = any(<generator object test_coherence_interleaved_timeout_recovery_and_generation_supremacy.<locals>.<genexpr> at 0x0000019E88B072A0>)"
             }
           ]
         },
@@ -2953,7 +3053,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001F60F648050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000019E88B15220>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -3011,5 +3111,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-10-03T11:47:07"
+  "finished_at": "2026-10-03T12:02:36"
 }

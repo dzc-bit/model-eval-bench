@@ -335,6 +335,68 @@ def test_retained_snapshot_is_deep_copied_isolated(tmp_path):
     assert "external-tamper" not in refetched.diagnostics, "外部就地修改污染了 provider 内部留存快照"
 
 
+def test_coherence_interleaved_timeout_recovery_and_generation_supremacy(tmp_path):
+    """场景三：超时未归的后台工作、在途期间的新请求与迟到的旧世代三方交织时，
+    通道判定、对外诊断与留存快照必须同时保持权威，任何一路都不得泄漏或回跳。"""
+    worker_started = Event()
+    release_worker = Event()
+    provider = RealtimeMarketProvider(Warehouse(tmp_path), breadth_time_budget=0.03)
+
+    def slow_worker(diagnostics, deadline=None, cancel_event=None):
+        worker_started.set()
+        release_worker.wait(timeout=5.0)
+        diagnostics.append("late-private-coherence-probe")
+        return MarketBreadth(up=2500, down=2000, flat=500, total=5000, source="slow-breadth")
+
+    provider._call_live_breadth = slow_worker
+
+    # 第一路：预算耗尽而超时返回，但后台工作仍在运行。
+    first_diag: list[str] = []
+    assert provider._fetch_live_breadth_with_budget(first_diag) is None
+    assert worker_started.is_set()
+    assert any("超时" in item for item in first_diag)
+
+    # 第二路：后台工作未退出前，通道必须判定繁忙、快速让路，绝不得排队堆积。
+    busy_diag: list[str] = []
+    assert provider._fetch_live_breadth_with_budget(busy_diag) is None
+    assert any("繁忙" in item for item in busy_diag)
+    assert not any("超时" in item for item in busy_diag)
+
+    # 第三路：新世代快照已权威入库；随后放行的迟到旧世代结果绝不允许回跳它。
+    authoritative = RealtimeMarketSnapshot(
+        status="live",
+        source="newer-authoritative",
+        updated_at=datetime(2026, 9, 30, 9, 31, 0, tzinfo=UTC),
+        message="newer",
+    )
+    provider._remember_successful_snapshot(authoritative, generation=2)
+
+    release_worker.set()
+    provider._get_breadth_executor().shutdown(wait=True)
+    provider._breadth_executor = None
+
+    late_arrival = RealtimeMarketSnapshot(
+        status="live",
+        source="late-older-generation",
+        updated_at=datetime(2026, 9, 30, 9, 32, 0, tzinfo=UTC),
+        message="late",
+    )
+    provider._remember_successful_snapshot(late_arrival, generation=1)
+    retained = provider.retained_successful_snapshot()
+    assert retained is not None and retained.source == "newer-authoritative", (
+        "迟到旧世代在通道恢复后回跳了权威快照"
+    )
+
+    # 第一路的对外诊断里绝不允许出现迟到后台工作的私有明细。
+    assert "late-private-coherence-probe" not in first_diag, "迟到后台工作的私有明细泄漏进对外诊断"
+
+    # 通道在后台工作真正退出后必须立即可用，新鲜请求照常成功。
+    recovered_diag: list[str] = []
+    recovered = provider._fetch_live_breadth_with_budget(recovered_diag)
+    assert recovered is not None and recovered.source == "slow-breadth"
+    assert not any("繁忙" in item for item in recovered_diag)
+
+
 # ===========================================================================
 # 组 6：background_refresh_exit
 #        （后台刷新闸门：失败必须能被再次调度，在途期间不得重复起任务）

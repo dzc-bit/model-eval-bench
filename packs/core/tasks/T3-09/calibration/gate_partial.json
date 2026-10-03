@@ -93,6 +93,11 @@
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_coherence_interleaved_timeout_recovery_and_generation_supremacy",
+              "outcome": "failed",
+              "message": "AssertionError: 迟到旧世代在通道恢复后回跳了权威快照\nassert (RealtimeMarketSnapshot(status='live', source='late-older-generation', updated_at=datetime.datetime(2026, 9, 30, 9, 32,...se='trading', indexes=[], breadth=None, strong_sectors=[], yesterday_strong_sectors=[], message='late', diagnostics=[]) is not None and 'late-older-generation' == 'newer-authoritative'\n  \n  - newer-authoritative\n  + late-older-generation)"
             }
           ]
         },
@@ -104,7 +109,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
               "outcome": "failed",
-              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001FD00619E50>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001D13C0CA990>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
@@ -162,5 +167,5 @@
   "score_min": 22.22,
   "score_max": 22.22,
   "stable": true,
-  "finished_at": "2026-10-03T11:41:57"
+  "finished_at": "2026-10-03T11:59:55"
 }

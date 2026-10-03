@@ -360,7 +360,7 @@
         "baseline": 100.0,
         "fixed": 100.0,
         "partial": 17.39,
-        "injected_x20": null
+        "injected_x20": "stable 0.0"
       },
       "packcheck_red": 0,
       "target_metric": "pass_at_3",
