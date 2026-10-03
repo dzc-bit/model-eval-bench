@@ -30,6 +30,16 @@
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         },
@@ -113,6 +123,11 @@
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         }
@@ -126,5 +141,5 @@
   "score_min": 100.0,
   "score_max": 100.0,
   "stable": true,
-  "finished_at": "2026-10-03T05:54:20"
+  "finished_at": "2026-10-03T13:55:44"
 }

@@ -37,7 +37,8 @@
       "port": "健康暴露：诊断口径必须把损坏与未采集分开报",
       "tests": [
         "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_corrupt_partition_when_present",
-        "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean"
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_reports_healthy_only_when_clean",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_diagnostics_scopes_corruption_to_its_own_year"
       ]
     },
     {
@@ -47,7 +48,8 @@
       "tests": [
         "hidden/tests_hidden/test_warehouse_corruption.py::test_coverage_drops_to_zero_exactly_when_reads_fail",
         "hidden/tests_hidden/test_warehouse_corruption.py::test_all_three_surfaces_agree_on_a_corrupt_year",
-        "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces"
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_clean_years_stay_consistent_across_all_surfaces",
+        "hidden/tests_hidden/test_warehouse_corruption.py::test_concurrent_writer_leaving_a_corrupt_partition_keeps_all_surfaces_honest"
       ]
     },
     {

@@ -1,7 +1,16 @@
 diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
 --- a/backend/astock_backtester/data/sync.py
 +++ b/backend/astock_backtester/data/sync.py
-@@ -341,17 +341,15 @@
+@@ -291,7 +291,7 @@
+     @staticmethod
+     def _signature(mode: str, symbols: list[str], start_date: str, end_date: str) -> str:
+         return (
+-            f"{mode}|{start_date}|{end_date}|{','.join(sorted({str(symbol) for symbol in symbols}))}"
++            f"{mode}|{start_date}|{end_date}|{','.join(sorted(str(symbol) for symbol in symbols))}"
+         )
+ 
+     def _reap_stale_running_locked(self, now: float) -> None:
+@@ -341,10 +341,9 @@
          if now - self._last_read.get(job_id, 0.0) < JOB_READ_STALE_SECONDS:
              return
          self._jobs.pop(job_id, None)
@@ -13,15 +22,7 @@ diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/
  
      def _put_locked(self, status: SyncJobStatus) -> None:
          self._jobs[status.job_id] = status
-         if status.status in ("running", "cancelling"):
-             self._finished_at.pop(status.job_id, None)
--            # 每次写回都算一次进度推进：作业还在动就不会被判失活。
--            self._last_progress_at[status.job_id] = time.monotonic()
-+            # 失活判定看的是"有没有人在推进"，写回本身不代表推进，这里不再盖进度戳。
-         else:
-             self._finished_at.setdefault(status.job_id, time.monotonic())
-             self._last_progress_at.pop(status.job_id, None)
-@@ -359,21 +357,22 @@
+@@ -359,21 +358,22 @@
      def _admit(self, status: SyncJobStatus, signature: str) -> tuple[SyncJobStatus, bool]:
          """同签名在途任务直接复用，否则在预算内新建。
  
@@ -55,7 +56,7 @@ diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/
              running = self.running_job_ids_locked()
              if len(running) >= max(1, self.max_concurrent_jobs):
                  raise SyncCapacityError(running, self.max_concurrent_jobs)
-@@ -480,11 +479,13 @@
+@@ -480,17 +480,20 @@
  
      def get_job(self, job_id: str) -> SyncJobStatus | None:
          with self._lock:
@@ -70,3 +71,11 @@ diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/
              return status.model_copy(deep=True)
  
      def running_job_ids_locked(self) -> list[str]:
+         """在途作业 id（已排序）。调用方必须持锁。"""
++        # 取消中的任务已经不再抓新数据，名额按"还在跑"计即可。
+         return sorted(
+-            job_id for job_id, status in self._jobs.items() if status.status in ("running", "cancelling")
++            job_id for job_id, status in self._jobs.items() if status.status == "running"
+         )
+ 
+     def running_job_ids(self) -> list[str]:

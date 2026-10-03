@@ -18,6 +18,7 @@
       "port": "逐股覆盖：某只票的缺失日清单",
       "tests": [
         "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list",
+        "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_drops_full_cross_section_suspension_day_from_missing_list",
         "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_three_day_window",
         "tests_hidden/test_gap_exit_consistency.py::test_per_symbol_keeps_the_gap_on_a_four_day_window"
       ]
@@ -48,7 +49,8 @@
       "port": "跨出口一致性：同一天的同一个事实，四个出口只能有一个答案",
       "tests": [
         "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_the_weak_cross_section_day",
-        "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_a_full_cross_section_suspension"
+        "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_on_a_full_cross_section_suspension",
+        "tests_hidden/test_gap_exit_consistency.py::test_all_four_exits_agree_at_the_five_day_window_boundary"
       ]
     },
     {

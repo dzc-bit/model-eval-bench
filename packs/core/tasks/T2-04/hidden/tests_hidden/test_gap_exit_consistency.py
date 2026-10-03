@@ -96,6 +96,19 @@ def _long_window_with_a_normal_day_gap(tmp_path) -> tuple[Warehouse, list[pd.Tim
     return _write(tmp_path, layout), calendar, normal_day
 
 
+def _five_day_window_with_a_normal_day_gap(tmp_path) -> tuple[Warehouse, list[pd.Timestamp], pd.Timestamp]:
+    """恰好 5 个交易日：探针标的缺中间一天，其余标的当天均有行。
+
+    这是分类下限的边界场景：4 天窗口仍不分类，5 天窗口应开始分类。
+    """
+    calendar = _days("2026-07-01", "2026-07-07")
+    assert len(calendar) == 5
+    normal_day = calendar[2]
+    layout = {symbol: list(calendar) for symbol in SYMBOLS}
+    layout[PROBE] = [day for day in calendar if day != normal_day]
+    return _write(tmp_path, layout), calendar, normal_day
+
+
 def _short_window(tmp_path, end: str) -> tuple[Warehouse, list[pd.Timestamp], pd.Timestamp]:
     """只有 3 个或 4 个交易日的窗口，只有探针标的缺中间那一天。
 
@@ -196,6 +209,15 @@ def test_per_symbol_keeps_the_weak_cross_section_day_in_the_missing_list(tmp_pat
     missing = _per_symbol_missing(warehouse, "2026-07-01", "2026-07-31", PROBE)
 
     assert weak_day in missing, "弱证据日的缺口被从逐股缺失清单里抹掉了"
+
+
+def test_per_symbol_drops_full_cross_section_suspension_day_from_missing_list(tmp_path):
+    """长窗口：满行市场正常日上的缺口应从逐股可行动缺失清单中剔除。"""
+    warehouse, _calendar, normal_day = _long_window_with_a_normal_day_gap(tmp_path)
+
+    missing = _per_symbol_missing(warehouse, "2026-07-01", "2026-07-31", PROBE)
+
+    assert normal_day not in missing, "满行日上的停牌类缺口仍被列为可行动缺失"
 
 
 def test_per_symbol_keeps_the_gap_on_a_three_day_window(tmp_path):
@@ -322,6 +344,30 @@ def test_all_four_exits_agree_on_a_full_cross_section_suspension(tmp_path):
     assert not per_symbol_says_actionable, "逐股覆盖仍把停牌类缺口列成可行动"
     assert not sync_says_actionable, "补齐名单把补不出来的票留在了名单里"
     assert not flow_says_actionable, "资金流缺口名单豁免规则没有与另外三个出口对齐"
+    assert len(
+        {coverage_says_actionable, per_symbol_says_actionable, sync_says_actionable, flow_says_actionable}
+    ) == 1
+
+
+def test_all_four_exits_agree_at_the_five_day_window_boundary(tmp_path):
+    """恰好 5 个交易日时，四个出口都应开始把满行日缺口判为停牌类。"""
+    warehouse, calendar, normal_day = _five_day_window_with_a_normal_day_gap(tmp_path)
+    assert len(calendar) == 5
+
+    summary = _daily_coverage(warehouse)
+    coverage_says_actionable = summary.suspension_rows == 0 and summary.missing_rows > 0
+    assert summary.suspension_rows == 1
+    assert summary.missing_rows == 0
+    per_symbol_says_actionable = normal_day in _per_symbol_missing(
+        warehouse, "2026-07-01", "2026-07-07", PROBE
+    )
+    sync_says_actionable = PROBE in _sync_incomplete(warehouse, "2026-07-01", "2026-07-07")
+    flow_says_actionable = PROBE in _flow_missing(warehouse, "2026-07-01", "2026-07-07")
+
+    assert not coverage_says_actionable, "5 日边界的覆盖汇总仍把停牌类缺口算作可行动"
+    assert not per_symbol_says_actionable, "5 日边界的逐股清单仍包含停牌类缺口"
+    assert not sync_says_actionable, "5 日边界的补齐名单仍包含这只票"
+    assert not flow_says_actionable, "5 日边界的资金流缺口名单仍包含这只票"
     assert len(
         {coverage_says_actionable, per_symbol_says_actionable, sync_says_actionable, flow_says_actionable}
     ) == 1

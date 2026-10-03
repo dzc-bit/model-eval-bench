@@ -23,12 +23,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('e2735610-35cc-4bee-a2bd-677391bfbe35', 'started'), ('edd31d82-61d3-4f82-9409-8bc92e2e7bce', 'started'), ('aaa33108-ccb5-4224-ac9a-e35b72383d86', 'started'), ('7a7689d0-512a-4eb8-94fb-3f3c93208703', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('bf4f93a7-7164-47b9-be41-a8e7113177a4', 'started'), ('6057e57f-7827-4abd-8866-ed9ff0d2ba8b', 'started'), ('060b72a0-3b72-4a40-b0b9-0f7de87b0475', 'started'), ('dc27237c-3f29-4788-acab-65802e1d36db', 'started'), ('481cd3e0-ed58-4ae9-afab-ecd609f411d6', 'started'), ('168adb7c-abad-4cdc-af75-87a48aca6f16', 'started'), ('84ef19bb-2a19-44e4-ae99-1bf41958dc04', 'started'), ('8520fbc0-7f00-449a-ac7a-5414d9721af2', 'started')]\nassert 8 == 1\n +  where 8 = len({'060b72a0-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -50,7 +60,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='8ce5eecb-41ba-4886-b9cb-97423002f80c', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='15cb61a0-10bb-46f0-bf57-7067db7ec61a', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -67,7 +77,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...54266af381c'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '85a4ae2c-32bc-4361-9de1-354266af381c'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...c0495fc345d'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '21743e0f-2981-43c0-8ba2-8c0495fc345d'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -89,12 +99,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000019995BAE380>('admission')\n +    where <built-in method get of dict object at 0x0000019995BAE380> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000023DB766EEC0>('admission')\n +    where <built-in method get of dict object at 0x0000023DB766EEC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '0206c57f-93b3-4f66-b878-a83877004da1' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000199FFF94720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000199F"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'a5b609dc-8e14-4e53-b5d9-c1bc865a6033' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000023DA0D48860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000023DA"
             }
           ]
         },
@@ -106,12 +116,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('c933c347-5e40-4193-8983-6293aa051504', 'started'), ('486ffc25-03a0-4021-baae-90567ba433d0', 'started')]\nassert 2 == 1\n +  where 2 = len({'486ffc25-03a0-4021-baae-90567ba433d0', 'c933c347-5e40-4193-8983-6293aa051504'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('d3e39268-bb57-4d7f-bc8d-acc8bd4c9c5b', 'started'), ('8a03ac36-3b48-4734-a300-2258ad6bb4df', 'started')]\nassert 2 == 1\n +  where 2 = len({'8a03ac36-3b48-4734-a300-2258ad6bb4df', 'd3e39268-bb57-4d7f-bc8d-acc8bd4c9c5b'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...0e57e33a3f7'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '0ea0120c-820f-4449-992a-30e57e33a3f7'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...00d21b22d5a'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'a4e9b5cf-9e07-4897-a7ae-400d21b22d5a'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -137,12 +152,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('c0fc0284-fd51-4a16-8be9-7dddcaad9d5f', 'started'), ('58690afb-3690-4ea5-8fa7-a550092f5f78', 'started'), ('ccb4438b-70d9-4d64-b3b6-5038c6df80be', 'started'), ('80fbe115-d51c-42ab-b651-4a61ce8e8b91', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('b9a168fe-cc0c-45d5-a9b7-8c264aa236bd', 'started'), ('d6b1a9f3-d681-4a3b-af71-ac8af2b92ce5', 'started'), ('e99e33f7-c5ac-4025-afc1-b70571961167', 'started'), ('bf8ead2d-af7e-4b14-b076-8daa6e9eda47', 'started'), ('436b0d16-3dbc-4a75-8d27-4a977d93781f', 'started'), ('4df59f34-ce61-4ca1-a0f0-f143d38cdd45', 'started'), ('ad3d31fb-c779-4aba-acc9-2ea4abe9d93b', 'started'), ('cd256ac4-27a6-4353-b27a-20375894e9f3', 'started')]\nassert 8 == 1\n +  where 8 = len({'436b0d16-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -164,7 +189,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='2598733d-20f2-46d0-b8fc-e74d76d8bbdc', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='9fb2d139-a0a6-4eb4-97b0-4e2855f531e2', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -181,7 +206,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...54e5d1985cb'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '7a7de3ed-e182-466e-979e-a54e5d1985cb'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...ae7b9f184d4'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'af85bdad-66b6-4e64-8b0e-6ae7b9f184d4'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -203,12 +228,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002094D785700>('admission')\n +    where <built-in method get of dict object at 0x000002094D785700> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002DE7BA372C0>('admission')\n +    where <built-in method get of dict object at 0x000002DE7BA372C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3b844e0e-df34-49be-afaa-ff2cd9bfe2c7' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000020937AA4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002093"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'fc4d2674-602c-48d5-a807-ae76f8ccda1b' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002DE65CB8860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002DE6"
             }
           ]
         },
@@ -220,12 +245,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('9bd5f922-de7c-4dc0-831b-a561ff729f7e', 'started'), ('34c5485c-2866-4c87-92ac-fb2cd52bcb02', 'started')]\nassert 2 == 1\n +  where 2 = len({'34c5485c-2866-4c87-92ac-fb2cd52bcb02', '9bd5f922-de7c-4dc0-831b-a561ff729f7e'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('02d739fe-6e35-4c3a-9e0a-254fcfcce698', 'started'), ('d522f745-a41e-448a-b6fd-0eab8197f1a5', 'started')]\nassert 2 == 1\n +  where 2 = len({'02d739fe-6e35-4c3a-9e0a-254fcfcce698', 'd522f745-a41e-448a-b6fd-0eab8197f1a5'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...72fd8ce6c1a'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'a0199dca-f67d-49b7-ad3d-b72fd8ce6c1a'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...940d4d34a42'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '45abc720-fd2a-490d-a4bb-8940d4d34a42'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -251,12 +281,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('0912ec29-ecda-499e-b669-4470ba1c323e', 'started'), ('29051bd2-283b-416d-88ae-82a822757427', 'started'), ('a1c9accd-5b0d-4301-b48e-228e83782072', 'started'), ('0d274163-91b5-4ce8-8c35-01b15223a4d0', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('17691a04-77f2-4806-9f0c-d24758260aa3', 'started'), ('7d84f8b3-8c81-4a4b-933b-953e338a166f', 'started'), ('50d22386-c167-474b-b528-14b630d5abf0', 'started'), ('e686175f-e69b-48e3-8c81-2f74bade1ed9', 'started'), ('5e286436-0918-4740-8397-13c8397c3973', 'started'), ('70daed38-57c7-48d0-938b-b15eb4eeb58b', 'started'), ('cb723bbb-b05a-480e-b710-1278dea4757d', 'started'), ('a7e6ae0a-aaca-4fd6-9cb4-f6df98e79228', 'started')]\nassert 8 == 1\n +  where 8 = len({'17691a04-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -278,7 +318,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='5faacaa6-82c6-46b1-ba56-709cb7a41e13', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='a17ee820-bb45-4ada-ba96-c63c3ded957d', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -295,7 +335,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...5098157e847'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '37bb9ec0-92cb-46bd-b044-c5098157e847'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...82f553733ae'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '8ffbd49e-c165-41a3-84c3-282f553733ae'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -317,12 +357,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002B1722B6700>('admission')\n +    where <built-in method get of dict object at 0x000002B1722B6700> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001B116C97C80>('admission')\n +    where <built-in method get of dict object at 0x000001B116C97C80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'f808759b-192c-4e59-8239-145c789892db' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002B15C6B4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002B15"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'd9773cf2-4dc9-411b-ae57-eda8ea539e59' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001B101008860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001B10"
             }
           ]
         },
@@ -334,12 +374,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('b6cbcab9-c2e5-4857-9d24-caa2498f2c43', 'started'), ('41cf9cfe-bbab-4a88-be44-4c50e59d1fae', 'started')]\nassert 2 == 1\n +  where 2 = len({'41cf9cfe-bbab-4a88-be44-4c50e59d1fae', 'b6cbcab9-c2e5-4857-9d24-caa2498f2c43'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('806fee95-70e0-4b77-8d3f-c56d0f169c19', 'started'), ('976d66bb-8ccf-4ca4-a017-8cedaa9b6f16', 'started')]\nassert 2 == 1\n +  where 2 = len({'806fee95-70e0-4b77-8d3f-c56d0f169c19', '976d66bb-8ccf-4ca4-a017-8cedaa9b6f16'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...0e7d4bca114'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '537ed7fb-91ed-4952-aa31-a0e7d4bca114'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...ecaba1fa106'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'c1e1ba77-5272-48a3-81e8-decaba1fa106'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -365,12 +410,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('0e724904-56dd-4ecf-9c33-52845a12999c', 'started'), ('5dc9130e-a6d5-4183-890e-2b6ae08ba4ec', 'started'), ('5a454e9a-436a-4178-82cb-8ebc3935706d', 'started'), ('d858a35a-e4db-4fff-b194-a77d8c39ad83', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('f818167d-664c-4fb9-b384-4f7b86faa59b', 'started'), ('eb78d21e-7c75-4350-ae9d-70e9bf3a3b0e', 'started'), ('7acc65ff-8b0f-4ed8-bf86-d10a52b7b618', 'started'), ('267ddb75-fbef-4e06-923e-49d3bf455524', 'started'), ('a6322224-7625-40c1-a5dd-3f11463d2240', 'started'), ('8e940483-5b50-414b-b0ba-e644460a362f', 'started'), ('5aa5a590-7846-4573-a23d-50b172bfcb5b', 'started'), ('b87e1b08-94ff-48ac-b662-bf4495c18bb7', 'started')]\nassert 8 == 1\n +  where 8 = len({'267ddb75-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -392,7 +447,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='f7dae8a5-351f-4349-ad81-96d8470f33bd', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='21af6158-a342-44f3-a824-5bc4e01cd694', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -409,7 +464,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...b5231256a0e'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '94d784d9-425c-4689-a76d-5b5231256a0e'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...08c544e1323'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '9f7b2119-a1f3-4aef-8d24-f08c544e1323'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -431,12 +486,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002AC2F65FA80>('admission')\n +    where <built-in method get of dict object at 0x000002AC2F65FA80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002692AC41E00>('admission')\n +    where <built-in method get of dict object at 0x000002692AC41E00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'd08845ff-4205-4881-b81d-cd97e43be082' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002AC18E34720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002AC1"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'be3466c6-267b-4995-8c3c-d5b3918b708a' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000026914558860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002691"
             }
           ]
         },
@@ -448,12 +503,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('48affef6-0b77-4e61-9fee-0384989fa18b', 'started'), ('2a73f28c-e209-46ce-8d44-9a14c8095f95', 'started')]\nassert 2 == 1\n +  where 2 = len({'2a73f28c-e209-46ce-8d44-9a14c8095f95', '48affef6-0b77-4e61-9fee-0384989fa18b'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('e0001dcf-e705-4d44-9e43-1fb2d92e8591', 'started'), ('998f8823-7dbc-425e-8b36-66dbc5d8a267', 'started')]\nassert 2 == 1\n +  where 2 = len({'998f8823-7dbc-425e-8b36-66dbc5d8a267', 'e0001dcf-e705-4d44-9e43-1fb2d92e8591'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...e6b3bccddde'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '12309ad2-ee90-4379-90b3-9e6b3bccddde'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...489b6565122'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '791df192-133b-4ced-8c1b-9489b6565122'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -479,12 +539,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('52196c1b-3c14-4a01-97ec-77850085df56', 'started'), ('d6bd1a10-803e-4e95-90bd-f2ad39d06715', 'started'), ('f95c350f-3b07-4152-a361-e80694678376', 'started'), ('22a1c104-fc1b-4a75-bf76-790da72bd299', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('424e6edd-2b26-4b43-97ae-cd81f35805c3', 'started'), ('7382f015-f61d-47a8-8380-3221e76b8a99', 'started'), ('d3066ce1-65aa-4c07-9527-ccf840dd51f7', 'started'), ('8c168065-f3a7-4bc5-8644-7f1b43c99a84', 'started'), ('f904de65-8348-4c46-9e2f-f492629871bf', 'started'), ('40ce0c65-e579-4a43-91a5-bc9a39da6a96', 'started'), ('a894c4c3-461d-41db-ad35-7ddb75491972', 'started'), ('de82afd1-3d20-465d-a0e4-fa7afa93decd', 'started')]\nassert 8 == 1\n +  where 8 = len({'40ce0c65-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -506,7 +576,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='7ea4ad94-a9ba-4015-8e49-359073cc4808', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='d5d95c18-47dc-4dad-b04b-dce11ff1c766', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -523,7 +593,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...ac473eb3574'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '23a106e0-037d-41a3-a46c-aac473eb3574'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...f7e90d188bc'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '458dd690-e28e-4d77-bb48-7f7e90d188bc'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -545,12 +615,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BDA0BCC300>('admission')\n +    where <built-in method get of dict object at 0x000001BDA0BCC300> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000026DC38C85C0>('admission')\n +    where <built-in method get of dict object at 0x0000026DC38C85C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'e128077c-9482-4819-a2cf-9a9148709bdd' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001BD8A1C4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001BD8"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3a7c8033-32fd-41d8-bcb3-edced1d41a78' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000026DAC958860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000026DA"
             }
           ]
         },
@@ -562,12 +632,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('632e5889-3c62-466e-9203-194c3768e9cc', 'started'), ('62878463-adac-4dbf-9ad0-65e3894d5e8a', 'started')]\nassert 2 == 1\n +  where 2 = len({'62878463-adac-4dbf-9ad0-65e3894d5e8a', '632e5889-3c62-466e-9203-194c3768e9cc'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('fc13540d-d0a7-49b0-b3ac-ca78a650a1e6', 'started'), ('c29489e3-4a5b-4411-b1eb-45bbff945129', 'started')]\nassert 2 == 1\n +  where 2 = len({'c29489e3-4a5b-4411-b1eb-45bbff945129', 'fc13540d-d0a7-49b0-b3ac-ca78a650a1e6'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...219b5d34467'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'b51a67f2-9d57-441e-b4fb-4219b5d34467'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...1e02585412f'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'e4d2a11c-f26d-4abf-afb3-11e02585412f'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -593,12 +668,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('e1cd299e-d286-4c43-82a1-5e260a0d1871', 'started'), ('60f0f419-9ddd-4498-ad4f-4206889859f7', 'started'), ('316c439f-4e39-4488-b421-3720df2826a1', 'started'), ('444901fa-e527-48e5-8671-7574de70df59', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('dcf4c8cb-041f-4df0-9fc3-60d45c296080', 'started'), ('f4f619c3-da0c-4c01-aa42-24b8037a1597', 'started'), ('41efa2f8-1eb2-4365-8656-dd6905f5409c', 'started'), ('b0b7dd94-0e78-4b1a-a0f5-d1d409ae762c', 'started'), ('a91d6636-be09-46b4-9eb2-dcb15766b48c', 'started'), ('75331a31-eaed-4edd-a4a4-0508cefbb99d', 'started'), ('bcf91bb1-7206-44da-bfc7-3d66766c027e', 'started'), ('2dc9aa7b-8716-48e0-9562-8f49f260165b', 'started')]\nassert 8 == 1\n +  where 8 = len({'2dc9aa7b-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -620,7 +705,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='b0437038-a93c-45cb-8cfa-75555e7c4838', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='aede5f25-8666-4b00-88ad-9de4b5a50a54', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -637,7 +722,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...a0bcd46cb24'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '3aebc793-298b-4476-8597-1a0bcd46cb24'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...0766aab8f4e'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '3a0e0a2d-c618-47b2-bdfb-40766aab8f4e'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -659,12 +744,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001D0D4306F00>('admission')\n +    where <built-in method get of dict object at 0x000001D0D4306F00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001F4D459A3C0>('admission')\n +    where <built-in method get of dict object at 0x000001F4D459A3C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'd400bc85-7c26-4d57-9218-b48ad6632e5a' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001D0BDA14720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001D0B"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'a8c2e563-3eae-4c6c-8b04-a13ea136ac2f' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001F4BE688860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001F4B"
             }
           ]
         },
@@ -676,12 +761,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('6f425a08-032e-4faf-866e-5845122c9cac', 'started'), ('4c54bd6b-aa30-4b67-9c0d-ce7d13c4faf5', 'started')]\nassert 2 == 1\n +  where 2 = len({'4c54bd6b-aa30-4b67-9c0d-ce7d13c4faf5', '6f425a08-032e-4faf-866e-5845122c9cac'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('68090436-2317-44ed-88c3-37db7524ca49', 'started'), ('6ecc6cda-698b-46e7-8085-ae398ebf49ab', 'started')]\nassert 2 == 1\n +  where 2 = len({'68090436-2317-44ed-88c3-37db7524ca49', '6ecc6cda-698b-46e7-8085-ae398ebf49ab'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...54ccbcb0486'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '0abe973e-6e38-4a54-96dd-554ccbcb0486'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...6dc24dcaa5b'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '1de74c10-1da5-45b0-a31e-d6dc24dcaa5b'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -707,12 +797,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('0e8b0588-5198-41ce-86b3-6d26fe1f28f8', 'started'), ('e639a4bc-f1c6-4394-a84c-1ce9532301f1', 'started'), ('1fde4468-c6e9-4c6e-ba4e-1f51272771d6', 'started'), ('97b0c01f-0c19-4316-8040-0f08020b72f5', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('8508a059-e7ae-4b5b-a52c-47bd53a8ec71', 'started'), ('071e770b-2e3c-4c69-8dab-fb578bcf6b90', 'started'), ('3dda134b-5ee8-4373-8e8b-cc005188a244', 'started'), ('785e82d7-609c-493b-b17c-d570de95ba4e', 'started'), ('9e657875-a6a9-42e3-804d-4355d24b1a63', 'started'), ('35d83b52-0086-4598-9acc-f61bc9767b88', 'started'), ('e7084550-c335-4910-8c1e-077f1d386bf9', 'started'), ('5b336081-fd9c-4ffc-986f-b59e7ae18a65', 'started')]\nassert 8 == 1\n +  where 8 = len({'071e770b-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -734,7 +834,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='406ed9dd-aedb-496a-9d0c-33e563cb5d68', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='a2d3a4a7-42a6-46c8-9c77-0aeb4c6414a6', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -751,7 +851,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...b7c8e66cf6b'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '46374830-22cb-49cb-93ce-db7c8e66cf6b'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...bff3e3d83b7'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '43950f4d-74aa-42ae-b507-bbff3e3d83b7'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -773,12 +873,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000020093812380>('admission')\n +    where <built-in method get of dict object at 0x0000020093812380> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000261B7AE2E80>('admission')\n +    where <built-in method get of dict object at 0x00000261B7AE2E80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '79bdec43-a1cf-443e-8c03-667607ace067' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000200FD154720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000200F"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '69a4b9a4-5ca7-4d9a-82ed-0906e514744b' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000261A1228860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000261A"
             }
           ]
         },
@@ -790,12 +890,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('982093ab-0841-4018-92cb-217bed221e05', 'started'), ('399ca8b3-ae42-4c34-a709-49f7167f4dc7', 'started')]\nassert 2 == 1\n +  where 2 = len({'399ca8b3-ae42-4c34-a709-49f7167f4dc7', '982093ab-0841-4018-92cb-217bed221e05'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('3f1eb212-344a-4c9e-a9fc-4bb001f45127', 'started'), ('e66f1748-105d-4883-9890-f29e026a5a3e', 'started')]\nassert 2 == 1\n +  where 2 = len({'3f1eb212-344a-4c9e-a9fc-4bb001f45127', 'e66f1748-105d-4883-9890-f29e026a5a3e'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...4dcfc5a5fa0'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '77090e8f-5ec3-47b1-9650-54dcfc5a5fa0'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...f9047d71ab6'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '041b9102-6f5d-499d-a5d0-5f9047d71ab6'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -821,12 +926,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('f73bebe8-d4b8-47bd-ba59-acdd2b576c09', 'started'), ('9139ce1d-7f77-4675-825e-4e12e218e376', 'started'), ('8b566aff-f792-4df1-b0ab-46c5f3d71a94', 'started'), ('75ce2296-cc35-4986-95b2-15d82fcbf614', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('4dcc567e-d6b6-44bf-89f4-3c699b1f246d', 'started'), ('bf078e38-6fe8-4c9a-9aa6-8551565a406f', 'started'), ('d06f179d-e82b-43c3-9d99-910a7384f929', 'started'), ('a9ba6d67-ab89-4e49-bf25-6f386401cd18', 'started'), ('3a877562-a2ce-44ac-a38a-0bf437a22237', 'started'), ('0d1c0cff-a163-4c5c-a220-0af5b09a25c3', 'started'), ('0f682a1f-ff4d-49f9-b033-5ed92c66e574', 'started'), ('9a971762-ba96-4e61-9ddb-73bf51b60cf0', 'started')]\nassert 8 == 1\n +  where 8 = len({'0d1c0cff-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -848,7 +963,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='359be7d7-676f-4583-9d09-2b4f9e9534f5', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='ed43816b-7f2e-4cac-9cc5-02eec2903173', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -865,7 +980,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...be49c4ea3a4'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '889a60cf-dc79-4bd5-bd72-5be49c4ea3a4'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...38dd06c42d0'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'c20d151a-08a4-4e18-bf98-338dd06c42d0'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -887,12 +1002,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002108F819A80>('admission')\n +    where <built-in method get of dict object at 0x000002108F819A80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002442752CB80>('admission')\n +    where <built-in method get of dict object at 0x000002442752CB80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '0271e563-12fc-4ada-86b0-042c8223d399' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000210F8E04720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000210F"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'beb13621-45f0-421c-9862-e33f404c89ca' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000024410B68860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002441"
             }
           ]
         },
@@ -904,12 +1019,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('bfbae2de-b9de-4490-87f9-5fcf9564e1c6', 'started'), ('e4114656-0ac8-4564-bf65-f6c9684636b3', 'started')]\nassert 2 == 1\n +  where 2 = len({'bfbae2de-b9de-4490-87f9-5fcf9564e1c6', 'e4114656-0ac8-4564-bf65-f6c9684636b3'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('978d4483-0b85-4bfe-ac11-f11bc86a8ca6', 'started'), ('de0ca47f-5d24-4ee4-abff-2d3c42e07dfe', 'started')]\nassert 2 == 1\n +  where 2 = len({'978d4483-0b85-4bfe-ac11-f11bc86a8ca6', 'de0ca47f-5d24-4ee4-abff-2d3c42e07dfe'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...ee24796da9b'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '61403256-9a78-4566-bdd2-4ee24796da9b'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...e8beb397acd'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '4c6bfc62-8b62-4099-aa4a-4e8beb397acd'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -935,12 +1055,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('76e30f98-28cf-4f27-be7d-b9418d79540b', 'started'), ('e13bf0a6-cf82-4cdf-b2b7-70dea1c4a5ec', 'started'), ('39a390f7-3bbd-4b47-b116-80e336473b91', 'started'), ('94c9cbbf-50e2-4cbf-b524-689463c6cf16', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('ee3ec01e-1054-4116-bf1b-934493ceb7ed', 'started'), ('a75fe50e-47a6-4d21-b5d7-49104a726010', 'started'), ('c8c00fcb-4475-45c2-9b7f-c926b56654af', 'started'), ('73348f4d-56a7-4c7e-af47-bc2f4d43eef6', 'started'), ('8f822e58-9f69-4d3a-9538-8d1676efaeb4', 'started'), ('5001d6e3-fd95-4e81-a0dc-4d4ac6d626e2', 'started'), ('28f11618-a58b-4ddf-8e4a-b1846ce6db0b', 'started'), ('f7a44441-9295-45e5-a81b-7617ed5fb122', 'started')]\nassert 8 == 1\n +  where 8 = len({'28f11618-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -962,7 +1092,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='1ed6ccbb-ea12-43f8-b095-e1a012f87cf0', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='dceddb5a-5d67-4f69-b947-001ff0a0fafc', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -979,7 +1109,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...69d856bdbd8'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'd23e6123-6cf0-423a-bbb4-569d856bdbd8'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...3ccf0c2d974'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '80d1721a-ff8c-41f4-a8e2-a3ccf0c2d974'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1001,12 +1131,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001D6DDEA7C00>('admission')\n +    where <built-in method get of dict object at 0x000001D6DDEA7C00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001BE65AF6F00>('admission')\n +    where <built-in method get of dict object at 0x000001BE65AF6F00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '0fea048d-4bfc-4e58-9163-bbf825bebe62' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001D6C82A4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001D6C"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '195c9557-b101-474f-bf7b-c277d0ece033' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001BE4FBA8860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001BE4"
             }
           ]
         },
@@ -1018,12 +1148,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('9790a31d-412a-44d5-828d-4efc15ee41d2', 'started'), ('938db0ed-ea02-4cb7-ba3e-36461081e553', 'started')]\nassert 2 == 1\n +  where 2 = len({'938db0ed-ea02-4cb7-ba3e-36461081e553', '9790a31d-412a-44d5-828d-4efc15ee41d2'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('7e0ab094-1711-4cfa-a179-e5588d84b2f9', 'started'), ('8c1eb336-b813-42c4-b631-0b7c11f1b1dd', 'started')]\nassert 2 == 1\n +  where 2 = len({'7e0ab094-1711-4cfa-a179-e5588d84b2f9', '8c1eb336-b813-42c4-b631-0b7c11f1b1dd'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...abc27e33b72'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '8592cb19-9461-4f58-aff8-3abc27e33b72'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...4ae5632b5e8'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '7781a2ca-8798-40a0-96a1-c4ae5632b5e8'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1049,12 +1184,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('f3cd849b-59b9-40cc-81c3-bd22d63b9d32', 'started'), ('144d1e59-4234-4b0d-befa-3431a471e95d', 'started'), ('8d5bbefb-f4cc-4854-a3aa-d0fa7a37bec4', 'started'), ('be644375-6ac4-404c-8951-2abe2b110fc3', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('1dfa5f21-00d2-47ac-a15e-ac7d38275d16', 'started'), ('fe276662-0cb6-4f1b-96d1-dc245b3680e2', 'started'), ('b464c168-e820-4170-b051-1ab07dac81f2', 'started'), ('282e202d-c1a6-41d3-8469-650e62e823b0', 'started'), ('42e0bbb9-860e-42cf-8523-6bc4f3472901', 'started'), ('d0954a15-d00b-451e-ab9a-a39a420fc8f6', 'started'), ('2c7dad71-088d-41de-af7c-b7db7a281966', 'started'), ('2b7413b7-6198-459c-a562-b098208fcc58', 'started')]\nassert 8 == 1\n +  where 8 = len({'1dfa5f21-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1076,7 +1221,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='1a6e873e-17a9-4762-b60d-86cb86066113', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='61bee76c-8c4d-46f0-9754-b2c12e4c39f7', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1093,7 +1238,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...7005d6d9abf'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'd611846c-dcff-4baf-857f-97005d6d9abf'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...5cec79856f6'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '7c0f80b6-4890-45a0-afed-45cec79856f6'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1115,12 +1260,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000204BF574C00>('admission')\n +    where <built-in method get of dict object at 0x00000204BF574C00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001D91C8E02C0>('admission')\n +    where <built-in method get of dict object at 0x000001D91C8E02C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'f0201c81-31b9-494f-804b-6c036e823bef' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000204A8B44720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000204A"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '729d19a7-f969-43b8-b7ef-21f78b0e36b9' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001D906088860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001D90"
             }
           ]
         },
@@ -1132,12 +1277,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('bb62f3a8-9c47-457d-b27c-0bfc9d7812cf', 'started'), ('30726ede-8871-45db-b92a-1436e0e9b7e8', 'started')]\nassert 2 == 1\n +  where 2 = len({'30726ede-8871-45db-b92a-1436e0e9b7e8', 'bb62f3a8-9c47-457d-b27c-0bfc9d7812cf'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('fc9b92b4-a995-4f06-86d6-d8e29404c88b', 'started'), ('7e1fc04a-778a-450f-a50b-f1e112fd0a04', 'started')]\nassert 2 == 1\n +  where 2 = len({'7e1fc04a-778a-450f-a50b-f1e112fd0a04', 'fc9b92b4-a995-4f06-86d6-d8e29404c88b'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...722be7b1e77'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '3bf14a77-0100-4992-87e9-6722be7b1e77'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...1045d19ef1f'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'a5d86b9e-5ee4-41b8-850c-01045d19ef1f'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1163,12 +1313,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('40676f36-08ec-4067-9d65-3d02f32c3df7', 'started'), ('0009ba55-b51d-4b2a-a9c9-22e7183a6566', 'started'), ('7ef4c3cf-9f24-43fb-a35d-8118b9b06ad8', 'started'), ('4b6f1432-7b5f-4de1-abca-da4f92d01f9f', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('1f2faeeb-df88-4a87-819a-11d0903face6', 'started'), ('071bd20d-4dad-48ac-8062-a5bf4db35a3e', 'started'), ('5aa1e106-f301-44b5-954f-cf13a7815cd9', 'started'), ('7a60b444-35cd-44c4-903d-dd104230ad17', 'started'), ('1a5fe9ec-e697-41ef-a118-9cdf45df8870', 'started'), ('5eecfa07-9f1a-4df6-91dc-503adef6f8bd', 'started'), ('1619a2d8-b4d5-4171-a2d1-fead7346b740', 'started'), ('7a6432de-9174-42d5-a8dc-9a1616aa8228', 'started')]\nassert 8 == 1\n +  where 8 = len({'071bd20d-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1190,7 +1350,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='7cc653ac-0f39-40b8-b9d0-ffe34fa5a8c1', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='f13f8f21-c105-4434-a41e-faf8cfac7805', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1207,7 +1367,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...e5d53beb845'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '4424049a-d420-484a-b61c-4e5d53beb845'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...cc8e3d93d32'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '8f5ce4de-9d97-4c2d-a3c3-acc8e3d93d32'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1229,12 +1389,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000288A11B5640>('admission')\n +    where <built-in method get of dict object at 0x00000288A11B5640> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000022E6DF8C940>('admission')\n +    where <built-in method get of dict object at 0x0000022E6DF8C940> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '1ef7eb03-0f28-41e4-8639-1eb58e01940e' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002888A744720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002888"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '242032df-4ae9-4369-8546-0cc106e4ef6e' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000022E575F8860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000022E5"
             }
           ]
         },
@@ -1246,12 +1406,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('e55ec11c-0b5c-4461-a6fe-3ae1357e59cc', 'started'), ('9bc0ba21-125b-4f74-904d-9429c5410056', 'started')]\nassert 2 == 1\n +  where 2 = len({'9bc0ba21-125b-4f74-904d-9429c5410056', 'e55ec11c-0b5c-4461-a6fe-3ae1357e59cc'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('267f2595-9e81-4d4a-afd7-37a698be8b50', 'started'), ('6ec12457-fc25-4c01-bede-22446c1c6820', 'started')]\nassert 2 == 1\n +  where 2 = len({'267f2595-9e81-4d4a-afd7-37a698be8b50', '6ec12457-fc25-4c01-bede-22446c1c6820'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...d4924e66c1f'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'afeafdae-5a41-444c-a6ad-cd4924e66c1f'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...2d6fd8b39c0'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'abe6727d-91f4-4585-b112-d2d6fd8b39c0'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1277,12 +1442,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('209a24dd-63fe-4308-8436-5adc06e64d43', 'started'), ('e69d3821-c6a8-4d55-863d-c7ad752e2f5a', 'started'), ('68b190ba-b78f-44e6-95ef-3ab40333aab7', 'started'), ('05c2b848-ced7-4095-8d72-7a626a154c39', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('559bc936-e318-4edc-bce4-92824ea89203', 'started'), ('0738fcc8-7609-45df-b78b-f7f96bec1acf', 'started'), ('ef0f3a84-b885-4c1c-92c6-e0e557028910', 'started'), ('d7fcf6d8-5850-42fc-9036-d578f345f017', 'started'), ('6d2c8ac9-f2d2-48e0-a33b-e038eb6d319d', 'started'), ('620eee21-1cf6-4bd9-8d98-e1c69b37a5c7', 'started'), ('73a234d6-3152-49f6-b3b5-16c4e8cd2b68', 'started'), ('bb43b720-37cf-47fd-9322-674e1c962433', 'started')]\nassert 8 == 1\n +  where 8 = len({'0738fcc8-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1304,7 +1479,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='f588c4f6-92da-433c-a67e-ba1fd9eeea73', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='42808088-28d6-4112-b9ce-084b13029d5d', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1321,7 +1496,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...1f6322f51e1'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '0481d7da-89a3-49d1-b476-f1f6322f51e1'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...80fd06849cf'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'b4df3e46-bb42-4098-8792-680fd06849cf'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1343,12 +1518,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001D70EF7E280>('admission')\n +    where <built-in method get of dict object at 0x000001D70EF7E280> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000021FB5925100>('admission')\n +    where <built-in method get of dict object at 0x0000021FB5925100> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'bb278a40-09e4-4834-ba24-76e9de7b20f4' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001D778504720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001D77"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'd1a1568f-30c3-476d-912b-92a6535825a2' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000021F9EF88860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000021F9"
             }
           ]
         },
@@ -1360,12 +1535,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('f2fe1ee9-7b58-4a23-86a3-5abe02d7ed3b', 'started'), ('c3ce8fce-4fd5-4e7c-9d3b-76b8b576870b', 'started')]\nassert 2 == 1\n +  where 2 = len({'c3ce8fce-4fd5-4e7c-9d3b-76b8b576870b', 'f2fe1ee9-7b58-4a23-86a3-5abe02d7ed3b'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('fa03af27-26d7-446a-99d0-4533e109081b', 'started'), ('19503fc9-5885-4065-869d-11850e870acb', 'started')]\nassert 2 == 1\n +  where 2 = len({'19503fc9-5885-4065-869d-11850e870acb', 'fa03af27-26d7-446a-99d0-4533e109081b'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...10b9e449dac'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '4b45271c-b766-4b3c-9cab-410b9e449dac'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...ab4d4325a4a'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '3b1ec2d4-2ae8-47f1-95c1-3ab4d4325a4a'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1391,12 +1571,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('e25eb4e3-654a-413f-85ae-8b59e0ac2291', 'started'), ('4254ff94-062f-4406-9c2b-d489e9638255', 'started'), ('af087f9f-914b-42a6-a396-33866ba9bcdf', 'started'), ('7008dc20-855b-4358-ad48-1459deb0a622', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('3fb558d5-6975-49bf-92be-c0499114821b', 'started'), ('356ad7d1-f56f-41da-b1a5-9af45719c273', 'started'), ('0afc457c-e794-483a-b5df-1d30301599fe', 'started'), ('2117b08c-905a-4b17-a156-b853bdd7e395', 'started'), ('1d27818c-5574-4e61-b3b1-6bf23b853c90', 'started'), ('d625db9c-dc09-4af9-aa37-593e6bc18257', 'started'), ('9e25fbfa-ee2c-4fd7-a2fa-8db20d56b45e', 'started'), ('86b7b149-e21f-464d-a478-a856f025f173', 'started')]\nassert 8 == 1\n +  where 8 = len({'0afc457c-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1418,7 +1608,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='75b096c7-a833-4b68-ac3d-886b67cbca44', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='478d90bb-097e-404f-ae5b-7ea6e404e181', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1435,7 +1625,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...bdb218ac863'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '9b2d210d-6c29-4818-94ab-abdb218ac863'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...3ada50281eb'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'ba18398d-3f24-4232-a38f-03ada50281eb'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1457,12 +1647,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002276CC36240>('admission')\n +    where <built-in method get of dict object at 0x000002276CC36240> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000202B1EEEB00>('admission')\n +    where <built-in method get of dict object at 0x00000202B1EEEB00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '0277e239-6c64-4796-935e-8fde74d247ee' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000022756BC4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002275"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3b9cfd1d-68f1-49a2-aba0-def4a5cc0886' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002029B038860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002029"
             }
           ]
         },
@@ -1474,12 +1664,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('fc8bb56d-ad6d-4360-8160-521befb1d274', 'started'), ('f7c1077a-e41d-4001-84e6-e718dec2ff60', 'started')]\nassert 2 == 1\n +  where 2 = len({'f7c1077a-e41d-4001-84e6-e718dec2ff60', 'fc8bb56d-ad6d-4360-8160-521befb1d274'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('e36bb9ec-3a19-4e92-8c17-3f07f281f308', 'started'), ('2837af88-7ac0-4b2f-b51b-89637c376cbe', 'started')]\nassert 2 == 1\n +  where 2 = len({'2837af88-7ac0-4b2f-b51b-89637c376cbe', 'e36bb9ec-3a19-4e92-8c17-3f07f281f308'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...8c097af4960'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '5de81023-316b-498c-a086-c8c097af4960'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...35f7fd7984c'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '3c2ea610-10c3-4b48-8896-f35f7fd7984c'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1505,12 +1700,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('f183d92b-72b4-434f-a376-2da647989311', 'started'), ('8d3274e9-2780-4448-ab3f-8e0469efe718', 'started'), ('5fd8ea7d-6207-4401-881d-c8f7dcf88d74', 'started'), ('b99de161-04a1-4c49-bb4d-9c7b38a64b19', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('07b452f4-332f-4a7a-b90a-a9e83cdc4085', 'started'), ('a0f5ae8a-937a-4596-ad54-f619bf84a0fd', 'started'), ('e0f5ce10-9003-4bcc-98bc-e55db5a47750', 'started'), ('56f4bd6a-d9d6-4b95-a596-773c36d460e4', 'started'), ('24911275-596c-4353-8634-271365a51374', 'started'), ('75ca4717-46b5-447c-8b24-a199b306ddee', 'started'), ('f12333cb-ea96-4fee-aa74-34a7830e076e', 'started'), ('49becfa7-5037-410d-bb4e-dfd543d45786', 'started')]\nassert 8 == 1\n +  where 8 = len({'07b452f4-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1532,7 +1737,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='e55ee382-e0a2-49b3-b22b-a5078ef3ac1f', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='403c396b-bb87-41a9-b521-93dd16ae2c62', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1549,7 +1754,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...e940476ddcb'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '66153562-dec3-419f-89de-2e940476ddcb'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...9833eacf8af'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'ed3ac906-5711-4f70-a512-09833eacf8af'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1571,12 +1776,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002986CB0C5C0>('admission')\n +    where <built-in method get of dict object at 0x000002986CB0C5C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001C650BC7280>('admission')\n +    where <built-in method get of dict object at 0x000001C650BC7280> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'a106b0d1-cab0-439c-8bb5-e7c43959aa44' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000298561E4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002985"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'daa33a08-361e-4de7-8fc7-632f72d168c3' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001C63AF48860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001C63"
             }
           ]
         },
@@ -1588,12 +1793,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('123ab157-3d40-420c-b5da-a896e6cc4d53', 'started'), ('c0358125-4de6-4ee5-9059-3e2377042bf3', 'started')]\nassert 2 == 1\n +  where 2 = len({'123ab157-3d40-420c-b5da-a896e6cc4d53', 'c0358125-4de6-4ee5-9059-3e2377042bf3'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('ffa98bbd-4f18-43e9-8d4d-e022fcfb5685', 'started'), ('b8f9ffa2-be46-43e5-8cb9-c3790f148999', 'started')]\nassert 2 == 1\n +  where 2 = len({'b8f9ffa2-be46-43e5-8cb9-c3790f148999', 'ffa98bbd-4f18-43e9-8d4d-e022fcfb5685'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...1407c374dec'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '93199b34-b501-476c-a965-21407c374dec'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...c87c3855efc'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'd57af271-aa8f-4283-87c5-5c87c3855efc'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1619,12 +1829,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('b375231c-551a-4fca-8554-070ff69d7756', 'started'), ('ff7bfcb9-0318-477a-935d-f3411484a46a', 'started'), ('b8eba9bc-3595-49e8-9f0e-a14752a4bb2a', 'started'), ('03f1d03b-de3c-41a9-ab6a-4ff8f7ede06d', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('e72d2ade-3e6f-462f-93fe-0ac9a36f2652', 'started'), ('eaf234a9-0c72-4323-ae47-3fe99b8bc801', 'started'), ('272b2f97-58ad-46aa-af33-3eda65a7dacf', 'started'), ('5f49dfbf-a577-439c-ac9a-b3069e2bdb3e', 'started'), ('db8e5b17-1b53-405c-a4d9-a97b153d16af', 'started'), ('e1502a0e-3a1b-4b4d-ac5e-dafd6b8042fd', 'started'), ('a340536c-4006-49e9-9bbc-edde2890a5e1', 'started'), ('d94a2296-a396-4656-9c5a-e2871297c758', 'started')]\nassert 8 == 1\n +  where 8 = len({'272b2f97-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1646,7 +1866,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='06496284-01bc-4587-b74e-38fc9f8a12a8', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='aebfc2cf-ed82-4f03-a9cb-285f86d53851', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1663,7 +1883,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...802e0547824'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '365ce628-97bd-4da3-9d02-a802e0547824'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...669ca40ce76'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '2067e89f-7413-4b34-8ffe-e669ca40ce76'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1685,12 +1905,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000021EDB38CE00>('admission')\n +    where <built-in method get of dict object at 0x0000021EDB38CE00> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000022DDC264880>('admission')\n +    where <built-in method get of dict object at 0x0000022DDC264880> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3fe38bf1-abd7-4ef3-b174-d1db6454860e' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000021EC6DF4720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000021EC"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '1e9715ab-5998-4c6e-8afb-186b12deac03' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000022DC5AE8860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000022DC"
             }
           ]
         },
@@ -1702,12 +1922,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('dc12654c-b261-42d4-9eeb-b9e908eb2d05', 'started'), ('c323b33f-b659-4920-99a9-23f688144030', 'started')]\nassert 2 == 1\n +  where 2 = len({'c323b33f-b659-4920-99a9-23f688144030', 'dc12654c-b261-42d4-9eeb-b9e908eb2d05'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('872fc08c-abf0-483f-a9ec-0f3d1deb2bd9', 'started'), ('6cf36d08-1805-445f-b962-cef3dd576822', 'started')]\nassert 2 == 1\n +  where 2 = len({'6cf36d08-1805-445f-b962-cef3dd576822', '872fc08c-abf0-483f-a9ec-0f3d1deb2bd9'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...a9d7023cd97'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '75fe6447-1234-496d-8f4c-0a9d7023cd97'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...d6a3fbd550c'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'e64e81e0-89b4-4136-893c-bd6a3fbd550c'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1733,12 +1958,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('489ef556-7bfa-41c9-89f3-50f37f785c96', 'started'), ('8f29ba8b-371c-4ba1-9c4e-efb094aa3f59', 'started'), ('f89cefc2-8b34-4c9f-bc4d-62aa6092561c', 'started'), ('6c261c0b-2d01-44f1-b5b0-0ca46514e090', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('8eacd9e2-c529-4ede-872a-6d142cc0a578', 'started'), ('d5d62a32-4053-4029-ab86-e797689cede7', 'started'), ('20e925ec-c63a-4872-ab0a-528f8a75a786', 'started'), ('ba0bf209-9538-45bc-af4f-a33803f8dc10', 'started'), ('e140f8b1-e2be-4812-a600-ac4822b97f24', 'started'), ('7d75c305-495a-4e4b-8ba9-e9daa6c8a927', 'started'), ('33149c85-c597-403c-8fc9-25c042487bc1', 'started'), ('e029f1de-99ed-4ce7-bd67-9493728981af', 'started')]\nassert 8 == 1\n +  where 8 = len({'20e925ec-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1760,7 +1995,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='6a0cf8b4-30d8-4ba7-8a1b-6e96bf3a8784', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='51bd4412-ac7a-4463-a009-9f03e035bac4', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1777,7 +2012,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...200d0d426b1'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '234f5c90-2151-4683-904f-1200d0d426b1'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...ed795b1960c'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '108e7a55-b770-494d-b638-aed795b1960c'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1799,12 +2034,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x00000146CEC3C0C0>('admission')\n +    where <built-in method get of dict object at 0x00000146CEC3C0C0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000017CF9631240>('admission')\n +    where <built-in method get of dict object at 0x0000017CF9631240> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'fa0922e6-338e-4385-bf10-a7e1b0cd4a0d' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000146B8E94720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x00000146B"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3f3755a8-c0f1-49af-939e-8c6e8d3f6acf' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000017CE3A28860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000017CE"
             }
           ]
         },
@@ -1816,12 +2051,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('0a83f0af-5006-4d8c-9f4c-39bd587150e1', 'started'), ('f67874c0-6aa0-4542-81b2-fe6230fe6530', 'started')]\nassert 2 == 1\n +  where 2 = len({'0a83f0af-5006-4d8c-9f4c-39bd587150e1', 'f67874c0-6aa0-4542-81b2-fe6230fe6530'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('93741c21-ca36-41b1-8ed9-9b7bf2a95af2', 'started'), ('9788745b-5be8-4c89-8d85-0f3048c01cd2', 'started')]\nassert 2 == 1\n +  where 2 = len({'93741c21-ca36-41b1-8ed9-9b7bf2a95af2', '9788745b-5be8-4c89-8d85-0f3048c01cd2'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...3b6b0915dd5'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'b5aa75d4-3fb5-4ef1-8c1d-73b6b0915dd5'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...3e233aa1c53'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'fa7c6719-2919-4e93-ae49-53e233aa1c53'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1847,12 +2087,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('118d622d-c1f7-41ef-8fbc-54769f74d5c4', 'started'), ('3f05c80b-feb7-44c8-97d8-8b2cb1c71548', 'started'), ('01f540fe-9d8e-4a4f-a1d1-e3ff50b4be4b', 'started'), ('a3524ada-66d4-48c6-867e-b146dda19703', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('8fa3979c-6327-4b76-9ecb-8d3577c0b8e6', 'started'), ('62ffe40c-f1b6-4d3c-a6a8-2023f6b38689', 'started'), ('24f8c0d0-c80a-42b6-b341-5a34c0ef199a', 'started'), ('88c7c690-d28c-4137-ad2d-46e45b500381', 'started'), ('29fa284e-8d73-4134-8fe0-d483ca2e5955', 'started'), ('3654e917-85ac-4270-a2d2-bd3b814012db', 'started'), ('b5915e01-d4c1-46ac-877c-795448d125d4', 'started'), ('5a47f8ad-e4fd-4162-8edf-ae1e0e0b3a7a', 'started')]\nassert 8 == 1\n +  where 8 = len({'24f8c0d0-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1874,7 +2124,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='20d95cd2-2586-47e8-832f-b6d06284910d', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='d5bcd281-5965-40cc-ae74-6bd9a967e5e8', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -1891,7 +2141,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...4ab4116ff87'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '27da6f30-f1fa-4700-add5-14ab4116ff87'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...e0398de3317'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'ffa93298-5b09-4f73-b85b-0e0398de3317'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -1913,12 +2163,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000022913C93140>('admission')\n +    where <built-in method get of dict object at 0x0000022913C93140> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000023119E3E800>('admission')\n +    where <built-in method get of dict object at 0x0000023119E3E800> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'b0cf3704-c111-425f-8e6f-f9755fbca899' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002297D304720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002297"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '40b51346-5ed2-431c-a797-d319595c6642' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000023104178860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002310"
             }
           ]
         },
@@ -1930,12 +2180,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('314aaf78-06b1-4234-aca0-bfe4427956cd', 'started'), ('578b41e3-922a-4df1-bbef-1b5396e7be9b', 'started')]\nassert 2 == 1\n +  where 2 = len({'314aaf78-06b1-4234-aca0-bfe4427956cd', '578b41e3-922a-4df1-bbef-1b5396e7be9b'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('eb7b3cb1-88e2-4bec-9384-08ba447ee4f0', 'started'), ('7231c5d8-42de-446f-86ee-52dae06b1247', 'started')]\nassert 2 == 1\n +  where 2 = len({'7231c5d8-42de-446f-86ee-52dae06b1247', 'eb7b3cb1-88e2-4bec-9384-08ba447ee4f0'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...2b9d8898cae'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'c4cd28b0-c763-407b-8be2-e2b9d8898cae'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...110ff225477'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '79efa721-3924-40a2-aec9-8110ff225477'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -1961,12 +2216,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('3f6a614d-0cd5-4ee8-b5be-420a4344dfa6', 'started'), ('be1322dc-96c2-4a33-81b5-a436eceb4ee3', 'started'), ('63ee9f29-0b9a-4e78-aaf6-7a065374661c', 'started'), ('9e82b775-4094-4245-ab2e-4fc6117046c4', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('106338d7-c26e-407c-8c07-cfa1676b19dd', 'started'), ('5787c25f-100c-4cfe-bf24-23e412062b1e', 'started'), ('a9f082f6-83a3-438c-a5a8-904d191f70cb', 'started'), ('ebff3b4c-a659-47ca-8833-058cb02c238a', 'started'), ('d7b8e379-908e-4a52-b00b-aceca7d7aa33', 'started'), ('3a9289f4-6493-48e3-87f0-72027eff3ad1', 'started'), ('6f2091e7-ddd6-45f6-a56d-116f96ff5f8b', 'started'), ('96d6fd65-c656-4201-9790-8607422a33f4', 'started')]\nassert 8 == 1\n +  where 8 = len({'106338d7-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -1988,7 +2253,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='f627590a-bb05-4ec4-b49f-a8b2a0b0daa2', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='b13d5154-6714-4fcc-9ccf-082bcb1b3673', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -2005,7 +2270,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...f758dfc2b1c'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'ce883414-af70-4244-ae3c-bf758dfc2b1c'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...d6b99b85d90'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '9264c3cd-33bf-4a18-9ea2-ed6b99b85d90'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -2027,12 +2292,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x0000016F4CB60540>('admission')\n +    where <built-in method get of dict object at 0x0000016F4CB60540> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001696E0F8C80>('admission')\n +    where <built-in method get of dict object at 0x000001696E0F8C80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '83bbab28-e428-4352-bd48-242abddce2a9' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000016F36E34720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x0000016F3"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'ca72ec6f-5a79-43c6-a99b-1542990632cc' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x00000169579A8860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001695"
             }
           ]
         },
@@ -2044,12 +2309,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('d483b9f4-d568-42c6-9516-4b41ca293ae9', 'started'), ('4b560b74-b894-4a9a-bdd5-17418d0168cb', 'started')]\nassert 2 == 1\n +  where 2 = len({'4b560b74-b894-4a9a-bdd5-17418d0168cb', 'd483b9f4-d568-42c6-9516-4b41ca293ae9'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('766fb9ff-05b1-4247-8c04-85debc383c8a', 'started'), ('b80a0a26-6eba-45f2-8aa0-384c770a1479', 'started')]\nassert 2 == 1\n +  where 2 = len({'766fb9ff-05b1-4247-8c04-85debc383c8a', 'b80a0a26-6eba-45f2-8aa0-384c770a1479'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...ada1f2ed1be'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '87acf1f2-dba3-4a81-ac45-eada1f2ed1be'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...3b154498288'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '8284841c-7a3c-45a3-af66-43b154498288'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -2075,12 +2345,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('9fd57118-03e7-4776-9ed9-e2479fed1662', 'started'), ('9200e91d-e32f-4a91-9a5a-6d06fe9bd2f5', 'started'), ('8d36fdec-25d9-40f2-8698-7640dc3b032b', 'started'), ('16e516e3-0b59-4737-a001-018114fde3c9', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('6f0867ae-18e8-4f9d-8bde-04b7e7a1c755', 'started'), ('94fc2950-06ef-43e3-a84e-ae4870b06b41', 'started'), ('4a7f6bf6-c2c6-488a-8360-198efa674df7', 'started'), ('74f8e1f9-9130-4fc7-8d04-7d707666d4b1', 'started'), ('78869599-6a8a-4ac3-9af9-c592396c4045', 'started'), ('8152f188-5324-449a-baae-d96d624b4159', 'started'), ('2b1894c1-cea1-4e11-9c65-1b59e7771bf4', 'started'), ('1dc0d60b-a3dd-4179-bc7b-3d0ff1151e25', 'started')]\nassert 8 == 1\n +  where 8 = len({'1dc0d60b-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -2102,7 +2382,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='81434627-6387-4132-ad6c-e30ad9c06a4c', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='1eed3e76-b106-4658-9414-20f9b8caafd3', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -2119,7 +2399,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...44497ccd17b'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '72d589de-cae0-42e6-8a0f-644497ccd17b'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...647e2f80d6e'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '67bb073a-c769-46cb-96a5-1647e2f80d6e'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -2141,12 +2421,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002623FA81CC0>('admission')\n +    where <built-in method get of dict object at 0x000002623FA81CC0> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001F65786C080>('admission')\n +    where <built-in method get of dict object at 0x000001F65786C080> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '45985a2f-a330-4b3a-9879-80ed5b9614cd' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x0000026229114720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002622"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '64e68cf1-d7fe-4e91-9de4-ae87e47fdb6d' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001F641C58860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001F64"
             }
           ]
         },
@@ -2158,12 +2438,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('6dc95a43-f509-4a48-84e5-afb910ab460d', 'started'), ('2bb56c20-93ad-4e23-a53a-c5de6a5b1bc7', 'started')]\nassert 2 == 1\n +  where 2 = len({'2bb56c20-93ad-4e23-a53a-c5de6a5b1bc7', '6dc95a43-f509-4a48-84e5-afb910ab460d'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('99f2e72a-d636-4477-9f13-1fe41ef30ea3', 'started'), ('5bd79012-8728-4c3b-bdef-9193df8a4d07', 'started')]\nassert 2 == 1\n +  where 2 = len({'5bd79012-8728-4c3b-bdef-9193df8a4d07', '99f2e72a-d636-4477-9f13-1fe41ef30ea3'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...befd08a3244'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'bd6930b5-03cd-4bdb-94a4-2befd08a3244'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...be6c6f19601'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '40026067-8074-48d3-af5f-6be6c6f19601'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -2189,12 +2474,22 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
               "outcome": "failed",
-              "message": "AssertionError: assert 4 == 8\n +  where 4 = len([('e8fe9c88-f9b3-42d7-a19b-e2e289d43654', 'started'), ('c768e079-b00c-4d36-ba53-21bde1dff8c3', 'started'), ('b9470ee2-7667-44f3-998d-af58f580c84b', 'started'), ('c6e9dbf6-94ec-4ca4-8eef-83e5b88f13f3', 'started')])"
+              "message": "AssertionError: 第 0 轮同批票起出了多个任务：[('103761ee-c2d6-482d-b859-942eb5282100', 'started'), ('318da305-2309-4745-a46d-1692982f6b37', 'started'), ('a55f427a-f341-4b12-bd23-4debf3cdf7e8', 'started'), ('2dfb7815-0481-4837-baf5-217c078d55de', 'started'), ('5c0dd7ec-8524-40ce-9df1-7029d3cbeb7a', 'started'), ('8654e0a7-2586-4783-bde3-81ff24b9a139', 'started'), ('637ec0ba-1e56-4af7-bdd3-6047a7a75e79', 'started'), ('b28ba4df-6a50-4698-bc7c-c53a324aa13a', 'started')]\nassert 8 == 1\n +  where 8 = len({'103761ee-"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
               "outcome": "passed",
               "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job",
+              "outcome": "failed",
+              "message": "AssertionError: 带重复股票的同一批票被当成了新任务\nassert 'started' == 'reused'\n  \n  - reused\n  + started"
             }
           ]
         },
@@ -2216,7 +2511,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reading_a_job_does_not_kill_it",
               "outcome": "failed",
-              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='04b0547c-4766-409a-a53a-a52918782cbc', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
+              "message": "AssertionError: 查询本身把正在跑的任务判成了失活\nassert (SyncJobStatus(job_id='3819d148-7742-4adb-8a78-4091d884e245', mode='full_market_bootstrap', status='failed', admission=...date(2015, 1, 5), errors=['作业失活：超过 30 分钟没有进度推进，已按失败回收。'], last_error='作业失活：超过 30 分钟没有进度推进，已按失败回收。', recent_failures=[]) is not None and 'failed' == 'running'\n  \n  - running\n  + failed)"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_unattended_inactive_job_is_reaped_as_failed",
@@ -2233,7 +2528,7 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_terminal_job_prunes_signatures_and_cancellation_markers",
               "outcome": "failed",
-              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...170ee6ace82'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '4858f0cb-1875-4e75-9998-6170ee6ace82'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 记录没了，去重依据/取消标记却还留着\nassert [\"_cancelled[...2d9c2112849'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '238fdea6-c1a9-49a9-a853-d2d9c2112849'\"\n  Use -v to get more diff"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_reaped_stale_job_releases_capacity_for_new_submission",
@@ -2255,12 +2550,12 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_sync_job_query_exposes_admission_status",
               "outcome": "failed",
-              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000002B459A76D80>('admission')\n +    where <built-in method get of dict object at 0x000002B459A76D80> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
+              "message": "AssertionError: assert None == 'reused'\n +  where None = <built-in method get of dict object at 0x000001FCE445D180>('admission')\n +    where <built-in method get of dict object at 0x000001FCE445D180> = {'completed_symbols': 0, 'current_symbol': None, 'end_date': '2015-01-05', 'errors': [], ...}.get"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_http_capacity_conflict_lists_the_really_running_job",
               "outcome": "failed",
-              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert '3f8f62ef-0004-43ba-9bf9-dfc268292ff3' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000002B443E74720>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000002B44"
+              "message": "AssertionError: 409 没有报出在途任务：{'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}\nassert 'e3761c93-3e3e-48f9-9dc5-4a966ad45d32' in '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}'\n +  where '{\"code\": \"sync_capacity\", \"message\": \"已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。\"}' = <function dumps at 0x000001FCCD578860>({'code': 'sync_capacity', 'message': '已有 1 个数据同步任务在跑（上限 1），请等待完成或先取消其中一个。'}, ensure_ascii=False)\n +    where <function dumps at 0x000001FCC"
             }
           ]
         },
@@ -2272,12 +2567,17 @@
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
               "outcome": "failed",
-              "message": "AssertionError: 并发提交起出了多个任务：[('a9ae31a6-2ebf-4ff2-b464-036af074e85b', 'started'), ('78c6abe8-80e3-4303-a440-ccef227911b8', 'started')]\nassert 2 == 1\n +  where 2 = len({'78c6abe8-80e3-4303-a440-ccef227911b8', 'a9ae31a6-2ebf-4ff2-b464-036af074e85b'})"
+              "message": "AssertionError: 并发提交起出了多个任务：[('5a322fd9-0beb-48dc-a59d-8e912ad86635', 'started'), ('823c9382-1ae5-4e9d-87f4-c18d0eb5a9d9', 'started')]\nassert 2 == 1\n +  where 2 = len({'5a322fd9-0beb-48dc-a59d-8e912ad86635', '823c9382-1ae5-4e9d-87f4-c18d0eb5a9d9'})"
             },
             {
               "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
               "outcome": "failed",
-              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...c00e5a9ab37'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 '96601a4d-ffdd-4f56-a56f-8c00e5a9ab37'\"\n  Use -v to get more diff"
+              "message": "AssertionError: 取消标记/去重签名没有跟着记录一起清\nassert [\"_cancelled[...b91acca32fb'\"] == []\n  \n  Left contains 2 more items, first extra item: \"_cancelled[0] 的元素 'b412555c-72a3-4a1c-9958-7b91acca32fb'\"\n  Use -v to get more diff"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'astock_backtester.data.sync.SyncCapacityError'>"
             }
           ]
         }
@@ -2291,5 +2591,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-10-03T06:04:21"
+  "finished_at": "2026-10-03T13:46:11"
 }

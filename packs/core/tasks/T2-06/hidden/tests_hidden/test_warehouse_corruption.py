@@ -375,6 +375,33 @@ def _start_server(tmp_path):
     return server, server.server_address[1]
 
 
+def _reported_corrupt_paths(health) -> set[str]:
+    """把诊断口径上报的损坏明细归一化成路径集合（形态无关）。
+
+    三种正当编码都收：``{路径: 错误}`` 映射（``reference/fix.patch`` 的口径）、
+    ``list[str]``（``ai/tools/local_tools.py`` 的口径）、``list[dict]``
+    （取 ``path``/``partition``）。归一化只解决"怎么装"，不解决"报得对不对"——
+    对不对由调用方拿它和 :attr:`Warehouse.corrupt_partitions` 做**集合相等**来判断。
+    """
+    raw = health.get("corrupt_partitions")
+    if raw is None:
+        raw = health.get("corrupt")
+    if not raw:
+        return set()
+    items: list = []
+    if isinstance(raw, dict):
+        items = list(raw)
+    else:
+        for entry in raw:
+            if isinstance(entry, dict):
+                value = entry.get("path") or entry.get("partition")
+                if value:
+                    items.append(value)
+            elif entry:
+                items.append(entry)
+    return {os.fsdecode(item) if isinstance(item, bytes) else str(item) for item in items}
+
+
 def test_diagnostics_reports_corrupt_partition_when_present(tmp_path):
     """有坏分区时，诊断端点必须把分区级损坏带出去（healthy=False）。"""
     server, port = _start_server(tmp_path)
@@ -382,20 +409,25 @@ def test_diagnostics_reports_corrupt_partition_when_present(tmp_path):
         # 损坏要登记在服务进程正在用的那个数据仓实例上
         warehouse = server.state.warehouse
         warehouse.write_daily_bars(_bars("600519", "2024-01-02", 3))
-        _corrupt_partition(tmp_path, 2026)
+        bad = _corrupt_partition(tmp_path, 2026)
         try:
             warehouse.read_latest_daily_bars(days=1)
         except Exception:
             pass
-        assert warehouse.corrupt_partitions, "前置条件：损坏应已被登记"
+        registered = set(warehouse.corrupt_partitions)
+        assert registered, "前置条件：损坏应已被登记"
 
         payload = _get_json(port, "/diagnostics/data-gaps", allow_error=True)
         health = payload.get("warehouse_health") or {}
         assert health.get("healthy") is False, "有坏分区却报了健康"
-        corrupt = health.get("corrupt_partitions") or {}
-        assert any("year=2026" in path for path in corrupt), (
-            f"健康口径没有带上分区级损坏明细：{health}"
+        # 上报集合必须**恰好等于**登记集合，而不是"里面出现过某个年份"：
+        # 后者只要猜中年份就能满分（2026-10-03 实测：硬编码 year=2024/2025/2026
+        # 的假路径拿到 100 分），与"硬编码/特判必挂"的出题纪律不符。
+        reported = _reported_corrupt_paths(health)
+        assert reported == registered, (
+            f"健康口径的损坏明细与登记不一致：上报 {sorted(reported)}，登记 {sorted(registered)}"
         )
+        assert str(bad) in reported, "真正损坏的那个分区没有被上报"
     finally:
         server.shutdown()
 
@@ -408,7 +440,52 @@ def test_diagnostics_reports_healthy_only_when_clean(tmp_path):
         payload = _get_json(port, "/diagnostics/data-gaps", allow_error=True)
         health = payload.get("warehouse_health") or {}
         assert health.get("healthy") is True, "干净数据仓被报成不健康"
-        assert not (health.get("corrupt_partitions") or {}), "干净数据仓不应有损坏明细"
+        # 空明细必须真的是空：恒定输出猜测年份的"健康口径"在这一条也露馅。
+        assert _reported_corrupt_paths(health) == set(), f"干净数据仓不应有损坏明细：{health}"
+    finally:
+        server.shutdown()
+
+
+def test_diagnostics_scopes_corruption_to_its_own_year(tmp_path):
+    """第二个数据场景：坏分区落在**非最新**年份，且好年份的画像照常算得出来。
+
+    第一条用例的损坏年份是最新分区，画像窗口（最近 N 个分区）本来就装着它；
+    这里把损坏放到窗口**之外**的 2019，最新的 2025/2026 保持完好：
+
+    - 上报集合必须仍然**恰好**是那一个分区——把所有年份都报成坏（过度纠正）
+      与只报最新年份（对最新分区特判）都要判红；
+    - 画像必须仍然可用且行数与写入相符——坏年份既不该把整份画像炸掉，
+      也不该混进画像窗口里冒充"这一年刚更新过"。
+    """
+    server, port = _start_server(tmp_path)
+    try:
+        warehouse = server.state.warehouse
+        warehouse.write_daily_bars(_bars("600519", "2025-01-02", 3))
+        warehouse.write_daily_bars(_bars("000001", "2026-01-02", 2))
+        bad = _corrupt_partition(tmp_path, 2019)
+        try:
+            warehouse.read_daily_bars(start_date="2019-01-01", end_date="2019-12-31")
+        except Exception:
+            pass
+        registered = set(warehouse.corrupt_partitions)
+        assert registered == {str(bad)}, f"前置条件：只应登记 2019，实际 {sorted(registered)}"
+
+        payload = _get_json(port, "/diagnostics/data-gaps", allow_error=True)
+        health = payload.get("warehouse_health") or {}
+        assert health.get("healthy") is False, "存在坏分区却报了健康"
+        reported = _reported_corrupt_paths(health)
+        assert reported == registered, (
+            f"健康口径的损坏明细只应指认 2019：上报 {sorted(reported)}，登记 {sorted(registered)}"
+        )
+
+        profile = payload.get("profile") or {}
+        assert profile.get("available") is True, "窗口外的坏分区把整份画像炸掉了"
+        assert profile["daily_bars"]["symbols"] == 2, (
+            f"好年份的行数在画像里对不上：{profile['daily_bars']['symbols']}"
+        )
+        assert "year=2019" not in profile["window"]["partitions"], (
+            f"坏年份混进了画像窗口：{profile['window']['partitions']}"
+        )
     finally:
         server.shutdown()
 
@@ -481,11 +558,14 @@ def test_all_three_surfaces_agree_on_a_corrupt_year(tmp_path):
 
         payload = _get_json(port, "/diagnostics/data-gaps", allow_error=True)
         health = payload.get("warehouse_health") or {}
-        corrupt_in_health = any(
-            "year=2025" in path for path in (health.get("corrupt_partitions") or {})
-        )
+        registered = set(warehouse.corrupt_partitions)
+        reported = _reported_corrupt_paths(health)
         assert health.get("healthy") is not True, "存在坏分区时诊断口径仍报健康"
-        assert corrupt_in_health, "诊断口径没有认出这一年分区是坏的"
+        assert reported == registered, (
+            "诊断口径没有如实上报登记里的损坏分区："
+            f"上报 {sorted(reported)}，登记 {sorted(registered)}"
+        )
+        assert str(_partition(tmp_path, 2025)) in reported, "诊断口径没有认出这一年分区是坏的"
     finally:
         server.shutdown()
 
@@ -510,3 +590,75 @@ def test_clean_years_stay_consistent_across_all_surfaces(tmp_path):
         assert health.get("healthy") is True, "干净数据仓被诊断口径报成不健康"
     finally:
         server.shutdown()
+
+
+_TORN_WRITER_SCRIPT = textwrap.dedent(
+    """
+    import sys, time
+    sys.path.insert(0, sys.argv[1])
+    from pathlib import Path
+    from astock_backtester.data.filelock import CrossProcessFileLock
+
+    # 外部补数脚本：持锁后等放行信号，然后**把分区写坏**再放锁。
+    # 这是"持锁窗口"与"损坏"叠在一起的现场：锁保证不了对端写的内容是好的。
+    root = Path(sys.argv[2])
+    partition = Path(sys.argv[3])
+    partition.parent.mkdir(parents=True, exist_ok=True)
+    lock = CrossProcessFileLock(partition, timeout=5.0)
+    lock.acquire()
+    print("HELD", flush=True)
+    while not (root / "torn-go").exists():
+        time.sleep(0.02)
+    partition.write_bytes(b"not a parquet file")
+    lock.release()
+    print("TORN", flush=True)
+    """
+)
+
+
+def test_concurrent_writer_leaving_a_corrupt_partition_keeps_all_surfaces_honest(tmp_path):
+    """第二个交互场景：并发与损坏叠在一起——互斥、原子、损坏分流要同时成立。
+
+    外部脚本持锁把分区写坏后放锁，数据仓随后拿到锁往同一年写自己的行。
+    锁只保证"不并行进入写入区"，**不保证对端写出来的东西是好的**，于是：
+
+    - 互斥成立时，数据仓的写会排队到外部脚本放锁之后才发生；
+    - 数据仓读旧内容时必须"响"（分区已经坏了），不能把坏文件当空表静默合并；
+    - 因此这次数据仓写入**应当失败**，盘上的坏分区不许被这次写入悄悄覆盖掉
+      （覆盖 = 把"坏"洗成"新数据但其实丢了一堆历史"）；
+    - 登记与健康口径必须仍然如实指认这一年。
+
+    只在单维度上正确的实现会在这里露馅：把损坏当空表吞掉的会写出"看起来成功"
+    的分区；不做互斥的会与外部脚本并行进入写入区；只报健康不报明细的过不了口径断言。
+    """
+    partition = _partition(tmp_path, 2024)
+    partition.parent.mkdir(parents=True, exist_ok=True)
+    go = tmp_path / "torn-go"
+
+    proc = _spawn(_TORN_WRITER_SCRIPT, str(tmp_path), str(partition))
+    try:
+        assert proc.stdout.readline().strip() == "HELD", proc.stderr.read()
+        # 持锁窗口内数据仓拿不到锁（伪锁在这里会立即"成功"）
+        contender = CrossProcessFileLock(partition, timeout=0.4, poll_seconds=0.05)
+        with pytest.raises(FileLockTimeout):
+            contender.acquire()
+
+        go.write_text("go", encoding="utf-8")
+        warehouse = Warehouse(tmp_path)
+        # 分区此刻已经是坏文件：数据仓必须响，绝不能把"读不出来"当成"没有旧数据"
+        # 然后拿自己那一批行盖上去。
+        with pytest.raises(Exception):
+            warehouse.write_daily_bars(_bars("600519", "2024-01-02", 8))
+
+        out, err = proc.communicate(timeout=90)
+        assert proc.returncode == 0, f"外部写入进程异常退出：{err}"
+        assert "TORN" in out
+
+        bad = partition
+        assert bad.read_bytes() == b"not a parquet file", "数据仓把坏分区覆盖成了新内容"
+        registered = set(warehouse.corrupt_partitions)
+        assert registered == {str(bad)}, f"损坏登记与实际不符：{sorted(registered)}"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)

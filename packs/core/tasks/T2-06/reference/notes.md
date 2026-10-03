@@ -33,6 +33,13 @@
   端口③的形态是"登记后 `return`"，不匹配守卫的 `except …: pass` 正则。
   它没有进 `visible.prune`（沙箱里保留），理由：它守的是"白名单"机制本身
   而非本题任何端口，注入既没让它红，留着也不点名答案。
+- **诊断明细的载荷契约（2026-10-03 补记）**：仓内既有两种正当口径——
+  `reference/fix.patch` 用 `{路径: 错误}` 映射，`ai/tools/local_tools.py::data_health_report`
+  用 `sorted(corrupt_partitions)` 即 `list[str]`。隐藏用例经 `_reported_corrupt_paths()`
+  归一化后两种都收，另收 `list[dict]`（取 `path`）。**下次改这一层不要再收窄**：
+  第 1 轮盲做的模型正是选了 `list[dict]` 被判红，而两级提示词都没规定形状——
+  题面无从推出唯一答案，硬收窄等于拿契约考模型。
+  锚解口径以 `{路径: 错误}` 映射为准（`healthy = not corrupt`）。
 - `market_trade_date_counts` 在注入态仍绿（坏分区登记 + 跳过、计数补 0，
   与原行为一致）——但其名字与 docstring 点名"corrupt_partitions 登记语义"，
   按 L2 纪律进 `visible.prune`（T1-02 对同名用例同样裁剪）。
@@ -111,6 +118,10 @@
 - [x] **≥1 个"看似可疑但实际正确"的诱饵点。** 三个：120 秒超时、
   `_corrupt_partitions_lock`、service 的 coverage 回退日志。
 - [x] **每组隐藏测试有第二数据场景，硬编码 / 特判必挂。**
+  （2026-10-03 更新：加固前是 4/5——`health_exit` 只有一个损坏场景且断言只查
+  "出现过 year=YYYY"，硬编码猜年份实测 100 分。已按 §11.5 的 P1 堵上，
+  同一份硬编码实现修后掉到 50.0；`coherence` 也按 P3 补了并发×损坏交互场景。
+  现为 **5/5**。）
   - `exclusive_write_exit`：纯锁语义（子进程持锁 + 超时探测）+ 数据仓级
     （外部脚本持锁写 8 行 → 数据仓写必须排队，并集 16 行）；
   - `atomic_replace_exit`：读到一半的观察（半截现场必须不在"整旧/整新"里）
@@ -225,9 +236,7 @@
 最后一行是个真洞：§七 打的"硬编码/特判必挂"对 `health_exit` 不成立。
 `health_exit` 只有一个损坏场景（2026），`coherence` 的三口径用例也只有 2025，
 而两条断言都只检查"明细里出现过 `year=YYYY`"，于是猜年份就能满分。
-建议（未实施，等拍板）：把两条断言从"包含该年份"收紧成"上报集合 == 登记集合"，
-用形态无关的归一化（`dict` 取键 / `list[str]` 直接用 / `list[dict]` 取 `path`），
-断言强度上升、难度只增不减，改完重跑三态门禁即可。
+**已于 §11.5 的 P1 堵上**（修后同一份硬编码实现掉到 **50.0**，health/coherence 转红）。
 
 ### 11.4 一处设计口径观察（与参考解一致，不改）
 
@@ -237,3 +246,43 @@
 `FileNotFoundError`，坏分区在这一步就抛了。加上 `ai/tools/local_tools.py::data_health_report`
 本就以"`data_gap_profile()` 抛异常"为前提产出 `warehouse_corrupt` 与"先修损坏"的
 hint（§二 陷阱 C 的反面），定稿版已去掉这段隔离，与 `reference/fix.patch` 口径一致。
+
+### 11.5 P1/P2/P3：判别力加固（难度只增不减，已实施）
+
+审核报告提出的三条加固已全部落地，只动 `hidden/`（用例 + 分组），
+**没有改断言的严格性之外的任何东西，没有删用例、没有降权重**。
+
+**P1 · 堵硬编码洞（`health_exit` + `coherence`）**
+新增 `_reported_corrupt_paths()` 把上报明细归一化成路径集合（三种正当编码都收：
+`{路径: 错误}` 映射 = `reference/fix.patch` 口径、`list[str]` =
+`ai/tools/local_tools.py` 口径、`list[dict]` 取 `path`），然后把两条断言从
+"明细里出现过 `year=YYYY`"改成 **"上报集合 == `Warehouse.corrupt_partitions` 的键集合"**。
+干净对照那条也从 `not (health.get("corrupt_partitions") or {})` 换成归一化后的
+`== set()`——恒定输出猜测年份的健康口径在这一条同样露馅。
+
+**P2 · `health_exit` 第二个数据场景**
+`test_diagnostics_scopes_corruption_to_its_own_year`：2025/2026 好分区 + **2019 坏分区**
+（坏在画像窗口之外）。断言三件事——上报集合仍然恰好只有 2019（"全报"与
+"只对最新分区特判"都要判红）、画像仍然 `available` 且好年份行数相符、
+`year=2019` 不得混进 `profile.window.partitions`。
+
+**P3 · `coherence` 第二个交互场景（并发 × 损坏叠在一起）**
+`test_concurrent_writer_leaving_a_corrupt_partition_keeps_all_surfaces_honest`：
+外部子进程持锁把 2024 分区**写坏**后放锁，数据仓随后拿到锁写自己的行。锁只保证
+"不并行进入写入区"，不保证对端写出来的是好的，于是要求：互斥窗口内第二个获取
+超时；数据仓读旧内容时必须响；**这次写入应当失败**；盘上的坏分区不许被悄悄
+覆盖；登记仍如实指认该年。确定性沿用既有双进程手法（stdout `HELD`/`TORN` 握手
++ `torn-go` 信号文件），不靠 sleep 猜时序。
+
+**修后门禁（输出在 `D:\tmp\dif-audit\T2-06\`）**
+
+| 门禁 | 修前 | 修后 |
+| --- | --- | --- |
+| `fixed` | 100.0 | **100.0**（p2p 0/50，5 组全绿，用例数 12 → 14） |
+| `partial` | 33.33 | **33.33**（p2p 0/50） |
+| `injected --repeat 20` | 0.0 ×5 | **0.0 ×20 恒定**（5 组全红，p2p 0/50，无 flaky） |
+| 硬编码假明细实现 | 100.0 | **50.0**（health + coherence 红） |
+| 等价实现 V1–V5 | 100 | **100**（四个自由度仍然自由） |
+
+§七 那条勾选现在名副其实：**5/5 组的隐藏测试都有第二数据场景，且硬编码/特判必挂**
+（P1 之前 `health_exit` 是 4/5）。

@@ -28,6 +28,7 @@ from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 
 import pandas as pd
+import pytest
 from astock_backtester.data.sync import SyncCapacityError, SyncJobManager
 from astock_backtester.data.warehouse import Warehouse
 from astock_backtester.service import create_server
@@ -288,40 +289,48 @@ def test_serial_identical_submissions_reuse_in_flight_job(tmp_path):
 
 
 def test_concurrent_submissions_admit_single_worker(tmp_path, monkeypatch):
-    """并发重复提交：判定与写入之间不许有缝，多个入口同时提交也只起一个 worker。"""
-    provider = _GatedProvider(gated=("000001",))
-    manager = _manager(tmp_path, provider, max_concurrent_jobs=4)
+    """并发重复提交：判定与写入之间不许有缝，多个入口同时提交也只起一个 worker。
+
+    判据取的是不变量——"同一批票在任何时刻最多一个 worker"——而不是某一个调度
+    窗口的快照。所以连做多轮不同批次：可控时钟会在第一个读时钟的调用者上挂起，
+    等本轮全部提交者就位后再多留一段真实时间，把判定与写入之间的缝隙撑开；哪
+    一轮漏了缝就判红，不必赌单次窗口一定撞上。
+    """
+    rounds = 12
     submitters = 8
+    batches = [[f"{1001 + round_index * 2 + offset:06d}" for offset in (0, 1)] for round_index in range(rounds)]
+    provider = _GatedProvider(gated=tuple(batch[0] for batch in batches))
+    manager = _manager(tmp_path, provider, max_concurrent_jobs=rounds + 4)
     clock = _Clock(monkeypatch)
-    all_arrived = threading.Event()
-    arrived = 0
-    arrived_lock = threading.Lock()
-    results: list[tuple[str, str]] = []
-    results_lock = threading.Lock()
-
-    def submit() -> None:
-        nonlocal arrived
-        with arrived_lock:
-            arrived += 1
-            if arrived == submitters:
-                all_arrived.set()
-        job = _start(manager, list(_BATCH_A))
-        with results_lock:
-            results.append((job.job_id, job.admission))
-
-    # 第一个进入判定的线程会在时钟里挂住，等所有提交者就位后再多留一段真实时间。
-    clock.block_first(all_arrived)
-    threads = [threading.Thread(target=submit, daemon=True) for _ in range(submitters)]
     try:
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join(timeout=30)
-        assert not [thread for thread in threads if thread.is_alive()], "提交线程没有全部结束"
-        assert len(results) == submitters
-        assert len({job_id for job_id, _ in results}) == 1, f"同批票起出了多个任务：{results}"
-        assert sum(1 for _, admission in results if admission == "started") == 1
-        assert len(provider.workers()) == 1, f"起了多个 worker：{provider.symbols()}"
+        for round_index, batch in enumerate(batches):
+            all_arrived = threading.Event()
+            arrived = 0
+            results: list[tuple[str, str]] = []
+            arrived_lock = threading.Lock()
+            results_lock = threading.Lock()
+
+            def submit(batch=batch, all_arrived=all_arrived, results=results) -> None:
+                nonlocal arrived
+                with arrived_lock:
+                    arrived += 1
+                    if arrived == submitters:
+                        all_arrived.set()
+                job = _start(manager, list(batch))
+                with results_lock:
+                    results.append((job.job_id, job.admission))
+
+            clock.block_first(all_arrived)
+            threads = [threading.Thread(target=submit, daemon=True) for _ in range(submitters)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=30)
+            assert not [thread for thread in threads if thread.is_alive()], f"第 {round_index} 轮提交线程没结束"
+            assert len(results) == submitters, f"第 {round_index} 轮有提交没能正常返回"
+            assert len({job_id for job_id, _ in results}) == 1, f"第 {round_index} 轮同批票起出了多个任务：{results}"
+            assert sum(1 for _, admission in results if admission == "started") == 1
+        assert len(provider.workers()) == rounds, f"每批票应当各一个 worker，实际：{provider.symbols()}"
     finally:
         provider.open_all()
 
@@ -343,6 +352,56 @@ def test_identical_submission_reuses_a_job_that_is_being_cancelled(tmp_path):
 
         provider.open_all()
         assert _wait_terminal(manager, first.job_id).status == "cancelled"
+    finally:
+        provider.open_all()
+
+
+def test_duplicate_symbols_in_a_batch_reuse_the_same_job(tmp_path):
+    """同一批票就是同一个任务：批次里混进重复股票也必须并入同一个在途任务。
+
+    "同一批数据"是集合口径，不是数组口径。前端表单、脚本拼出来的股票列表里重复
+    出现同一只票是常事；去重依据要是把重复也当成不同，那同一批活就会被放进
+    系统两遍，各起一个 worker 各抓一遍——正是那个"反复起 worker"的现象。
+    """
+    provider = _GatedProvider(gated=("000002",))
+    manager = _manager(tmp_path, provider)
+    try:
+        first = _start(manager, _BATCH_A)
+        assert first.admission == "started"
+        provider.gate("000002").reached()
+
+        duplicated = [_BATCH_A[0], _BATCH_A[0], _BATCH_A[1]]
+        second = _start(manager, duplicated)
+        assert second.admission == "reused", "带重复股票的同一批票被当成了新任务"
+        assert second.job_id == first.job_id
+        assert len(provider.workers()) == 1, "同一批票起了第二个 worker"
+    finally:
+        provider.open_all()
+
+
+def test_cancelling_job_still_holds_a_capacity_slot(tmp_path):
+    """取消中的任务仍在占名额：按下停止到 worker 真正停下之间不许再塞一个 worker。
+
+    这段时间里任务还在占着数据源与写锁。把"取消中"当成不算占用，就能在这半程里
+    起进第 3 个 worker——症状就是"同一批数据反复起 worker"。名额必须等它真的落
+    终态才交出去。
+    """
+    provider = _GatedProvider(gated=("000002",))
+    manager = _manager(tmp_path, provider, max_concurrent_jobs=1)
+    try:
+        job = _start(manager, _BATCH_A)
+        provider.gate("000002").reached()
+        assert manager.cancel_job(job.job_id).status == "cancelling"
+
+        with pytest.raises(SyncCapacityError):
+            _start(manager, _BATCH_C)  # 名额只有 1 个，取消中的那个还占着
+
+        provider.open_all()
+        assert _wait_terminal(manager, job.job_id).status == "cancelled"
+
+        again = _start(manager, _BATCH_C)  # 真的落终态之后名额才交出去
+        assert again.admission == "started"
+        assert again.job_id != job.job_id
     finally:
         provider.open_all()
 
@@ -664,5 +723,40 @@ def test_cancel_then_prune_then_resubmit_starts_fresh(tmp_path, monkeypatch):
         assert again.job_id != job.job_id
         provider.gate("000002").reached()
         assert manager.get_job(again.job_id).status == "running", "新任务一出生就背着旧任务的取消令"
+    finally:
+        provider.open_all()
+
+
+def test_capacity_conflict_then_cancellation_then_resubmission_unblocks(tmp_path):
+    """第三数据场景（预算路径）：占满预算 → 第三批被拒 → 取消腾位 → 第三批才进得来。
+
+    前两条 coherence 场景都绕过了"预算被占满"这个状态，而它恰恰是现场最常见的
+    那种僵局：一次容量已满之后，用户只有取消某个任务才走得动。这里把整条链串起来验：
+    拒的时候不许偷偷起 worker（worker 数不变）；取消到真正停下之间名额仍然扣着
+    （否则会在半程里挤进第三个 worker）；落终态之后名额才交出去。
+    """
+    provider = _GatedProvider(gated=("000002", "000004"))
+    manager = _manager(tmp_path, provider, max_concurrent_jobs=2)
+    try:
+        first = _start(manager, _BATCH_A)
+        second = _start(manager, _BATCH_B)
+        provider.gate("000002").reached()
+        provider.gate("000004").reached()
+        assert len(provider.workers()) == 2
+
+        with pytest.raises(SyncCapacityError):
+            _start(manager, _BATCH_C)
+        assert len(provider.workers()) == 2, "被拒的提交不许起 worker"
+
+        assert manager.cancel_job(first.job_id).status == "cancelling"
+        with pytest.raises(SyncCapacityError):
+            _start(manager, _BATCH_C)  # 取消中的那个仍然占名额
+
+        provider.open_gate("000002")
+        assert _wait_terminal(manager, first.job_id).status == "cancelled"
+
+        third = _start(manager, _BATCH_C)
+        assert third.admission == "started"
+        assert third.job_id not in (first.job_id, second.job_id)
     finally:
         provider.open_all()

@@ -28,4 +28,16 @@ describe("AI 错误提示", () => {
     expect(translateAiError(codedError("future_ai_error", "新的服务端说明"))).toBe("新的服务端说明");
     expect(translateAiError({ code: "future_ai_error" })).toBe("AI 请求失败，请稍后重试。");
   });
+
+  it("会话与记忆缺失给出带操作的中文建议而不是直出原始说明", () => {
+    const sessionGone = translateAiError(codedError("ai_session_not_found", "会话不存在或已被删除。"));
+    const memoryGone = translateAiError(codedError("ai_memory_not_found", "记忆 m1 不存在或已被删除。"));
+    // 已知类别必须翻译成带建议的提示；透传原始说明只属于未知类别的兜底。
+    // 行为级镜像：只靠死字面量满足文本守卫、不改翻译函数的写法在这里露馅。
+    expect(sessionGone).not.toBe("会话不存在或已被删除。");
+    expect(sessionGone).toMatch(/刷新|重新|新建/u);
+    expect(memoryGone).not.toBe("记忆 m1 不存在或已被删除。");
+    expect(memoryGone).toMatch(/刷新/u);
+    expect(sessionGone).not.toBe(memoryGone);
+  });
 });

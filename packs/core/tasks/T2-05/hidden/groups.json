@@ -6,11 +6,13 @@
     {
       "id": "admission_exit",
       "weight": 1,
-      "port": "准入出口：同一任务同一时刻最多一个 worker，并发重复提交原子复用",
+      "port": "准入出口：同一批票（集合口径）同一时刻最多一个 worker，并发重复提交原子复用，取消中的任务仍占名额",
       "tests": [
         "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_serial_identical_submissions_reuse_in_flight_job",
         "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_concurrent_submissions_admit_single_worker",
-        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled"
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_identical_submission_reuses_a_job_that_is_being_cancelled",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancelling_job_still_holds_a_capacity_slot",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_duplicate_symbols_in_a_batch_reuse_the_same_job"
       ]
     },
     {
@@ -46,10 +48,11 @@
     {
       "id": "coherence",
       "weight": 2,
-      "port": "全生命周期一致性：串行复用→并发竞态只起一个→清理干净→重新准入（完成与取消两条路径各一场景）",
+      "port": "全生命周期一致性：串行复用→并发竞态只起一个→清理干净→重新准入（完成、取消、预算占用三条路径各一场景）",
       "tests": [
         "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_full_lifecycle_coherence_across_concurrency_and_cleanup",
-        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh"
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_cancel_then_prune_then_resubmit_starts_fresh",
+        "hidden/tests_hidden/test_sync_admission_lifecycle.py::test_capacity_conflict_then_cancellation_then_resubmission_unblocks"
       ]
     },
     {

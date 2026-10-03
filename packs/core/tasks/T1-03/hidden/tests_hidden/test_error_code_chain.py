@@ -170,6 +170,59 @@ def test_same_ai_failure_keeps_its_code_in_json_and_stream(tmp_path, monkeypatch
         thread.join(timeout=5)
 
 
+def test_busy_session_chat_ends_with_typed_error_terminal(tmp_path, monkeypatch):
+    """上一轮仍在生成时，新一轮必须在流内拿到 ai_session_busy 终态（题面症状一
+    明说的第三种失败），而不是以空流收尾；在途轮次同时不许被挤坏。"""
+    from astock_backtester.ai import facade as ai_facade
+
+    server, thread, port = _start_server(tmp_path)
+    base = f"http://127.0.0.1:{port}"
+    _configure(base)
+    monkeypatch.setattr(ai_facade, "AI_SESSION_LOCK_TIMEOUT_SECONDS", 0.05)
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    class BlockingAgent:
+        def run(self, *, session, user_message, system_prompt, max_steps, context=None, on_event, cancel=None):
+            entered.set()
+            assert release.wait(timeout=10), "第一轮 agent 没有被释放"
+            session["display"].append(
+                {"role": "assistant", "content": "完成", "tool_steps": [], "ts": "now"}
+            )
+            return {}
+
+    monkeypatch.setattr(server.state.ai_service(), "_agent", BlockingAgent())
+    first_events: list[dict] = []
+
+    def run_first() -> None:
+        first_events.extend(_request_ndjson(f"{base}/ai/chat/stream", {"message": "先问一个"}))
+
+    first_thread = threading.Thread(target=run_first, daemon=True)
+    first_thread.start()
+    try:
+        assert entered.wait(timeout=5), "第一轮 worker 没有进入生成"
+        session_id = (server.state.ai_service().list_sessions()[0] or {}).get("session_id")
+        assert session_id
+        events = _request_ndjson(
+            f"{base}/ai/chat/stream", {"message": "追问", "session_id": session_id}
+        )
+        assert events == [
+            {
+                "type": "error",
+                "code": "ai_session_busy",
+                "message": "上一轮回答仍在生成中，请稍候再发送新消息。",
+            }
+        ]
+    finally:
+        release.set()
+        first_thread.join(timeout=10)
+        server.shutdown()
+        thread.join(timeout=5)
+    # 在途轮次必须完好收尾：占锁期间的新请求拿到 busy 终态，不等于在途轮次被挤断。
+    assert first_events and first_events[-1]["type"] == "result"
+
+
 def test_frontend_translator_mirrors_every_declared_ai_error_code():
     source = _AI_TYPES.read_text(encoding="utf-8")
     marker = "export function translateAiError"

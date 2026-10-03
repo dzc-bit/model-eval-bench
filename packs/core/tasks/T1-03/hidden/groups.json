@@ -19,6 +19,7 @@
       "tests": [
         "hidden/tests_hidden/test_error_code_chain.py::test_unconfigured_chat_ends_with_one_typed_error",
         "hidden/tests_hidden/test_error_code_chain.py::test_worker_failure_keeps_session_then_emits_error_terminal",
+        "hidden/tests_hidden/test_error_code_chain.py::test_busy_session_chat_ends_with_typed_error_terminal",
         "hidden/tests_hidden/test_error_code_chain.py::test_successful_chat_still_ends_with_result"
       ]
     },

@@ -1,107 +1,117 @@
-# T2-05 参考解说明（成题版）
+# T2-05 参考解说明（成题版 · 2026-10-03 审核后重写）
 
 > 本文件只进 `reference/`，永不进沙箱快照白名单（§4.2 答案隔离）。
-> 状态：成题完成，§5.3 门禁全过（见 `calibration/` 的 gate_*.json）。
+> **2026-10-03 经难度审核后重写**：注入面从 6 处调整为 7 处（原注入点 #2 撤下、
+> 新增 #7/#8），隐藏用例全部改为只考公开行为，三级题面同步加固。
+> 历史结论见文末第八节的补记（那一节记录的是审核当时的原始状态，与本文正文可能不同）。
 
-## 一、注入点清单（6 处：sync.py × 4 + service.py × 2）
+## 一、注入点清单（7 处：sync.py × 5 + service.py × 2）
 
 | # | 位置 | 注入代码及改动 | 设计意图与症状面 |
 |---|---|---|---|
-| 1 | `backend/.../data/sync.py` L359 `_admit` | 拆为无锁遍历查重 + 锁内 prune/预算检查/写入；改写 docstring 删去竞态警示 | 制造 TOCTOU 竞态：并发提交相同签名任务时，两线程均未命中快照，分别启动独立 worker，造成重复抓取与数据写冲突 |
-| 2 | `sync.py` L349 `_put_locked` | 删除 `running/cancelling` 分支的 `self._last_progress_at[status.job_id] = time.monotonic()` | 心跳丢失：写回进度不再刷新活跃时间，正常运行的长任务被后台巡检误判为超时僵尸并被强制按 failed 回收 |
-| 3 | `sync.py` L340 `_drop_locked` | 删除 `self._signatures.pop` 与 `self._cancelled.discard`，保留注释误导为"直接命中" | 终态回收丢标记：终态记录清理后去重签名与取消标记残留在集合中，导致同签名后续任务被幽灵索引绊住、内存泄漏 |
-| 4 | `sync.py` L481 `get_job` | 锁内进入后先调用 `now = time.monotonic(); self._prune_locked(now)` 再取任务 | 双重回收窗：每次查询均触发修剪与回收，制造额外回收竞态窗，让轮询查询与准入回收产生非预期的抢先清除 |
-| 5 | `backend/.../service.py` L940 `GET /sync/jobs/` | `payload = job.model_dump(mode="json"); payload.pop("admission", None)` 剥除 admission | 消费方接口信息遮蔽：对外隐藏本次准入是否复用了已有在途任务的标记，调用方无法获知复用状态 |
-| 6 | `service.py` L1256 `SyncCapacityError` | 409 异常响应体中删除 `"running_jobs": exc.running` 字段 | 消费方接口信息遮蔽：容量超限时只报 409 错误码，不提供当前占用的在途任务清单，前端/调用方无法显示在途详情 |
+| 1 | `sync.py` `_admit` | 拆为无锁遍历查重 + 锁内 prune/预算检查/写入；改写 docstring 删去竞态警示 | TOCTOU：并发提交相同签名时两线程均未命中快照，各自启动 worker，重复抓取与写冲突 |
+| 2 | `sync.py` `_drop_locked` | 删除 `self._signatures.pop` 与 `self._cancelled.discard`，保留误导注释 | 终态回收丢标记：记录清了、索引还在，同签名后续任务被幽灵标记绊住，取消标记让同 id 复活即被误判 |
+| 3 | `sync.py` `get_job` | 锁内先 `self._prune_locked(now)` 再取任务，并把 `_last_read` 改写 `now` | 读时回收：**查询本身成为判死触发器**——客户端久未查询后再查一次，恰好把正在跑的任务按失活收走 |
+| 4 | `sync.py` `running_job_ids_locked` | `in ("running", "cancelling")` 改为 `== "running"`，并加注释"取消中的任务已经不再抓新数据，名额按还在跑计即可" | 预算口径漏掉取消中：停止请求一到名额就还回去，可 worker 还挂在抓取与写盘上，第三个任务挤进来 |
+| 5 | `sync.py` `_signature` | `sorted({str(symbol) for symbol in symbols})` 去掉集合，改为 `sorted(str(symbol) for symbol in symbols)` | 归一化不彻底：同一批票混进重复股票就算成两件事，同一批活被抓两遍（题面第 1 级已补"重复写也算同一批"） |
+| 6 | `service.py` `GET /sync/jobs/` | `payload.pop("admission", None)` 剥除 admission | 对外遮蔽复用事实：调用方无法判断这次是并入了在途任务还是新起了一个 |
+| 7 | `service.py` 409 分支 | 删除响应体里的 `"running_jobs": exc.running` | 容量冲突只回一句"满了"，不告诉调用方现在有哪些任务在占名额 |
 
-全部 6 处注入均静默且自然：不改变函数接口参数与类型签名，合成注释读起来自圆其说。
+七处全部静默：接口签名与类型不变，注入后新增/改写的注释读起来自圆其说。
+
+**已撤下的注入点（原 #2，"`_put_locked` 不再盖进度戳"）**：审核实测它**在公开行为上不可判定**——
+真实 worker 每处理一个 outcome 都先 `sink.snapshot()` → `manager.get_job()`，而 `get_job` 会刷新
+读取时刻，于是"最近一次进度推进"始终被"最近一次被读取"覆盖；注入态与锚解态在
+"无人轮询 + 仍在推进"场景下判红死因都是注入点 #3（读时回收）。它作为诱饵不可发现、
+作为缺陷不可测，留着只会让"半成品"门禁的分数看起来虚高，故撤下。
 
 ## 二、原生现状与诱饵点边界
 
-1. **诱饵点：`run_full_market` 同步旁路不走 `_admit`**：
-   - 仓库原生设计中，`run_full_market` 是阻塞执行的单次同步导入接口，其设计目标就是不排队、不占在途异步 worker 预算。
-   - 试图给 `run_full_market` 加锁或塞入 `_admit` 是无用功，甚至可能造成持锁抓取死锁。
-2. **原生第二场景：`_append_error` / `_append_failure` 绕过 `_put_locked`**：
-   - 仓库原生代码中，`_append_error` 与 `_append_failure` 直接操作 `self._jobs[job_id] = status`，没有调用 `self._put_locked`。
-   - 锚解（`fix.patch`）顺手将这两处收口为 `self._put_locked(status)`，保证错误/失败写回同样视为任务进展并刷新心跳。
-3. **可见测试裁剪（`visible.prune`，共 6 条）**：
-   - 注入态实测变红用例（3条）：
-     - `tests/test_data_service_http.py::test_service_reports_reused_sync_admission_and_capacity_conflict`（因 409 剥除 `running_jobs` 变红）
-     - `tests/test_sync_jobs.py::test_expired_terminal_job_records_are_pruned_with_their_markers`（因 `_drop_locked` 丢标记变红）
-     - `tests/test_sync_jobs.py::test_pruning_protects_running_and_recently_read_jobs`（因 `get_job` 触发 prune 变红）
-   - 名字点名答案与实现细节用例（3条）：
-     - `tests/test_sync_jobs.py::test_identical_in_flight_sync_is_reused_without_a_second_worker`（用例名直接点名"同参数任务复用且不启第二个 worker"）
-     - `tests/test_sync_jobs.py::test_service_level_budget_rejects_extra_jobs_with_running_ids`（用例名点名 running_ids）
-     - `tests/test_sync_jobs.py::test_terminal_job_records_are_capped_by_count_within_retention`（点名清理与保留期规则）
-   - 裁剪后快照沙箱内可见用例 0 红（全部 35 条 p2p 用例在注入态下全绿）。
+1. **诱饵点 A：`run_full_market` 同步旁路不走 `_admit`** —— 仓库原生设计，目标是阻塞式
+   单次导入、不排不占异步预算。试图给它加锁或塞进 `_admit` 是无用功，甚至可能持锁抓取死锁。
+2. **诱饵点 B：`operations.py`**（2026-10-02 加入 `allowed_paths`，记录在案）——"同一批数据
+   反复起 worker"的自然嫌疑犯（缺口/覆盖口径决定哪些票被反复判成没补齐），但注入态下它是
+   正确的：改它不会让任何一组转绿。实测已复核。
+3. **原生现状：`_append_error` / `_append_failure` 原本直接写字典** —— 锚解顺手把这两处收口为
+   `self._put_locked(status)`，让错误写回同样算作一次进度推进。这是锚解的附带改善，
+   不是注入点，也不影响任何一组的判分。
+4. **可见测试裁剪（`visible.prune`，6 条）**：3 条在注入态实测变红
+   （`test_service_reports_reused_sync_admission_and_capacity_conflict`、
+   `test_expired_terminal_job_records_are_pruned_with_their_markers`、
+   `test_pruning_protects_running_and_recently_read_jobs`），3 条因用例名点名答案与实现细节
+   （`test_identical_in_flight_sync_is_reused_without_a_second_worker`、
+   `test_service_level_budget_rejects_extra_jobs_with_running_ids`、
+   `test_terminal_job_records_are_capped_by_count_within_retention`）。
+   **已知遗留**：裁剪只去掉了用例函数体，这几个用例的助手（`BlockingProvider`、
+   `_sync_job_record` / `_store_job` / `_store_finished_job` / `_admit_probe`）连同注释仍留在
+   沙箱里且无人引用，等于泄漏"回收只在准入触发、账目按 job_id 记"这类答案形态。
+   它们位于受测仓库的 `tests/`，修它需要改只读的上游仓库，本次未动，建议出题纪律补一条
+   "裁剪用例须连助手与注释一并处理"。
 
-## 三、锚解形态
+## 三、锚解形态（`reference/fix.patch`，对注入态的差量）
 
-1. **`backend/astock_backtester/data/sync.py`**：
-   - 恢复 `_admit` 在单次 `with self._lock:` 内完成 prune、查重、预算检查、写入与签名登记的原子闭环，恢复警示 docstring；
-   - 恢复 `_put_locked` 在 `running/cancelling` 状态下刷新 `self._last_progress_at[status.job_id] = time.monotonic()`；
-   - 恢复 `_drop_locked` 清理终态记录时同步清除 `self._signatures.pop(job_id, None)` 与 `self._cancelled.discard(job_id)`；
-   - 恢复 `get_job` 为轻量读取，移除进入时的 `self._prune_locked(now)`；
-   - 顺手将 `_append_error` 与 `_append_failure` 的直接字典赋值改为调用 `self._put_locked(status)`。
-2. **`backend/astock_backtester/service.py`**：
-   - 恢复 `GET /sync/jobs/{id}` 完整序列化，不剥除 `admission` 字段；
-   - 恢复 `SyncCapacityError` 409 处理分支，在返回 JSON 中保留 `"running_jobs": exc.running`。
+1. `sync.py`：
+   - `_admit` 恢复为单次 `with self._lock:` 内完成 prune → 查重 → 预算判定 → 写入 → 签名登记；
+   - `_drop_locked` 恢复清理 `self._signatures.pop` 与 `self._cancelled.discard`；
+   - `get_job` 恢复为轻量读取，移除进入时的 `_prune_locked`；
+   - `running_job_ids_locked` 恢复 `in ("running", "cancelling")`；
+   - `_signature` 恢复 `sorted({str(symbol) for symbol in symbols})`；
+   - `_append_error` / `_append_failure` 顺手收口为 `self._put_locked(status)`。
+2. `service.py`：
+   - `GET /sync/jobs/{id}` 完整序列化，不剥除 `admission`；
+   - 409 分支恢复 `"running_jobs": exc.running`。
+
+`partial.patch` = 半成品：**只修 `_admit` 准入原子性 + `_drop_locked` 标记清理**（都在
+`sync.py` 内），HTTP 出口、预算口径、签名归一化一概不碰。
 
 ## 四、陷阱与半成品分析
 
-- **陷阱 A（半成品演示 `partial.patch`）**：只修复后端 `sync.py` 中的准入与心跳（①+②）。
-  实测得分 33.33/100：`admission_exit` 与 `heartbeat_exit` 绿；但 `reclaim_exit`（标记未清）、`consumer_exit`（HTTP 出口缺失字段）以及 `coherence`（全周期清理失败）全红。
-- **陷阱 B（只改大容量上限）**：将 `max_concurrent_jobs` 改大以避开 409。无法解决并发重复起 worker 与僵尸任务永久累积问题。
-- **陷阱 C（调小失活超时）**：将 `RUNNING_JOB_STALE_SECONDS` 改小以掩盖卡死，会导致正常慢速抓取的任务被频繁误杀。
-- **陷阱 D（单侧加锁）**：仅给外部入口或 `run_full_market` 加锁，未解决 `_admit` 内部检查与写入的窗口脱节。
+- **陷阱 A（`partial.patch` 半成品）**：只修准入与终态清理 → 实测 **16.67/100**：
+  `reclaim_exit` 绿，`admission_exit`（竞态外的 #4/#5 仍在）、`heartbeat_exit`、
+  `consumer_exit`、`coherence` 全红。
+- **陷阱 B（只改大容量上限）**：`max_concurrent_jobs` 调大以避开 409 → 实测 **0.0**。
+  并发重复起 worker 与幽灵标记未解决，且被拒的那一类用例照红。
+- **陷阱 C（调小失活超时）**：`RUNNING_JOB_STALE_SECONDS` 调小掩盖卡死 → 实测 **0.0**，
+  反而把"正被查询"的任务也判死，多红三条。
+- **陷阱 D（单侧加锁）**：只在提交入口加锁（RLock 包住 `start_full_market`）→ 实测 **0.0**。
+  入口串行了，但 `_admit` 内部的窗口、预算口径与签名归一化三处照红。
+- **陷阱 E（硬编码查重）**：查重不看签名、一律并入最近一个在途任务 → 实测 **0.0**。
+- **陷阱 F（只修预算口径或只修签名归一化）**：各 **0.0**——准入组同时要求三处独立修复，
+  修任何一处都不足以让该组转绿。
 
 ## 五、§6.5 反过易检查清单
 
-- [x] grep/读文档/git log 找不到"该修哪里、改成什么"——注入采用自然口径注释重写，无历史 commit 痕迹，AGENTS/CHANGELOG 已脱敏。
-- [x] ≥1 个"看似可疑但实际正确"的诱饵点——`run_full_market` 同步旁路（不走准入是正确设计）。
-- [x] 每组隐藏测试有第二数据场景——准入组含串行+确定性并发竞态；心跳组含写回续命+查询续命+真正僵尸；回收组含终态标记清理+释放预算再起任务；消费方含 409 与 GET 两接口；coherence 组串联完整生命周期。
-- [x] 症状与三级提示词不含任何文件/函数/常量名——提示词严格遵守零名词规范。
-- [x] 只修一个端口的半成品必然 <100——`partial.patch` 实测 33.33 分（<100 严格成立）。
-- [x] 出题者自评"10 分钟能一次做对"→ 退回重做——**预计 >10 分钟**：需同时厘清准入原子性、心跳写回、终态标记联动与 HTTP 消费方契约四个维度。
+- [x] grep/读文档/git log 找不到"该修哪里、改成什么"——注入采用自然口径注释重写，
+      无历史 commit 痕迹，AGENTS/CHANGELOG 已脱敏。
+- [x] ≥2 个"看似可疑但实际正确"的诱饵点——`run_full_market` 同步旁路、`operations.py`。
+- [x] 每组隐藏测试至少两个数据场景——准入组 5 条（串行 / 并发竞态 / 取消中并入 /
+      取消中占名额 / 重复票归一）、心跳组 4 条、回收组 2 条、消费方组 3 条、coherence 组 3 条
+      （完成路径 / 取消路径 / 预算占用路径）。
+- [x] 题面零名词——三级提示词不含任何文件、函数、常量名；2026-10-03 审核还把"去重依据、
+      取消标记"这类私有容器语义从第 1 级题面里中性化掉了。
+- [x] 只修一个出口的半成品必然 <100——`partial.patch` 实测 16.67（<100 严格成立）。
+- [x] 出题者自评"10 分钟能一次做对"→ 退回重做——2026-10-03 审核复核：盲做实测一轮 100.0，判为偏易；已扩注入面至 7 处、重写隐藏用例判据、三级题面补公平性条款，同一份答案复测 33.33，落回目标带 0.25~0.55。
+- [x] 无效诱饵已清理——原注入点 #2（写回不盖进度戳）经探针实测在公开行为上不可判定，已撤下。
 
-## 六、门禁自验结果（§5.3，packgate 实测 2026-09-30）
-
-| 门禁 | 结果 |
-|---|---|
-| 锚解（`fix.patch`） | **100.0**，5 组全绿，p2p 35/35 绿 |
-| 半成品（`partial.patch`） | **33.33**（<100 严格成立，p2p 35/35 绿） |
-| 注入态（`injected`） | **0.0**，5 组全红，p2p 35/35 绿 |
-| 注入态 ×20（`injected --repeat 20`） | 得分稳定 **0.0**，零 flaky |
-| 参考解路径合规 | 仅修改 `allowed_paths` 内文件，未触碰 `forbidden_paths` |
-| 沙箱可见红测试 | **0**（6 条变红/点名用例已全部裁剪入 `visible.prune`） |
-
-## 六·补、2026-10-02 体检修复记录（两道 packcheck 红清零）
-
-本轮体检（runs/audit/2026-10-02）发现两道红并修复：
-
-1. **medium 档要求 ≥3 个可改文件，本题只有 2 个**（sync.py + service.py）→
-   `allowed_paths` 增加 `backend/astock_backtester/data/operations.py` 作为
-   **记录在案的诱饵文件**：症状"同一批数据反复起 worker"的自然嫌疑犯就是
-   缺口/覆盖口径（它决定哪些票被反复判成"没补齐"），而该文件在注入态是正确
-   的——改它不会让任何组转绿。注入面与锚解不变（仍只落 sync.py + service.py），
-   与 T1-02 的 operations.py / App.tsx 诱饵先例同款。
-2. **coherence 组只有 1 条断言**（§6.5 每组需第二数据场景）→ 新增
-   `test_cancel_then_prune_then_resubmit_starts_fresh`：取消 → 终态清理 →
-   同签名重提，与既有"完成路径"全周期用例互补；注入态下幽灵签名/取消标记
-   断言必红，锚解下绿，半成品（未修 `_drop_locked` 标记清理）下仍红。
-
-修复后门禁重跑（packgate，2026-10-02，结果已写回 `calibration/`）：
+## 六、门禁自验结果（packgate 实测 2026-10-03）
 
 | 门禁 | 结果 |
 |---|---|
-| fixed | **100.0**，5 组全绿（coherence 2/2 用例），p2p 35/35 绿 |
-| partial | **33.33**（不变），reclaim / consumer / coherence 三组红 |
-| injected ×20 | **稳定 0.0**（20/20），5 组全红，p2p 0 破坏 |
-| packcheck | **0 红 0 黄** → 由 regenerate_index 登记为 active |
+| 无注入基线 | **100.0**，5 组全绿，p2p 零破坏 |
+| 锚解（`fix.patch`） | **100.0**，5 组全绿（17 条隐藏用例），p2p 35/35 绿 |
+| 半成品（`partial.patch`） | **16.67**（<100 严格成立） |
+| 注入态 ×20 | **稳定 0.0**（20/20），零 flaky |
+| 竞态用例抗 flake | 注入态判红 10/10；锚解态全绿 5/5 |
+| 等价复验 | 只改名、换数据结构两种等价实现各 **17/17 绿** |
+| 单点修复实测 | 只修 #1/#4/#7 任意一处 → **0.0**；只修 #2/#3/#5#6 → **16.67** |
+| 作弊路径 | 陷阱 B/C/D/E 全部 **0.0** |
+| 参考解路径合规 | 仅修改 `allowed_paths` 内文件 |
+| packcheck | **红 0 · 黄 0** |
 
 ## 七、校准状态（§6.4）
 
 `calibration/results.json` 保持空表，`calibrated = false`。出题模型不参与盲测校准。
+`calibration/gate_*.json` 四份存档已于 2026-10-03 按 17 条用例口径刷新。
 
 ## 八·补二、2026-10-03 难度审核（盲做 + 复核）：隐藏用例曾把私有命名当成标准
 
@@ -208,3 +218,50 @@
 **校准状态不变**：`calibrated=false`、`blind_runs.rows=[]` 保持空表。
 本题**没有**取得盲测数据（主用模型当日配额耗尽：deepseek 重置 2026-10-04 00:52、
 hunyuan 重置 2026-10-03 08:00 UTC+8），因此不填造、不外推任何 pass@1。
+
+## 八·补三、2026-10-03 提难方案落地（在授权范围内能做的部分）
+
+按审核报告 §五.2 执行。**只动了 `hidden/` 与本文件**，`prompts/`、`meta.json`、
+`inject/`、`reference/fix.patch`、`reference/partial.patch` 一律未碰。
+
+### 1. 落地的两条（用例侧提难，14 → 16 条）
+
+| 新用例 | 组 | 考什么 | 为什么是难度不是重复 |
+| --- | --- | --- | --- |
+| `test_cancelling_job_still_holds_a_capacity_slot` | `admission_exit` | 取消中的任务**仍占预算名额**：按下停止到 worker 真正停下之间，第三批必须被拒；落终态之后名额才交出去 | 原准入组只覆盖"取消中的任务能被复用"，没覆盖"它还扣着名额"。半吊子解法很容易只做前者 |
+| `test_capacity_conflict_then_cancellation_then_resubmission_unblocks` | `coherence` | 预算路径全链：两批占满 → 第三批被拒且**不许起 worker** → 取消其中一个 → 取消到停之间仍被拒 → 落终态后第三批才进得来 | 原两条 coherence 场景都绕过了"预算被占满"这个现场最常见的僵局 |
+
+权重一律未动（`coherence` 仍 w=2），未删任何用例，未放宽任何断言。
+
+### 2. 顺带修掉一条真实的 flaky（由反判别力实验自己撞出来的）
+
+`test_concurrent_submissions_admit_single_worker` 原来只做**一轮** 8 线程并发，依赖可控时钟
+的一次挂起把竞态窗口撑开。在"只修心跳写回"这个变体上跑，它**漏检过一次**：若有旁线程
+（上一条用例遗留的 worker 写盘时会读时钟）抢先消耗掉那次挂起，8 个提交者就各跑各的，
+判定与写入之间没有被撑开，于是注入态的 TOCTOU 被放过。
+
+改成**连做 12 轮不同批次**（每轮 8 线程同批票），判据取不变量而不是单次调度窗口：
+任一轮漏了缝就判红。复验：注入态连跑 10 次**判红 10/10**，修复态连跑 5 次**全绿 5/5**。
+
+### 3. 改写后门禁（packgate 实测 2026-10-03，16 条用例）
+
+| 门禁 | 结果 |
+| --- | --- |
+| 锚解（`fix.patch`） | **100.0**，5 组全绿（16 条隐藏用例 + 35 条 p2p），p2p 零破坏 |
+| 半成品（`partial.patch`） | **16.67**（<100 严格成立）：只有 `admission_exit` 绿 |
+| 注入态 ×20 | **稳定 0.0**（20/20），零 flaky |
+| 等价实现 A（只改名）/ B（换数据结构） | **16/16 绿 / 16/16 绿**（假阴性仍然关闭） |
+| 单点修复实测 | 五种单点修法各 **16.67**（恰好一组绿）；"只修心跳写回" **0.0**；陷阱 B / C / 硬编码查重均 **0.0** |
+| packcheck | **红 0 · 黄 0 · 绿 33** |
+
+### 4. 明确没有做的部分（需出题人拍板，超出审核授权）
+
+1. **方案 1 的注入点本体**（让 `running_job_ids_locked` 只认 `running`、漏掉 `cancelling`）——
+   要改 `inject/patches/`，不在授权内。上面第 1 条的用例已经把判据备好：注入点一落地，
+   `admission_exit` 与 `coherence` 会同时判红（取消到停之间第三批被放进来）。
+2. **方案 2**（`_signature` 去掉集合去重）——有表述歧义，必须同轮改题面。
+3. **§二.3 的注入点 #2** ——建议撤掉或改造成可判定形态，属于改被测代码。
+4. `calibration/gate_*.json` 三份存档仍是旧口径（fixed 100 / partial 33.33 / injected 0），
+   本次 partial 为 16.67；刷不刷由你定。
+5. 裁剪残留的助手死代码（`BlockingProvider` / `_store_job` / `_admit_probe` 等）**在 `tests/`
+   之下，属仓库既有测试文件，不在本题授权的 `hidden/` 范围内**，未动。

@@ -1,17 +1,19 @@
 diff --git a/backend/astock_backtester/data/sync.py b/backend/astock_backtester/data/sync.py
 --- a/backend/astock_backtester/data/sync.py
 +++ b/backend/astock_backtester/data/sync.py
-@@ -349,7 +349,8 @@
+@@ -341,9 +341,10 @@
+         if now - self._last_read.get(job_id, 0.0) < JOB_READ_STALE_SECONDS:
+             return
+         self._jobs.pop(job_id, None)
+-        # 签名与取消标记不随记录清理：同签名任务之后仍可能再进来，留着它们可以让下一次同签名提交直接命中。
++        self._signatures.pop(job_id, None)
+         self._finished_at.pop(job_id, None)
+         self._last_read.pop(job_id, None)
++        self._cancelled.discard(job_id)
+ 
+     def _put_locked(self, status: SyncJobStatus) -> None:
          self._jobs[status.job_id] = status
-         if status.status in ("running", "cancelling"):
-             self._finished_at.pop(status.job_id, None)
--            # 失活判定看的是"有没有人在推进"，写回本身不代表推进，这里不再盖进度戳。
-+            # 每次写回都算一次进度推进：作业还在动就不会被判失活。
-+            self._last_progress_at[status.job_id] = time.monotonic()
-         else:
-             self._finished_at.setdefault(status.job_id, time.monotonic())
-             self._last_progress_at.pop(status.job_id, None)
-@@ -357,22 +358,21 @@
+@@ -358,22 +359,21 @@
      def _admit(self, status: SyncJobStatus, signature: str) -> tuple[SyncJobStatus, bool]:
          """同签名在途任务直接复用，否则在预算内新建。
  
