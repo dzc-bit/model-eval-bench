@@ -1,10 +1,25 @@
 diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtester/data/realtime.py
 --- a/backend/astock_backtester/data/realtime.py
 +++ b/backend/astock_backtester/data/realtime.py
-@@ -295,15 +295,8 @@
-             # call with a newer wall-clock time can never clobber a
-             # generation-tracked snapshot.  Example: gen=5 (no-generation
-             # legacy) with t=10:05 must not overwrite gen=6 with t=10:00.
+@@ -223,8 +223,7 @@
+     _last_successful_snapshot: RealtimeMarketSnapshot | None = field(default=None, init=False, repr=False)
+     _state_lock: Lock = field(default_factory=Lock, init=False, repr=False)
+     _heavy_market_provider: HeavyMarketCrawlerProvider | None = field(default=None, init=False, repr=False)
+-    # P1-4: monotonic generation counters to determine publication rights
+-    # without relying on wall-clock timestamps.
++    # 请求序号与快照序号（各自自增）。
+     _request_generation: int = field(default=0, init=False, repr=False)
+     _last_snapshot_generation: int = field(default=0, init=False, repr=False)
+     # Round-4: fixed-capacity single-flight executors.  Each provider slot
+@@ -290,20 +289,8 @@
+                 if generation is not None:
+                     self._last_snapshot_generation = generation
+                 return
+-            # P1-4: production always passes generation.  For mixed-mode
+-            # safety, compare BOTH generation and updated_at so a legacy
+-            # call with a newer wall-clock time can never clobber a
+-            # generation-tracked snapshot.  Example: gen=5 (no-generation
+-            # legacy) with t=10:05 must not overwrite gen=6 with t=10:00.
 -            if generation is not None:
 -                should_update = generation > self._last_snapshot_generation
 -            elif self._last_snapshot_generation > 0:
@@ -14,12 +29,22 @@ diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtes
 -                should_update = False
 -            else:
 -                should_update = snapshot.updated_at > current.updated_at
-+            # 简化快照覆盖逻辑：统一按快照更新时间戳比较先后，时间相同也允许覆盖
++            # 覆盖判定：只有更新的结果才能写入。
 +            should_update = snapshot.updated_at >= current.updated_at
              if should_update:
                  self._last_successful_snapshot = snapshot.model_copy(deep=True)
                  if generation is not None:
-@@ -602,27 +595,17 @@
+@@ -325,8 +312,7 @@
+ 
+     def market_snapshot_events(self) -> Iterable[dict[str, Any]]:
+         now = datetime.now(UTC)
+-        # P1-4: each request gets a monotonic generation so that late
+-        # arrivals cannot overwrite results from a newer request.
++        # 本次请求取一个自增序号。
+         request_generation = self._next_request_generation()
+         self._clear_cls_home_completed_cache()
+         phase = _market_phase(now)
+@@ -602,27 +588,16 @@
          try:
              deadline = monotonic_time.monotonic() + self.breadth_time_budget
              cancel_event = Event()
@@ -29,7 +54,6 @@ diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtes
 -            # never pollute the shared diagnostics.
 -            worker_diagnostics: list[str] = []
              executor = self._get_breadth_executor()
-+            # 外部诊断列表直接传入 worker 记录底层明细
              future = executor.submit(
 -                self._call_live_breadth, worker_diagnostics, deadline, cancel_event
 +                self._call_live_breadth, diagnostics, deadline, cancel_event
@@ -49,23 +73,105 @@ diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtes
              return result
          except TimeoutError:
              cancel_event.set()
-@@ -632,6 +615,9 @@
+@@ -632,6 +607,8 @@
          except Exception as exc:
              diagnostics.append(f"实时红绿家数接口失败：{exc}，已继续返回可用行情。")
              return None
 +        finally:
-+            # 退出当前调用时释放通道锁，确保后来的刷新请求可以立刻发起
 +            self._breadth_in_flight.release()
  
      def _fetch_live_sectors_with_budget(
          self,
-@@ -1249,8 +1235,7 @@
+@@ -654,13 +631,10 @@
+         try:
+             deadline = monotonic_time.monotonic() + self.sector_time_budget
+             cancel_event = Event()
+-            # The worker writes only to its private diagnostics/rows.  Both are
+-            # published ONLY when the future completes within the budget; on timeout
+-            # they are discarded so a late worker cannot pollute shared state.
+             executor = self._get_sector_executor()
+             future = executor.submit(
+                 self._call_live_sectors,
+-                worker_diagnostics,
++                diagnostics,
+                 deadline,
+                 cancel_event,
+                 worker_rows,
+@@ -668,13 +642,11 @@
+         except Exception:
+             self._sector_in_flight.release()
+             raise
+-        future.add_done_callback(lambda _future: self._sector_in_flight.release())
+         try:
+             remaining = max(0.0, deadline - monotonic_time.monotonic())
+             sectors = future.result(timeout=remaining)
+             if monotonic_time.monotonic() > deadline:
+                 raise TimeoutError
+-            diagnostics.extend(worker_diagnostics)
+             if sector_rows_out is not None:
+                 sector_rows_out[:] = worker_rows
+             return sectors
+@@ -686,6 +658,8 @@
+         except Exception as exc:
+             diagnostics.append(f"实时强势题材接口失败：{exc}，已回退本地题材。")
+             return []
++        finally:
++            self._sector_in_flight.release()
+ 
+     def _snapshot_from_local_with_budget(
+         self,
+@@ -720,7 +694,6 @@
+         except Exception:
+             self._local_in_flight.release()
+             raise
+-        future.add_done_callback(lambda _future: self._local_in_flight.release())
+         try:
+             remaining = max(0.0, deadline - monotonic_time.monotonic())
+             result = future.result(timeout=remaining)
+@@ -743,6 +716,8 @@
+                 f"本地兜底行情快照生成失败：{exc}",
+                 diagnostics=[f"本地兜底行情快照失败：{exc}"],
+             )
++        finally:
++            self._local_in_flight.release()
+ 
+     def _call_live_sectors(
+         self,
+@@ -868,6 +843,8 @@
+             with self._cls_home_lock:
+                 if flight.payload is not None:
+                     return deepcopy(flight.payload)
++                if self._cls_home_cache is not None:
++                    return deepcopy(self._cls_home_cache)
+             raise RuntimeError("CLS home single-flight request failed")
+ 
+         try:
+@@ -985,10 +962,11 @@
+         def release(done) -> None:
+             try:
+                 done.result()
++                with self._yesterday_sector_lock:
++                    self._yesterday_sector_in_flight = False
+             except Exception as exc:
+                 worker_diagnostics.append(f"eastmoney-yesterday-limit-up background refresh failed: {exc}")
+             with self._yesterday_sector_lock:
+-                self._yesterday_sector_in_flight = False
+                 self._yesterday_sector_diagnostics_date = target_date
+                 self._yesterday_sector_diagnostics = list(worker_diagnostics)
+ 
+@@ -1249,11 +1227,12 @@
          deadline: float | None,
          diagnostics: list[str],
      ) -> bool:
 -        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
 -            return False
-+        # 直接输出板块明细，由外层调用方根据快照结果决定是否丢弃
++        stopped = self._source_chain_cancelled(
++            cancel_event, deadline, diagnostics, "strong-sector"
++        )
          if sector_rows_out is not None:
              sector_rows_out[:] = rows
-         return True
+-        return True
++        return not stopped
+ 
+     def _allow_public_alternate_transport(self) -> bool:
+         return should_allow_alternate_transport(self.requester, self.allow_alternate_transport)

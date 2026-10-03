@@ -2,10 +2,13 @@
 
 高规格约束：
 1. 确定性竞态：threading.Event 对齐 + 极小预算（0.02~0.2s），断言因果序与终态，禁用裸计时与长 sleep。
-2. 隐藏不变量 ≥5 组：single_flight_exit、late_publish_exit、generation_exit、chain_budget_exit、coherence。
+2. 隐藏不变量 ≥5 组：single_flight_exit、late_publish_exit、generation_exit、chain_budget_exit、
+   coherence、background_refresh_exit、cls_home_waiter_exit。
 3. 零测试名点名受测实现与文件。
 """
 
+import time
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from datetime import datetime, timezone
 from threading import Event, Thread
@@ -330,3 +333,197 @@ def test_retained_snapshot_is_deep_copied_isolated(tmp_path):
 
     refetched = provider.retained_successful_snapshot()
     assert "external-tamper" not in refetched.diagnostics, "外部就地修改污染了 provider 内部留存快照"
+
+
+# ===========================================================================
+# 组 6：background_refresh_exit
+#        （后台刷新闸门：失败必须能被再次调度，在途期间不得重复起任务）
+# ===========================================================================
+
+def _await_background_gate_release(provider, attempts: int = 400) -> bool:
+    """等待后台刷新闸门自行复位（release 回调在 worker 线程里跑）。"""
+    for _ in range(attempts):
+        with provider._yesterday_sector_lock:
+            if not provider._yesterday_sector_in_flight:
+                return True
+        time.sleep(0.01)
+    return False
+
+
+def test_background_refresh_gate_reopens_after_failed_refresh(tmp_path):
+    """场景一：首次后台刷新抛错后，闸门必须复位，后续请求要能重新调度刷新。"""
+    worker_entered = Event()
+    provider = RealtimeMarketProvider(Warehouse(tmp_path), timeout=2.0)
+    provider._latest_trade_date = lambda: "2026-07-14"
+
+    submissions: list[int] = []
+
+    def flaky_refresh(_diagnostics):
+        submissions.append(len(submissions) + 1)
+        if len(submissions) == 1:
+            worker_entered.set()
+            raise RuntimeError("昨日池上游首次刷新失败")
+        return []
+
+    provider._fetch_yesterday_strong_sectors = flaky_refresh
+
+    provider._yesterday_sector_snapshot_or_schedule([])
+    assert worker_entered.wait(timeout=2.0), "首次后台刷新根本没有跑起来"
+    assert _await_background_gate_release(provider), (
+        "首次后台刷新失败后闸门没有复位，后续刷新被永久挡住"
+    )
+
+    provider._yesterday_sector_snapshot_or_schedule([])
+    for _ in range(400):
+        if len(submissions) >= 2:
+            break
+        time.sleep(0.01)
+    assert len(submissions) >= 2, (
+        f"首次刷新失败后无法再次调度后台刷新：累计只提交了 {len(submissions)} 次"
+    )
+    assert _await_background_gate_release(provider)
+
+
+def test_background_refresh_in_flight_is_not_restacked(tmp_path):
+    """场景二：刷新在途时连续请求都走陈旧兜底，且后台任务只允许被调度一次。"""
+    worker_entered = Event()
+    release_worker = Event()
+    provider = RealtimeMarketProvider(Warehouse(tmp_path), timeout=2.0)
+    provider._latest_trade_date = lambda: "2026-07-14"
+    _stale_yesterday_cache(provider)
+
+    submissions: list[int] = []
+
+    def blocking_refresh(_diagnostics):
+        submissions.append(len(submissions) + 1)
+        worker_entered.set()
+        release_worker.wait(timeout=5.0)
+        return []
+
+    provider._fetch_yesterday_strong_sectors = blocking_refresh
+
+    try:
+        first = provider._yesterday_sector_snapshot_or_schedule([])
+        assert worker_entered.wait(timeout=2.0), "后台刷新没有启动"
+
+        follow_up: list[list[SectorMover]] = []
+        for _ in range(3):
+            follow_up.append(provider._yesterday_sector_snapshot_or_schedule([]))
+
+        assert len(submissions) == 1, (
+            f"刷新在途时又重复调度了后台任务：累计提交 {len(submissions)} 次"
+        )
+        for index, sectors in enumerate(follow_up, start=1):
+            assert [sector.name for sector in sectors] == ["陈旧的昨日强势板块"], (
+                f"在途期间第 {index} 个请求没有拿到陈旧兜底数据：{sectors}"
+            )
+        assert [sector.name for sector in first] == ["陈旧的昨日强势板块"]
+    finally:
+        release_worker.set()
+        _await_background_gate_release(provider)
+
+
+# ===========================================================================
+# 组 7：cls_home_waiter_exit
+#        （单飞等待者：owner 失败时不得回退陈旧缓存，成功时不得重复发请求）
+# ===========================================================================
+
+def test_cls_home_waiter_rejects_stale_cache_after_owner_failure(tmp_path):
+    """场景一：owner 刷新失败且缓存已过有效期时，等待者必须一并失败，不得静默吃陈旧缓存。"""
+    owner_entered = Event()
+    release_owner = Event()
+    provider = RealtimeMarketProvider(Warehouse(tmp_path), timeout=2.0)
+    _stale_cls_home_cache(provider)
+
+    request_count: list[int] = []
+
+    def failing_requester(_url, **_kwargs):
+        request_count.append(len(request_count) + 1)
+        owner_entered.set()
+        release_owner.wait(timeout=2.0)
+        raise RuntimeError("CLS home 上游刷新失败")
+
+    provider.requester = failing_requester
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        owner = executor.submit(provider._fetch_cls_home_payload)
+        assert owner_entered.wait(timeout=2.0)
+        waiter = executor.submit(provider._fetch_cls_home_payload)
+        time.sleep(0.15)  # 让等待者确实进入等待分支
+        release_owner.set()
+
+        with pytest.raises(Exception):
+            owner.result(timeout=5.0)
+        with pytest.raises(Exception) as waiter_error:
+            waiter.result(timeout=5.0)
+
+    assert "single-flight request failed" in str(waiter_error.value), (
+        f"等待者没有如实报告失败，而是拿到了别的东西：{waiter_error.value!r}"
+    )
+    assert len(request_count) == 1, "owner 失败后等待者自己又发了一次请求"
+
+
+def test_cls_home_waiters_share_one_upstream_request(tmp_path):
+    """场景二：owner 成功时两个并发等待者拿到一致结果，且真实请求只发一次。"""
+    owner_entered = Event()
+    release_owner = Event()
+    provider = RealtimeMarketProvider(Warehouse(tmp_path), timeout=2.0)
+    payload = {
+        "code": 200,
+        "data": {"index_quote": [], "up_down_dis": {"rise_num": 4, "fall_num": 0}},
+    }
+    request_count: list[int] = []
+
+    def requester(_url, **_kwargs):
+        request_count.append(len(request_count) + 1)
+        owner_entered.set()
+        release_owner.wait(timeout=2.0)
+        return _StubResponse(payload)
+
+    provider.requester = requester
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        owner = executor.submit(provider._fetch_cls_home_payload)
+        assert owner_entered.wait(timeout=2.0)
+        waiters = [executor.submit(provider._fetch_cls_home_payload) for _ in range(2)]
+        time.sleep(0.15)
+        release_owner.set()
+        owner_payload = owner.result(timeout=5.0)
+        waiter_payloads = [item.result(timeout=5.0) for item in waiters]
+
+    assert owner_payload == payload
+    for index, value in enumerate(waiter_payloads, start=1):
+        assert value == payload, f"第 {index} 个等待者拿到的结果与 owner 不一致：{value!r}"
+    assert len(request_count) == 1, (
+        f"单飞失效：{len(request_count)} 个并发调用各发了一次上游请求"
+    )
+
+
+class _StubResponse:
+    """最小 HTTP 响应替身（隐藏用例自带，不依赖可见测试的任何符号）。"""
+
+    def __init__(self, payload: dict) -> None:
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict:
+        return self._payload
+
+
+def _stale_cls_home_cache(provider) -> None:
+    """给 provider 预置一份「已过有效期」的 CLS home 缓存。"""
+    provider._cls_home_cache = {"code": 200, "data": {"up_down_dis": {"rise_num": 1, "fall_num": 1}}}
+    provider._cls_home_cached_at = time.monotonic() - provider.cls_home_cache_ttl - 1
+
+
+def _stale_yesterday_cache(provider) -> None:
+    """给 provider 预置一份「已过有效期」的昨日强势板块缓存。"""
+    provider._yesterday_sector_cache_date = "2026-07-13"
+    provider._yesterday_sector_cache = [
+        SectorMover(name="陈旧的昨日强势板块", change_pct=0.05, source="eastmoney-yesterday-limit-up")
+    ]
+    provider._yesterday_sector_cached_at = (
+        time.monotonic() - provider.yesterday_sector_cache_ttl - 1
+    )

@@ -18,7 +18,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000232D3C7CA00>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000238646A9080>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -40,7 +40,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -69,7 +69,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000232C2553D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023864790EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -96,6 +96,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002386474C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -103,7 +137,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -134,7 +168,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001ECE5B2CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E6F3F392F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -156,7 +190,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -185,7 +219,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001ECD4403D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6F4020EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -212,6 +246,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E6F3FDC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -219,7 +287,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -250,7 +318,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000021E5F83CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CBF85192F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -272,7 +340,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -301,7 +369,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000021E4E113D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CBF839BC60>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -328,6 +396,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001CBF837C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -335,7 +437,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -366,7 +468,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022AFC1ACC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E9B20592F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -388,7 +490,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -417,7 +519,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022AEAA83D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E9B2144EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -444,6 +546,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E9B2100050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -451,7 +587,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -482,7 +618,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002041317CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000207FFC592F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -504,7 +640,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -533,7 +669,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000020401A53D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000207FFD34EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -560,6 +696,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x00000207FFC94050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -567,7 +737,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -598,7 +768,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000226C85BCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024B36FB92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -620,7 +790,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -649,7 +819,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000226B6DC3D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024B36E55490>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -676,6 +846,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000024B36E48050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -683,7 +887,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -714,7 +918,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002D8CD18CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A747DF92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -736,7 +940,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -765,7 +969,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002D8BBA63D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A747C7BC60>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -792,6 +996,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001A747C5C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -799,7 +1037,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -830,7 +1068,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000254D6B0CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001DEB1F192F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -852,7 +1090,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -881,7 +1119,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000254C53E3D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001DEB2000EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -908,6 +1146,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001DEB1FBC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -915,7 +1187,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -946,7 +1218,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001D98D3BCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E6878C92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -968,7 +1240,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -997,7 +1269,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001D9FBBA3D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E6879B0EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1024,6 +1296,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E68796C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1031,7 +1337,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1062,7 +1368,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000232D41BCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000025AB0F092F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1084,7 +1390,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1113,7 +1419,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000232C2A93D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000025AB0DA5490>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1140,6 +1446,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000025AB0D98050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1147,7 +1487,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1178,7 +1518,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002261538CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B21CEF92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1200,7 +1540,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1229,7 +1569,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022603C63D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B21CD8E0C0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1256,6 +1596,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001B21CD5C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1263,7 +1637,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1294,7 +1668,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000163D528CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001A2118092F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1316,7 +1690,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1345,7 +1719,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000163C3B63D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001A2118F4EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1372,6 +1746,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001A2118B0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1379,7 +1787,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1410,7 +1818,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016B04F6CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000022C452C92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1432,7 +1840,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1461,7 +1869,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016B73733D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000022C453ACEE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1488,6 +1896,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000022C452FC050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1495,7 +1937,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1526,7 +1968,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001C5F302CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016B256992F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1548,7 +1990,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1577,7 +2019,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001C5E1903D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016B25780EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1604,6 +2046,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000016B2573C050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1611,7 +2087,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1642,7 +2118,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001FD6C86CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001E95E6D92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1664,7 +2140,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1693,7 +2169,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001FD5B143D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001E95E565220>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1720,6 +2196,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001E95E5E8050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1727,7 +2237,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1758,7 +2268,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001CA5947CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001FA8F5B92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1780,7 +2290,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1809,7 +2319,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001CA47D53D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001FA8F698EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1836,6 +2346,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001FA8F5F0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1843,7 +2387,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1874,7 +2418,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x00000210BAF8CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000023391F492F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -1896,7 +2440,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -1925,7 +2469,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x00000210A9863D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000023391DDF510>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -1952,6 +2496,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x0000023391DD0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -1959,7 +2537,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -1990,7 +2568,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000016CC47ACC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000002197C8992F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2012,7 +2590,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -2041,7 +2619,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000016CB3083D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000002197C978EE0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2068,6 +2646,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000002197C8D0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -2075,7 +2687,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -2106,7 +2718,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001EC38CCCC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001B839C392F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2128,7 +2740,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -2157,7 +2769,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001EC275A3D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001B839AD5490>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2184,6 +2796,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001B839AC0050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -2191,7 +2837,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -2222,7 +2868,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x0000024D8944CC70>)"
+              "message": "assert False\n +  where False = any(<generator object test_single_flight_holds_lock_until_background_worker_settles.<locals>.<genexpr> at 0x000001F60F7B92F0>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
@@ -2244,7 +2890,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -2273,7 +2919,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
               "outcome": "failed",
-              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x0000024DF7C63D30>)"
+              "message": "assert False\n +  where False = any(<generator object test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout.<locals>.<genexpr> at 0x000001F60F655490>)"
             },
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
@@ -2300,6 +2946,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001F60F648050>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -2307,7 +2987,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -2331,5 +3011,5 @@
   "score_min": 0.0,
   "score_max": 0.0,
   "stable": true,
-  "finished_at": "2026-10-03T02:50:56"
+  "finished_at": "2026-10-03T11:47:07"
 }

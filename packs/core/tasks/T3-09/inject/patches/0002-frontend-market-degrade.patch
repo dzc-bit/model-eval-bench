@@ -1,14 +1,26 @@
 diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
 --- a/frontend/src/marketRefresh.ts
 +++ b/frontend/src/marketRefresh.ts
-@@ -49,9 +49,7 @@
+@@ -39,8 +39,7 @@
+   return phase === "trading" ? TRADING_INTERVAL_MS : CLOSED_INTERVAL_MS;
+ }
+ 
+-// 部分成功的降级重试：快照缺红绿家数（或板块）时不再等满整个正常周期，
+-// 45 秒后重试一次，避免冷启动遇上首源抖动后长时间停在空白宽度。
++// 降级档位的重试间隔（毫秒）。
+ export const DEGRADED_RETRY_MS = 45_000;
+ 
+ export function refreshIntervalForMarketResult(
+@@ -49,10 +48,8 @@
    hasError = false,
    missingBreadth = false
  ): number {
 -  if (!hasError && missingBreadth) {
 -    return DEGRADED_RETRY_MS;
 -  }
-+  // 保持标准轮询节奏，不因部分字段缺失导致请求过于密集
-   return refreshIntervalForPhase(phase, hasError);
+-  return refreshIntervalForPhase(phase, hasError);
++  // 缺关键字段按异常档处理，避免请求过于密集。
++  return refreshIntervalForPhase(phase, hasError || missingBreadth);
  }
  
+ export function marketPhaseLabel(phase: MarketSessionPhase): string {

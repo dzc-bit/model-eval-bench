@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "task": "T3-09",
-  "note": "pytest 侧分组。高级题硬规格：≥5 组隐藏不变量 + coherence 权重 2 + p2p 组。节点 ID 带 hidden/tests_hidden/ 前缀。",
+  "note": "pytest 侧分组。高级题硬规格：≥5 组隐藏不变量 + coherence 权重 2 + p2p 组。节点 ID 带 hidden/tests_hidden/ 前缀。2026-10-03 提难：新增 background_refresh_exit 与 cls_home_waiter_exit 两组（各权重 1），计分组由 5 增至 7。",
   "groups": [
     {
       "id": "single_flight_exit",
@@ -46,6 +46,24 @@
       "tests": [
         "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
         "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated"
+      ]
+    },
+    {
+      "id": "background_refresh_exit",
+      "weight": 1,
+      "port": "后台刷新闸门：一次刷新失败后必须能重新调度，在途时也不得被重复堆叠",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked"
+      ]
+    },
+    {
+      "id": "cls_home_waiter_exit",
+      "weight": 1,
+      "port": "单飞 waiter 兜底：等不到 owner 结果时不得回退读陈旧缓存，多个 waiter 共享同一次上游请求",
+      "tests": [
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+        "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request"
       ]
     },
     {

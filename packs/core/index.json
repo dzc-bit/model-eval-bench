@@ -252,12 +252,14 @@
         "generation_exit",
         "chain_budget_exit",
         "coherence",
+        "background_refresh_exit",
+        "cls_home_waiter_exit",
         "p2p"
       ],
       "gate": {
-        "baseline": 85.71,
+        "baseline": 88.89,
         "fixed": 100.0,
-        "partial": 28.57,
+        "partial": 22.22,
         "injected_x20": "stable 0.0"
       },
       "packcheck_red": 0
@@ -355,12 +357,12 @@
         "p2p"
       ],
       "gate": {
-        "baseline": 91.3,
-        "fixed": 91.3,
+        "baseline": 100.0,
+        "fixed": 100.0,
         "partial": 17.39,
         "injected_x20": null
       },
-      "packcheck_red": 1,
+      "packcheck_red": 0,
       "target_metric": "pass_at_3",
       "calibrated": false
     }

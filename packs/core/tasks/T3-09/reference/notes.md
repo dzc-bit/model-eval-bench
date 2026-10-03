@@ -107,3 +107,62 @@
 `blind_runs.rows`；两轮均为**原始题面**，可作为「改前」基线。改后题面的 pass@1
 **尚未测得**——主用模型当日配额耗尽（HTTP 429，重置 2026-10-04 00:52 UTC+8），
 不填造、不推测。
+
+## 十、注入形态提难（2026-10-03，外部审核实测驱动的改造）
+
+### 为什么必须改注入形态
+
+台账与盲测都指向同一个结论：本题**偏易**，而且**不是题面造成的**。
+实测（`calibration/results.json` 的 `blind_runs.rows`）：
+
+| 题面版本 | 模型 | 结果 |
+| --- | --- | --- |
+| 加固前（原始 1 级） | cbcn/deepseek-v4.1-flash | 第 1 轮 100.0 |
+| 加固前（原始 1 级） | codebuddy-cn/hy4-preview | 第 1 轮 100.0（77 步）|
+| **加固后**（§九 删掉机制与验收清单） | codebuddy-cn/hy4-preview | **第 1 轮 100.0（123 步，6 组全绿）** |
+
+删掉题面里的机制与验收不变量清单之后，模型照样一轮满分——说明**题面不是瓶颈**。
+外部审核会话的归因（报告 `D:\tmp\dif-audit\T3-09\report.md`，非入库产物）指出
+真正的病根：**注入形态本身留了路标**——注入补丁保留了正确规则的注释（等于把答案
+写在注释里），同文件里还存在写对了的 sibling 函数充当现成模板。模型不需要自己
+设计机制，只要读代码时注意到"注释说的和代码做的不一样"就能定位。
+
+### 落地了什么
+
+1. **新增两个注入点（审核报告的 P2 / P3）**，都落在 `data/realtime.py`：
+   - `_yesterday_sector_snapshot_or_schedule` 的 `release` 回调：改为**仅成功时**复位
+     `_yesterday_sector_in_flight`。一次刷新失败后闸门永久关闭，后续恒吃陈旧缓存
+     且不报错 → 新组 `background_refresh_exit`。
+   - `_fetch_cls_home_payload` 的 waiter 分支：等不到 owner 结果时**回退读陈旧缓存**
+     而不是抛错 → 新组 `cls_home_waiter_exit`。
+2. **隐藏用例新增 4 条**（`hidden/tests_hidden/test_realtime_arbitration.py`）：
+   `test_background_refresh_gate_reopens_after_failed_refresh`、
+   `test_background_refresh_in_flight_is_not_restacked`、
+   `test_cls_home_waiter_rejects_stale_cache_after_owner_failure`、
+   `test_cls_home_waiters_share_one_upstream_request`。
+3. **计分组由 5 增至 7**：新增 `background_refresh_exit`（权重 1）与
+   `cls_home_waiter_exit`（权重 1），`coherence` 仍是最高权重 2；高级题硬规格
+   （≥5 组隐藏不变量）继续满足。
+4. **锚解与半成品重做**：`reference/fix.patch`、`reference/partial.patch` 按新注入面
+   重写；`partial.patch` 仍是 `fix.patch` 的真子集。
+
+### 四态门禁实测（本轮复跑，逐组核过）
+
+| 门禁 | 分数 | p2p 破坏 | 说明 |
+| --- | --- | --- | --- |
+| `fixed` | **100.0** | 0 | 7 个计分组全绿 + 前端 `frontend_degrade_exit` 绿 |
+| `partial` | **22.22** | 0 | 红 6 组，含两个新组 |
+| `injected` ×20 | **每轮都是 0.0**（stable） | 0 | 8 组每轮全红 |
+| `baseline` | **88.89** | 0 | 唯一红组是已披露的 `frontend_degrade_exit` |
+
+判别力自检：新加的两组在 `fixed` 下**绿**、在 `injected` 下**红**，证明它们真的
+在测新注入的缺陷，不是恒绿或恒红的摆设。
+
+`packcheck --full` 复跑**红 0 黄 1**（黄=「blind_runs 已有 3 行」的提示）。
+跨题复用自查：**0 组**（与 T4-11 的去复用改造互不影响）。
+
+### 校准纪律
+
+`calibrated` 恒为 `false`；`blind_runs` 只增真实跑出来的行，不填造、不外推。
+本次改造**完成后尚未**对新注入面跑盲测——上面那张表全是门禁判别力数据，
+**不是** pass@1。下一轮难度复核应对新题面+新注入面重跑盲测。

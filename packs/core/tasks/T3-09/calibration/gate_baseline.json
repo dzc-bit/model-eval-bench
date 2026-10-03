@@ -4,8 +4,8 @@
   "patches": [],
   "runs": [
     {
-      "score": 85.71,
-      "raw_score": 85.71,
+      "score": 88.89,
+      "raw_score": 88.89,
       "groups": [
         {
           "id": "single_flight_exit",
@@ -93,6 +93,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": true,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -121,8 +155,8 @@
     }
   ],
   "repeat": 1,
-  "score_min": 85.71,
-  "score_max": 85.71,
+  "score_min": 88.89,
+  "score_max": 88.89,
   "stable": true,
-  "finished_at": "2026-10-03T02:30:23"
+  "finished_at": "2026-10-03T11:42:06"
 }

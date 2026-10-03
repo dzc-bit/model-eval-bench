@@ -8,8 +8,8 @@
   ],
   "runs": [
     {
-      "score": 28.57,
-      "raw_score": 28.57,
+      "score": 22.22,
+      "raw_score": 22.22,
       "groups": [
         {
           "id": "single_flight_exit",
@@ -41,7 +41,7 @@
             {
               "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
               "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "message": "AssertionError: 取消状态下的迟到板块数据被发布到了对外输出列表中\nassert 1 == 0\n +  where 1 = len([{'change_pct': 0.05, 'name': '迟到板块'}])"
             }
           ]
         },
@@ -97,6 +97,40 @@
           ]
         },
         {
+          "id": "background_refresh_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_gate_reopens_after_failed_refresh",
+              "outcome": "failed",
+              "message": "AssertionError: 首次后台刷新失败后闸门没有复位，后续刷新被永久挡住\nassert False\n +  where False = _await_background_gate_release(RealtimeMarketProvider(warehouse=<astock_backtester.data.warehouse.Warehouse object at 0x000001FD00619E50>, timeout=2....ney_breadth_fallback=False, cls_home_cache_ttl=1.5, yesterday_sector_time_budget=1.0, yesterday_sector_cache_ttl=900.0))"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_background_refresh_in_flight_is_not_restacked",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
+          "id": "cls_home_waiter_exit",
+          "weight": 1.0,
+          "passed": false,
+          "cases": [
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiter_rejects_stale_cache_after_owner_failure",
+              "outcome": "failed",
+              "message": "Failed: DID NOT RAISE <class 'Exception'>"
+            },
+            {
+              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_cls_home_waiters_share_one_upstream_request",
+              "outcome": "passed",
+              "message": ""
+            }
+          ]
+        },
+        {
           "id": "frontend_degrade_exit",
           "weight": 1.0,
           "passed": false,
@@ -104,7 +138,7 @@
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
               "outcome": "failed",
-              "message": "expected 60000 to be 45000 // Object.is equality"
+              "message": "expected 120000 to be 45000 // Object.is equality"
             },
             {
               "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
@@ -125,8 +159,8 @@
     }
   ],
   "repeat": 1,
-  "score_min": 28.57,
-  "score_max": 28.57,
+  "score_min": 22.22,
+  "score_max": 22.22,
   "stable": true,
-  "finished_at": "2026-10-03T02:30:10"
+  "finished_at": "2026-10-03T11:41:57"
 }
