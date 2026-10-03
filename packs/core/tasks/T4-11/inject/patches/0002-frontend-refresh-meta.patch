@@ -1,0 +1,30 @@
+diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
+--- a/frontend/src/marketRefresh.ts
++++ b/frontend/src/marketRefresh.ts
+@@ -47,11 +47,9 @@
+   phase: MarketSessionPhase,
+   _diagnostics: string[] | undefined,
+   hasError = false,
+-  missingBreadth = false
++  _missingBreadth = false
+ ): number {
+-  if (!hasError && missingBreadth) {
+-    return DEGRADED_RETRY_MS;
+-  }
++  // 轮询间隔只由时段与失败状态决定：个别字段缺失不改变整个模块的刷新节奏。
+   return refreshIntervalForPhase(phase, hasError);
+ }
+ 
+@@ -107,11 +105,7 @@
+       : nextPhase === "trading"
+       ? "实时行情已更新"
+       : "非交易时段，使用最近数据",
+-    last_success_at: isPartial
+-      ? current.last_success_at ?? null
+-      : snapshot.status === "unavailable"
+-      ? current.last_success_at ?? null
+-      : snapshot.updated_at,
++    last_success_at: snapshot.updated_at,
+     last_error: snapshot.status === "unavailable" ? snapshot.message : undefined,
+     next_refresh_ms: nextInterval
+   };

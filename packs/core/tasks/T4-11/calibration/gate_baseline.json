@@ -13,12 +13,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_is_reusable_after_a_successful_read",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_rejects_a_second_worker_while_one_is_running",
               "outcome": "passed",
               "message": ""
             }
@@ -30,12 +30,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_timed_out_worker_diagnostics_never_reach_the_caller",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_cancelled_sector_rows_are_not_published_to_the_caller",
               "outcome": "passed",
               "message": ""
             }
@@ -47,12 +47,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_older_generation_cannot_replace_a_newer_one_on_equal_timestamp",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_unversioned_write_cannot_replace_a_generation_tracked_snapshot",
               "outcome": "passed",
               "message": ""
             }
@@ -64,12 +64,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_request_behind_a_slow_source_is_answered_immediately_not_queued",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_channel_recovers_for_a_fresh_request_once_the_worker_finishes",
               "outcome": "passed",
               "message": ""
             }
@@ -81,12 +81,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_is_isolated_from_later_caller_mutation",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_keeps_the_newest_generation_under_out_of_order_arrival",
               "outcome": "passed",
               "message": ""
             }
@@ -98,12 +98,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_import_lands_one_partition_write_per_batch_not_per_symbol",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_oversized_batch_lands_the_whole_pool_in_one_write",
               "outcome": "passed",
               "message": ""
             }
@@ -115,12 +115,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_cumulative_written_rows_stay_linear_in_pool_size",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_written_volume_does_not_grow_with_partition_row_count",
               "outcome": "passed",
               "message": ""
             }
@@ -132,12 +132,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_write_makes_per_trade_date_counts_recompute",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_write_returns_the_symbol_pool_count_to_cold",
               "outcome": "passed",
               "message": ""
             }
@@ -149,17 +149,17 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_one_transient_lock_timeout_is_absorbed",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_consecutive_lock_timeouts_are_absorbed",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_import_route_survives_a_transient_lock_timeout",
               "outcome": "passed",
               "message": ""
             }
@@ -171,12 +171,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_notices_rows_written_by_another_program",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_reports_a_write_side_scan_in_flight",
               "outcome": "passed",
               "message": ""
             }
@@ -188,12 +188,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_two_programs_writing_one_partition_conserve_every_row",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_two_programs_appending_different_dates_conserve_every_row",
               "outcome": "passed",
               "message": ""
             }
@@ -205,12 +205,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_script_summary_matches_disk_and_statistics",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_symbol_count_matches_what_the_script_wrote",
               "outcome": "passed",
               "message": ""
             }
@@ -239,17 +239,22 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::部分成功（缺红绿家数）缩短重试间隔",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::全源失败走失败退避，且不再叠加降级间隔",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::迟到的旧快照不得让成功时点回跳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::不可用与部分成功都不得推进成功时点",
               "outcome": "passed",
               "message": ""
             }
@@ -265,5 +270,5 @@
   "score_min": 94.44,
   "score_max": 94.44,
   "stable": true,
-  "finished_at": "2026-10-02T02:43:20"
+  "finished_at": "2026-10-03T08:17:24"
 }

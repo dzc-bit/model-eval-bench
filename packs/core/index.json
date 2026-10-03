@@ -323,7 +323,7 @@
       "gate": {
         "baseline": 94.44,
         "fixed": 100.0,
-        "partial": 27.78,
+        "partial": 33.33,
         "injected_x20": "stable 0.0"
       },
       "packcheck_red": 0,

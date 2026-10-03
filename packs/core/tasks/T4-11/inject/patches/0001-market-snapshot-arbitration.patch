@@ -1,62 +1,62 @@
 diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtester/data/realtime.py
 --- a/backend/astock_backtester/data/realtime.py
 +++ b/backend/astock_backtester/data/realtime.py
-@@ -286,8 +286,9 @@
+@@ -286,9 +286,8 @@
          with self._state_lock:
              current = self._last_successful_snapshot
              if current is None:
--                # 首次留存只记内容；已确认世代水位交给后续比较自行推进。
--                self._last_successful_snapshot = snapshot
-+                self._last_successful_snapshot = snapshot.model_copy(deep=True)
-+                if generation is not None:
-+                    self._last_snapshot_generation = generation
+-                self._last_successful_snapshot = snapshot.model_copy(deep=True)
+-                if generation is not None:
+-                    self._last_snapshot_generation = generation
++                # 首次留存只记内容；已确认世代水位交给后续比较自行推进。
++                self._last_successful_snapshot = snapshot
                  return
              # P1-4: production always passes generation.  For mixed-mode
              # safety, compare BOTH generation and updated_at so a legacy
-@@ -304,7 +305,9 @@
+@@ -305,9 +304,7 @@
              else:
                  should_update = snapshot.updated_at > current.updated_at
              if should_update:
--                self._last_successful_snapshot = snapshot
-+                self._last_successful_snapshot = snapshot.model_copy(deep=True)
-+                if generation is not None:
-+                    self._last_snapshot_generation = generation
+-                self._last_successful_snapshot = snapshot.model_copy(deep=True)
+-                if generation is not None:
+-                    self._last_snapshot_generation = generation
++                self._last_successful_snapshot = snapshot
  
      def retained_successful_snapshot(self) -> RealtimeMarketSnapshot | None:
          with self._state_lock:
-@@ -611,6 +614,7 @@
+@@ -614,7 +611,6 @@
          except Exception:
              self._breadth_in_flight.release()
              raise
-+        future.add_done_callback(lambda _future: self._breadth_in_flight.release())
+-        future.add_done_callback(lambda _future: self._breadth_in_flight.release())
          try:
              remaining = max(0.0, deadline - monotonic_time.monotonic())
              result = future.result(timeout=remaining)
-@@ -623,14 +627,9 @@
+@@ -627,9 +623,14 @@
          except TimeoutError:
              cancel_event.set()
              future.cancel()
--            self._breadth_in_flight.release()
--            # 后台 worker 收尾时把它已经攒下的诊断补交给调用方：这些是本次请求
--            # 自己那条链路上的信息，随超时一起丢掉太可惜。
--            future.add_done_callback(lambda _future: diagnostics.extend(worker_diagnostics))
++            self._breadth_in_flight.release()
++            # 后台 worker 收尾时把它已经攒下的诊断补交给调用方：这些是本次请求
++            # 自己那条链路上的信息，随超时一起丢掉太可惜。
++            future.add_done_callback(lambda _future: diagnostics.extend(worker_diagnostics))
              diagnostics.append(f"实时红绿家数接口超时：{self.breadth_time_budget:g}秒，已继续返回可用行情。")
              return None
          except Exception as exc:
--            self._breadth_in_flight.release()
++            self._breadth_in_flight.release()
              diagnostics.append(f"实时红绿家数接口失败：{exc}，已继续返回可用行情。")
              return None
  
-@@ -1250,10 +1249,10 @@
+@@ -1249,10 +1250,10 @@
          deadline: float | None,
          diagnostics: list[str],
      ) -> bool:
-+        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
-+            return False
-         if sector_rows_out is not None:
-             sector_rows_out[:] = rows
--        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
--            return False
++        if sector_rows_out is not None:
++            sector_rows_out[:] = rows
+         if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
+             return False
+-        if sector_rows_out is not None:
+-            sector_rows_out[:] = rows
          return True
  
      def _allow_public_alternate_transport(self) -> bool:

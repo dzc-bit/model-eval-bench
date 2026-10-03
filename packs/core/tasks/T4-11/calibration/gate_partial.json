@@ -2,8 +2,8 @@
   "task": "T4-11",
   "state": "partial",
   "patches": [
-    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0001-realtime-arbitration.patch",
-    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0002-frontend-market-degrade.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0001-market-snapshot-arbitration.patch",
+    "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0002-frontend-refresh-meta.patch",
     "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0003-run-full-market-import.patch",
     "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0004-warehouse.patch",
     "D:\\new model test\\packs\\core\\tasks\\T4-11\\inject\\patches\\0005-service.patch",
@@ -12,8 +12,8 @@
   ],
   "runs": [
     {
-      "score": 27.78,
-      "raw_score": 27.78,
+      "score": 33.33,
+      "raw_score": 33.33,
       "groups": [
         {
           "id": "single_flight_exit",
@@ -21,12 +21,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_is_reusable_after_a_successful_read",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_rejects_a_second_worker_while_one_is_running",
               "outcome": "passed",
               "message": ""
             }
@@ -35,34 +35,34 @@
         {
           "id": "late_publish_exit",
           "weight": 1.0,
-          "passed": false,
+          "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
-              "outcome": "failed",
-              "message": "AssertionError: 迟到 worker 诊断泄漏进了对外共享状态\nassert 'late-private-diagnostic-probe' not in ['实时红绿家数接口超时：0.03秒，已继续返回可用行情。', 'late-private-diagnostic-probe']"
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_timed_out_worker_diagnostics_never_reach_the_caller",
+              "outcome": "passed",
+              "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled",
-              "outcome": "failed",
-              "message": "AssertionError: 请求取消后 _publish_sector_rows 仍返回成功\nassert not True"
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_cancelled_sector_rows_are_not_published_to_the_caller",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         },
         {
           "id": "generation_exit",
           "weight": 1.0,
-          "passed": false,
+          "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
-              "outcome": "failed",
-              "message": "AssertionError: 旧世代快照覆盖了新世代快照：当前源为 gen-1-late\nassert 'gen-1-late' == 'gen-2'\n  \n  - gen-2\n  + gen-1-late"
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_older_generation_cannot_replace_a_newer_one_on_equal_timestamp",
+              "outcome": "passed",
+              "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot",
-              "outcome": "failed",
-              "message": "AssertionError: 无世代遗留快照覆盖了权威世代快照：当前源为 legacy-unversioned\nassert 'legacy-unversioned' == 'gen-5-authoritative'\n  \n  - gen-5-authoritative\n  + legacy-unversioned"
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_unversioned_write_cannot_replace_a_generation_tracked_snapshot",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         },
@@ -72,12 +72,12 @@
           "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_request_behind_a_slow_source_is_answered_immediately_not_queued",
               "outcome": "passed",
               "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_channel_recovers_for_a_fresh_request_once_the_worker_finishes",
               "outcome": "passed",
               "message": ""
             }
@@ -86,15 +86,15 @@
         {
           "id": "coherence_realtime",
           "weight": 2.0,
-          "passed": false,
+          "passed": true,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
-              "outcome": "failed",
-              "message": "AssertionError: assert 'gen1-stale' == 'gen2-authoritative'\n  \n  - gen2-authoritative\n  + gen1-stale"
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_is_isolated_from_later_caller_mutation",
+              "outcome": "passed",
+              "message": ""
             },
             {
-              "node_id": "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated",
+              "node_id": "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_keeps_the_newest_generation_under_out_of_order_arrival",
               "outcome": "passed",
               "message": ""
             }
@@ -103,34 +103,34 @@
         {
           "id": "batching_exit",
           "weight": 1.0,
-          "passed": true,
+          "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_import_lands_one_partition_write_per_batch_not_per_symbol",
+              "outcome": "failed",
+              "message": "AssertionError: 25 只票按批大小 10 落盘 25 次：攒批被拆成了每票一落\nassert 25 <= 5\n +  where 25 = len([1, 2, 3, 4, 5, 6, ...])"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_oversized_batch_lands_the_whole_pool_in_one_write",
+              "outcome": "failed",
+              "message": "AssertionError: 7 只票 / 批大小 100 落盘了 7 次：[1, 2, 3, 4, 5, 6, 7]\nassert 7 == 1\n +  where 7 = len([1, 2, 3, 4, 5, 6, ...])"
             }
           ]
         },
         {
           "id": "amplification_exit",
           "weight": 1.0,
-          "passed": true,
+          "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_cumulative_written_rows_stay_linear_in_pool_size",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 156 行远超总行数 24：每次落盘都在重写整段分区\nassert 156 <= (3 * 24)\n +  where 156 = sum([2, 4, 6, 8, 10, 12, ...])"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_written_volume_does_not_grow_with_partition_row_count",
+              "outcome": "failed",
+              "message": "AssertionError: 累计写盘 108 行远超总行数 24\nassert 108 <= (3 * 24)\n +  where 108 = sum([3, 6, 9, 12, 15, 18, ...])"
             }
           ]
         },
@@ -140,14 +140,14 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_write_makes_per_trade_date_counts_recompute",
               "outcome": "failed",
               "message": "AssertionError: 写入之后统计口径仍停在旧值：{'2026-06-01': 1, '2026-06-02': 0, '2026-06-03': 0}（写入没有让统计缓存失效）\nassert 0 == 1"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_write_returns_the_symbol_pool_count_to_cold",
               "outcome": "failed",
-              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001F206DAB650>.cached_symbol_count"
+              "message": "AssertionError: 写入之后股票池计数缓存没有失效：0\nassert 0 is None\n +  where 0 = cached_symbol_count()\n +    where cached_symbol_count = <astock_backtester.data.warehouse.Warehouse object at 0x000001EB1F81F950>.cached_symbol_count"
             }
           ]
         },
@@ -157,19 +157,19 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_one_transient_lock_timeout_is_absorbed",
               "outcome": "failed",
               "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_consecutive_lock_timeouts_are_absorbed",
               "outcome": "failed",
               "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：daily_bars.parquet"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_import_route_survives_a_transient_lock_timeout",
               "outcome": "failed",
-              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T4-11-partial\\.grade-cache\\pytest-basetemp\\test_daily_bars_import_survive0\\parquet\\daily_bars.parquet"
+              "message": "astock_backtester.data.filelock.FileLockTimeout: 等待数据仓写入锁超时（120s）：D:\\new model test\\runs\\blind\\gates\\T4-11-partial\\.grade-cache\\pytest-basetemp\\test_import_route_survives_a_t0\\parquet\\daily_bars.parquet"
             }
           ]
         },
@@ -179,31 +179,31 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_notices_rows_written_by_another_program",
               "outcome": "failed",
-              "message": "AssertionError: 外部写入之后健康口径仍报 0 只股票：写入侧状况对外不可见\nassert 0 >= 2"
+              "message": "AssertionError: 外部写入之后健康口径仍报 0 只：写入侧状况对外不可见\nassert 0 >= 2"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan",
-              "outcome": "failed",
-              "message": "AssertionError: 写入侧的覆盖扫描还没结束，健康口径却报告没有刷新在跑\nassert False is True"
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_reports_a_write_side_scan_in_flight",
+              "outcome": "passed",
+              "message": ""
             }
           ]
         },
         {
           "id": "cross_process_exit",
           "weight": 1.0,
-          "passed": true,
+          "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_two_programs_writing_one_partition_conserve_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 两个进程写同一分区之后盘上只有 ['603001', '603002', '603003']，丢了 ['601001', '601002', '601003', '601004']\nassert {'603001', '603002', '603003'} == {'601001', '6...'603002', ...}\n  \n  Extra items in the right set:\n  '601004'\n  '601001'\n  '601002'\n  '601003'\n  Use -v to get more diff"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_two_programs_appending_different_dates_conserve_every_row",
+              "outcome": "failed",
+              "message": "AssertionError: 同一只票的两个交易日没有都留下：['2026-06-03']（后落盘的进程抹掉了先落盘的行）\nassert ['2026-06-03'] == ['2026-06-01', '2026-06-03']\n  \n  At index 0 diff: '2026-06-03' != '2026-06-01'\n  Right contains one more item: '2026-06-03'\n  Use -v to get more diff"
             }
           ]
         },
@@ -213,12 +213,12 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_script_summary_matches_disk_and_statistics",
               "outcome": "failed",
-              "message": "AssertionError: 统计口径 0 行 ≠ 落盘 12 行：写入没有让统计口径失效\nassert 0 == 12"
+              "message": "AssertionError: 脚本汇总 6 行 ≠ 盘上真实 12 行\nassert 6 == 12"
             },
             {
-              "node_id": "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows",
+              "node_id": "hidden/tests_hidden/test_write_authority.py::test_health_symbol_count_matches_what_the_script_wrote",
               "outcome": "failed",
               "message": "AssertionError: 健康口径 0 只 ≠ 盘上真实 4 只\nassert 0 == 4\n +  where 4 = len({'000001', '000002', '000003', '000004'})"
             }
@@ -247,19 +247,24 @@
           "passed": false,
           "cases": [
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::部分成功（缺红绿家数）缩短重试间隔",
               "outcome": "failed",
               "message": "expected 60000 to be 45000 // Object.is equality"
             },
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::全源失败走失败退避，且不再叠加降级间隔",
+              "outcome": "passed",
+              "message": ""
+            },
+            {
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::迟到的旧快照不得让成功时点回跳",
               "outcome": "failed",
               "message": "expected '2026-06-05T10:00:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             },
             {
-              "node_id": "src/tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔",
-              "outcome": "passed",
-              "message": ""
+              "node_id": "src/tests_hidden_fe/marketAuthority.hidden.test.ts::不可用与部分成功都不得推进成功时点",
+              "outcome": "failed",
+              "message": "expected '2026-06-05T10:20:00+08:00' to be '2026-06-05T10:05:00+08:00' // Object.is equality"
             }
           ]
         }
@@ -270,8 +275,8 @@
     }
   ],
   "repeat": 1,
-  "score_min": 27.78,
-  "score_max": 27.78,
+  "score_min": 33.33,
+  "score_max": 33.33,
   "stable": true,
-  "finished_at": "2026-10-02T02:42:19"
+  "finished_at": "2026-10-03T08:16:06"
 }

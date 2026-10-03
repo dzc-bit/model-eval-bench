@@ -1,39 +1,30 @@
 diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtester/data/realtime.py
 --- a/backend/astock_backtester/data/realtime.py
 +++ b/backend/astock_backtester/data/realtime.py
-@@ -295,8 +295,15 @@
-             # call with a newer wall-clock time can never clobber a
-             # generation-tracked snapshot.  Example: gen=5 (no-generation
-             # legacy) with t=10:05 must not overwrite gen=6 with t=10:00.
--            # 简化快照覆盖逻辑：统一按快照更新时间戳比较先后，时间相同也允许覆盖
--            should_update = snapshot.updated_at >= current.updated_at
-+            if generation is not None:
-+                should_update = generation > self._last_snapshot_generation
-+            elif self._last_snapshot_generation > 0:
-+                # A generation-tracked snapshot is present — a legacy
-+                # (no-generation) call must never overwrite it, even
-+                # when the legacy call has a newer wall-clock timestamp.
-+                should_update = False
-+            else:
-+                should_update = snapshot.updated_at > current.updated_at
+@@ -286,8 +286,9 @@
+         with self._state_lock:
+             current = self._last_successful_snapshot
+             if current is None:
+-                # 首次留存只记内容；已确认世代水位交给后续比较自行推进。
+-                self._last_successful_snapshot = snapshot
++                self._last_successful_snapshot = snapshot.model_copy(deep=True)
++                if generation is not None:
++                    self._last_snapshot_generation = generation
+                 return
+             # P1-4: production always passes generation.  For mixed-mode
+             # safety, compare BOTH generation and updated_at so a legacy
+@@ -304,7 +305,9 @@
+             else:
+                 should_update = snapshot.updated_at > current.updated_at
              if should_update:
-                 self._last_successful_snapshot = snapshot.model_copy(deep=True)
-                 if generation is not None:
-@@ -595,17 +602,27 @@
-         try:
-             deadline = monotonic_time.monotonic() + self.breadth_time_budget
-             cancel_event = Event()
-+            # The worker writes only to its private diagnostics list.  The caller
-+            # publishes those diagnostics ONLY when the future completes within the
-+            # budget; on timeout the private list is discarded so a late worker can
-+            # never pollute the shared diagnostics.
-+            worker_diagnostics: list[str] = []
-             executor = self._get_breadth_executor()
--            # 外部诊断列表直接传入 worker 记录底层明细
-             future = executor.submit(
--                self._call_live_breadth, diagnostics, deadline, cancel_event
-+                self._call_live_breadth, worker_diagnostics, deadline, cancel_event
-             )
+-                self._last_successful_snapshot = snapshot
++                self._last_successful_snapshot = snapshot.model_copy(deep=True)
++                if generation is not None:
++                    self._last_snapshot_generation = generation
+ 
+     def retained_successful_snapshot(self) -> RealtimeMarketSnapshot | None:
+         with self._state_lock:
+@@ -611,6 +614,7 @@
          except Exception:
              self._breadth_in_flight.release()
              raise
@@ -41,98 +32,117 @@ diff --git a/backend/astock_backtester/data/realtime.py b/backend/astock_backtes
          try:
              remaining = max(0.0, deadline - monotonic_time.monotonic())
              result = future.result(timeout=remaining)
-+            # Double-check: even after future.result returns, the computation
-+            # itself may have exhausted the budget.  Discard the result if so.
-+            if monotonic_time.monotonic() > deadline:
-+                raise TimeoutError
-+            diagnostics.extend(worker_diagnostics)
-             return result
+@@ -623,14 +627,9 @@
          except TimeoutError:
              cancel_event.set()
-@@ -615,9 +632,6 @@
+             future.cancel()
+-            self._breadth_in_flight.release()
+-            # 后台 worker 收尾时把它已经攒下的诊断补交给调用方：这些是本次请求
+-            # 自己那条链路上的信息，随超时一起丢掉太可惜。
+-            future.add_done_callback(lambda _future: diagnostics.extend(worker_diagnostics))
+             diagnostics.append(f"实时红绿家数接口超时：{self.breadth_time_budget:g}秒，已继续返回可用行情。")
+             return None
          except Exception as exc:
+-            self._breadth_in_flight.release()
              diagnostics.append(f"实时红绿家数接口失败：{exc}，已继续返回可用行情。")
              return None
--        finally:
--            # 退出当前调用时释放通道锁，确保后来的刷新请求可以立刻发起
--            self._breadth_in_flight.release()
  
-     def _fetch_live_sectors_with_budget(
-         self,
-@@ -1235,7 +1249,8 @@
+@@ -1250,10 +1249,10 @@
          deadline: float | None,
          diagnostics: list[str],
      ) -> bool:
--        # 直接输出板块明细，由外层调用方根据快照结果决定是否丢弃
 +        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
 +            return False
          if sector_rows_out is not None:
              sector_rows_out[:] = rows
+-        if self._source_chain_cancelled(cancel_event, deadline, diagnostics, "strong-sector"):
+-            return False
          return True
-diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
---- a/frontend/src/marketRefresh.ts
-+++ b/frontend/src/marketRefresh.ts
-@@ -49,7 +49,9 @@
-   hasError = false,
-   missingBreadth = false
- ): number {
--  // 保持标准轮询节奏，不因部分字段缺失导致请求过于密集
-+  if (!hasError && missingBreadth) {
-+    return DEGRADED_RETRY_MS;
-+  }
-   return refreshIntervalForPhase(phase, hasError);
- }
  
-@@ -109,6 +111,8 @@
-       ? current.last_success_at ?? null
-       : snapshot.status === "unavailable"
-       ? current.last_success_at ?? null
-+      : current.last_success_at && snapshot.updated_at && snapshot.updated_at < current.last_success_at
-+      ? current.last_success_at
-       : snapshot.updated_at,
-     last_error: snapshot.status === "unavailable" ? snapshot.message : undefined,
-     next_refresh_ms: nextInterval
+     def _allow_public_alternate_transport(self) -> bool:
+diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
+--- a/backend/astock_backtester/data/warehouse.py
++++ b/backend/astock_backtester/data/warehouse.py
+@@ -193,11 +193,7 @@
+                 self._atomic_write_parquet(year_frame, path)
+         with sqlite3.connect(self.sqlite_path) as conn:
+             conn.execute("INSERT OR REPLACE INTO datasets(dataset) VALUES('daily_bars')")
+-        # 只丢缺口画像。股票池计数与每交易日行数缓存仍按各自 TTL（10 分钟）自然
+-        # 过期：每落一批数据就把两个全局统计缓存打穿，会让写入期间的读路径反复
+-        # 重算，整体读成本反而更高。
+-        with self._gap_profile_lock:
+-            self._gap_profile_cache = None
++        self.invalidate_gap_profile()
+ 
+     @staticmethod
+     def _atomic_write_parquet(frame: pd.DataFrame, path: Path) -> None:
+diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
+--- a/backend/astock_backtester/data/operations.py
++++ b/backend/astock_backtester/data/operations.py
+@@ -53,15 +53,22 @@
+ 
+ 
+ def _write_with_lock_retry(write: Callable[[], None]) -> None:
+-    """执行一次写入，``FileLockTimeout`` 原样上抛；其它异常同样原样上抛。
+-
+-    锁本身已经等了 120 秒，再叠加应用层退避重试只是把写入方彼此排队的时间乘一遍
+-    重试次数：同时写库的程序越多，整体反而越慢，重试窗口里拿到的数据也未必更新。
+-    """
+-    try:
+-        write()
+-    except FileLockTimeout:
+-        raise
++    """执行一次写入，``FileLockTimeout`` 时有界短退避重试；其它异常原样上抛。"""
++    attempt = 0
++    while True:
++        attempt += 1
++        try:
++            write()
++            return
++        except FileLockTimeout:
++            if attempt >= WRITE_LOCK_RETRY_ATTEMPTS:
++                raise
++            time.sleep(WRITE_LOCK_RETRY_BACKOFF_SECONDS * attempt)
++            logger.warning(
++                "daily-bars write lock is busy; retrying (%d/%d)",
++                attempt + 1,
++                WRITE_LOCK_RETRY_ATTEMPTS,
++            )
+ 
+ 
+ def _date_range(start_date: pd.Timestamp, end_date: pd.Timestamp) -> set[pd.Timestamp]:
+diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
+--- a/backend/astock_backtester/service.py
++++ b/backend/astock_backtester/service.py
+@@ -276,10 +276,12 @@
+         }
+ 
+     def _has_fresh_coverage_snapshot(self) -> bool:
+-        # 后台刷新只要跑完过一轮就算新鲜：覆盖数据由写入链路自己推进
+-        # （写入路由会调 set_coverage_snapshot），健康接口不再按 TTL 反复
+-        # 回读仓库，免得每次探活都触发一次全仓扫描。
+-        return self._coverage_refreshed_at is not None
++        if not any(item.symbols > 0 for item in self._coverage_snapshot):
++            return False
++        if self._coverage_refreshed_at is None:
++            return False
++        age = (datetime.now(UTC) - self._coverage_refreshed_at).total_seconds()
++        return age < HEALTH_COVERAGE_REFRESH_TTL_SECONDS
+ 
+     def start_coverage_refresh(self, *, force: bool = False) -> Event | None:
+         """Start a background coverage refresh unless one is already running.
 diff --git a/scripts/run-full-market-import.py b/scripts/run-full-market-import.py
 --- a/scripts/run-full-market-import.py
 +++ b/scripts/run-full-market-import.py
-@@ -120,36 +120,6 @@
-     return completed
+@@ -23,7 +23,6 @@
+ 
+ _HTTP_ADAPTER: AStockDataAdapter | None = None
+ _HTTP_ADAPTER_LOCK = threading.Lock()
+-_SESSION_FRAMES: dict[str, pd.DataFrame] = {}
  
  
--_PARTITION_SESSIONS: dict[str, pd.DataFrame] = {}
--
--
--def _persist_batch(warehouse: Warehouse, frames: list[pd.DataFrame]) -> None:
--    """把一批行并进分区会话，再把会话整段落盘。
--
--    分区一旦开过会话就以会话为准：后续批次只跟内存里那份合并，不再回读磁盘。
--    回读整段分区是这条路上最贵的一步（分区越大越贵），而写入方是按批次顺序
--    推进的，磁盘上此刻的内容与自己上一批写下的那份本来就该一致。
--    """
--    frame = pd.concat(frames, ignore_index=True)
--    frame["trade_date"] = pd.to_datetime(frame["trade_date"], errors="coerce")
--    frame = frame.dropna(subset=["trade_date"])
--    if frame.empty:
--        return
--    for year, year_frame in frame.groupby(frame["trade_date"].dt.year):
--        path = warehouse._partition_path(int(year))
--        key = str(path)
--        session = _PARTITION_SESSIONS.get(key)
--        if session is None:
--            session = warehouse._safe_read_parquet(path) if path.exists() else pd.DataFrame()
--        merged = pd.concat([session, year_frame], ignore_index=True)
--        if {"symbol", "trade_date"}.issubset(merged.columns):
--            merged = merged.drop_duplicates(subset=["symbol", "trade_date"], keep="last")
--        merged = merged.sort_values(["symbol", "trade_date"]).reset_index(drop=True)
--        _PARTITION_SESSIONS[key] = merged
--        path.parent.mkdir(parents=True, exist_ok=True)
--        warehouse._atomic_write_parquet(merged, path)
--
--
- def fetch_daily_bars(symbol: str, start_date: str, end_date: str, adata_provider: ADataProvider) -> tuple[pd.DataFrame, str]:
-     frame = adata_provider.fetch_daily_bars(symbol, start_date, end_date)
-     if not frame.empty:
-@@ -211,7 +181,7 @@
+ def _http_adapter() -> AStockDataAdapter:
+@@ -182,7 +181,7 @@
      parser.add_argument("--refresh-symbols", action="store_true")
      parser.add_argument("--source", choices=["auto", "adata", "http"], default="http")
      parser.add_argument("--workers", type=int, default=6)
@@ -141,80 +151,107 @@ diff --git a/scripts/run-full-market-import.py b/scripts/run-full-market-import.
      args = parser.parse_args()
  
      cache_dir = Path(args.cache_dir)
-@@ -248,10 +218,7 @@
+@@ -215,42 +214,11 @@
+     by_symbol_index = {symbol: index for index, symbol in pending_symbols}
+     batch: list[tuple[str, pd.DataFrame, str, float, int, int]] = []
+ 
+-    def persist(frame: pd.DataFrame) -> None:
+-        """把一只票的行并进它所在分区的会话，再把会话整段落盘。
+-
+-        分区一旦开过会话就以会话为准：后续批次只跟内存里那份合并，不再回读磁盘。
+-        回读整段分区是这条路上最贵的一步（分区越大越贵），而写入方是按批次顺序
+-        推进的，磁盘上此刻的内容与自己上一批写下的那份本来就该一致。
+-        """
+-        if frame.empty:
+-            return
+-        frame = frame.copy()
+-        frame["trade_date"] = pd.to_datetime(frame["trade_date"], errors="coerce")
+-        frame = frame.dropna(subset=["trade_date"])
+-        if frame.empty:
+-            return
+-        for year, year_frame in frame.groupby(frame["trade_date"].dt.year):
+-            path = warehouse._partition_path(int(year))
+-            key = str(path)
+-            session = _SESSION_FRAMES.get(key)
+-            if session is None:
+-                session = pd.DataFrame()
+-            merged = pd.concat([session, year_frame], ignore_index=True)
+-            if {"symbol", "trade_date"}.issubset(merged.columns):
+-                merged = merged.drop_duplicates(subset=["symbol", "trade_date"], keep="last")
+-            merged = merged.sort_values(["symbol", "trade_date"]).reset_index(drop=True)
+-            _SESSION_FRAMES[key] = merged
+-            path.parent.mkdir(parents=True, exist_ok=True)
+-            warehouse._atomic_write_parquet(merged, path)
+-
+     def flush_batch() -> None:
          nonlocal imported_rows
          if not batch:
              return
 -        # 每只票各自过一次分区会话：批越小，中途失败时丢的行越少，进度事件也
 -        # 更贴近实际落盘节奏；批边界仍由上面的 --write-batch-size 决定。
 -        for _symbol, frame, _source, _seconds, _rows, _index in batch:
--            _persist_batch(warehouse, [frame])
+-            persist(frame)
 +        warehouse.write_daily_bars(pd.concat([item[1] for item in batch], ignore_index=True))
          for symbol, _frame, source, seconds, rows, index in batch:
              imported_rows += rows
              append_jsonl(
-diff --git a/backend/astock_backtester/data/warehouse.py b/backend/astock_backtester/data/warehouse.py
---- a/backend/astock_backtester/data/warehouse.py
-+++ b/backend/astock_backtester/data/warehouse.py
-@@ -213,14 +213,13 @@
-             raise
+@@ -334,7 +302,7 @@
+             "event": "finish",
+             "time": datetime.now().isoformat(timespec="seconds"),
+             "total_symbols": len(symbols),
+-            "imported_rows": len(symbols),
++            "imported_rows": imported_rows,
+             "failed": failed,
+         },
+     )
+diff --git a/frontend/src/marketRefresh.ts b/frontend/src/marketRefresh.ts
+--- a/frontend/src/marketRefresh.ts
++++ b/frontend/src/marketRefresh.ts
+@@ -47,9 +47,11 @@
+   phase: MarketSessionPhase,
+   _diagnostics: string[] | undefined,
+   hasError = false,
+-  _missingBreadth = false
++  missingBreadth = false
+ ): number {
+-  // 轮询间隔只由时段与失败状态决定：个别字段缺失不改变整个模块的刷新节奏。
++  if (!hasError && missingBreadth) {
++    return DEGRADED_RETRY_MS;
++  }
+   return refreshIntervalForPhase(phase, hasError);
+ }
  
-     def invalidate_gap_profile(self) -> None:
--        """写入后丢弃缺口画像缓存，让下一次读取反映最新数据。
--
--        股票池计数与每交易日行数缓存仍按各自的 TTL（10 分钟）自然过期：
--        每落一批数据就把两个全局统计缓存打穿，会让写入期间的读路径反复重算，
--        整体读成本反而更高。
--        """
-+        """写入后丢弃缺口画像、股票池计数与每交易日行数缓存，让下一次读取反映最新数据。"""
-         with self._gap_profile_lock:
-             self._gap_profile_cache = None
-+        with self._symbol_count_lock:
-+            self._symbol_count_cache = None
-+        with self._trade_date_counts_lock:
-+            self._trade_date_counts_cache = None
+@@ -71,6 +73,24 @@
+     message: "等待实时行情刷新",
+     next_refresh_ms: refreshIntervalForPhase(phase)
+   };
++}
++
++// 最近成功时点只允许单调前进：部分成功、不可用与迟到的旧快照都不能让它回跳，
++// 也不能让它把一次"还没成功"的刷新冒充成成功。
++export function nextLastSuccessAt(
++  current: MarketRefreshMeta,
++  snapshot: RealtimeMarketSnapshot,
++  isPartial = false
++): string | null {
++  const previous = current.last_success_at ?? null;
++  if (isPartial || snapshot.status === "unavailable") {
++    return previous;
++  }
++  const candidate = snapshot.updated_at;
++  if (previous !== null && Date.parse(candidate) <= Date.parse(previous)) {
++    return previous;
++  }
++  return candidate;
+ }
  
-     def cached_symbol_count(self) -> int | None:
-         """本地 OHLC 股票池规模（只读缓存；``None`` = 缓存未热）。
-diff --git a/backend/astock_backtester/service.py b/backend/astock_backtester/service.py
---- a/backend/astock_backtester/service.py
-+++ b/backend/astock_backtester/service.py
-@@ -215,13 +215,15 @@
-             self._coverage_refreshed_at = datetime.now(UTC)
- 
-     def health_payload(self) -> ServiceHealth:
--        # 健康检查保持轻量：只回报进程身份、最近一次 coverage 快照与"服务在跑"，
--        # 不在这里触发或等待任何刷新。覆盖数据由数据中心的读写链路与后台定时
--        # 刷新推进，健康检查不参与。
-+        refresh_finished = self.start_coverage_refresh()
-+        if refresh_finished is not None:
-+            refresh_finished.wait(HEALTH_COVERAGE_WAIT_SECONDS)
-+        with self._coverage_lock:
-+            coverage_refreshing = self._coverage_refreshing
-         return ServiceHealth(
-             **self.identity_payload(),
-             coverage=self.coverage_snapshot(),
--            coverage_refreshing=False,
-+            coverage_refreshing=coverage_refreshing,
-         )
- 
-     def diagnostics_payload(self) -> dict[str, Any]:
-diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
---- a/backend/astock_backtester/data/operations.py
-+++ b/backend/astock_backtester/data/operations.py
-@@ -44,10 +44,11 @@
- # 三五天的窗口上抖动太大，分类结果不可信，此时退回平日历口径（旧行为）。
- MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 5
- 
--# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时
--# 之后不再叠加应用层重试：锁本身已经等了 120 秒，退避重试只是把写入方彼此
--# 排队的时间再乘一遍重试次数，同时写库的程序越多、整体越慢。
--WRITE_LOCK_RETRY_ATTEMPTS = 1
-+# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时后的
-+# 有界重试：抓取结果此刻还在内存里，锁持有者崩溃时 OS 会自动释放锁，短退避后再试
-+# 一次就能避免整批数据被丢掉并变成 HTTP 400。3 次 = 首次 + 2 次重试，
-+# 退避 0.5s/1.0s 线性递增（总等待 ≤ 1.5s，远小于锁本身的 120s 预算）。
-+WRITE_LOCK_RETRY_ATTEMPTS = 3
- WRITE_LOCK_RETRY_BACKOFF_SECONDS = 0.5
- 
- 
+ export function nextMarketRefreshMeta(
+@@ -105,7 +125,7 @@
+       : nextPhase === "trading"
+       ? "实时行情已更新"
+       : "非交易时段，使用最近数据",
+-    last_success_at: snapshot.updated_at,
++    last_success_at: nextLastSuccessAt(current, snapshot, isPartial),
+     last_error: snapshot.status === "unavailable" ? snapshot.message : undefined,
+     next_refresh_ms: nextInterval
+   };

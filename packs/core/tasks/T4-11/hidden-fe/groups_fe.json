@@ -6,11 +6,12 @@
     {
       "id": "frontend_degrade_exit",
       "weight": 1,
-      "port": "前端降级重试：部分成功触发 45s 降级重试；旧快照晚到不得回跳成功时间戳",
+      "port": "前端刷新节奏与成功时点单调性：部分成功缩短重试间隔、失败走退避，最近成功时点只进不退",
       "tests": [
-        "tests_hidden_fe/marketDegrade.hidden.test.ts::部分成功快照缺少红绿家数时触发45秒降级刷新间隔",
-        "tests_hidden_fe/marketDegrade.hidden.test.ts::晚到的旧快照不得覆盖较新的成功时间戳",
-        "tests_hidden_fe/marketDegrade.hidden.test.ts::全源失败进入不可用状态并保持降级重试间隔"
+        "tests_hidden_fe/marketAuthority.hidden.test.ts::部分成功（缺红绿家数）缩短重试间隔",
+        "tests_hidden_fe/marketAuthority.hidden.test.ts::全源失败走失败退避，且不再叠加降级间隔",
+        "tests_hidden_fe/marketAuthority.hidden.test.ts::迟到的旧快照不得让成功时点回跳",
+        "tests_hidden_fe/marketAuthority.hidden.test.ts::不可用与部分成功都不得推进成功时点"
       ]
     },
     {

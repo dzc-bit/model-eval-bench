@@ -1,19 +1,35 @@
 diff --git a/backend/astock_backtester/data/operations.py b/backend/astock_backtester/data/operations.py
 --- a/backend/astock_backtester/data/operations.py
 +++ b/backend/astock_backtester/data/operations.py
-@@ -44,11 +44,10 @@
- # 三五天的窗口上抖动太大，分类结果不可信，此时退回平日历口径（旧行为）。
- MIN_TRADE_DAYS_FOR_SUSPENSION_CLASSIFICATION = 5
- 
--# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时后的
--# 有界重试：抓取结果此刻还在内存里，锁持有者崩溃时 OS 会自动释放锁，短退避后再试
--# 一次就能避免整批数据被丢掉并变成 HTTP 400。3 次 = 首次 + 2 次重试，
--# 退避 0.5s/1.0s 线性递增（总等待 ≤ 1.5s，远小于锁本身的 120s 预算）。
--WRITE_LOCK_RETRY_ATTEMPTS = 3
-+# 跨进程写锁（LocalCache / Warehouse 的 CrossProcessFileLock，120s 超时）超时
-+# 之后不再叠加应用层重试：锁本身已经等了 120 秒，退避重试只是把写入方彼此
-+# 排队的时间再乘一遍重试次数，同时写库的程序越多、整体越慢。
-+WRITE_LOCK_RETRY_ATTEMPTS = 1
- WRITE_LOCK_RETRY_BACKOFF_SECONDS = 0.5
+@@ -53,22 +53,15 @@
  
  
+ def _write_with_lock_retry(write: Callable[[], None]) -> None:
+-    """执行一次写入，``FileLockTimeout`` 时有界短退避重试；其它异常原样上抛。"""
+-    attempt = 0
+-    while True:
+-        attempt += 1
+-        try:
+-            write()
+-            return
+-        except FileLockTimeout:
+-            if attempt >= WRITE_LOCK_RETRY_ATTEMPTS:
+-                raise
+-            time.sleep(WRITE_LOCK_RETRY_BACKOFF_SECONDS * attempt)
+-            logger.warning(
+-                "daily-bars write lock is busy; retrying (%d/%d)",
+-                attempt + 1,
+-                WRITE_LOCK_RETRY_ATTEMPTS,
+-            )
++    """执行一次写入，``FileLockTimeout`` 原样上抛；其它异常同样原样上抛。
++
++    锁本身已经等了 120 秒，再叠加应用层退避重试只是把写入方彼此排队的时间乘一遍
++    重试次数：同时写库的程序越多，整体反而越慢，重试窗口里拿到的数据也未必更新。
++    """
++    try:
++        write()
++    except FileLockTimeout:
++        raise
+ 
+ 
+ def _date_range(start_date: pd.Timestamp, end_date: pd.Timestamp) -> set[pd.Timestamp]:

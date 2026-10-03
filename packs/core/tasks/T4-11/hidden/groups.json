@@ -6,46 +6,46 @@
     {
       "id": "single_flight_exit",
       "weight": 1,
-      "port": "single-flight 生命周期：超时后直到 worker 结束前保持繁忙，不放行新请求排队",
+      "port": "通道生命周期：一次成功读取之后必须交还，运行期间并发请求立即让路不堆叠",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_holds_lock_until_background_worker_settles",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_single_flight_concurrent_rejection_prevents_stacking"
+        "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_is_reusable_after_a_successful_read",
+        "hidden/tests_hidden/test_market_authority.py::test_breadth_channel_rejects_a_second_worker_while_one_is_running"
       ]
     },
     {
       "id": "late_publish_exit",
       "weight": 1,
-      "port": "迟到发布防护：超时或取消后的迟到诊断与分块行不得污染对外共享状态",
+      "port": "迟到发布防护：超时/取消之后的诊断与分块行不得穿透进对外共享状态",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_late_worker_diagnostics_discarded_after_timeout",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_late_sector_rows_blocked_from_publishing_when_cancelled"
+        "hidden/tests_hidden/test_market_authority.py::test_timed_out_worker_diagnostics_never_reach_the_caller",
+        "hidden/tests_hidden/test_market_authority.py::test_cancelled_sector_rows_are_not_published_to_the_caller"
       ]
     },
     {
       "id": "generation_exit",
       "weight": 1,
-      "port": "代际仲裁：严格世代递增，旧世代与无世代旧数据绝不覆盖新世代快照",
+      "port": "世代水位只进不退：旧世代与无世代旧数据绝不覆盖新世代留存快照",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_generation_arbitration_blocks_older_generation_same_timestamp",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_legacy_unversioned_write_cannot_overwrite_generation_tracked_snapshot"
+        "hidden/tests_hidden/test_market_authority.py::test_older_generation_cannot_replace_a_newer_one_on_equal_timestamp",
+        "hidden/tests_hidden/test_market_authority.py::test_unversioned_write_cannot_replace_a_generation_tracked_snapshot"
       ]
     },
     {
       "id": "chain_budget_exit",
       "weight": 1,
-      "port": "整链预算硬约束：单源慢/超时不拖垮其他源，后续请求在 worker 结束后迅速恢复",
+      "port": "整链预算硬约束：慢源占用期间后续请求立即让路，worker 结束后通道迅速恢复",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_slow_source_does_not_exhaust_overall_chain_budget_or_cause_cascading_timeout",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_fresh_request_recovers_cleanly_after_timeout_worker_finishes"
+        "hidden/tests_hidden/test_market_authority.py::test_request_behind_a_slow_source_is_answered_immediately_not_queued",
+        "hidden/tests_hidden/test_market_authority.py::test_channel_recovers_for_a_fresh_request_once_the_worker_finishes"
       ]
     },
     {
       "id": "coherence_realtime",
       "weight": 2,
-      "port": "全局快照一致性：并发、迟到与失败交织下，对外保留的快照始终保持权威与隔离",
+      "port": "行情侧一致性：留存快照对外始终权威且与调用方对象隔离",
       "tests": [
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_arbitration_coherence_under_racing_generations_and_failures",
-        "hidden/tests_hidden/test_realtime_arbitration.py::test_retained_snapshot_is_deep_copied_isolated"
+        "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_is_isolated_from_later_caller_mutation",
+        "hidden/tests_hidden/test_market_authority.py::test_retained_snapshot_keeps_the_newest_generation_under_out_of_order_arrival"
       ]
     },
     {
@@ -53,26 +53,26 @@
       "weight": 1,
       "port": "攒批语义：落盘次数与批大小相称，不是每票各写一次",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_script_writes_once_per_batch_not_once_per_symbol",
-        "hidden/tests_hidden/test_write_chain.py::test_batch_larger_than_the_symbol_count_lands_in_one_write"
+        "hidden/tests_hidden/test_write_authority.py::test_import_lands_one_partition_write_per_batch_not_per_symbol",
+        "hidden/tests_hidden/test_write_authority.py::test_oversized_batch_lands_the_whole_pool_in_one_write"
       ]
     },
     {
       "id": "amplification_exit",
       "weight": 1,
-      "port": "写放大：累计写盘量随批数线性，不随分区行数平方增长",
+      "port": "写放大：累计写盘量随总行数线性，不随分区已有行数放大",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_rows_written_stay_linear_in_total_rows",
-        "hidden/tests_hidden/test_write_chain.py::test_amplification_does_not_depend_on_partition_size"
+        "hidden/tests_hidden/test_write_authority.py::test_cumulative_written_rows_stay_linear_in_pool_size",
+        "hidden/tests_hidden/test_write_authority.py::test_written_volume_does_not_grow_with_partition_row_count"
       ]
     },
     {
       "id": "freshness_exit",
       "weight": 1,
-      "port": "写入后口径新鲜：统计缓存必须被写入打穿，不靠 TTL 兜底",
+      "port": "写入后口径新鲜：统计缓存必须被写入打穿，不靠 TTL 自然过期兜底",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_trade_date_counts",
-        "hidden/tests_hidden/test_write_chain.py::test_write_invalidates_symbol_pool_count"
+        "hidden/tests_hidden/test_write_authority.py::test_write_makes_per_trade_date_counts_recompute",
+        "hidden/tests_hidden/test_write_authority.py::test_write_returns_the_symbol_pool_count_to_cold"
       ]
     },
     {
@@ -80,36 +80,36 @@
       "weight": 1,
       "port": "锁争用：跨进程写锁的瞬时争用不得等于整批失败",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_single_transient_lock_timeout_is_retried",
-        "hidden/tests_hidden/test_write_chain.py::test_repeated_lock_contention_still_settles",
-        "hidden/tests_hidden/test_write_chain.py::test_daily_bars_import_survives_a_transient_lock_timeout"
+        "hidden/tests_hidden/test_write_authority.py::test_one_transient_lock_timeout_is_absorbed",
+        "hidden/tests_hidden/test_write_authority.py::test_consecutive_lock_timeouts_are_absorbed",
+        "hidden/tests_hidden/test_write_authority.py::test_import_route_survives_a_transient_lock_timeout"
       ]
     },
     {
       "id": "health_exit",
       "weight": 1,
-      "port": "健康可见：/health 必须反映写入侧真实状况（含刷新在跑）",
+      "port": "健康可见：/health 必须反映写入侧真实状况（含扫描在跑）",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_health_sees_rows_written_by_another_program",
-        "hidden/tests_hidden/test_write_chain.py::test_health_reports_an_in_flight_write_side_scan"
+        "hidden/tests_hidden/test_write_authority.py::test_health_notices_rows_written_by_another_program",
+        "hidden/tests_hidden/test_write_authority.py::test_health_reports_a_write_side_scan_in_flight"
       ]
     },
     {
       "id": "cross_process_exit",
       "weight": 1,
-      "port": "进程级并发：两个真进程写同一分区零丢失（行数守恒，文件栅栏定序）",
+      "port": "进程级并发：两个真进程写同一分区行数守恒（文件栅栏定序，禁裸计时）",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_two_processes_writing_one_partition_keep_every_row",
-        "hidden/tests_hidden/test_write_chain.py::test_two_processes_appending_to_one_symbol_keep_every_date"
+        "hidden/tests_hidden/test_write_authority.py::test_two_programs_writing_one_partition_conserve_every_row",
+        "hidden/tests_hidden/test_write_authority.py::test_two_programs_appending_different_dates_conserve_every_row"
       ]
     },
     {
       "id": "coherence_write",
       "weight": 2,
-      "port": "跨出口一致：脚本汇总 / 落盘行数 / 统计口径 / 健康口径对同一事实互恰",
+      "port": "跨出口一致：脚本汇总 / 盘上真实 / 统计口径 / 健康口径对同一事实互恰",
       "tests": [
-        "hidden/tests_hidden/test_write_chain.py::test_script_summary_disk_and_counts_agree",
-        "hidden/tests_hidden/test_write_chain.py::test_health_coverage_agrees_with_script_written_rows"
+        "hidden/tests_hidden/test_write_authority.py::test_script_summary_matches_disk_and_statistics",
+        "hidden/tests_hidden/test_write_authority.py::test_health_symbol_count_matches_what_the_script_wrote"
       ]
     },
     {
