@@ -40,6 +40,10 @@ const T = {
   SB_CELL_BEST_FAIL: '未做对',
   SB_CELL_PASS1: '第 1 轮全绿 {n} / {m}',
   SB_CELL_BEST_ROUND: '最好一次在第 {n} 轮',
+  // 越界作废留痕：不计分、不进平均，但「试过、被作废」必须可见
+  SB_CELL_OOB_ONLY: '仅有越界作废的尝试',
+  SB_CELL_OOB_SUB: '越界作废 {n} 次（不计分）',
+  SB_CELL_OOB_TITLE: '模型改动越出允许范围，整轮作废；只留痕，不参与分数统计',
   SB_LEGEND_BEST: '格子第一眼看「最好一次有没有全绿」；pass@1 是稳定性副标（中级以上题目有多次机会）',
 };
 
@@ -119,13 +123,16 @@ export function createScoreboard(props = {}) {
   function aggregate(modelId) {
     const cells = (data.matrix || [])
       .map((row) => (row.cells || {})[modelId])
-      .filter((cell) => cell && Number(cell.attempts) > 0);
+      .filter((cell) => cell && (Number(cell.attempts) > 0 || Number(cell.oob) > 0));
     const attempts = cells.reduce((sum, cell) => sum + Number(cell.attempts || 0), 0);
+    // 越界作废的留痕不是分数，单独累计：它要可见，但绝不进 pass@1 / 均值
+    const oob = cells.reduce((sum, cell) => sum + Number(cell.oob || 0), 0);
     const pass1 = cells.reduce((sum, cell) => sum + Number(cell.pass1 || 0), 0);
     const solved = cells.reduce((sum, cell) => sum + (cell.best_passed ? 1 : 0), 0);
     const best = cells.reduce((max, cell) => Math.max(max, Number(cell.best_score || 0)), 0);
     return {
       attempts,
+      oob,
       pass1,
       solved,
       tasks: cells.length,
@@ -182,10 +189,18 @@ export function createScoreboard(props = {}) {
     if (!selectedModel) return null;
     const stats = aggregate(selectedModel);
     if (!stats.attempts) {
+      if (!stats.oob) {
+        return el(
+          'div',
+          { class: 'sb__profile-summary', role: 'status' },
+          el('span', {}, S.SB_CELL_NO_DATA),
+        );
+      }
+      // 只有越界作废的尝试：不显示成「暂无数据」，把事实摆出来
       return el(
         'div',
         { class: 'sb__profile-summary', role: 'status' },
-        el('span', {}, S.SB_CELL_NO_DATA),
+        el('span', {}, t(T.SB_CELL_OOB_SUB, { n: stats.oob })),
       );
     }
     return el(
@@ -195,6 +210,9 @@ export function createScoreboard(props = {}) {
       el('span', {}, t(T.SB_PROFILE_TRIALS, { pass: stats.pass1, n: stats.attempts })),
       el('span', {}, t(S.SB_PROFILE_RATE, { rate: percent(stats.passRate) })),
       el('span', {}, t(T.SB_PROFILE_BEST, { best: stats.bestScore })),
+      stats.oob > 0
+        ? el('span', { class: 'u-faint' }, t(T.SB_CELL_OOB_SUB, { n: stats.oob }))
+        : null,
     );
   }
 
@@ -212,11 +230,25 @@ export function createScoreboard(props = {}) {
    */
   function renderCell(row, modelId) {
     const cell = (row.cells || {})[modelId];
-    if (!cell || !cell.attempts) {
+    if ((!cell || !cell.attempts) && !(cell && Number(cell.oob) > 0)) {
       return el(
         'div',
         { class: 'sb__cell' },
         el('span', { class: 'u-faint' }, S.SB_CELL_NO_DATA),
+      );
+    }
+    // 这个格子只有越界作废的留痕（没有任何计分成绩）：它没有分数可比，
+    // 但「试过、全被作废」必须是可见的事实，不能落成一片「暂无数据」。
+    if (!cell || !cell.attempts) {
+      return el(
+        'div',
+        { class: 'sb__cell' },
+        el('span', { class: 'sb__cell-main' }, T.SB_CELL_OOB_ONLY),
+        el(
+          'span',
+          { class: 'sb__cell-sub u-faint' },
+          t(T.SB_CELL_OOB_SUB, { n: Number(cell.oob) || 0 }),
+        ),
       );
     }
     const offband = isOffBand(row, cell);
@@ -235,6 +267,10 @@ export function createScoreboard(props = {}) {
         t(T.SB_CELL_PASS1, { n: cell.pass1 || 0, m: cell.attempts || 0 })
         + ` · ${t(S.SB_CELL_TRIES_TOTAL, { n: cell.attempts || 0 })}`),
       el('span', { class: 'sb__cell-sub' }, t(T.SB_CELL_BEST, { best: cell.best_score, avg: cell.avg_score })),
+      Number(cell.oob) > 0
+        ? el('span', { class: 'sb__cell-sub u-faint', title: T.SB_CELL_OOB_TITLE },
+            t(T.SB_CELL_OOB_SUB, { n: Number(cell.oob) || 0 }))
+        : null,
       // 「最好一次在第 n 轮」用的是 best_round（代表条目在第几轮拿到这个分），
       // 不是 best_rounds（那次尝试一共校验了几轮）——T2-04 是两轮、最高分在第 1 轮，
       // 用错字段会写成「最好一次在第 2 轮」。

@@ -727,7 +727,7 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
         return None
     counted = _counted_rounds(run)
     if not counted:
-        return None
+        return _out_of_bounds_entry(cfg, run, origin)
 
     def _score(rnd: dict) -> float:
         try:
@@ -771,8 +771,54 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
     )
 
 
-def _round_group_summary(cfg: dict, run: dict, rnd: dict) -> Optional[List[dict]]:
-    """从代表轮报告取轻量分组摘要；缺报告的旧记录仍可正常入账。"""
+def _out_of_bounds_entry(cfg: dict, run: dict, origin: str) -> Optional[dict]:
+    """没有作数轮时：因**改动越界**整轮作废的运行，写一条留痕条目（不计分）。
+
+    越界作废的尝试原本在台账里彻底蒸发——收尾把记录整条删掉之后，连
+    「它发生过、为什么作废」都无处可查。留痕条目 kind="out_of_bounds"：
+    score 恒 0、passed 恒假，记分板与排行榜把它当单独的计数展示，绝不参与
+    最高分、均分或通过率。回归断裂与校验器故障的作废轮不属于模型违规，
+    照旧不留痕（那是评测台自己的事，记进成绩体系只会是噪声）。
+    """
+    violations: List[dict] = []
+    graded_at = ""
+    work: Optional[float] = None
+    round_no = 1
+    for rnd in _live_rounds(run):
+        if not rnd.get("invalidated"):
+            continue
+        report = _load_round_report(cfg, run, rnd)
+        if not report:
+            continue
+        reason = str(report.get("invalid_reason") or "")
+        if not reason.startswith("改动越界"):
+            continue
+        if not graded_at:
+            graded_at = str(rnd.get("graded_at") or "")
+        round_no = _round_no(rnd) or round_no
+        try:
+            work = float(rnd.get("model_work_seconds"))
+        except (TypeError, ValueError):
+            work = None
+        for v in report.get("violations") or []:
+            if isinstance(v, dict) and v.get("path"):
+                violations.append(v)
+    if not violations:
+        return None
+    return results_ledger.make_entry(
+        run.get("task"), canonical_model(cfg, str(run.get("model") or "")),
+        str(run.get("model") or ""),
+        source_run_id=str(run.get("run_id") or ""), origin=origin,
+        kind=results_ledger.KIND_OUT_OF_BOUNDS,
+        rounds=round_no, best_round=round_no,
+        score=0.0, passed=False, pass1=False,
+        model_work_seconds=work, graded_at=graded_at,
+        violations=violations,
+    )
+
+
+def _load_round_report(cfg: dict, run: dict, rnd: dict) -> Optional[dict]:
+    """读一轮的报告文件；路径越界 / 缺失 / 坏 JSON 一律当没有。"""
     run_dir_path = run.get("run_dir") or _run_dir_of(cfg, str(run.get("run_id") or ""))
     if not util.path_within(cfg["runs_root"], run_dir_path):
         return None
@@ -781,7 +827,13 @@ def _round_group_summary(cfg: dict, run: dict, rnd: dict) -> Optional[List[dict]
     if not util.path_within(run_dir_path, report_path):
         return None
     report_doc = util.read_json(report_path, default=None)
-    if not isinstance(report_doc, dict):
+    return report_doc if isinstance(report_doc, dict) else None
+
+
+def _round_group_summary(cfg: dict, run: dict, rnd: dict) -> Optional[List[dict]]:
+    """从代表轮报告取轻量分组摘要；缺报告的旧记录仍可正常入账。"""
+    report_doc = _load_round_report(cfg, run, rnd)
+    if not report_doc:
         return None
     summary = report_doc.get("summary")
     raw_groups = summary.get("groups") if isinstance(summary, dict) else None
@@ -850,17 +902,27 @@ def finish_round(cfg: dict, run_id: str, log: Log = None) -> dict:
             )
         # 锁内记账 + 删除：purge_run 的约定就是调用方持着这一轮的会话锁。
         entry = record_run_result(cfg, run)
-        logger("结束本轮：%s" % ("成绩已记入台账 %s" % entry["entry_id"] if entry else "没有可计入台账的成绩"))
+        oob = bool(entry) and results_ledger.entry_kind(entry) == results_ledger.KIND_OUT_OF_BOUNDS
+        if entry and not oob:
+            logger("结束本轮：成绩已记入台账 %s" % entry["entry_id"])
+        elif oob:
+            logger("结束本轮：改动越界，已留痕台账 %s（不计分）" % entry["entry_id"])
+        else:
+            logger("结束本轮：没有可计入台账的成绩")
         if entry:
             results_ledger.append_entry(cfg, entry)
         else:
             entry = None
         purged = purge_run(cfg, run)
-    notice = ("本轮成绩已记入台账，记分板与排行榜按最高分那条展示；"
-              "运行记录、对话与沙箱已彻底删除，下次再跑是全新一轮。"
-              if entry else
-              "这一轮没有可计入台账的成绩（未校验 / 已作废 / 已揭晓参考解），"
-              "记录、对话与沙箱已彻底删除，不留成绩。")
+    if entry and results_ledger.entry_kind(entry) == results_ledger.KIND_OUT_OF_BOUNDS:
+        notice = ("本轮因改动越界整轮作废：台账已留痕（不计分、不进平均），"
+                  "越界明细见记分板与报告；运行记录、对话与沙箱已彻底删除。")
+    elif entry:
+        notice = ("本轮成绩已记入台账，记分板与排行榜按最高分那条展示；"
+                  "运行记录、对话与沙箱已彻底删除，下次再跑是全新一轮。")
+    else:
+        notice = ("这一轮没有可计入台账的成绩（未校验 / 已作废 / 已揭晓参考解），"
+                  "记录、对话与沙箱已彻底删除，不留成绩。")
     return {
         "run_id": run_id,
         "finished": True,
@@ -1286,7 +1348,9 @@ def scoreboard(cfg: dict) -> dict:
         "note": "数据源是成绩台账（runs/_results/ledger.json）：只有点过「结束本轮」"
                 "的尝试才在这里，每次结束各留一条，单元格展示最高分那条；"
                 "pass@1 = 第 1 轮就全绿的条目数 / 条目数；作废轮、判无效轮与"
-                "已揭晓参考解的尝试永不进台账；还在跑或已废弃的记录不计入。",
+                "已揭晓参考解的尝试不进分数统计——其中因改动越界整轮作废的"
+                "会留一条不计分的痕迹，以单元格的「越界」计数展示；"
+                "还在跑或已废弃的记录不计入。",
     }
 
 
@@ -1392,13 +1456,16 @@ def _cell_stats(entries: List[dict]) -> dict:
     """一个 (任务 × 模型) 单元格的统计，数据源是台账条目。
 
     台账里**每次结束都留一条**，所以口径比旧记分板更简单也更诚实：
-    - ``attempts`` = 结束的尝试数（一条条目一次尝试）。建了记录但没结束的
-      （还在跑、已废弃）根本不进台账，不会稀释通过率。
+    - ``attempts`` = 结束的计分尝试数（一条条目一次尝试；越界作废的留痕条目
+      不占这个数，单独进 ``oob``）。建了记录但没结束的（还在跑、已废弃）
+      根本不进台账，不会稀释通过率。
     - ``pass1`` = 其中第 1 轮就全绿的条目数；``pass_rate`` = pass1 / attempts。
     - ``best_score`` = 分数最高那条的分数（榜单展示的就是它）；
       ``avg_score`` = 各条代表分的均值，两者一起给才看得出"是稳还是撞了一次"。
     - Wilson 区间随旧口径一起废弃：条目不再等于"通过的样本"，分母混着失败的
       尝试，硬算区间只会在一行样本上给出假精确。
+    - ``oob`` = 越界作废的留痕条目数（2026-10-05）：它是一次真实发生的违规
+      尝试，必须可见，但它没有分数语义，绝不进 attempts / 平均分 / 通过率。
     """
     def _score(entry: dict) -> float:
         try:
@@ -1406,10 +1473,12 @@ def _cell_stats(entries: List[dict]) -> dict:
         except (TypeError, ValueError):
             return 0.0
 
-    attempts = len(entries)
-    scores = [_score(e) for e in entries]
-    best_entry = results_ledger.best_of(entries)
-    pass1 = sum(1 for e in entries if e.get("pass1"))
+    scored = [e for e in entries if results_ledger.entry_kind(e) != results_ledger.KIND_OUT_OF_BOUNDS]
+    oob = [e for e in entries if results_ledger.entry_kind(e) == results_ledger.KIND_OUT_OF_BOUNDS]
+    attempts = len(scored)
+    scores = [_score(e) for e in scored]
+    best_entry = results_ledger.best_of(scored)
+    pass1 = sum(1 for e in scored if e.get("pass1"))
     last_at = max((str(e.get("ended_at") or "") for e in entries), default="")
     return {
         "attempts": attempts,
@@ -1423,6 +1492,7 @@ def _cell_stats(entries: List[dict]) -> dict:
         "best_passed": bool(best_entry.get("passed")) if best_entry else False,
         "best_round": int(best_entry.get("best_round") or 1) if best_entry else 0,
         "avg_score": round(sum(scores) / len(scores), 1) if scores else 0.0,
+        "oob": len(oob),
         "last_at": last_at,
         # 台账条目 id：台账是成绩不是记录，没有「回工作台打开」这条路，
         # 唯一的去处是删掉这个档案（连台账条目一起清）。
@@ -1454,7 +1524,8 @@ def scoreboard_csv(board: dict) -> str:
         out.append("%s,%s,%s" % (row["task"], row["tier"], ",".join(cells)))
     out.append("")
     out.append("# 数据源：成绩台账 runs/_results/ledger.json（点过「结束本轮」的尝试；"
-               "作废轮、判无效轮与已揭晓参考解的尝试永不进台账）")
+               "作废轮、判无效轮与已揭晓参考解的尝试不进分数统计；"
+               "因改动越界作废的尝试有留痕条目但不计入本表，越界次数见记分板界面）")
     return "\n".join(out) + "\n"
 
 
@@ -1482,7 +1553,9 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
     3. 再比模型实际工作时间（挂机不算）；墙钟只作为对照下发给前端做 tooltip。
 
     台账保留了每一次结束的条目，所以 ``attempts`` 一并下发，用户能看出
-    「最高分那条」是稳出来的还是撞出来的。
+    「最高分那条」是稳出来的还是撞出来的；越界作废的留痕条目不占 attempts、
+    不参与排序，只以 ``oob`` 计数随行下发（全部尝试都被作废的模型也给一行
+    垫底，让「试过、全违规」在榜上可见）。
     """
     meta = packs.load_meta(cfg, task_id)
     alias_index = _model_alias_index(cfg)
@@ -1497,8 +1570,21 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
 
     entries = []
     for model, items in by_model.items():
-        best = results_ledger.best_of(items)
+        scored = [e for e in items if results_ledger.entry_kind(e) != results_ledger.KIND_OUT_OF_BOUNDS]
+        oob_count = len(items) - len(scored)
+        best = results_ledger.best_of(scored)
         if best is None:
+            if not oob_count:
+                continue
+            # 全部尝试都因越界作废：没有分数可比，但仍给一行垫底展示——
+            # 「这个模型试过这道题、全被作废」本身就是榜单上的事实。
+            entries.append({
+                "entry_id": "", "model": model, "attempts": len(scored),
+                "oob": oob_count,
+                "score": 0.0, "rounds": 1,
+                "duration_s": None, "model_work_seconds": None, "wall_seconds": None,
+                "completed_at": "", "ended_at": "",
+            })
             continue
         work = best.get("model_work_seconds")
         try:
@@ -1517,7 +1603,8 @@ def task_leaderboard(cfg: dict, task_id: str) -> dict:
         entries.append({
             "entry_id": str(best.get("entry_id") or ""),
             "model": model,
-            "attempts": len(items),
+            "attempts": len(scored),
+            "oob": oob_count,
             "score": score,
             "rounds": int(best.get("rounds") or 1),
             "duration_s": round(work, 3) if work is not None else (

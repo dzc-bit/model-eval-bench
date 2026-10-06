@@ -70,10 +70,45 @@ def run_pytest(ctx: CheckContext) -> CheckResult:
     except ET.ParseError as exc:
         result.notes.append("JUnit 报告解析失败：%s" % exc)
         mark_unexecuted(result, ctx.node_ids, "JUnit 报告解析失败，用例未运行")
+        return result
+    # pytest 对收集阶段就崩掉的测试文件，会写一条没有 file 属性的
+    # <testcase error message="collection failure">——那不是用例，是「文件没
+    # 跑起来」这件事本身。把它当成 error 组红，等于把「导入链断了」算成
+    # 「模型没修好」（2026-10-05 T1-02 实测：越界数据文件缺席 → 所有 import
+    # 它的测试文件收集失败 → 4 条假 error）。存在收集失败就按校验故障处理，
+    # 并把真实根因（通常是缺文件 / import 失败）翻成人话放进 notes。
+    cause = _collection_failure_cause(result)
+    if cause:
+        result.notes.append("测试文件收集失败：%s" % cause)
+        mark_unexecuted(result, ctx.node_ids, "测试文件收集失败：%s" % cause)
     if not result.cases:
         result.notes.append("JUnit 报告里没有任何用例记录")
         mark_unexecuted(result, ctx.node_ids, "报告里没有任何用例记录")
     return result
+
+
+def _collection_failure_cause(result: CheckResult) -> str:
+    """从解析结果里汇出收集失败的根因；没有收集失败时返回空串。
+
+    JUnit 的 <error> 文本是完整的 traceback，最后一条 ``E ...`` 行就是真正的
+    异常（如 FileNotFoundError 的缺失路径、RuntimeError 的自定义提示）。
+    """
+    seen = {id(c): c for c in result.cases.values()}
+    causes: List[str] = []
+    for case in seen.values():
+        if case.outcome != "error" or not case.message.startswith("collection failure"):
+            continue
+        tail = ""
+        for line in case.detail.splitlines():
+            if line.startswith("E "):
+                tail = line[2:].strip()
+        causes.append(tail or (case.detail.splitlines() or ["未知原因"])[-1])
+    # 同一个缺失文件会让多个测试文件一起崩，根因去重后各留一条
+    unique: List[str] = []
+    for cause in causes:
+        if cause and cause not in unique:
+            unique.append(cause)
+    return "；".join(unique)
 
 
 # --------------------------------------------------------------------------

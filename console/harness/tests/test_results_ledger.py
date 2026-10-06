@@ -57,11 +57,12 @@ def store_run(cfg, run_id, task, model, passed, score, attempts=1,
 
 
 def seed_entry(cfg, task, model, *, score=100.0, passed=True, pass1=True,
-               rounds=1, work=None, wall=None, run_id=""):
+               rounds=1, work=None, wall=None, run_id="",
+               kind=results.KIND_GRADED):
     """直接往台账写一条（模拟一次「结束本轮」的结果，不铺记录）。"""
     return results.append_entry(cfg, results.make_entry(
         task, model, model,
-        source_run_id=run_id,
+        source_run_id=run_id, kind=kind,
         rounds=rounds, best_round=rounds, score=score, passed=passed, pass1=pass1,
         model_work_seconds=work, wall_seconds=wall,
         graded_at="2026-01-01T00:00:00",
@@ -674,3 +675,76 @@ def test_wall_seconds_measured_when_best_round_is_current(cfg):
     assert entry is not None
     assert entry["wall_seconds"] == 600.0
     assert entry["model_work_seconds"] == 517.0
+
+
+# ==========================================================================
+# 越界作废留痕（2026-10-05）：不计分，但「试过、被作废」必须在台账可见
+# ==========================================================================
+
+def _store_oob_run(cfg, run_id, model, *, invalid_reason="改动越界（6 项）", violations=None):
+    """造一条「越界作废」的运行记录：轮次 invalidated + 报告带原因与违规清单。"""
+    run = store_run(cfg, run_id, BACKEND_TASK, model, False, 0.0, invalidated=True)
+    report = {
+        "invalidated": True,
+        "invalid_reason": invalid_reason,
+        "violations": violations if violations is not None else [
+            {"path": "backend/x/new_data.json", "change": "added",
+             "reason": "新增了不在允许范围内的文件"},
+            {"path": "pyproject.toml", "change": "modified",
+             "reason": "改动了测试/构建配置（评分树用原始副本，改了也没用）"},
+        ],
+    }
+    util.write_json_atomic(os.path.join(run["run_dir"], "round-1.json"), report)
+    return run
+
+
+def test_out_of_bounds_finish_leaves_a_non_scoring_ledger_entry(cfg):
+    """越界作废的尝试在台账留痕：kind=out_of_bounds、0 分语义、违规清单随行。"""
+    run = _store_oob_run(cfg, "T-01__越界模型__20260101-000000", "越界模型")
+    entry = runs.record_run_result(cfg, run)
+    assert entry is not None, "越界作废轮必须留痕，不能蒸发"
+    assert results.entry_kind(entry) == results.KIND_OUT_OF_BOUNDS
+    assert entry["score"] == 0.0 and entry["passed"] is False and entry["pass1"] is False
+    assert len(entry["violations"]) == 2
+    assert entry["violations"][0]["path"] == "backend/x/new_data.json"
+
+    out = runs.finish_round(cfg, run["run_id"])
+    assert out["finished"] is True and out["ledgered"] is True
+    assert "越界" in out["notice"]
+    stored = entries_for(cfg, BACKEND_TASK, "越界模型")
+    assert len(stored) == 1 and results.entry_kind(stored[0]) == results.KIND_OUT_OF_BOUNDS
+
+
+def test_regression_and_checker_failure_rounds_leave_no_trace(cfg):
+    """回归断裂与校验器故障的作废轮不属于模型违规：照旧不留痕。"""
+    for reason in ("破坏了既有通过用例（3 条）", "校验过程出错"):
+        run = _store_oob_run(
+            cfg, "T-01__无痕模型__20260101-000000", "无痕模型", invalid_reason=reason)
+        assert runs.record_run_result(cfg, run) is None, reason
+        runs.purge_run(cfg, run)
+
+
+def test_cell_stats_and_leaderboard_keep_oob_out_of_scores(cfg):
+    """oob 条目不进 attempts / 均分 / 通过率；全越界的模型在榜单上也有垫底一行。"""
+    seed_entry(cfg, BACKEND_TASK, "混合模型", score=100.0, passed=True, pass1=True,
+               run_id="T-01__混合模型__20260101-000001")
+    seed_entry(cfg, BACKEND_TASK, "混合模型", score=0.0, passed=False, pass1=False,
+               run_id="T-01__混合模型__20260101-000002", kind=results.KIND_OUT_OF_BOUNDS)
+    seed_entry(cfg, BACKEND_TASK, "全越界模型", score=0.0, passed=False, pass1=False,
+               run_id="T-01__全越界模型__20260101-000003", kind=results.KIND_OUT_OF_BOUNDS)
+
+    board = runs.scoreboard(cfg)
+    cell = board["matrix"][0]["cells"]["混合模型"]
+    assert cell["attempts"] == 1, "oob 留痕不许稀释 attempts"
+    assert cell["oob"] == 1
+    assert cell["best_score"] == 100.0 and cell["avg_score"] == 100.0
+    empty_cell = board["matrix"][0]["cells"]["全越界模型"]
+    assert empty_cell["attempts"] == 0 and empty_cell["oob"] == 1
+
+    lb = runs.task_leaderboard(cfg, BACKEND_TASK)
+    by_model = {e["model"]: e for e in lb["entries"]}
+    assert by_model["混合模型"]["attempts"] == 1 and by_model["混合模型"]["oob"] == 1
+    assert by_model["混合模型"]["score"] == 100.0
+    ghost = by_model["全越界模型"]
+    assert ghost["score"] == 0.0 and ghost["oob"] == 1 and ghost["attempts"] == 0
+    assert ghost["rank"] == by_model["混合模型"]["rank"] + 1, "全越界行垫底但不缺席"

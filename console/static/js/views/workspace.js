@@ -832,7 +832,10 @@ export function createWorkspace(props = {}) {
     interval: 1200,
     enabled: () => {
       const s = store.getState();
-      return Boolean(s.run) && BUSY_STATUS.has(s.run.status);
+      // 对话在飞（chat_busy）也必须轮询：批次线程代发的提示词结束时，run 状态
+      // 一直是 ready（不在 BUSY_STATUS 里），没有这条「模型仍在作答」就永远刷
+      // 不掉，直到手动刷新页面（2026-10-05 T1-02 实测）。
+      return Boolean(s.run) && (BUSY_STATUS.has(s.run.status) || Boolean(s.run.chat_busy));
     },
     onError: (err, times) => {
       // 状态栏没有独立的轮询错误位，轮询失败改为 toast 报错（连接状态另有全局连接条负责）
@@ -872,6 +875,12 @@ export function createWorkspace(props = {}) {
       // 用户手动开合过之后不再覆盖（setOpen 只在 run 有无翻转时调用）。
       if (runChanged && Boolean(prev.run) !== Boolean(next.run)) {
         taskNode.setOpen(!next.run && wsStore.get('taskOpen', '') !== 'closed');
+      }
+      // 服务端仍有发送线程在跑（批次代发 / 手动发送 / 浏览器中途刷新过）：
+      // 把轮询拉起来。run 状态多半停在 ready（不在 BUSY_STATUS），不拉的话
+      // chat_busy 翻回 false 时没人去收尾，「模型仍在作答」会一直挂着。
+      if (runChanged && next.run && next.run.chat_busy && !poller.getState().running) {
+        poller.start();
       }
       const runForSend = next.run;
       const chatOk = runForSend && (runForSend.status === 'ready' || runForSend.status === 'graded');

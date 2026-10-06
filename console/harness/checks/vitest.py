@@ -141,12 +141,40 @@ def run_vitest(ctx: CheckContext) -> CheckResult:
         result.notes.append("vitest 报告解析失败：%s" % exc)
         mark_unexecuted(result, ctx.node_ids, "vitest 报告解析失败，用例未运行")
         return result
-    # 报告能产出却一条都没有：vitest 收不到文件时就是这么安静（No test files
-    # found），把它当成「模型没修好」会给评测台造出一个假的 0 分。
+    # 报告能产出却一条都没有：多半是测试文件在**加载阶段**就失败（import
+    # 解析不到、编译错误）——vitest 把原因写在 suite 级 message 里，assertion
+    # 一条不给。把它翻出来放进 notes，别让界面只会说「没收集到」；
+    # 与 pytest 侧同理，这属于校验故障而不是「模型没修好」。
     if not result.cases:
-        result.notes.append("vitest 报告里没有任何用例（多半是没收集到测试文件）")
-        mark_unexecuted(result, ctx.node_ids, "vitest 没有收集到任何用例")
+        cause = _suite_failure_cause(report_json)
+        if cause:
+            result.notes.append("用例文件加载失败：%s" % cause)
+            mark_unexecuted(result, ctx.node_ids, "用例文件导入失败：%s" % cause)
+        else:
+            result.notes.append("vitest 报告里没有任何用例（多半是没收集到测试文件）")
+            mark_unexecuted(result, ctx.node_ids, "vitest 没有收集到任何用例")
     return result
+
+
+def _suite_failure_cause(report_json: str) -> str:
+    """从 vitest JSON 报告里提取 suite 级失败原因；没有就返回空串。
+
+    vitest 对加载失败的测试文件写 ``testResults[].message``（如
+    ``Failed to resolve import "…" from "…"``），assertionResults 为空——
+    只看用例层的话，故障原因就丢了。
+    """
+    try:
+        with open(report_json, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return ""
+    for suite in doc.get("testResults", []) or []:
+        if not isinstance(suite, dict):
+            continue
+        message = str(suite.get("message") or "").strip()
+        if message:
+            return message.splitlines()[0]
+    return ""
 
 
 def _file_of(node_id: str) -> str:

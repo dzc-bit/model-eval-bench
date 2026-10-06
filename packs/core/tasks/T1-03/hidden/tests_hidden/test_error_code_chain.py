@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import threading
 from pathlib import Path
 from urllib.error import HTTPError
@@ -236,12 +237,17 @@ def test_frontend_translator_mirrors_every_declared_ai_error_code():
         "ai_session_not_found",
         "ai_memory_not_found",
     }
-    # 镜像口径看整个翻译模块：逐码分支写在翻译函数里、或放在函数旁的
-    # 带引号查找表里，是行为等价的写法，守卫不耦合定义位置；单双引号
-    # 均可。缺任何一个已声明类别仍然判红（基线态的既有缺口靠它兜住）。
+    # 镜像口径看整个翻译模块：逐码分支写在翻译函数里、或放在函数旁的查找表里，
+    # 是行为等价的写法，守卫不耦合定义位置；单双引号均可。**裸标识符键也算**
+    # （`{ ai_not_configured: "…" }` 与 `{ "ai_not_configured": "…" }` 在 TS 里
+    # 完全等价，2026-10-05 T1-03 复核补上的等价形态——此前只认带引号字面量，
+    # 会把行为正确、只是用了裸键查找表的实现误判成缺类别）。缺任何一个
+    # 已声明类别仍然判红（基线态的既有缺口靠它兜住）。
     missing = sorted(
         code
         for code in codes
-        if f'"{code}"' not in source and f"'{code}'" not in source
+        if f'"{code}"' not in source
+        and f"'{code}'" not in source
+        and not re.search(r"^\s*%s\s*:" % re.escape(code), source, re.M)
     )
     assert not missing, f"页面错误翻译缺少后端已声明类别：{missing}"

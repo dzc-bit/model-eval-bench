@@ -451,6 +451,13 @@ function buildReportBody({ report, run, revealed, newResult }) {
   ));
   body.appendChild(el('p', { class: 'u-muted ws-grade-banner__note' }, summaryText));
 
+  // 校验过程故障（检查器没跑起来 / 测试文件收集失败）的原因要原样可见：
+  // 只写「本轮作废」的话，「越界 → 评分树不带走该文件 → 隐藏测试 import 断裂」
+  // 这条因果就看不见，作废看起来像凭空判死（2026-10-05 T1-02 实测）。
+  if (report.error) {
+    body.appendChild(el('p', { class: 'u-faint ws-grade-banner__note' }, report.error));
+  }
+
   const attempt = Number(run && run.attempt) || 1;
   const attemptsAllowed = Number(run && run.attempts_allowed) || attempt;
   if (attempt >= attemptsAllowed && !report.invalidated) {

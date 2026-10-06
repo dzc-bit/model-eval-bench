@@ -11,8 +11,12 @@
 
 口径（与旧记分板对齐，见 README §5）：
 - 一条条目 = 一次「结束」的尝试，台账**保留每一次**结束的条目。
-- 只收作数轮：被「继续对话（本轮分数作废）」作废的、以及越界/回归判无效的轮次，
-  以及整轮已揭晓参考解的运行，都不进台账。
+- 只收作数轮：被「继续对话（本轮分数作废）」作废的、以及回归/校验器故障判
+  无效的轮次，以及整轮已揭晓参考解的运行，都不进台账。
+- 例外（2026-10-05）：**因改动越界整轮作废的运行**写一条 ``kind="out_of_bounds"``
+  的留痕条目——不带分数语义（score 恒 0、passed 恒假），不参与记分板与排行榜
+  的任何统计，只是把「这次尝试发生过、为什么作废」留在成绩体系里；violations
+  摘要随条目落盘。不作此留痕的话，越界尝试在台账里会彻底蒸发。
 - 条目的代表分是它作数轮里的最高分（`score`）；`pass1` 看第 1 轮。
 - 榜单取最高分那条，Wilson 区间随之废弃（样本量不再有意义）。
 
@@ -133,18 +137,31 @@ def append_entry(cfg: dict, entry: dict) -> dict:
 #: 条目字段白名单：写出去的东西有限，别把运行记录的内部状态漏进台账。
 ENTRY_FIELDS = (
     "entry_id", "task", "model", "model_raw", "source_run_id", "origin",
-    "rounds", "best_round", "score", "passed", "pass1",
+    "kind", "rounds", "best_round", "score", "passed", "pass1",
     "model_work_seconds", "wall_seconds", "graded_at", "ended_at", "groups",
+    "violations",
 )
+
+#: 计分条目的 kind。旧条目没有 kind 字段，读取时一律视为本值（见 entry_kind）。
+KIND_GRADED = "graded"
+#: 越界作废留痕条目：不计分、不进平均、不参与榜单比较，只证明「试过、被作废」。
+KIND_OUT_OF_BOUNDS = "out_of_bounds"
+
+
+def entry_kind(entry: dict) -> str:
+    """条目的种类；老条目没有 kind 字段，一律按计分条目处理。"""
+    return str(entry.get("kind") or KIND_GRADED)
 
 
 def make_entry(task: object, model: object, model_raw: object, *,
                source_run_id: object = "", origin: str = "run",
+               kind: str = KIND_GRADED,
                rounds: int = 1, best_round: int = 1, score: float = 0.0,
                passed: bool = False, pass1: bool = False,
                model_work_seconds: Optional[float] = None,
                wall_seconds: Optional[float] = None,
-               graded_at: object = "", groups: Optional[List[dict]] = None) -> dict:
+               graded_at: object = "", groups: Optional[List[dict]] = None,
+               violations: Optional[List[dict]] = None) -> dict:
     """组装一条台账条目（只保留 ENTRY_FIELDS）。"""
     def _num(value):
         if value is None:
@@ -161,6 +178,7 @@ def make_entry(task: object, model: object, model_raw: object, *,
         "model_raw": str(model_raw or ""),
         "source_run_id": str(source_run_id or ""),
         "origin": origin,
+        "kind": str(kind or KIND_GRADED),
         "rounds": max(1, int(rounds or 1)),
         "best_round": max(1, int(best_round or 1)),
         "score": _num(score) or 0.0,
@@ -184,6 +202,17 @@ def make_entry(task: object, model: object, model_raw: object, *,
             for group in groups
             if isinstance(group, dict) and group.get("id")
         ]
+    if isinstance(violations, list):
+        # 留痕只带越界事实（路径 + 变更类型 + 一句原因），不带评分树的内部细节。
+        entry["violations"] = [
+            {
+                "path": str(v.get("path") or ""),
+                "change": str(v.get("change") or ""),
+                "reason": str(v.get("reason") or ""),
+            }
+            for v in violations
+            if isinstance(v, dict) and v.get("path")
+        ] or None
     return entry
 
 

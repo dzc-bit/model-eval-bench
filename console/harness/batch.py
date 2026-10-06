@@ -47,6 +47,9 @@ TERMINAL_ITEM_STATUS = {"graded", "discarded", "error", "cancelled", "skipped"}
 AWAITING_STATUS = "awaiting_finish"
 #: 还在占用槽位的中间态（准备 / 就绪 / 校验 / 等结束本轮）。
 BUSY_ITEM_STATUS = {"preparing", "ready", "grading", AWAITING_STATUS}
+#: 读侧对账补齐状态时的事件文案。批次视图每 2 秒轮询一次就会走一遍 _reconcile，
+#: 这句话只有在条目状态真的被改写那一刻才有记录价值——每次都记就是刷屏。
+_RECONCILE_EVENT = "批次监控已中断，按运行记录补齐状态"
 
 
 # --------------------------------------------------------------------------
@@ -368,15 +371,29 @@ def _settle_from_ledger(cfg: dict, item: dict, entries: Optional[Dict[str, dict]
         item["status"] = "graded"
         item["ledgered"] = True
         item["entry_id"] = str(entry.get("entry_id") or "")
-        item["score"] = entry.get("score")
-        item["passed"] = bool(entry.get("passed"))
-        item["best_score"] = entry.get("score")
-        item["best_passed"] = bool(entry.get("passed"))
-        item["rounds"] = int(entry.get("rounds") or 1)
-        item["best_round"] = int(entry.get("best_round") or 1)
-        item["round"] = int(entry.get("best_round") or item.get("round") or 1)
-        _add_event(item, "已结束本轮：成绩已记入台账（代表分 %s 分，%s）"
-                   % (entry.get("score"), "全绿" if entry.get("passed") else "未全绿"), "graded")
+        if results_ledger.entry_kind(entry) == results_ledger.KIND_OUT_OF_BOUNDS:
+            # 越界作废的留痕条目不是成绩：批次条目照样终态落定，但分数与「代表分」
+            # 语义必须剥离——照抄 0 分会把它显示成「模型考了 0 分」。
+            item["status"] = "graded"
+            item["ledgered"] = True
+            item["score"] = 0.0
+            item["passed"] = False
+            item["best_score"] = 0.0
+            item["best_passed"] = False
+            item["rounds"] = int(entry.get("rounds") or 1)
+            item["best_round"] = int(entry.get("best_round") or 1)
+            item["round"] = int(entry.get("best_round") or item.get("round") or 1)
+            _add_event(item, "已结束本轮：改动越界整轮作废，台账已留痕（不计分、不进平均）", "graded")
+        else:
+            item["score"] = entry.get("score")
+            item["passed"] = bool(entry.get("passed"))
+            item["best_score"] = entry.get("score")
+            item["best_passed"] = bool(entry.get("passed"))
+            item["rounds"] = int(entry.get("rounds") or 1)
+            item["best_round"] = int(entry.get("best_round") or 1)
+            item["round"] = int(entry.get("best_round") or item.get("round") or 1)
+            _add_event(item, "已结束本轮：成绩已记入台账（代表分 %s 分，%s）"
+                       % (entry.get("score"), "全绿" if entry.get("passed") else "未全绿"), "graded")
     else:
         item["status"] = "discarded"
         item["ledgered"] = False
@@ -407,6 +424,22 @@ def _reconcile(cfg: dict, doc: dict) -> dict:
     entries = _ledger_index(cfg) if needs_ledger else {}
 
     for item in items:
+        # 旧版 bug 在这里每次对账都无条件补一条「监控已中断」，落盘快照里已经
+        # 攒了一串同文案重复；顺手压成一条（保留最早），历史不必永远带着刷屏痕迹。
+        events = item.get("events")
+        if isinstance(events, list) and events:
+            kept = []
+            dropped = False
+            for ev in events:
+                if (isinstance(ev, dict) and ev.get("message") == _RECONCILE_EVENT
+                        and kept and isinstance(kept[-1], dict)
+                        and kept[-1].get("message") == _RECONCILE_EVENT):
+                    dropped = True
+                    continue
+                kept.append(ev)
+            if dropped:
+                item["events"] = kept
+                changed = True
         run_id = str(item.get("run_id") or "")
         status = str(item.get("status") or "")
         if not run_id or status == "pending":
@@ -456,8 +489,9 @@ def _reconcile(cfg: dict, doc: dict) -> dict:
         else:
             _apply_round_summary(item, snap)
             item["status"] = run_status if run_status in {"preparing", "grading"} else "ready"
-        _add_event(item, "批次监控已中断，按运行记录补齐状态", "ready")
-        changed = True
+        if item["status"] != status:
+            _add_event(item, _RECONCILE_EVENT, "ready")
+            changed = True
     # 计数是落盘时快照下来的，补齐状态后必须一起重算，否则「1/3 完成」会一直骗人
     done = [i for i in items if i.get("status") in TERMINAL_ITEM_STATUS]
     counters = {

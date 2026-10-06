@@ -150,7 +150,8 @@ export function createLeaderboard(props = {}) {
           el('span', { class: 'leaderboard__podium-rank', 'aria-label': t(S.LEADERBOARD_RANK, { n: entry.rank }) }, String(entry.rank)),
           el('strong', { class: 'leaderboard__podium-model' }, entry.model || '—'),
           el('span', { class: 'leaderboard__podium-score' }, t(S.LEADERBOARD_SCORE_VALUE, { n: entry.score })),
-          el('span', { class: 'u-faint' }, `${t(S.LEADERBOARD_ROUNDS_VALUE, { n: entry.rounds })} · ${renderDuration(entry.duration_s)}`),
+          el('span', { class: 'u-faint' }, `${t(S.LEADERBOARD_ROUNDS_VALUE, { n: entry.rounds })} · ${renderDuration(entry.duration_s)}`
+            + (Number(entry.oob) > 0 ? ` · 越界作废 ${Number(entry.oob)} 次（不计分）` : '')),
         ),
       );
     });
@@ -190,7 +191,10 @@ export function createLeaderboard(props = {}) {
             {},
             el('th', { scope: 'row', class: 'leaderboard__rank' }, String(entry.rank)),
             el('td', {}, entry.model || '—'),
-            el('td', {}, t(S.LEADERBOARD_ROUNDS_VALUE, { n: entry.rounds })),
+            el('td', {}, t(S.LEADERBOARD_ROUNDS_VALUE, { n: entry.rounds })
+              + (Number(entry.oob) > 0
+                ? ` · 越界作废 ${Number(entry.oob)} 次（不计分）`
+                : '')),
             el('td', { title: entry.wall_seconds
               ? `墙钟用时 ${renderDuration(entry.wall_seconds)}（含挂机与思考），排名按模型工作时间`
               : S.LEADERBOARD_DURATION_HINT }, renderDuration(entry.duration_s)),

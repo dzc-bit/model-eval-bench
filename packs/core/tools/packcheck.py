@@ -220,7 +220,9 @@ def collect_identifier_vocabulary(task_dir: Path, meta: dict, repo: Path | None)
         tokens.add(token)
 
     # 1) 题目元数据里出现的仓库路径与用例 id
-    for rel in list(meta.get("allowed_paths", [])) + list(meta.get("forbidden_paths", [])):
+    #    forbidden_paths 不入禁用词表：2026-10-06 起范围纪律要求题面点名「改动即越界」的路径，
+    #    扫描时由 blank_boundary 先把禁区叶子名遮蔽掉（见 collect_boundary_tokens）。
+    for rel in list(meta.get("allowed_paths", [])):
         leaf = rel.split("/")[-1]
         if "*" in leaf:
             leaf = leaf.split("*")[0]
@@ -286,6 +288,34 @@ def collect_identifier_vocabulary(task_dir: Path, meta: dict, repo: Path | None)
 
     # 含下划线的多词标识符最具指向性，一律保留；单段词只保留仓库文件名类
     return {token for token in tokens if "_" in token or "." in token or len(token) >= 5}
+
+
+def collect_boundary_tokens(meta: dict) -> set[str]:
+    """禁区路径（forbidden_paths）的叶子名：题面允许点名，扫描前先遮蔽。"""
+    tokens: set[str] = set()
+
+    def eat(raw: str) -> None:
+        token = raw.strip().strip("`\"'()[]{}<>:,.;")
+        if len(token) < 4 or token.lower() in TOKEN_STOPWORDS:
+            return
+        if "_" in token or "." in token or len(token) >= 5:
+            tokens.add(token)
+
+    for rel in meta.get("forbidden_paths", []):
+        rel_clean = rel[3:] if rel.startswith("**/") else rel
+        leaf = rel_clean.split("/**")[0].split("/")[-1]
+        eat(leaf)
+        if leaf.endswith(".py"):
+            eat(leaf[:-3])
+    return tokens
+
+
+def blank_boundary(text: str, boundary: set[str]) -> str:
+    """把禁区叶子名从题面文本里遮掉（长词优先，避免 models 抢在 models.py 前）。"""
+    for token in sorted(boundary, key=len, reverse=True):
+        pattern = rf"(?i)(?<![A-Za-z0-9_]){re.escape(token)}(?![A-Za-z0-9_])"
+        text = re.sub(pattern, "×", text)
+    return text
 
 
 def scan_prompt_leaks(prompt_text: str, vocabulary: set[str]) -> list[str]:
@@ -673,9 +703,10 @@ def check_prompts(task_dir: Path, meta: dict, repo: Path | None, report: Report)
         report.warn("提示词", "第 1 级未见『验收』字样", "附录 A 要求第 1 级含验收要求")
 
     vocabulary = collect_identifier_vocabulary(task_dir, meta, repo)
+    boundary = collect_boundary_tokens(meta)
     total_leaks = 0
     for level, text in levels.items():
-        leaks = scan_prompt_leaks(text, vocabulary)
+        leaks = scan_prompt_leaks(blank_boundary(text, boundary), vocabulary)
         if leaks:
             total_leaks += len(leaks)
             report.bad("提示词", f"第 {level} 级泄露名词 {len(leaks)} 处", "; ".join(leaks[:4]))
