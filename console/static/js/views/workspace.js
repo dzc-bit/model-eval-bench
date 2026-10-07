@@ -101,6 +101,8 @@ const T = {
   // 常驻校验按钮：第一次校验没过之后它必须还在（用户口径，2026-10-02）
   G_GRADE: '运行校验',
   G_REGRADE: '重新校验',
+  /** 校验进行中它变成「打开校验窗口」：弹窗被关掉后的回看出口（2026-10-07 用户报）。 */
+  G_OPEN_WINDOW: '打开校验窗口',
   P_PROMOTE: '进入第 {n} 轮',
   P_REVEAL: '查看参考解',
   P_BACK_TASKS: '换一题',
@@ -392,6 +394,23 @@ export function createWorkspace(props = {}) {
    * @param {object} s store 快照
    * @returns {{label: string, onClick?: Function, disabled?: boolean, reason?: string, loading?: boolean, busyLabel?: string, kbd?: string}}
    */
+  /**
+   * 当前这一轮考过没有：rounds 里有 attempt 对得上且未作废的条目才算。
+   *
+   * 不能拿 run.report 是否存在当判据——promote 不归档 report.json，进下一轮
+   * 之后它挂的还是上一轮的报告，主按钮会因此跳过「发送第 n 级提示词」直奔
+   * 「进入下一轮/查看参考解」（T2-05 实测）。后端 _promote_locked 判能不能
+   * 晋级用的就是这套 rounds 口径，前端必须同源。
+   * @param {object} run run view 快照
+   * @param {number} attempt 当前轮次
+   * @returns {boolean}
+   */
+  function roundGraded(run, attempt) {
+    const rounds = Array.isArray(run && run.rounds) ? run.rounds : [];
+    const n = Number(attempt) || 1;
+    return rounds.some((r) => r && !r.voided && Number(r.attempt) === n);
+  }
+
   function primaryAction(s) {
     const run = s.run;
     if (s.loading && !run) return { label: T.P_LOADING, disabled: true };
@@ -409,6 +428,8 @@ export function createWorkspace(props = {}) {
     const chatBusy = Boolean(run.chat_busy);
     const grading = s.busy === 'grade' || run.status === 'grading';
     const preparing = s.busy === 'prepare' || run.status === 'preparing';
+    // model_acted 由服务端按「round_started_at 之后的回复」算：进下一轮会复位，
+    // 上一轮聊得再多也不算这一轮动过手。
     const acted = run.model_acted !== false;
     const attempt = Number(run.attempt) || 1;
     const allowed = Number(run.attempts_allowed) || attempt;
@@ -431,16 +452,7 @@ export function createWorkspace(props = {}) {
     const promptText = promptTextOf(s);
     const sendDisabled = !promptText;
     const sendReason = sendDisabled ? T.P_NEED_PROMPT : '';
-    if (run.report) {
-      if (!acted) {
-        // 报告在、模型却没动手：那份 0 分是误点出来的，第一步是让它真的开工
-        return {
-          label: t(T.P_SEND_PROMPT_LEVEL, { n: Number(s.round) || 1 }),
-          onClick: () => chatStream.sendText(promptText),
-          disabled: sendDisabled || !s.modelId || Boolean(busyReason),
-          reason: sendReason || busyReason || (s.modelId ? '' : T.P_NEED_MODEL),
-        };
-      }
+    if (roundGraded(run, attempt)) {
       if (attempt < allowed) {
         return {
           label: t(T.P_PROMOTE, { n: attempt + 1 }),
@@ -516,15 +528,32 @@ export function createWorkspace(props = {}) {
    */
   function gradeAction(s) {
     const run = s.run;
+    // 「真在跑校验」只看 run.status：doGrade 点击当拍就乐观地置 grading，服务端
+    // （含批次代发评分）接手后仍是 grading；promote/reveal/reopen 虽然也借用
+    // busy='grade'，但那几步不碰 run.status，不会误判成校验进行中。
+    const grading = Boolean(run && run.status === 'grading');
+    if (grading) {
+      // 校验进行中：这颗按钮改成「打开校验窗口」。旧版它 disabled+loading，弹窗一旦
+      // 被关掉就再没有出口能回到进度/实时日志（2026-10-07 用户报：校验过程中一旦
+      // 关闭就无法再打开）。它不触发新校验——doGrade 的 busy 守卫本来也会拦。
+      return {
+        label: T.G_OPEN_WINDOW,
+        onClick: () => openGrade(),
+        disabled: false,
+        reason: '',
+        kbd: 'G',
+      };
+    }
     const item = menuItems(s).find((i) => i.key === 'regrade') || {};
-    const label = run && run.report ? T.G_REGRADE : T.G_GRADE;
-    const grading = Boolean(run && (s.busy === 'grade' || run.status === 'grading'));
+    // 「重新」看的是当前轮有没有成绩：进下一轮后 run.report 挂的还是上一轮的
+    // 报告，按它措辞会把第 2 轮的第一校验也念成「重新校验」。
+    const label = run && roundGraded(run, Number(run.attempt) || 1) ? T.G_REGRADE : T.G_GRADE;
     return {
       label,
       onClick: () => doGrade(),
-      disabled: Boolean(item.disabled) || grading,
-      reason: grading ? T.P_GRADING_REASON : (item.reason || ''),
-      loading: grading || s.busy === 'grade',
+      disabled: Boolean(item.disabled),
+      reason: item.reason || '',
+      loading: s.busy === 'grade',
       busyLabel: T.P_REGRADING,
       kbd: 'G',
     };
@@ -832,10 +861,13 @@ export function createWorkspace(props = {}) {
     interval: 1200,
     enabled: () => {
       const s = store.getState();
-      // 对话在飞（chat_busy）也必须轮询：批次线程代发的提示词结束时，run 状态
-      // 一直是 ready（不在 BUSY_STATUS 里），没有这条「模型仍在作答」就永远刷
-      // 不掉，直到手动刷新页面（2026-10-05 T1-02 实测）。
-      return Boolean(s.run) && (BUSY_STATUS.has(s.run.status) || Boolean(s.run.chat_busy));
+      // 只要有运行记录就轮询，而不是「本地已知在忙」才轮询：把提示词发给模型的
+      // 线程活在服务端——批次代发、批次自动评分、上一条消息收束时 chat_busy /
+      // model_acted / status 的翻转都发生在标签页之外。只在「自己知道忙」时才拉，
+      // 这些转换就永远看不见，界面停在载入那一刻的旧 run view，校验按钮锁死到
+      // 手动刷新（2026-10-05 与 2026-10-07 T1-02 两次实测）。空转的渲染代价由
+      // applyRun 的内容比对挡住：run view 原样时不写 store、不触发重渲染。
+      return Boolean(s.run);
     },
     onError: (err, times) => {
       // 状态栏没有独立的轮询错误位，轮询失败改为 toast 报错（连接状态另有全局连接条负责）
@@ -868,6 +900,12 @@ export function createWorkspace(props = {}) {
 
       if (tickOnly) {
         reportNode.update({ elapsed: next.elapsed, busy: next.busy, run: next.run });
+        // 校验窗口的「已用时间」是纯心跳驱动的：长检查几分钟不出一条日志时
+        // run view 内容原样（applyRun 内容比对还会跳过写 store），不在这里喂
+        // 一口的话弹窗会冻在开窗那一刻（2026-10-07 用户报：已用 1 秒 不动）。
+        if (gradeModal && gradeModal.isOpen()) {
+          gradeModal.update({ run: next.run, elapsed: next.elapsed });
+        }
         return;
       }
 
@@ -876,10 +914,12 @@ export function createWorkspace(props = {}) {
       if (runChanged && Boolean(prev.run) !== Boolean(next.run)) {
         taskNode.setOpen(!next.run && wsStore.get('taskOpen', '') !== 'closed');
       }
-      // 服务端仍有发送线程在跑（批次代发 / 手动发送 / 浏览器中途刷新过）：
-      // 把轮询拉起来。run 状态多半停在 ready（不在 BUSY_STATUS），不拉的话
-      // chat_busy 翻回 false 时没人去收尾，「模型仍在作答」会一直挂着。
-      if (runChanged && next.run && next.run.chat_busy && !poller.getState().running) {
+      // 只要有运行记录就把轮询拉起来（enabled 已放宽为「有 run 就轮询」，这里补
+      // 启动）：批次代发 / 批次评分 / 发送线程的收束都发生在服务端，标签页不能等
+      // 「自己知道忙了」才启动——那正是 2026-10-07 T1-02 校验按钮锁死到手动刷新
+      // 的起点。run 归零的三条路（结束 / 废弃 / NO_RUN）都会把 poller 停成
+      // running=false，新 run 出现时这里能重新拉起。
+      if (runChanged && next.run && !poller.getState().running) {
         poller.start();
       }
       const runForSend = next.run;
@@ -1086,6 +1126,10 @@ export function createWorkspace(props = {}) {
       return run;
     } catch (err) {
       if (err instanceof ApiError && err.code === 'NO_RUN') {
+        // run 归零也要停轮询：否则 poller 停在「running 但无定时器」的静默态
+        //（tick 在 enabled 为假时直接返回、不再排下一跳），之后新建的 run 会被
+        // 订阅里的 !running 守卫挡住，永远拉不起来。
+        poller.stop();
         patch({ run: null, busy: '' });
         return null;
       }
@@ -1097,8 +1141,17 @@ export function createWorkspace(props = {}) {
    * 把一次拉取结果写进 store（只做差异更新，§10.5），并处理阶段推进播报与结果提醒。
    * @param {object} run
    */
+  /** 上一次写进 store 的 run_view 原文：轮询常开后靠它把「内容没变」的拉取挡掉。 */
+  let lastAppliedRunJson = '';
+
   function applyRun(run) {
     const prev = store.getState();
+    // 轮询每 1.2s 拉一次 run view，绝大多数拉取内容原样：直接跳过，别让订阅里的
+    // 全节点差异更新空转（消息列表整体重建会吃掉正在阅读的选区）。真正变了才会
+    // 走到下面的写入与阶段播报。
+    const runJson = JSON.stringify(run);
+    if (prev.run && runJson === lastAppliedRunJson) return;
+    lastAppliedRunJson = runJson;
     const prevStatus = prev.run ? prev.run.status : '';
     // 换 run 或进下一轮：上一轮的改动正文当场作废（在途响应由 diffToken 比对丢掉）
     if (diffTokenOf(prev.run) !== diffTokenOf(run)) invalidateDiff();
@@ -1893,8 +1946,14 @@ export function createWorkspace(props = {}) {
       event.preventDefault();
       taskNode.copyPrompt();
     } else if (key === 'g') {
-      if (!s.run || s.busy) return;
+      if (!s.run) return;
       event.preventDefault();
+      // 校验进行中：G 与常驻校验钮同义——打开校验窗口（不是再跑一次校验）
+      if (String(s.run.status) === 'grading') {
+        openGrade();
+        return;
+      }
+      if (s.busy) return;
       doGrade();
     } else if (key === 'r') {
       if (!s.run) return;
@@ -1994,7 +2053,9 @@ export function createWorkspace(props = {}) {
       try {
         await loadRun(runId);
         ensureTicker();
-        if (store.getState().run && BUSY_STATUS.has(store.getState().run.status)) poller.start();
+        // 有 run 就把轮询拉起来（不只 preparing/grading）：批次的代发与评分、
+        // 发送线程的收束都发生在服务端，空闲态也要能看见它们的翻转。
+        if (store.getState().run) poller.start();
       } catch {
         wsStore.remove(runKey(store.getState().modelId));
       }

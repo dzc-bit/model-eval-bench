@@ -678,8 +678,17 @@ def _run_checks(cfg: dict, meta: dict, grade_dir: str, env: dict, timeout_s: int
         if node_ids and not getattr(outcome, "executed", True):
             # 声明了用例却一条都没跑起来：这不是模型考砸了，是评测台自己坏了。
             # 记 0 分等于把故障写成一个成绩，pass@k 与排行榜都会照单全收。
-            run_error = "checker %s 没有执行任何用例（声明 %d 条）：%s" % (
-                kind, len(node_ids), outcome.notes[-1] if outcome.notes else "详见日志")
+            detail = outcome.notes[-1] if outcome.notes else "详见日志"
+            if outcome.timed_out:
+                # 超时是主因，「没有产出报告」只是它的下游结果——pytest/vitest
+                # 的报告都在会话结束时才写盘，跑到一半被杀就什么都没有；让
+                # notes[-1]（收集失败之类）顶替主因会把人引去查 import 链
+                # （2026-10-07 T4-11 实测：跑到 93% 被杀，被误报成收集失败）。
+                run_error = "checker %s 超过 %d 秒被中止（声明 %d 条，跑到一半被杀）：%s" % (
+                    kind, timeout_s, len(node_ids), detail)
+            else:
+                run_error = "checker %s 没有执行任何用例（声明 %d 条）：%s" % (
+                    kind, len(node_ids), detail)
             log(run_error)
             # 整轮即将作废，但报告仍要诚实：组的用例带上真实故障原因，
             # 不许让 resolver 缺位把它翻译成「隐藏测试可能导入失败」误导排查；

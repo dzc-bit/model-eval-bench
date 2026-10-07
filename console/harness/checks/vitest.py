@@ -115,7 +115,8 @@ def run_vitest(ctx: CheckContext) -> CheckResult:
                 os.remove(report_json)
             except OSError:
                 pass
-        proc = util.run_cmd(argv, cwd=ctx.workdir, env=env, timeout=ctx.timeout_s, log=ctx.log)
+        proc = util.run_cmd(argv, cwd=ctx.workdir, env=env, timeout=ctx.timeout_s,
+                            log=ctx.log, line_log=True)
         result.returncode = proc.returncode
         result.duration_s = proc.duration_s
         result.timed_out = proc.timed_out

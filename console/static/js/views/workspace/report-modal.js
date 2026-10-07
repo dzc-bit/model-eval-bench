@@ -787,9 +787,11 @@ function buildExplainCard(plan, hasReport) {
 
 /**
  * 组装校验窗口正文（进行中 → 出分 → 出错三种形态共用一棵树，切形态时整体替换）。
+ * 返回 { host, live }：live 只在进行中存在 { progress, elapsedSpan }——长检查期间
+ * run view 原样，秒数靠心跳就地刷新，不能整树重建（会把手动收起的日志卡弹回去）。
  * @param {{run: object|null, plan: Array, revealed: object|null, elapsed?: number,
  *          errorText?: string}} args
- * @returns {HTMLElement}
+ * @returns {{host: HTMLElement, live: {progress: object, elapsedSpan: HTMLElement}|null}}
  */
 function buildGradeBody({ run, plan, revealed, elapsed = 0, errorText = '' }) {
   const host = el('div', { class: 'ws-report-modal u-stack' });
@@ -813,18 +815,22 @@ function buildGradeBody({ run, plan, revealed, elapsed = 0, errorText = '' }) {
   }
 
   if (running) {
+    const seconds = Math.floor((Number(elapsed) || 0) / 1000);
     const progress = createProgress({ label: S.PROGRESS_GRADE, state: 'running' });
     progress.update({
       state: 'running',
       determinate: false,
       label: S.PROGRESS_GRADE,
-      elapsed: Math.floor((Number(elapsed) || 0) / 1000),
+      elapsed: seconds,
       total: null,
     });
+    const elapsedSpan = el('span', { class: 'u-faint' }, t(T.RUNNING_ELAPSED, { s: seconds }));
     const logBox = el('pre', { class: 'ws-log', tabindex: '0', role: 'region' });
     logBox.setAttribute('aria-label', S.GRADE_LOG_TITLE);
     const lines = (run && run.log) || [];
     setText(logBox, lines.length ? lines.join('\n') : S.GRADE_LOG_EMPTY);
+    // 检查器输出现在按行流进 grade.log，弹窗每次随新行重建：跟住末尾才是「实时」
+    logBox.scrollTop = logBox.scrollHeight;
     const logCard = createDetailsCard({
       title: T.LIVE_LOG,
       content: logBox,
@@ -840,11 +846,12 @@ function buildGradeBody({ run, plan, revealed, elapsed = 0, errorText = '' }) {
         createStatusDot({ kind: 'busy', text: S.RUN_STATUS_GRADING }).el,
         el('span', { class: 'u-faint' }, T.RUNNING_TEXT),
         el('span', { class: 'u-spacer' }),
-        el('span', { class: 'u-faint' }, t(T.RUNNING_ELAPSED, { s: Math.floor((Number(elapsed) || 0) / 1000) }))),
+        elapsedSpan),
       progress.el,
       logCard.el,
     );
     host.appendChild(box);
+    return { host, live: { progress, elapsedSpan } };
   }
 
   if (failed && !report) {
@@ -856,7 +863,7 @@ function buildGradeBody({ run, plan, revealed, elapsed = 0, errorText = '' }) {
       el('strong', {}, S.RUN_STATUS_ERROR),
       el('p', {}, message ? t(T.FAILED_TEXT, { msg: message }) : T.FAILED_NO_MSG),
     ));
-    return host;
+    return { host, live: null };
   }
 
   if (report) {
@@ -867,11 +874,11 @@ function buildGradeBody({ run, plan, revealed, elapsed = 0, errorText = '' }) {
       el('span', { class: 'u-faint' }, running ? T.STALE_NOTE : T.DONE_NOTE),
     ));
     host.appendChild(buildReportBody({ report, run, revealed, newResult: false }));
-    return host;
+    return { host, live: null };
   }
 
   if (!running) host.appendChild(el('p', { class: 'u-muted' }, T.NEXT_TO_GRADE));
-  return host;
+  return { host, live: null };
 }
 
 /**
@@ -895,8 +902,10 @@ export function openGradeModal(options = {}) {
 
   const footerButtons = [];
   let modal = null;
-  /** 上一次渲染的判重键：心跳只推「已用秒数」，不重建正文。 */
+  /** 上一次渲染的判重键：run 状态/报告/日志行数/错误变化才整体重建。 */
   let lastKey = '';
+  /** 进行中的就地刷新句柄（buildGradeBody 的 live）：只有秒数变化时用。 */
+  let live = null;
   const bodyHost = el('div', { class: 'ws-report-modal' });
 
   function titleOf(current) {
@@ -916,15 +925,30 @@ export function openGradeModal(options = {}) {
     return attempt > 0 ? t(T.GRADE_TITLE, { n: attempt }) : T.GRADE_TITLE_NO_ROUND;
   }
 
+  /** 结构判重键：状态/报告/日志行数/错误。render 与 update 必须用同一把尺。 */
+  function structuralKey(currentRun, currentError) {
+    return [
+      currentRun && currentRun.status,
+      currentRun && currentRun.report ? reportFingerprint(currentRun.report) : '',
+      ((currentRun && currentRun.log) || []).length,
+      (currentRun && currentRun.last_error && currentRun.last_error.message) || '',
+      currentError,
+    ].join('|');
+  }
+
   function render() {
-    const body = buildGradeBody({
+    const built = buildGradeBody({
       run,
       plan,
       revealed: options.revealed || null,
       elapsed,
       errorText,
     });
-    bodyHost.replaceChildren(body);
+    bodyHost.replaceChildren(built.host);
+    live = built.live;
+    // render 过的正文就是当前键：不登记的话开窗后的第一次更新必然整树重建，
+    // 用户刚折叠的实时日志卡会被弹回去（2026-10-07 探针实测 rebuilds=1）
+    lastKey = structuralKey(run, errorText);
     if (modal) modal.setTitle(titleOf(run));
   }
 
@@ -976,28 +1000,33 @@ export function openGradeModal(options = {}) {
       modal.destroy();
     },
     /**
-     * 用新的运行记录/心跳刷新窗口（工作台每次状态变化都调；没变化时不重建正文）。
+     * 用新的运行记录/心跳刷新窗口（工作台每次状态变化都调）。
+     *
+     * 两档更新：结构变了（状态/报告/日志行数/错误）才整体重建；只有秒数在变
+     * （长检查期间 run view 原样，工作台心跳每秒喂一口）就就地刷新两处用时显示
+     * ——整树重建会把用户手动收起的实时日志卡弹回展开（2026-10-07 用户报
+     * 「已用 1 秒 不动」的修复：旧版判重键含秒数、更新又只挂在 run 变化上，
+     * 结果两头都不走）。
      * @param {{run?: object|null, elapsed?: number, error?: string}} next
      */
     update(next = {}) {
       const nextRun = next.run === undefined ? run : next.run;
       const nextElapsed = next.elapsed === undefined ? elapsed : Number(next.elapsed) || 0;
       const nextError = next.error === undefined ? errorText : String(next.error || '');
-      // 判重键：状态 + 报告指纹 + 日志行数 + 秒级用时 + 启动失败原因
-      const key = [
-        nextRun && nextRun.status,
-        nextRun && nextRun.report ? reportFingerprint(nextRun.report) : '',
-        ((nextRun && nextRun.log) || []).length,
-        Math.floor(nextElapsed / 1000),
-        (nextRun && nextRun.last_error && nextRun.last_error.message) || '',
-        nextError,
-      ].join('|');
+      if (structuralKey(nextRun, nextError) !== lastKey) {
+        run = nextRun;
+        elapsed = nextElapsed;
+        errorText = nextError;
+        render();
+        return;
+      }
       run = nextRun;
       elapsed = nextElapsed;
-      errorText = nextError;
-      if (key === lastKey) return;
-      lastKey = key;
-      render();
+      if (live) {
+        const seconds = Math.floor(elapsed / 1000);
+        setText(live.elapsedSpan, t(T.RUNNING_ELAPSED, { s: seconds }));
+        live.progress.update({ elapsed: seconds });
+      }
     },
   };
 }

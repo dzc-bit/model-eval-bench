@@ -26,7 +26,6 @@ import re
 import shutil
 import threading
 import time
-from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 from . import chat, config, errors, grade, keyring, packs
@@ -742,8 +741,8 @@ def record_run_result(cfg: dict, run: dict, origin: str = "run") -> Optional[dic
     # finish < start 的负差，被 max(0,…) 夹成假 0——不如老老实实置回「未知」。
     wall = None
     if _round_no(best) == int(run.get("attempt") or 1):
-        start_s = _timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
-        finish_s = _timestamp_seconds(best.get("graded_at"))
+        start_s = util.timestamp_seconds(run.get("round_started_at") or run.get("created_at"))
+        finish_s = util.timestamp_seconds(best.get("graded_at"))
         if start_s is not None and finish_s is not None:
             wall = max(0.0, finish_s - start_s)
     work = best.get("model_work_seconds")
@@ -1152,10 +1151,10 @@ def model_work_seconds(cfg: dict, run: dict, since: object = None) -> float:
         records = chat._read_records(run)
     except errors.HarnessError:
         return 0.0
-    floor = _timestamp_seconds(since if since is not None else run.get("round_started_at"))
+    floor = util.timestamp_seconds(since if since is not None else run.get("round_started_at"))
     segments: list = []
     for item in records:
-        stamp = _timestamp_seconds(item.get("created_at"))
+        stamp = util.timestamp_seconds(item.get("created_at"))
         if stamp is None or (floor is not None and stamp < floor):
             continue
         if item.get("role") == "user" or not segments:
@@ -1527,19 +1526,6 @@ def scoreboard_csv(board: dict) -> str:
                "作废轮、判无效轮与已揭晓参考解的尝试不进分数统计；"
                "因改动越界作废的尝试有留痕条目但不计入本表，越界次数见记分板界面）")
     return "\n".join(out) + "\n"
-
-
-def _timestamp_seconds(value: object) -> Optional[float]:
-    """把运行记录时间转为可比较的秒数；兼容带 Z 和无时区的旧记录。"""
-    if not value:
-        return None
-    try:
-        stamp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        if stamp.tzinfo is None:
-            stamp = stamp.replace(tzinfo=timezone.utc)
-        return stamp.timestamp()
-    except (TypeError, ValueError, OverflowError):
-        return None
 
 
 def task_leaderboard(cfg: dict, task_id: str) -> dict:

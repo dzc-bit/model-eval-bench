@@ -635,3 +635,214 @@ def test_send_active_keeps_busy_while_a_send_is_queued():
     finally:
         chat._exit_active("QUEUED-RUN")
     assert chat.send_active("QUEUED-RUN") is False
+
+
+# ---------------------------------------------------------------------------
+# 空响应与 finish_reason（2026-10-07：T2-05 空收束被当成自然结束，任务没完成
+# 却要用户手动发「继续」——chat_completions 分支必须与另两个分支同样报错）
+# ---------------------------------------------------------------------------
+
+def test_empty_response_retries_once_then_reports(cfg, tmp_path, monkeypatch):
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    empty = {"choices": [{"finish_reason": "length",
+                          "message": {"role": "assistant", "content": ""}}]}
+    calls = []
+
+    def fake_post(url, payload, key, timeout):
+        calls.append(json.loads(json.dumps(payload)))
+        return dict(empty)
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    with pytest.raises(errors.HarnessError) as caught:
+        chat.send(cfg, run, "把这个跑完")
+    assert caught.value.code == errors.E_CHAT_FAILED
+    assert len(calls) == 2, "空响应先原样重试一次再报错"
+    assert "length" in caught.value.detail, "finish_reason 要进 detail，能区分截断与抽风"
+    rows = chat.messages(run)
+    assert rows[-1]["status"] == "error"
+    assert not any(row.get("role") == "assistant" and not str(row.get("content") or "").strip()
+                   and row.get("status") != "error" for row in rows), \
+        "空响应绝不能以正常 assistant 消息的形态落盘收束"
+
+
+def test_empty_response_recovers_on_retry(cfg, tmp_path, monkeypatch):
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    responses = [
+        {"choices": [{"finish_reason": "length", "message": {"role": "assistant", "content": ""}}]},
+        {"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": "继续做完了。"}}]},
+    ]
+
+    def fake_post(url, payload, key, timeout):
+        return responses.pop(0)
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    result = chat.send(cfg, run, "继续")
+
+    assert result["message"]["content"] == "继续做完了。"
+    assert chat.messages(run)[-1]["finish_reason"] == "stop"
+
+
+def test_truncated_answer_is_persisted_with_finish_reason(cfg, tmp_path, monkeypatch):
+    """finish_reason=length 且正文非空：内容有信息量照常收束，但截断要留档。"""
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    monkeypatch.setattr(chat, "_post_json", lambda url, payload, key, timeout:
+                        {"choices": [{"finish_reason": "length",
+                                      "message": {"role": "assistant", "content": "改了一半的话…"}}]})
+    result = chat.send(cfg, run, "继续")
+
+    assert result["message"]["finish_reason"] == "length"
+    assert chat.messages(run)[-1]["finish_reason"] == "length"
+
+
+def test_provider_output_limit_is_sent_when_profile_has_one(cfg, tmp_path, monkeypatch):
+    """不传 max_tokens 时不少服务商按小默认截断输出——思维链吃满额度正文就空了。"""
+    run, _sandbox_root = _ready_run(cfg, tmp_path)
+    cfg["models"][0]["max_tokens"] = 32768
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    seen = []
+
+    def fake_post(url, payload, key, timeout):
+        seen.append(json.loads(json.dumps(payload)))
+        return {"choices": [{"message": {"role": "assistant", "content": "完成。"}}]}
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    chat.send(cfg, run, "继续")
+
+    assert seen[0]["max_tokens"] == 32768
+    # finish_reason 是我们自己的留档字段，不属于服务商消息序列，不能外发
+    assert not any("finish_reason" in message for message in seen[0]["messages"])
+
+
+# ---------------------------------------------------------------------------
+# 单轮内守预算与写入清单留存（用户口径：压缩不能等下一轮才做、更不能压到
+# 只剩省略号——模型得记得自己写过哪些文件，否则续轮重复劳动）
+# ---------------------------------------------------------------------------
+
+def _big_round_rows(rounds=6, body_size=6000):
+    rows = [{"role": "user", "content": "题目：把三处失忆都修掉"}]
+    for index in range(rounds):
+        rows.append({"role": "assistant", "content": None, "tool_calls": [
+            {"id": "c%d" % index, "type": "function",
+             "function": {"name": "read_file",
+                          "arguments": json.dumps({"path": "a%d.py" % index})}}]})
+        rows.append({"role": "tool", "tool_call_id": "c%d" % index, "name": "read_file",
+                     "content": json.dumps({"path": "a%d.py" % index,
+                                            "content": "x" * body_size}, ensure_ascii=False)})
+    rows.append({"role": "assistant", "content": "结论：都改完了。"})
+    return rows
+
+
+def test_shrink_plain_window_keeps_head_tail_pairing_and_is_idempotent():
+    rows = _big_round_rows()
+    small = {"max_context_chars": 8000, "tool_summary_chars": 800, "max_history": 100}
+
+    shrunk, changed = chat._shrink_plain_window(
+        [dict(row) for row in rows], small["max_context_chars"],
+        small["tool_summary_chars"], keep_head=1)
+    again, _ = chat._shrink_plain_window(
+        [dict(row) for row in shrunk], small["max_context_chars"],
+        small["tool_summary_chars"], keep_head=1)
+
+    assert changed
+    _assert_openai_sequence(chat._history_for_api(shrunk))
+    assert shrunk[0]["content"] == "题目：把三处失忆都修掉", "组首 user 钉住"
+    assert shrunk[-1]["content"] == "结论：都改完了。", "最新正文不降级"
+    summaries = [item for item in shrunk if item.get("role") == "tool"
+                 and len(str(item.get("content"))) <= 1000]
+    assert summaries and "a0.py" in json.dumps(summaries, ensure_ascii=False), \
+        "早期工具结果降级成摘要"
+    originals = [item for item in shrunk if item.get("role") == "tool"
+                 and len(str(item.get("content"))) > 1000]
+    assert originals, "尾部保留区里还有全量原文供模型当下使用"
+    assert chat._plain_size(again) == chat._plain_size(shrunk), "重复触发不得层层套娃"
+
+
+def test_send_loop_shrinks_before_requests_and_keeps_full_persisted_log(cfg, tmp_path, monkeypatch):
+    small = dict(cfg)
+    small["chat"] = {"max_context_chars": 8000, "max_history": 100, "tool_summary_chars": 800}
+    run, sandbox_root = _ready_run(small, tmp_path)
+    util.write_text_atomic(os.path.join(sandbox_root, "a.py"), "x" * 6000)
+    util.write_text_atomic(os.path.join(sandbox_root, "b.py"), "y" * 6000)
+    monkeypatch.setenv("MODEL_CHAT_API_KEY", "test-secret")
+    calls = []
+    # 三跳：前两跳各读一个大文件，第三跳收束。窗口 8000 字符必然撑爆。
+    responses = [
+        {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "r1", "type": "function",
+             "function": {"name": "read_file", "arguments": '{"path":"a.py"}'}}]}}]},
+        {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "r2", "type": "function",
+             "function": {"name": "read_file", "arguments": '{"path":"b.py"}'}}]}}]},
+        {"choices": [{"message": {"role": "assistant", "content": "两份都看完了。"}}]},
+    ]
+
+    def fake_post(url, payload, key, timeout):
+        calls.append(json.loads(json.dumps(payload)))
+        return responses.pop(0)
+
+    monkeypatch.setattr(chat, "_post_json", fake_post)
+    chat.send(small, run, "读两个大文件")
+
+    assert len(calls) == 3
+    first_round_tools = [m for m in calls[-1]["messages"]
+                         if m.get("role") == "tool" and m.get("tool_call_id") == "r1"]
+    assert first_round_tools and "x" * 6000 not in first_round_tools[0]["content"], \
+        "循环进行中就要把早期工具往返降级，不等下一轮 send"
+    persisted = [row for row in chat.messages(run) if row.get("role") == "tool"]
+    assert any("x" * 6000 in row["content"] for row in persisted), "落盘记录必须仍是全量"
+    _assert_openai_sequence(calls[-1]["messages"])
+
+
+def test_call_listing_and_gutted_note_keep_write_targets(cfg, tmp_path):
+    """塌缩与 gutted 之后，模型对「自己写过哪些文件」的记忆必须还在。"""
+    arguments = json.dumps({"path": "backend/sync.py", "content": "正文" * 2000},
+                           ensure_ascii=False)
+    listing = chat._call_listing([
+        {"id": "w", "type": "function",
+         "function": {"name": "write_file", "arguments": arguments}},
+        {"id": "r", "type": "function",
+         "function": {"name": "run_command", "arguments": '{"command":["git","status"]}'}}])
+    assert "backend/sync.py" in listing and "写入过" in listing
+
+    # 构造一段会触发 gutted 的历史：塌缩后该轮仍有 4 条消息（>3 门槛）且
+    # 收尾正文很长，pop 完可丢的轮次后仍超预算——唯一写入发生在第一轮
+    write_round = [
+        {"role": "user", "content": "第一轮题目"},
+        {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "w1", "type": "function",
+             "function": {"name": "write_file", "arguments": arguments}}]},
+        {"role": "tool", "tool_call_id": "w1", "name": "write_file",
+         "content": json.dumps({"path": "backend/sync.py", "bytes": 12000}, ensure_ascii=False)},
+        {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "w2", "type": "function",
+             "function": {"name": "write_file", "arguments": arguments}}]},
+        {"role": "tool", "tool_call_id": "w2", "name": "write_file",
+         "content": json.dumps({"path": "backend/sync.py", "bytes": 14000}, ensure_ascii=False)},
+        {"role": "assistant", "content": "第一轮结论：%s" % ("改完了，" * 300)}]
+    rows = list(write_round)
+    rows += _big_round_rows(rounds=2, body_size=4000)
+    rows.append({"role": "user", "content": "第二轮：继续"})
+    run = _chat_run(cfg, tmp_path, rows)
+
+    small = dict(cfg)
+    small["chat"] = {"max_context_chars": 1200, "max_history": 100}
+    history, _dropped = chat._model_history(small, chat._read_records(run))
+    notes = [str(item.get("content")) for item in history if "已省略" in str(item.get("content"))]
+    assert notes and "写入过" in notes[-1] and "backend/sync.py" in notes[-1], \
+        "gutted 省略行必须带走写入清单（NOTES.md 第五节第 2/4 条）"
+    _assert_openai_sequence(chat._history_for_api(history))
+
+
+def test_record_failure_persists_detail(cfg, tmp_path):
+    """只落一句「连接失败」无法归因：detail（已脱敏）要一起进对话记录。"""
+    run = _chat_run(cfg, tmp_path, [])
+    chat._record_failure(run, errors.E_CHAT_FAILED, "模型接口连接失败，请检查 base_url、网络和服务端密钥。",
+                         "URLError: <urlopen error timed out>")
+
+    rows = chat.messages(run)
+    assert rows[0]["error_code"] == errors.E_CHAT_FAILED
+    assert "timed out" in rows[0]["detail"]
+    assert rows[0]["detail"] == chat._clip(rows[0]["detail"], 600)

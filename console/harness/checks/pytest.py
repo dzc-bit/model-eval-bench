@@ -50,7 +50,7 @@ def run_pytest(ctx: CheckContext) -> CheckResult:
         ctx.log("第 %d/%d 批 pytest：%d 个用例" % (ctx.batch + 1, ctx.batch_total, len(ctx.node_ids)))
 
     proc = util.run_cmd(result.command, cwd=ctx.workdir, env=ctx.env,
-                        timeout=ctx.timeout_s, log=ctx.log)
+                        timeout=ctx.timeout_s, log=ctx.log, line_log=True)
     result.returncode = proc.returncode
     result.duration_s = proc.duration_s
     result.timed_out = proc.timed_out
@@ -61,8 +61,16 @@ def run_pytest(ctx: CheckContext) -> CheckResult:
         result.notes.append("pytest 超过 %d 秒被中止" % ctx.timeout_s)
         # 超时也要尽量保住已产出的报告
     if not os.path.isfile(report_xml):
-        result.notes.append("没有产出 JUnit 报告，可能是收集阶段就失败了")
-        mark_unexecuted(result, ctx.node_ids, "用例没有被收集到（详见日志）")
+        if proc.timed_out:
+            # junitxml 在会话结束时才写盘：跑到一半被杀就什么都没有。这与
+            # 「收集阶段失败」是两回事——照旧报收集失败会把人引去查 import
+            # 链，而真因是预算/负载（2026-10-07 T4-11 实测：跑到 93% 被杀）
+            result.notes.append(
+                "JUnit 报告未及写出：pytest 在会话结束时才写报告，跑到一半被超时杀掉，不是收集失败")
+            mark_unexecuted(result, ctx.node_ids, "pytest 超时被中止，报告未及写出")
+        else:
+            result.notes.append("没有产出 JUnit 报告，可能是收集阶段就失败了")
+            mark_unexecuted(result, ctx.node_ids, "用例没有被收集到（详见日志）")
         return result
 
     try:

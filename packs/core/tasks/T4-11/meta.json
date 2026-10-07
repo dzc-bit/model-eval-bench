@@ -99,7 +99,7 @@
     }
   ],
   "budget": {
-    "grade_timeout_s": 420,
+    "grade_timeout_s": 900,
     "diff_line_cap": 6000
   },
   "calibration": {

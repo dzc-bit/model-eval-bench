@@ -529,6 +529,38 @@ def test_promote_reopens_run_and_refuses_when_exhausted(cfg):
     assert excinfo.value.code == errors.E_BAD_REQUEST
 
 
+def test_promote_resets_model_acted_for_the_new_round(cfg):
+    """进下一轮后 model_acted 必须复位：上一轮聊得再多，不算这一轮动过手。
+
+    T2-05 实测的另一半根因：promote 不清 chat.jsonl（对话本来就要留给下一轮
+    接着聊），has_model_reply 若按全量算，第 2 轮一进来就顶着「已动手」，
+    主按钮跳过「发送第 2 级提示词」直奔收尾出口，空校验也拦不住了。
+    """
+    run = make_run(cfg, BACKEND_TASK, "复位模型", attempt=1)
+    run["status"] = "graded"
+    run["round_started_at"] = "2026-01-01T00:00:00"
+    run["rounds"] = [{"attempt": 1, "score": 60.0, "passed": False,
+                      "invalidated": False, "graded_at": "2026-01-01T00:01:00"}]
+    runs.save_run(cfg, run)
+    # created_at 手工钉死在旧轮：append 的 setdefault 不会再盖它
+    chat._append_message(run, {"role": "assistant", "content": "第 1 轮我改完了。",
+                               "created_at": "2026-01-01T00:00:30"})
+    stored = runs.get_run(cfg, run["run_id"])
+    assert chat.has_model_reply(stored) is True
+
+    runs.promote(cfg, stored["run_id"])
+
+    after = runs.get_run(cfg, stored["run_id"])
+    assert after["attempt"] == 2
+    assert chat.has_model_reply(after) is False, \
+        "上一轮的回复把这一轮顶成「已动手」，发送提示词的出口会被跳过"
+    view = runs.run_view(cfg, after)
+    assert view["model_acted"] is False
+    # 这一轮真的有了新回复（同一秒也算不早于起点）才恢复「动过手」
+    chat._append_message(after, {"role": "assistant", "content": "第 2 轮开工。"})
+    assert chat.has_model_reply(runs.get_run(cfg, after["run_id"])) is True
+
+
 def test_promote_refuses_a_round_that_was_never_graded(cfg):
     """没考过的轮次不能进入下一轮：作废之后也不能拿旧成绩当跳板。"""
     run = make_run(cfg, BACKEND_TASK, "跳级模型", attempt=1)

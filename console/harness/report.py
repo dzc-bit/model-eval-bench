@@ -71,7 +71,19 @@ def decide_next(grade_result: dict, meta: dict, revealed: bool = False) -> dict:
         }
     if grade_result.get("error"):
         # 校验器没跑起来：整轮已作废，剩下的分数是残测不是成绩。
-        # 引导修环境而不是继续做题——报错详情在报告的 error 字段里。
+        # 引导按真实根因分岔：超时被杀 ≠ 环境坏了——重跑即可，不用重建沙箱
+        # （重建会把模型已做好的改动一起丢掉；2026-10-07 T4-11 实测误导）。
+        timed_out = any(
+            isinstance(c, dict) and c.get("timed_out") for c in (grade_result.get("checks") or []))
+        if timed_out:
+            return {
+                "action": ACTION_FIX,
+                "label": "重跑一次校验",
+                "reason": "校验器超过时限被中止（报告未及写出），本轮作废。这不是模型的成绩："
+                          "不用重建沙箱，等机器空闲后点「重新校验」即可；若反复超时，"
+                          "是该题声明的校验预算不够，需要调大题包的 grade_timeout_s。",
+                "can_promote": False,
+            }
         return {
             "action": ACTION_FIX,
             "label": "先修校验环境",

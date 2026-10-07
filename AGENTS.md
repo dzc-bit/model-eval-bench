@@ -182,6 +182,18 @@
   题面没读到（任务详情读取失败 / 这一级没有正文）时按钮**禁用并写原因**，同时任务节点
   自动展开显示「读取失败 + 重试」——旧版这种情况点了完全没反应，看起来像按钮坏了。
 
+**轮询语义（2026-10-07，用户报「T1-02 已完成，运行校验却一直锁着，F5 才恢复」）**：工作台的
+run view 轮询改为**有 run 期间常开**（`enabled = Boolean(s.run)`），不再要求「本地已知在忙」。
+原因是模型的派发与收束全在服务端线程里（批次代发、批次自动评分、发送线程收束时
+`chat_busy`/`model_acted`/status 的翻转），标签页只在「自己知道忙」时才拉的话，这些转换永远
+看不见，dock 就停在载入那一刻的旧 run view。配套三件事缺一不可：① `applyRun` 对拉取结果做
+内容比对，run view 原样时**不写 store**（否则每 1.2s 一轮全节点重渲染，消息列表整体重建会
+吃掉选区）；② 订阅里「有 run 且 poller 未在跑」就 `start()`；③ **run 归零的三条路**
+（结束 / 废弃 / `loadRun` 的 NO_RUN）都必须 `poller.stop()`——core/poller 的 `tick()` 在
+enabled 为假时**直接返回、不再排下一跳**，留下「running=true 但无定时器」的静默停表态，
+之后新 run 会被订阅里的 `!running` 守卫挡住，永远拉不起来。消息流（chat-stream 自己的
+`/chat` 轮询）与 run view 轮询是两条独立的线，别指望一条能替另一条更新 dock。
+
 **题面载入纪律（用户报「重建沙箱后提示词没有出现」的根因）**：任务详情是提示词的唯一来源，
 所以 ① 每次（重）读都带当前 `run_id`（不带时服务端拿"这道题最新的记录"算已解锁级数）；
 ② 建/重建/进下一轮/重开一轮之后都要重读一次（`refreshTask`），不能只 `loadRun`；
@@ -194,6 +206,16 @@
 「这次在查什么」（本题分组口径 + 每组的 `port` + 权重 + 回归/越界规则），进行中给进度与
 实时日志，出分**原地**换成结果正文（用户自己触发的动作，不算 §13.2 说的被动弹窗）。
 旧报告还在时会同时显示进度块与「上一次校验的结果」并注明会被替换。
+**进行中弹窗关掉后必须能重开**（2026-10-07 用户报「校验过程中一旦关闭就无法再打开」）：
+常驻校验钮在 `run.status === 'grading'` 时整颗变成「打开校验窗口」（enabled，onClick =
+重开弹窗，不再触发新校验），快捷键 G 同义。判据只看 run.status——promote/reveal/reopen
+虽然也借用 busy='grade'，但不碰 status，不能拿来当「校验进行中」的信号。
+**弹窗里的「已用时间」由心跳单独喂**（同日用户报「已用 1 秒 不动」）：订阅的 tickOnly
+分支（纯心跳）只更新 reportNode，`gradeModal.update` 必须在这里补一口——长检查几分钟
+不出日志、run view 原样（applyRun 内容比对还会跳过写 store），不喂就冻在开窗那一刻。
+弹窗侧 update 分两档：结构键（状态/报告/日志行数/错误）变了才整树重建，只有秒数在变就
+就地刷新 live 句柄（`buildGradeBody` 返回 {host, live}）——整树重建会把手动收起的日志卡
+弹回去；**render() 自己必须登记 lastKey**，否则开窗后的第一次更新必然重建一次。
 
 区域锚点 `#ws-region-{prompt,chat,sandbox,grade,run}` 是书签契约，改名要同步路由。
 其中 `sandbox`（运行详情）与 `run`（本轮备注）**跳转 = 开小窗口**（`focusRegion` 里分流），
@@ -251,6 +273,11 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
   要动先拿到明确授权。盲测校准是用户本人的事，出题者不自测，别往 `calibrated` 里填东西。
 - Windows 专属：`du`/`cp -r` 进 `runs/` 会挂在 junction 上，只按文件名拷；控制台是 GBK，
   中文测试输出经管道会花屏（用文件读，不要 `| grep`）；PowerShell 一律 `pwsh` 且写 `.ps1`。
+- **Python 走 Windows 证书库建 TLS 链（2026-10-07 a6 中转实修）**：库里一张过期的
+  ISRG Root X2（2020→2025）让所有「Let's Encrypt YE2 → Root YE → X2」形态的新证书链
+  在 harness 里报 `certificate has expired`，浏览器 / openssl / certifi 却全部正常
+  ——「别的工具能连、harness 连不上」先查 `Cert:\CurrentUser\CA` 里的过期中间证书。
+  8899 进程会把信任库连同 urllib 默认 opener 一起缓存在内存里，清理证书后**必须重启**才生效。
 
 ## 待拍板 / 已知未修
 
@@ -269,6 +296,10 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
   不公平的证据；T1-03 的 20 分失败模式（分类缺一档、前端镜像缺 3 类）与外部审核的
   归因一致——是模型没接住，不是题面推不出。等积累更多弱模型样本后再走 §6.4 校准。
 - 批次视图不渲染 `started_at` / `finished_at`；跑批与工作台对"同一组合"的措辞还没统一。
+- **T4-11 校验预算已调大（2026-10-07 拍板）**：实测 420s 只够它自己的 307 条 pytest 用例跑到
+  93%（并发评分时更紧），经授权把 `packs/core/tasks/T4-11/meta.json` 的
+  `budget.grade_timeout_s` 调到 **900**。`load_meta` 每次评分现读盘，改动即时生效、无需重启。
+  同族王者档 T4-12（draft）入库定稿时记得复核同样的预算问题。
 - `packgate.py` 的补丁应用仍借用 `selfgrade.apply_patch`，与 harness 自带的 `_apply_unified`
   是两份实现（2026-10-02 复核：`selfgrade.py` 不认识 vitest 一条已修——声明了非 pytest 检查的题
   现在 fail-closed；T4-11 与 T3-09 用例重复、node-ID 前缀约定两条也已随题库修复定稿，
@@ -307,6 +338,18 @@ python console/harness/selfcheck.py          # 0 错误 0 提示
   沙箱回收统一走 `runs.release_sandbox` 门面（独占锁 + `chat.send_active` 在飞闸门 + 状态守卫），
   `batch._release_item_sandbox` 与手动回收不再自己拆 `sandbox.destroy`；在飞时拒收并保留目录。
   缺陷 A/B（`statusInfo`/主按钮，前端）由另一会话处理，缺陷 C（取消记录的出路）等拍板。
+- **T4-11 校验超时被误报成「收集阶段失败」（2026-10-07）已修**：pytest 的 junitxml 在会话
+  结束时才写盘，跑到 93% 被 420s 预算杀掉 → 无报告 → 旧文案判成「可能是收集阶段就失败」，
+  而 `grade._run_checks` 的 executed=False 分支又用 notes[-1] 把 timed_out 分支已写的
+  「超过 420 秒被中止」覆盖掉——两层都在撒谎。现在 pytest.py 超时无报告时明说「报告未及
+  写出，不是收集失败」，grade.py 保持超时为主因（notes 作细节），report.py 的 next_hint
+  按超时分岔（重跑即可、不用重建沙箱，别再把人引去 npm install）。回归测试在
+  `test_grade.py::test_timed_out_checker_reports_the_timeout_not_collection`。
+  同日又补了「实时日志」的真流式：`util.run_cmd` 新增 `line_log` 参数（pytest/vitest/script
+  三个检查器开启）——此前子进程输出只在结束时进 CmdResult，grade.log 在「执行：…」之后
+  静默到检查跑完，长检查期间前端实时日志纹丝不动（T2-05 实测）。RunLogger 自带锁，
+  读输出线程并发喂日志安全；`log_tail_lines`/keep=400 上限照旧兜住刷屏。
+  另：批次代发评分进入 grading 时，工作台的「打开校验窗口」钮现在能随时回看进度（同日修）。
 - `D:\New project 6` 的 node_modules 于 10-01 晚后被外部清空（目录创建/修改时间被改成
   2093-12-09 的垃圾值，回收站、npm 日志、Avast 隔离区均排除），**元凶未查明**；
   同窗口仓库 HEAD 被 reset 过。恢复依赖（npm install）后重测；要定位确切时刻可用

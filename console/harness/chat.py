@@ -911,12 +911,18 @@ def _system_prompt(run: dict, tool_enabled: bool = True, omitted_rounds: int = 0
     return prompt
 
 
-def _extract_chat_message(response: dict) -> dict:
+def _extract_chat_message(response: dict) -> tuple:
+    """取 assistant 消息与 finish_reason。
+
+    finish_reason 不能丢：content 为空 + finish_reason=length 是「输出上限被
+    思维链吃满」的典型形态，不记下它就无法区分「模型自然收束」与「被截断」。
+    """
     choices = response.get("choices")
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
         raise errors.HarnessError(errors.E_CHAT_FAILED, "模型接口没有返回可用的 assistant 消息。")
     message = choices[0].get("message") or {}
-    return message if isinstance(message, dict) else {}
+    finish_reason = str(choices[0].get("finish_reason") or "")
+    return (message if isinstance(message, dict) else {}), finish_reason
 
 
 def _responses_text(response: dict) -> str:
@@ -973,16 +979,66 @@ def _call_index(group: List[dict]) -> Dict[str, dict]:
     return index
 
 
+def _write_file_meta(arguments) -> tuple:
+    """从 write_file 的 arguments JSON 里取 (path, 正文长度)；解析不出给 ("", None)。"""
+    try:
+        args = json.loads(arguments if isinstance(arguments, str) else "{}")
+    except (TypeError, ValueError):
+        return "", None
+    if not isinstance(args, dict):
+        return "", None
+    content = args.get("content")
+    size = len(content) if isinstance(content, str) else None
+    return str(args.get("path") or ""), size
+
+
 def _call_listing(tool_calls: List[dict]) -> str:
-    """把一轮调用过哪些工具收成一行（塌缩轮次后留给模型的唯一线索）。"""
+    """把一轮调用过哪些工具收成一行（塌缩轮次后留给模型的唯一线索）。
+
+    write_file 除了次数还保留路径与正文字符数：塌缩之后这行字是模型
+    「自己改过哪些文件」的唯一记忆，只写次数等于让它续轮重新考古
+    （NOTES.md 第五节第 2/4 条）。
+    """
     counts: Dict[str, int] = {}
+    writes: List[str] = []
     for call in tool_calls:
         if not isinstance(call, dict):
             continue
-        name = str(((call.get("function") or {}).get("name")) or "未知工具")
+        function = call.get("function") or {}
+        name = str(function.get("name") or "未知工具")
+        if name == "write_file":
+            path, size = _write_file_meta(function.get("arguments"))
+            if path:
+                writes.append("%s（%s 字符）" % (path, size) if size is not None else path)
+                continue
         counts[name] = counts.get(name, 0) + 1
     listed = "、".join("%s ×%d" % (name, n) if n > 1 else name for name, n in counts.items())
+    if writes:
+        listed = ("%s；写入过：" % listed if listed else "写入过：") + "、".join(writes)
     return "（这一轮调用过：%s）" % listed if listed else "（这一轮只调用了工具）"
+
+
+def _write_manifest(group: List[dict]) -> str:
+    """一轮里写过的全部目标文件（去重、保序）：gutted 兜底时随省略行留下。
+
+    gutted 发生在塌缩之后，listing 已经拼进 assistant 正文，但 last_text
+    只保最后一条——更早的写入清单会丢。这里直接从原始组提取，别依赖塌缩形态。
+    """
+    seen: List[str] = []
+    for item in group:
+        calls = item.get("tool_calls")
+        if not isinstance(calls, list):
+            continue
+        for call in calls:
+            if not isinstance(call, dict):
+                continue
+            function = call.get("function") or {}
+            if str(function.get("name") or "") != "write_file":
+                continue
+            path, _size = _write_file_meta(function.get("arguments"))
+            if path and path not in seen:
+                seen.append(path)
+    return "、".join(seen)
 
 
 def _tool_summary(item: dict, call: dict, limit: int) -> str:
@@ -1036,8 +1092,10 @@ def _slim_call(call: dict) -> dict:
         return call
     if not isinstance(arguments, dict) or not isinstance(arguments.get("content"), str):
         return call
+    content = arguments["content"]
+    if content.startswith("（正文") and content.endswith("文件已写入沙箱）"):
+        return call  # 已经瘦身过：再套一层会把真实字符数改成占位文本的长度
     slimmed = dict(arguments)
-    content = slimmed["content"]
     slimmed["content"] = "（正文 %d 字符已省略，文件已写入沙箱）" % len(content)
     copied = dict(call)
     copied["function"] = dict(function, arguments=json.dumps(slimmed, ensure_ascii=False))
@@ -1085,18 +1143,87 @@ def _context_size(rounds: List[List[dict]]) -> tuple:
     return len(flat), chars
 
 
+def _plain_size(items: List[dict]) -> int:
+    return sum(len(json.dumps(item, ensure_ascii=False)) for item in items)
+
+
+#: 软阈值：上下文到硬预算的八成就开始降级，不等到顶死才压。
+_SHRINK_TRIGGER = 0.8
+#: 单轮降级时早期思维链保留的前缀长度（实测思维链可占单轮上下文的四成以上，
+#: T2-05 第一轮 128 万字符里 reasoning_content 占 53 万——不处理它压不回预算）。
+_REASONING_KEEP = 240
+_REASONING_MARK = "…（早期思维链已省略）"
+
+
+def _shrink_plain_window(items: List[dict], max_chars: int, summary_chars: int,
+                         keep_head: int = 1) -> tuple:
+    """把一段消息序列压回预算内：头部钉住 + 尾部原文 + 中间工具往返降级。
+
+    只改 content 与 tool_calls 参数，不增删消息——assistant.tool_calls 与
+    tool 响应的配对天然不破，满足「压缩只在已落盘的边界做，绝不拆开
+    assistant 的工具调用批次与其结果」（NOTES.md 第五节）。降级幂等：
+    已是摘要形态的消息直接跳过，反复触发不会层层套娃。
+    返回 (序列, 是否有改动)；没超软阈值时原样返回同一对象。
+    """
+    if _plain_size(items) <= max_chars * _SHRINK_TRIGGER:
+        return items, False
+    # 尾部保留区：最近一段原文不动（模型正在处理的焦点），从尾部向前累计。
+    # 取预算的三分之一：预算配得小时（测试/窄窗口模型）按比例缩，别让保留区比预算还大。
+    keep_chars = max_chars // 3
+    total = 0
+    cut = 0
+    for index in range(len(items) - 1, -1, -1):
+        total += len(json.dumps(items[index], ensure_ascii=False))
+        if total >= keep_chars:
+            cut = index
+            break
+    cut = max(cut, keep_head)
+    calls = _call_index(items[:cut])
+    digest_limit = max(summary_chars, 240) + 200  # _tool_summary 产出的长度上界
+
+    def shrink_one(item: dict) -> dict:
+        role = item.get("role")
+        if role == "tool":
+            content = str(item.get("content") or "")
+            if len(content) <= digest_limit:
+                return item  # 本来就小，或者上一轮触发时已经降级过
+            call = calls.get(str(item.get("tool_call_id") or ""), {})
+            return dict(item, content=_tool_summary(item, call, summary_chars))
+        if role == "assistant":
+            out = item
+            if isinstance(item.get("tool_calls"), list) and item["tool_calls"]:
+                out = dict(item, tool_calls=[_slim_call(call) for call in item["tool_calls"]])
+            # 早期思维链截断：字段保留（有的服务商按存在性校验），前缀保住推理
+            # 连续性；跨轮历史组装仍按口径原样回传，这里只动单轮内/最新轮的早期部分。
+            for field in ("reasoning_content", "reasoning"):
+                value = out.get(field)
+                if isinstance(value, str) and len(value) > _REASONING_KEEP \
+                        and not value.endswith(_REASONING_MARK):
+                    out = dict(out, **{field: value[:_REASONING_KEEP] + _REASONING_MARK})
+            return out
+        return item
+
+    head = items[:keep_head]
+    middle = [shrink_one(item) for item in items[keep_head:cut]]
+    tail = items[cut:]
+    return head + middle + tail, True
+
+
 def _model_history(cfg: dict, records: List[dict]) -> tuple:
     """组装发给模型的历史上下文，返回 (消息列表, 被整轮丢弃的轮数)。
 
     三层力度，从便宜到昂贵：
       1. 除最新一轮外的历史轮，工具返回摘要化；
       2. 仍超预算就把更老的轮次塌成「只剩模型说过的话」；
-      3. 再超才整轮丢弃——钉住的第一条用户消息（题目提示词）与最新一轮不参与丢弃。
+      3. 再超才整轮丢弃——钉住的第一条用户消息（题目提示词）与最新一轮不参与丢弃；
+      4. 最新一轮自己超预算时，先在它内部降级（组首 user + 尾部原文钉住，
+         中间工具往返摘要化，`_shrink_plain_window`），仍超才原样发出。
 
     旧实现是「一轮的消息数超过 MAX_HISTORY 就整轮裁掉」，实测受测模型每步并行
     6 个工具调用、一轮 100+ 条消息，续轮因此完全忘记上一轮做过什么，只能靠 git
     重新考古（NOTES.md 第五节第 4 条）。条数与字符是两个独立闸门，先到哪个都只
-    触发压缩，不直接丢整轮。
+    触发压缩，不直接丢整轮。单轮工具循环进行中的守预算见 `_send_locked`
+    （每跳请求前同样跑 `_shrink_plain_window`），不等到下一轮 send 才压。
     """
     items = [item for item in records if item.get("status") != "error"]
     groups = _group_rounds(items)
@@ -1140,19 +1267,23 @@ def _model_history(cfg: dict, records: List[dict]) -> tuple:
             if len(group) > 3:
                 questions = [item for item in group if item.get("role") == "user"][:1]
                 # 题目和模型自己最后一段正文留下（那是它做过什么、结论是什么的记忆），
-                # 中间的工具往返换成一行省略说明。
+                # 中间的工具往返换成一行省略说明；写过的文件清单从原始组提取随行——
+                # 这行字是模型「自己改过哪些文件」的最后记忆，绝不能只剩省略号。
                 last_text = [item for item in group
                              if item.get("role") == "assistant" and str(item.get("content") or "").strip()][-1:]
                 kept = questions + last_text
-                levels[index] = kept + [{
-                    "role": "assistant",
-                    "content": "（这一轮的 %d 条对话与工具结果已省略）" % (len(group) - len(kept)),
-                }]
+                note = "（这一轮的 %d 条对话与工具结果已省略" % (len(group) - len(kept))
+                manifest = _write_manifest(older[index])
+                if manifest:
+                    note += "；其间写入过：%s" % manifest
+                levels[index] = kept + [{"role": "assistant", "content": note + "）"}]
                 gutted = True
                 break
         if not gutted:
-            # 第 4 层兜底：最新一轮自己就超预算时宁可带着超出的窗口发出去，
-            # 也不能把题目或当前诉求丢掉——那才是评测里最坏的失忆。
+            # 第 4 层：最新一轮自己就超预算时，先在它内部降级（保留组首 user 与
+            # 最近原文），仍超才原样发出去——题目或当前诉求绝不能丢，
+            # 那才是评测里最坏的失忆。
+            newest, _changed = _shrink_plain_window(newest, max_chars, summary_chars, keep_head=1)
             break
     rounds = levels + [newest]
     return [item for group in rounds for item in group], dropped
@@ -1208,6 +1339,25 @@ def _history_for_api(history: List[dict]) -> List[dict]:
     return out
 
 
+def _output_limit(cfg: dict, model: dict) -> int:
+    """单跳请求该带的 max_tokens：模型档案 → 供应商默认，取不到返回 0（不传）。
+
+    不传这个字段时不少服务商按自己的小默认截断输出——思维链把额度吃满，
+    正文返回空。上一版把这种截断误当成「模型自然收束」，任务没完成就停了。
+    """
+    limit = model.get("max_tokens") or model.get("default_max_tokens")
+    if not limit:
+        provider_id = str(model.get("provider_id") or "")
+        provider = next((item for item in (cfg.get("providers") or [])
+                         if str(item.get("id")) == provider_id), {})
+        limit = provider.get("default_max_tokens")
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        return 0
+    return limit if limit > 0 else 0
+
+
 def _enter_active(run_id: str) -> None:
     with _ACTIVE_SENDS_GUARD:
         _ACTIVE_SENDS[run_id] = _ACTIVE_SENDS.get(run_id, 0) + 1
@@ -1226,10 +1376,22 @@ def has_model_reply(run: dict) -> bool:
     """这一轮模型是否已经回复过（哪怕只回了一条）。
 
     校验的前置条件：沙箱刚建好、模型还没动手时校验，只会按「未改动」计分，
-    白白烧掉一次尝试机会。后端也拦一道，防止绕过前端按钮。
+    白白烧掉一次尝试机会。
+
+    只看 ``round_started_at`` 之后的回复：进下一轮（promote）不换沙箱也不清
+    对话，上一轮的回复留在 chat.jsonl 里，按全量算的话第 2 轮一进来就顶着
+    「已动手」，主按钮会错跳过「发送第 2 级提示词」直奔校验/收尾出口。
+    老记录没有 round_started_at 时退回全量跨度（与 model_work_seconds 同一
+    兜底约定）；同一秒内的时间戳算「不早于起点」，不算漏网。
     """
+    floor = util.timestamp_seconds(run.get("round_started_at"))
     for item in _read_records(run):
-        if item.get("role") == "assistant" and item.get("status") != "error":
+        if item.get("role") != "assistant" or item.get("status") == "error":
+            continue
+        if floor is None:
+            return True
+        stamp = util.timestamp_seconds(item.get("created_at"))
+        if stamp is None or stamp >= floor:
             return True
     return False
 
@@ -1241,13 +1403,16 @@ def send_active(run_id: str) -> bool:
         return _ACTIVE_SENDS.get(key, 0) > 0
 
 
-def _record_failure(run: dict, code: str, message: str) -> None:
+def _record_failure(run: dict, code: str, message: str, detail: str = "") -> None:
     """把一次失败的发送写进对话记录，前提是它还没被记过。
 
     `_send_locked` 只在进入会话锁之后才自带错误记录；预检阶段（沙箱未就绪、
     这一轮已取消、档案不支持）抛出的错误在那之前就走掉了。同步接口时代它
     至少能作为 HTTP 错误到达前端，改成回执 + 轮询后必须落盘，否则界面只会
-    停在「模型处理中」再也没下文。
+    停在「模型处理中」再也没下文。detail 一起落盘：超时、连接被重置、TLS
+    失败在 message 里是同一句话，没有 detail 就无法事后归因（2026-10-07
+    kimi-k3 断连排查时实证过：磁盘上只剩一句文案）。detail 进来前已由
+    `_post_json`/`_sanitize_text` 脱敏。
     """
     try:
         tail = _read_records(run)[-3:]
@@ -1256,9 +1421,12 @@ def _record_failure(run: dict, code: str, message: str) -> None:
     if any(item.get("status") == "error" and str(item.get("content") or "") == message
            for item in tail):
         return
+    saved = {"role": "assistant", "content": message,
+             "status": "error", "error_code": code}
+    if detail:
+        saved["detail"] = _clip(detail, 600)
     try:
-        _append_message(run, {"role": "assistant", "content": message,
-                              "status": "error", "error_code": code})
+        _append_message(run, saved)
     except errors.HarnessError:
         pass
 
@@ -1287,9 +1455,9 @@ def start_send(cfg: dict, run: dict, text: str) -> dict:
         try:
             send(cfg, run, text)
         except errors.HarnessError as exc:
-            _record_failure(run, exc.code, exc.message)
+            _record_failure(run, exc.code, exc.message, exc.detail)
         except Exception as exc:  # noqa: BLE001 - 意外绝不能让线程静默消失
-            _record_failure(run, errors.E_CHAT_FAILED, "对话线程意外中断：%s" % exc)
+            _record_failure(run, errors.E_CHAT_FAILED, "对话线程意外中断：%s" % exc, str(exc))
         finally:
             _exit_active(run_id)
 
@@ -1344,10 +1512,23 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
                                  "content": _system_prompt(run, True, omitted_rounds, allowed)}] + _history_for_api(history)
                 # 不限工具轮数：模型不再发起工具调用时自然收束；单轮请求有超时兜底
                 read_slots: Dict[str, int] = {}
+                empty_replies = 0
+                loop_max_chars = _chat_option(cfg, "max_context_chars")
+                loop_summary_chars = _chat_option(cfg, "tool_summary_chars")
+                output_limit = _output_limit(cfg, model)
                 while True:
-                    response = _post_json(url, {"model": model.get("model") or model.get("id"), "messages": api_messages,
-                                                "tools": TOOLS, "tool_choice": "auto"}, key, timeout)
-                    assistant = _extract_chat_message(response)
+                    # 单轮内也守预算：上下文到窗口八成就降级较早的工具往返，
+                    # 不等下一轮 send 才压；只改内容不增删消息，配对不破。
+                    shrunk, shrunk_changed = _shrink_plain_window(
+                        api_messages, loop_max_chars, loop_summary_chars, keep_head=2)
+                    if shrunk_changed:
+                        api_messages[:] = shrunk
+                    payload = {"model": model.get("model") or model.get("id"), "messages": api_messages,
+                               "tools": TOOLS, "tool_choice": "auto"}
+                    if output_limit:
+                        payload["max_tokens"] = output_limit
+                    response = _post_json(url, payload, key, timeout)
+                    assistant, finish_reason = _extract_chat_message(response)
                     tool_calls = assistant.get("tool_calls") or []
                     # Preserve the provider's text and field names for display and
                     # tool continuation. Do not stringify opaque/structured data.
@@ -1355,9 +1536,22 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
                                  for field in ("reasoning_content", "reasoning")
                                  if isinstance(assistant.get(field), str)}
                     if not tool_calls:
-                        content = assistant.get("content") or ""
-                        saved_data = {"role": "assistant", "content": str(content)}
+                        content = str(assistant.get("content") or "")
+                        if not content.strip():
+                            # 空响应不是收束：多半是输出被截断或中转抽风。
+                            # 原样重试一次，仍空就报错落盘——静默结束本轮
+                            # 会让用户以为模型做完了（2026-10-07 T2-05 实证）。
+                            if empty_replies < 1:
+                                empty_replies += 1
+                                continue
+                            raise errors.HarnessError(
+                                errors.E_CHAT_FAILED,
+                                "模型接口返回了空消息。",
+                                "finish_reason=%s" % (finish_reason or "未提供"))
+                        saved_data = {"role": "assistant", "content": content}
                         saved_data.update(reasoning)
+                        if finish_reason:
+                            saved_data["finish_reason"] = finish_reason
                         saved = _append_message(run, saved_data)
                         return {"message": saved, "messages": messages(run), "model": {"id": model.get("id"), "model": model.get("model"), "api_mode": mode}}
                     assistant_saved = {
@@ -1366,8 +1560,12 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
                         "tool_calls": tool_calls,
                     }
                     assistant_saved.update(reasoning)
+                    if finish_reason:
+                        assistant_saved["finish_reason"] = finish_reason
                     _append_message(run, assistant_saved)
-                    api_messages.append(dict(assistant_saved))
+                    # finish_reason 只留档，不属于 OpenAI 消息序列，发请求前剥掉
+                    api_messages.append({k: v for k, v in assistant_saved.items()
+                                         if k != "finish_reason"})
                     for call in tool_calls:
                         function = call.get("function") or {}
                         name = str(function.get("name") or "")
@@ -1413,9 +1611,12 @@ def _send_locked(cfg: dict, run: dict, text: str, run_id: str) -> dict:
             return {"message": saved, "messages": messages(run), "model": {"id": model.get("id"), "model": model.get("model"), "api_mode": mode}}
         except errors.HarnessError as exc:
             # 将失败放入可见记录，但不把它重新送回模型上下文。
+            saved = {"role": "assistant", "content": exc.message,
+                     "status": "error", "error_code": exc.code}
+            if exc.detail:
+                saved["detail"] = _clip(exc.detail, 600)
             try:
-                _append_message(run, {"role": "assistant", "content": exc.message,
-                                      "status": "error", "error_code": exc.code})
+                _append_message(run, saved)
             except errors.HarnessError:
                 pass
             raise

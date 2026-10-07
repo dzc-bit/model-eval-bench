@@ -54,7 +54,8 @@ def run_script(ctx: CheckContext) -> CheckResult:
         return result
 
     result.command = argv
-    proc = util.run_cmd(argv, cwd=workdir, env=ctx.env, timeout=ctx.timeout_s, log=ctx.log)
+    proc = util.run_cmd(argv, cwd=workdir, env=ctx.env, timeout=ctx.timeout_s,
+                        log=ctx.log, line_log=True)
     result.returncode = proc.returncode
     result.duration_s = proc.duration_s
     result.timed_out = proc.timed_out

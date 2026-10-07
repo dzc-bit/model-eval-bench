@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 #: 遍历文件树时永远跳过的目录名（答案、依赖缓存、构建产物）
@@ -354,11 +355,16 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
             timeout: float | None = 120, log: Callable[[str], None] | None = None,
             stdin_text: str | None = None,
             cancel_event: threading.Event | None = None,
-            max_output_bytes: int | None = None) -> CmdResult:
+            max_output_bytes: int | None = None,
+            line_log: bool = False) -> CmdResult:
     """跑一条命令并统一管超时。
 
     设计文档 §4.5：本机没有 pytest-timeout/xdist，超时由 harness 的 subprocess 统一管理。
     超时后先 terminate 再 kill，并如实标记 timed_out，不假装成功。
+
+    ``line_log=True`` 时把子进程输出**按行**实时喂给 ``log``（完整输出仍照常进
+    CmdResult.stdout/stderr）：检查器一跑几分钟，不流式的话 grade.log 从「执行：…」
+    之后就一直静默，工作台的「实时日志」名不副实（2026-10-07 T2-05 实测）。
     """
     argv = [str(a) for a in argv]
     started = time.time()
@@ -434,6 +440,7 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
 
     def read_output(name: str, stream) -> None:
         nonlocal output_used, output_limited
+        pending = bytearray() if (line_log and log) else None
         try:
             while True:
                 chunk = stream.read(8192)
@@ -442,19 +449,37 @@ def run_cmd(argv: Sequence[str], cwd: str | None = None, env: dict | None = None
                 with output_lock:
                     if limit is None:
                         output_buffers[name].extend(chunk)
-                        continue
-                    remaining = limit - output_used
-                    if remaining > 0:
-                        output_buffers[name].extend(chunk[:remaining])
-                        output_used += min(len(chunk), remaining)
-                    if len(chunk) > max(0, remaining) and not output_limited:
-                        output_limited = True
-                        output_stop.set()
+                    else:
+                        remaining = limit - output_used
+                        if remaining > 0:
+                            output_buffers[name].extend(chunk[:remaining])
+                            output_used += min(len(chunk), remaining)
+                        if len(chunk) > max(0, remaining) and not output_limited:
+                            output_limited = True
+                            output_stop.set()
+                if pending is not None:
+                    # 按行喂 log：完整输出照旧进缓冲，这里只做行切分；
+                    # 没有换行符的尾巴攒着，等下一块或 EOF 再落
+                    pending.extend(chunk)
+                    while True:
+                        idx = pending.find(b"\n")
+                        if idx < 0:
+                            break
+                        line = bytes(pending[:idx])
+                        del pending[:idx + 1]
+                        text = decode_output(line).rstrip("\r")
+                        if text:
+                            log(text)
                 if output_stop.is_set():
                     terminate_tree()
                     return
         except (OSError, ValueError):
             return
+        finally:
+            if pending is not None and pending and log:
+                text = decode_output(bytes(pending)).rstrip("\r")
+                if text:
+                    log(text)
 
     readers = [
         threading.Thread(target=read_output, args=("stdout", proc.stdout), name="stdout-reader", daemon=True),
@@ -568,6 +593,23 @@ def now_stamp() -> str:
 
 def iso_now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def timestamp_seconds(value: object) -> Optional[float]:
+    """把运行记录时间转为可比较的秒数；兼容带 Z 和无时区的旧记录。
+
+    原是 runs.py 的私有实现，chat.has_model_reply 判「本轮是否动过手」也要用，
+    下沉到这里共用一份，免得两份解析必然漂移。
+    """
+    if not value:
+        return None
+    try:
+        stamp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        return stamp.timestamp()
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def disk_free_bytes(path: str) -> int:

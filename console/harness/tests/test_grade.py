@@ -22,6 +22,40 @@ def read(path):
         return util.decode_output(fh.read())
 
 
+def test_run_cmd_line_log_streams_subprocess_lines():
+    """line_log=True：子进程输出按行实时喂 log（完整输出照旧进 stdout/stderr）。
+
+    检查器一跑几分钟，不流式的话 grade.log 在「执行：…」之后一直静默，
+    工作台的「实时日志」名不副实（2026-10-07 T2-05 实测）。
+    """
+    import sys
+    collected = []
+    result = util.run_cmd(
+        [sys.executable, "-c",
+         "print('line-one'); print('line-two'); print('tail-no-newline', end='')"],
+        timeout=30, log=collected.append, line_log=True)
+    assert result.returncode == 0
+    assert result.stdout.startswith("line-one"), "完整输出仍要进 stdout"
+    joined = "\n".join(collected)
+    assert collected[0].startswith("执行："), "命令行本身仍是第一行日志"
+    assert "line-one" in joined and "line-two" in joined, joined
+    assert "tail-no-newline" in joined, "EOF 处的无换行尾巴也要落一行"
+    assert "line-one" in collected[1], "输出行按到达顺序逐条落日志"
+
+
+def test_run_cmd_without_line_log_keeps_quiet():
+    """默认行为不变：log 只收「执行：…」一行，不流式（存量调用方零感知）。"""
+    import sys
+    collected = []
+    result = util.run_cmd(
+        [sys.executable, "-c", "print('quiet-one'); print('quiet-two')"],
+        timeout=30, log=collected.append)
+    assert result.returncode == 0
+    assert "quiet-one" in result.stdout
+    assert not any(x.startswith("quiet-") for x in collected), \
+        "默认不流式：输出行不该单独出现在日志里"
+
+
 @pytest.fixture
 def bench(cfg, log):
     """一台"评分台"：准备沙箱，然后反复用不同改动跑分。"""
@@ -427,6 +461,49 @@ def test_unexecuted_checker_invalidates_the_round(cfg, log, monkeypatch):
         assert built["next_hint"]["action"] == report.ACTION_FIX, \
             "校验环境坏了应引导修环境，而不是「轮次用尽」"
         assert "重建沙箱" in built["next_hint"]["reason"]
+    finally:
+        sandbox.destroy(cfg, run, log=log)
+
+
+def test_timed_out_checker_reports_the_timeout_not_collection(cfg, log, monkeypatch):
+    """checker 超时被杀：主因必须是「超过时限被中止」，不能被「没有产出报告」顶掉。
+
+    pytest/vitest 的报告都在会话结束时才写盘，跑到一半被杀就什么都没有；
+    旧文案把它说成「可能是收集阶段就失败」，把人引去查 import 链
+    （2026-10-07 T4-11 实测：跑到 93% 被杀，被误报成收集失败）。
+    """
+    from harness.checks import CheckResult, mark_unexecuted
+
+    meta = packs.load_meta(cfg, FRONTEND_TASK)
+    run = make_run(cfg, FRONTEND_TASK, "超时检查器模型",
+                   run_id="TEST-06__超时检查器模型__20260101-000000")
+    util.ensure_dir(run["run_dir"])
+    sandbox.prepare(cfg, run, meta, log=log)
+    try:
+        def slow_checker(ctx):
+            result = CheckResult(kind=ctx.kind)
+            result.timed_out = True
+            result.notes.append("%s 超过 %d 秒被中止" % (ctx.kind, ctx.timeout_s))
+            result.notes.append("报告未及写出：跑到一半被超时杀掉，不是收集失败")
+            return mark_unexecuted(result, ctx.node_ids, "超时被中止，报告未及写出")
+
+        monkeypatch.setattr(grade.checks, "get", lambda kind: slow_checker)
+        result = grade.run_grade(cfg, run, meta, log=log)
+
+        assert result["error"], "超时必须记入 error"
+        assert result["error"].startswith("checker "), result["error"]
+        assert "超过" in result["error"] and "被中止" in result["error"], result["error"]
+        assert "跑到一半被杀" in result["error"], result["error"]
+        assert "没有执行任何用例" not in result["error"], "超时主因不许被「未执行」文案顶掉"
+        assert result["invalidated"] is True
+        assert result["invalid_reason"] == "校验过程出错"
+        assert result["checks"][0]["timed_out"] is True
+
+        built = report.build(run, meta, result)
+        assert built["next_hint"]["label"] == "重跑一次校验", built["next_hint"]
+        assert "不用重建沙箱" in built["next_hint"]["reason"], \
+            "超时不需要重建沙箱——模型已做好的改动不该一起丢掉"
+        assert "重新校验" in built["next_hint"]["reason"]
     finally:
         sandbox.destroy(cfg, run, log=log)
 

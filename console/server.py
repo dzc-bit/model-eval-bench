@@ -370,18 +370,20 @@ def _guard_then(ctx: dict, action: str, func) -> dict:
 
 
 def api_grade(cfg: dict, run_id: str) -> dict:
-    """启动校验；模型还没回复过时拒绝。
+    """启动校验；模型这一轮还没回复过时拒绝。
 
     刚建好的沙箱上点校验，只会按「未改动」判 0，白烧掉一次尝试机会——
     而这条路是误操作最常撞上的。门槛放在接口层：出题侧与引擎测试用"直接往
     沙箱写文件"的方式模拟模型改动，它们不经过对话，引擎不该替它们下判断。
+    「这一轮」的口径在 chat.has_model_reply：只看 round_started_at 之后的
+    回复，进下一轮会复位——上一轮聊得再多，也不能替这一轮放行空校验。
     """
     run = runs.get_run(cfg, run_id)
     _require_live_profile(cfg, run, "产生新的校验结果")
     if not chat_mod.has_model_reply(run):
         raise errors.HarnessError(
             errors.E_BAD_REQUEST,
-            "模型还没有回复过任何一条消息：现在校验只会按「未改动」计分，白烧一次尝试机会。"
+            "模型这一轮还没有回复过任何消息：现在校验只会按「未改动」计分，白烧一次尝试机会。"
             "请先在内置对话里发送提示词，让模型动手。",
         )
     return runs.start_grade(cfg, run_id)
